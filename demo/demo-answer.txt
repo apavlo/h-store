@@ -1,0 +1,6443 @@
+####100####
+**Votes**
+Serena Ryder,21,1
+Anne Murray,19,1
+Alanis Morissette,17,1
+Adam Gontier,9,2
+Celine Dion,7,2
+Emilie Mover,18,3
+Sarah McLachlan,14,3
+Eileen McGann,13,3
+Ashley Leggat,12,3
+Avril Lavigne,11,3
+Nelly Furtado,8,3
+Nicholas Scribner,23,4
+Tamara Sandor,22,4
+Joni Mitchell,15,4
+Jim Bryson,4,4
+Justin Bieber,3,4
+Mae Moore,16,5
+Emily Haines,10,5
+Leonard Cohen,6,5
+Michael Buble,5,6
+Jann Arden,1,6
+Neil Young,25,7
+Shania Twain,24,7
+Sam Roberts,20,7
+Micah Barnes,2,7
+---------------------------
+**VoteCount**
+100,100
+---------------------------
+####200####
+**Votes**
+Anne Murray,19,4
+Emilie Mover,18,4
+Nelly Furtado,8,4
+Justin Bieber,3,4
+Nicholas Scribner,23,5
+Avril Lavigne,11,5
+Jim Bryson,4,5
+Sarah McLachlan,14,6
+Eileen McGann,13,6
+Alanis Morissette,17,7
+Shania Twain,24,8
+Tamara Sandor,22,8
+Sam Roberts,20,8
+Jann Arden,1,8
+Neil Young,25,9
+Ashley Leggat,12,9
+Micah Barnes,2,9
+Joni Mitchell,15,10
+Emily Haines,10,10
+Adam Gontier,9,10
+Celine Dion,7,10
+Michael Buble,5,10
+Mae Moore,16,11
+Serena Ryder,21,12
+Leonard Cohen,6,18
+---------------------------
+**VoteCount**
+200,200
+---------------------------
+####300####
+**Votes**
+Anne Murray,19,6
+Justin Bieber,3,6
+Emilie Mover,18,7
+Jim Bryson,4,7
+Nicholas Scribner,23,8
+Avril Lavigne,11,8
+Tamara Sandor,22,9
+Nelly Furtado,8,9
+Alanis Morissette,17,10
+Ashley Leggat,12,11
+Joni Mitchell,15,12
+Sarah McLachlan,14,12
+Eileen McGann,13,12
+Shania Twain,24,13
+Mae Moore,16,13
+Sam Roberts,20,14
+Jann Arden,1,14
+Serena Ryder,21,15
+Emily Haines,10,15
+Adam Gontier,9,15
+Celine Dion,7,15
+Neil Young,25,16
+Michael Buble,5,16
+Micah Barnes,2,16
+Leonard Cohen,6,21
+---------------------------
+**VoteCount**
+300,300
+---------------------------
+####400####
+**Votes**
+Emilie Mover,18,8
+Jim Bryson,4,9
+Nicholas Scribner,23,11
+Justin Bieber,3,12
+Avril Lavigne,11,13
+Nelly Furtado,8,13
+Tamara Sandor,22,14
+Anne Murray,19,14
+Joni Mitchell,15,14
+Alanis Morissette,17,15
+Sarah McLachlan,14,15
+Ashley Leggat,12,15
+Mae Moore,16,16
+Shania Twain,24,17
+Serena Ryder,21,17
+Sam Roberts,20,17
+Adam Gontier,9,17
+Eileen McGann,13,18
+Emily Haines,10,19
+Michael Buble,5,19
+Neil Young,25,20
+Celine Dion,7,20
+Micah Barnes,2,21
+Jann Arden,1,21
+Leonard Cohen,6,25
+---------------------------
+**VoteCount**
+400,400
+---------------------------
+####500####
+**Votes**
+Jim Bryson,4,13
+Alanis Morissette,17,15
+Joni Mitchell,15,16
+Tamara Sandor,22,17
+Anne Murray,19,17
+Avril Lavigne,11,17
+Nicholas Scribner,23,18
+Emilie Mover,18,18
+Serena Ryder,21,19
+Sarah McLachlan,14,19
+Ashley Leggat,12,19
+Nelly Furtado,8,19
+Justin Bieber,3,19
+Sam Roberts,20,20
+Mae Moore,16,20
+Emily Haines,10,20
+Neil Young,25,22
+Shania Twain,24,22
+Adam Gontier,9,22
+Celine Dion,7,22
+Eileen McGann,13,24
+Michael Buble,5,25
+Jann Arden,1,25
+Leonard Cohen,6,26
+Micah Barnes,2,26
+---------------------------
+**VoteCount**
+500,500
+---------------------------
+####600####
+**Votes**
+Tamara Sandor,22,19
+Alanis Morissette,17,19
+Jim Bryson,4,19
+Nelly Furtado,8,20
+Justin Bieber,3,20
+Nicholas Scribner,23,21
+Sarah McLachlan,14,21
+Ashley Leggat,12,21
+Sam Roberts,20,22
+Anne Murray,19,22
+Emily Haines,10,22
+Mae Moore,16,23
+Joni Mitchell,15,24
+Avril Lavigne,11,24
+Serena Ryder,21,25
+Emilie Mover,18,25
+Jann Arden,1,25
+Neil Young,25,26
+Eileen McGann,13,26
+Celine Dion,7,26
+Shania Twain,24,27
+Adam Gontier,9,28
+Michael Buble,5,29
+Leonard Cohen,6,30
+Micah Barnes,2,36
+---------------------------
+**VoteCount**
+600,600
+---------------------------
+####700####
+**Votes**
+Nelly Furtado,8,22
+Nicholas Scribner,23,23
+Tamara Sandor,22,23
+Ashley Leggat,12,24
+Sam Roberts,20,25
+Anne Murray,19,25
+Sarah McLachlan,14,25
+Jann Arden,1,25
+Emilie Mover,18,26
+Mae Moore,16,26
+Jim Bryson,4,26
+Avril Lavigne,11,27
+Serena Ryder,21,28
+Alanis Morissette,17,28
+Joni Mitchell,15,28
+Emily Haines,10,28
+Neil Young,25,29
+Shania Twain,24,31
+Michael Buble,5,31
+Justin Bieber,3,31
+Celine Dion,7,32
+Adam Gontier,9,33
+Leonard Cohen,6,33
+Eileen McGann,13,34
+Micah Barnes,2,37
+---------------------------
+**VoteCount**
+700,700
+---------------------------
+####800####
+**Votes**
+Nelly Furtado,8,25
+Jann Arden,1,25
+Tamara Sandor,22,27
+Ashley Leggat,12,27
+Mae Moore,16,28
+Nicholas Scribner,23,29
+Sam Roberts,20,29
+Emilie Mover,18,29
+Jim Bryson,4,29
+Alanis Morissette,17,30
+Sarah McLachlan,14,30
+Anne Murray,19,31
+Neil Young,25,32
+Serena Ryder,21,33
+Joni Mitchell,15,33
+Emily Haines,10,33
+Justin Bieber,3,33
+Shania Twain,24,35
+Avril Lavigne,11,35
+Adam Gontier,9,35
+Leonard Cohen,6,36
+Michael Buble,5,36
+Celine Dion,7,37
+Eileen McGann,13,41
+Micah Barnes,2,42
+---------------------------
+**VoteCount**
+800,800
+---------------------------
+####900####
+**Votes**
+Nelly Furtado,8,26
+Jann Arden,1,26
+Nicholas Scribner,23,32
+Tamara Sandor,22,32
+Sam Roberts,20,33
+Emilie Mover,18,33
+Neil Young,25,34
+Mae Moore,16,34
+Ashley Leggat,12,34
+Alanis Morissette,17,35
+Sarah McLachlan,14,35
+Justin Bieber,3,35
+Serena Ryder,21,36
+Joni Mitchell,15,36
+Jim Bryson,4,36
+Anne Murray,19,37
+Avril Lavigne,11,37
+Emily Haines,10,37
+Adam Gontier,9,38
+Shania Twain,24,39
+Celine Dion,7,40
+Leonard Cohen,6,41
+Michael Buble,5,42
+Micah Barnes,2,45
+Eileen McGann,13,47
+---------------------------
+**VoteCount**
+900,900
+---------------------------
+####1000####
+**Votes**
+Nelly Furtado,8,29
+Jann Arden,1,29
+Nicholas Scribner,23,33
+Tamara Sandor,22,35
+Sam Roberts,20,35
+Justin Bieber,3,36
+Jim Bryson,4,37
+Alanis Morissette,17,38
+Mae Moore,16,38
+Neil Young,25,39
+Joni Mitchell,15,39
+Ashley Leggat,12,39
+Emilie Mover,18,40
+Sarah McLachlan,14,40
+Serena Ryder,21,41
+Avril Lavigne,11,41
+Emily Haines,10,41
+Adam Gontier,9,42
+Leonard Cohen,6,44
+Shania Twain,24,45
+Celine Dion,7,46
+Michael Buble,5,46
+Anne Murray,19,47
+Micah Barnes,2,47
+Eileen McGann,13,53
+---------------------------
+**VoteCount**
+1000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Nelly Furtado,8,29
+Jann Arden,1,29
+Nicholas Scribner,23,33
+Tamara Sandor,22,35
+Sam Roberts,20,35
+Justin Bieber,3,36
+Jim Bryson,4,37
+Alanis Morissette,17,38
+Mae Moore,16,38
+Neil Young,25,39
+Joni Mitchell,15,39
+Ashley Leggat,12,39
+Emilie Mover,18,40
+Sarah McLachlan,14,40
+Serena Ryder,21,41
+Avril Lavigne,11,41
+Emily Haines,10,41
+Adam Gontier,9,42
+Leonard Cohen,6,44
+Shania Twain,24,45
+Celine Dion,7,46
+Michael Buble,5,46
+Anne Murray,19,47
+Micah Barnes,2,47
+Eileen McGann,13,53
+---------------------------
+**VoteCount**
+1000,0
+---------------------------
+####1100####
+**Votes**
+Nicholas Scribner,23,36
+Jann Arden,1,36
+Sam Roberts,20,38
+Justin Bieber,3,40
+Tamara Sandor,22,41
+Joni Mitchell,15,41
+Ashley Leggat,12,42
+Jim Bryson,4,42
+Serena Ryder,21,43
+Mae Moore,16,43
+Neil Young,25,44
+Avril Lavigne,11,44
+Alanis Morissette,17,45
+Sarah McLachlan,14,45
+Shania Twain,24,48
+Anne Murray,19,48
+Emilie Mover,18,48
+Emily Haines,10,48
+Adam Gontier,9,48
+Michael Buble,5,48
+Celine Dion,7,49
+Leonard Cohen,6,49
+Micah Barnes,2,50
+Eileen McGann,13,55
+---------------------------
+**VoteCount**
+1100,100
+---------------------------
+####1200####
+**Votes**
+Nicholas Scribner,23,43
+Ashley Leggat,12,43
+Jann Arden,1,43
+Joni Mitchell,15,44
+Justin Bieber,3,44
+Tamara Sandor,22,45
+Sam Roberts,20,45
+Jim Bryson,4,45
+Mae Moore,16,46
+Serena Ryder,21,47
+Sarah McLachlan,14,47
+Avril Lavigne,11,48
+Neil Young,25,49
+Alanis Morissette,17,49
+Anne Murray,19,51
+Celine Dion,7,51
+Leonard Cohen,6,52
+Michael Buble,5,52
+Shania Twain,24,53
+Emilie Mover,18,53
+Micah Barnes,2,53
+Adam Gontier,9,54
+Emily Haines,10,56
+Eileen McGann,13,58
+---------------------------
+**VoteCount**
+1200,200
+---------------------------
+####1300####
+**Votes**
+Ashley Leggat,12,46
+Jann Arden,1,46
+Nicholas Scribner,23,47
+Joni Mitchell,15,47
+Sam Roberts,20,48
+Mae Moore,16,48
+Jim Bryson,4,48
+Tamara Sandor,22,50
+Justin Bieber,3,50
+Alanis Morissette,17,52
+Sarah McLachlan,14,52
+Serena Ryder,21,53
+Avril Lavigne,11,53
+Neil Young,25,54
+Shania Twain,24,54
+Anne Murray,19,54
+Celine Dion,7,54
+Emilie Mover,18,57
+Eileen McGann,13,58
+Michael Buble,5,58
+Micah Barnes,2,58
+Emily Haines,10,61
+Leonard Cohen,6,61
+Adam Gontier,9,62
+---------------------------
+**VoteCount**
+1300,300
+---------------------------
+####1400####
+**Votes**
+Joni Mitchell,15,48
+Jann Arden,1,48
+Ashley Leggat,12,49
+Mae Moore,16,50
+Alanis Morissette,17,53
+Justin Bieber,3,53
+Nicholas Scribner,23,54
+Tamara Sandor,22,55
+Serena Ryder,21,55
+Sarah McLachlan,14,55
+Jim Bryson,4,55
+Anne Murray,19,56
+Shania Twain,24,57
+Sam Roberts,20,58
+Avril Lavigne,11,58
+Emilie Mover,18,59
+Celine Dion,7,59
+Neil Young,25,61
+Michael Buble,5,61
+Micah Barnes,2,62
+Emily Haines,10,63
+Leonard Cohen,6,66
+Eileen McGann,13,67
+Adam Gontier,9,69
+---------------------------
+**VoteCount**
+1400,400
+---------------------------
+####1500####
+**Votes**
+Joni Mitchell,15,50
+Jann Arden,1,50
+Alanis Morissette,17,56
+Mae Moore,16,56
+Ashley Leggat,12,56
+Shania Twain,24,58
+Nicholas Scribner,23,58
+Avril Lavigne,11,58
+Emilie Mover,18,59
+Serena Ryder,21,60
+Jim Bryson,4,60
+Justin Bieber,3,60
+Tamara Sandor,22,62
+Sam Roberts,20,62
+Celine Dion,7,62
+Anne Murray,19,63
+Sarah McLachlan,14,63
+Emily Haines,10,64
+Michael Buble,5,65
+Neil Young,25,67
+Micah Barnes,2,67
+Adam Gontier,9,71
+Eileen McGann,13,72
+Leonard Cohen,6,72
+---------------------------
+**VoteCount**
+1500,500
+---------------------------
+####1600####
+**Votes**
+Joni Mitchell,15,53
+Jann Arden,1,53
+Mae Moore,16,57
+Ashley Leggat,12,59
+Avril Lavigne,11,59
+Alanis Morissette,17,61
+Shania Twain,24,62
+Nicholas Scribner,23,62
+Emilie Mover,18,64
+Jim Bryson,4,64
+Tamara Sandor,22,65
+Justin Bieber,3,65
+Serena Ryder,21,66
+Celine Dion,7,66
+Sam Roberts,20,68
+Anne Murray,19,69
+Neil Young,25,70
+Sarah McLachlan,14,70
+Emily Haines,10,70
+Michael Buble,5,70
+Micah Barnes,2,73
+Eileen McGann,13,74
+Adam Gontier,9,75
+Leonard Cohen,6,76
+---------------------------
+**VoteCount**
+1600,600
+---------------------------
+####1700####
+**Votes**
+Joni Mitchell,15,55
+Jann Arden,1,55
+Mae Moore,16,61
+Ashley Leggat,12,62
+Avril Lavigne,11,64
+Shania Twain,24,65
+Alanis Morissette,17,65
+Justin Bieber,3,68
+Nicholas Scribner,23,69
+Serena Ryder,21,69
+Emilie Mover,18,69
+Michael Buble,5,70
+Tamara Sandor,22,71
+Celine Dion,7,71
+Jim Bryson,4,71
+Anne Murray,19,72
+Neil Young,25,73
+Emily Haines,10,73
+Sam Roberts,20,76
+Sarah McLachlan,14,76
+Eileen McGann,13,77
+Adam Gontier,9,78
+Micah Barnes,2,80
+Leonard Cohen,6,81
+---------------------------
+**VoteCount**
+1700,700
+---------------------------
+####1800####
+**Votes**
+Joni Mitchell,15,64
+Jann Arden,1,64
+Mae Moore,16,65
+Shania Twain,24,66
+Ashley Leggat,12,66
+Alanis Morissette,17,67
+Nicholas Scribner,23,71
+Emilie Mover,18,71
+Avril Lavigne,11,71
+Tamara Sandor,22,72
+Serena Ryder,21,72
+Justin Bieber,3,73
+Celine Dion,7,74
+Jim Bryson,4,74
+Neil Young,25,77
+Anne Murray,19,77
+Michael Buble,5,77
+Emily Haines,10,78
+Sam Roberts,20,79
+Sarah McLachlan,14,79
+Eileen McGann,13,80
+Adam Gontier,9,80
+Micah Barnes,2,86
+Leonard Cohen,6,88
+---------------------------
+**VoteCount**
+1800,800
+---------------------------
+####1900####
+**Votes**
+Mae Moore,16,68
+Joni Mitchell,15,68
+Jann Arden,1,68
+Shania Twain,24,69
+Nicholas Scribner,23,73
+Ashley Leggat,12,73
+Emilie Mover,18,74
+Alanis Morissette,17,74
+Avril Lavigne,11,74
+Serena Ryder,21,75
+Justin Bieber,3,76
+Celine Dion,7,78
+Neil Young,25,79
+Tamara Sandor,22,79
+Jim Bryson,4,79
+Michael Buble,5,81
+Anne Murray,19,82
+Emily Haines,10,82
+Sarah McLachlan,14,84
+Sam Roberts,20,85
+Eileen McGann,13,85
+Adam Gontier,9,86
+Micah Barnes,2,88
+Leonard Cohen,6,91
+---------------------------
+**VoteCount**
+1900,900
+---------------------------
+####2000####
+**Votes**
+Joni Mitchell,15,69
+Jann Arden,1,69
+Shania Twain,24,71
+Mae Moore,16,76
+Emilie Mover,18,77
+Alanis Morissette,17,77
+Ashley Leggat,12,77
+Nicholas Scribner,23,78
+Serena Ryder,21,79
+Celine Dion,7,80
+Justin Bieber,3,80
+Neil Young,25,81
+Avril Lavigne,11,81
+Emily Haines,10,84
+Tamara Sandor,22,85
+Michael Buble,5,85
+Jim Bryson,4,85
+Anne Murray,19,86
+Eileen McGann,13,87
+Adam Gontier,9,90
+Sarah McLachlan,14,91
+Sam Roberts,20,93
+Leonard Cohen,6,95
+Micah Barnes,2,95
+---------------------------
+**VoteCount**
+2000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Joni Mitchell,15,69
+Jann Arden,1,69
+Shania Twain,24,71
+Mae Moore,16,76
+Emilie Mover,18,77
+Alanis Morissette,17,77
+Ashley Leggat,12,77
+Nicholas Scribner,23,78
+Serena Ryder,21,79
+Celine Dion,7,80
+Justin Bieber,3,80
+Neil Young,25,81
+Avril Lavigne,11,81
+Emily Haines,10,84
+Tamara Sandor,22,85
+Michael Buble,5,85
+Jim Bryson,4,85
+Anne Murray,19,86
+Eileen McGann,13,87
+Adam Gontier,9,90
+Sarah McLachlan,14,91
+Sam Roberts,20,93
+Leonard Cohen,6,95
+Micah Barnes,2,95
+---------------------------
+**VoteCount**
+2000,0
+---------------------------
+####2100####
+**Votes**
+Shania Twain,24,75
+Jann Arden,1,75
+Mae Moore,16,77
+Alanis Morissette,17,80
+Emilie Mover,18,81
+Ashley Leggat,12,81
+Avril Lavigne,11,82
+Celine Dion,7,84
+Serena Ryder,21,85
+Nicholas Scribner,23,86
+Neil Young,25,87
+Emily Haines,10,87
+Michael Buble,5,87
+Anne Murray,19,89
+Justin Bieber,3,89
+Eileen McGann,13,90
+Jim Bryson,4,90
+Tamara Sandor,22,93
+Adam Gontier,9,94
+Sam Roberts,20,97
+Sarah McLachlan,14,97
+Leonard Cohen,6,98
+Micah Barnes,2,98
+---------------------------
+**VoteCount**
+2100,100
+---------------------------
+####2200####
+**Votes**
+Shania Twain,24,78
+Jann Arden,1,78
+Mae Moore,16,80
+Ashley Leggat,12,83
+Alanis Morissette,17,85
+Emilie Mover,18,87
+Avril Lavigne,11,87
+Celine Dion,7,88
+Serena Ryder,21,89
+Emily Haines,10,90
+Nicholas Scribner,23,91
+Anne Murray,19,93
+Neil Young,25,94
+Eileen McGann,13,94
+Tamara Sandor,22,95
+Jim Bryson,4,95
+Justin Bieber,3,95
+Michael Buble,5,96
+Sarah McLachlan,14,99
+Sam Roberts,20,100
+Adam Gontier,9,101
+Leonard Cohen,6,101
+Micah Barnes,2,103
+---------------------------
+**VoteCount**
+2200,200
+---------------------------
+####2300####
+**Votes**
+Shania Twain,24,82
+Mae Moore,16,82
+Jann Arden,1,82
+Ashley Leggat,12,86
+Alanis Morissette,17,90
+Avril Lavigne,11,90
+Serena Ryder,21,92
+Emilie Mover,18,93
+Emily Haines,10,93
+Celine Dion,7,94
+Nicholas Scribner,23,95
+Anne Murray,19,95
+Neil Young,25,98
+Tamara Sandor,22,98
+Eileen McGann,13,98
+Jim Bryson,4,98
+Justin Bieber,3,99
+Michael Buble,5,101
+Sarah McLachlan,14,102
+Sam Roberts,20,104
+Adam Gontier,9,109
+Leonard Cohen,6,110
+Micah Barnes,2,111
+---------------------------
+**VoteCount**
+2300,300
+---------------------------
+####2400####
+**Votes**
+Shania Twain,24,84
+Jann Arden,1,84
+Mae Moore,16,85
+Ashley Leggat,12,92
+Emilie Mover,18,94
+Avril Lavigne,11,95
+Alanis Morissette,17,96
+Serena Ryder,21,97
+Anne Murray,19,98
+Celine Dion,7,98
+Nicholas Scribner,23,99
+Emily Haines,10,99
+Jim Bryson,4,102
+Neil Young,25,103
+Eileen McGann,13,103
+Michael Buble,5,103
+Tamara Sandor,22,105
+Sam Roberts,20,106
+Justin Bieber,3,106
+Sarah McLachlan,14,110
+Adam Gontier,9,111
+Leonard Cohen,6,116
+Micah Barnes,2,116
+---------------------------
+**VoteCount**
+2400,400
+---------------------------
+####2500####
+**Votes**
+Shania Twain,24,87
+Jann Arden,1,87
+Mae Moore,16,92
+Ashley Leggat,12,95
+Emilie Mover,18,97
+Avril Lavigne,11,97
+Serena Ryder,21,101
+Alanis Morissette,17,101
+Celine Dion,7,102
+Emily Haines,10,104
+Nicholas Scribner,23,105
+Neil Young,25,106
+Anne Murray,19,106
+Eileen McGann,13,106
+Michael Buble,5,106
+Tamara Sandor,22,108
+Jim Bryson,4,108
+Justin Bieber,3,109
+Sam Roberts,20,111
+Adam Gontier,9,114
+Sarah McLachlan,14,119
+Micah Barnes,2,120
+Leonard Cohen,6,121
+---------------------------
+**VoteCount**
+2500,500
+---------------------------
+####2600####
+**Votes**
+Shania Twain,24,88
+Jann Arden,1,88
+Mae Moore,16,96
+Ashley Leggat,12,100
+Emilie Mover,18,102
+Serena Ryder,21,104
+Avril Lavigne,11,105
+Emily Haines,10,105
+Celine Dion,7,106
+Alanis Morissette,17,108
+Nicholas Scribner,23,109
+Jim Bryson,4,109
+Neil Young,25,110
+Anne Murray,19,111
+Michael Buble,5,111
+Justin Bieber,3,111
+Tamara Sandor,22,113
+Sam Roberts,20,113
+Adam Gontier,9,116
+Eileen McGann,13,117
+Sarah McLachlan,14,124
+Leonard Cohen,6,125
+Micah Barnes,2,131
+---------------------------
+**VoteCount**
+2600,600
+---------------------------
+####2700####
+**Votes**
+Shania Twain,24,95
+Jann Arden,1,95
+Mae Moore,16,100
+Ashley Leggat,12,103
+Emilie Mover,18,105
+Avril Lavigne,11,106
+Celine Dion,7,107
+Emily Haines,10,108
+Alanis Morissette,17,109
+Serena Ryder,21,110
+Jim Bryson,4,114
+Neil Young,25,115
+Anne Murray,19,115
+Justin Bieber,3,115
+Nicholas Scribner,23,116
+Michael Buble,5,117
+Tamara Sandor,22,118
+Sam Roberts,20,118
+Eileen McGann,13,121
+Adam Gontier,9,121
+Sarah McLachlan,14,128
+Leonard Cohen,6,130
+Micah Barnes,2,136
+---------------------------
+**VoteCount**
+2700,700
+---------------------------
+####2800####
+**Votes**
+Mae Moore,16,101
+Jann Arden,1,101
+Shania Twain,24,102
+Ashley Leggat,12,106
+Celine Dion,7,110
+Serena Ryder,21,111
+Emilie Mover,18,111
+Avril Lavigne,11,111
+Alanis Morissette,17,112
+Emily Haines,10,113
+Jim Bryson,4,118
+Nicholas Scribner,23,119
+Anne Murray,19,119
+Neil Young,25,120
+Justin Bieber,3,120
+Tamara Sandor,22,121
+Michael Buble,5,122
+Eileen McGann,13,124
+Sam Roberts,20,125
+Adam Gontier,9,126
+Sarah McLachlan,14,134
+Leonard Cohen,6,136
+Micah Barnes,2,140
+---------------------------
+**VoteCount**
+2800,800
+---------------------------
+####2900####
+**Votes**
+Mae Moore,16,106
+Jann Arden,1,106
+Ashley Leggat,12,109
+Shania Twain,24,111
+Emilie Mover,18,113
+Celine Dion,7,113
+Serena Ryder,21,116
+Alanis Morissette,17,117
+Emily Haines,10,118
+Avril Lavigne,11,119
+Nicholas Scribner,23,120
+Jim Bryson,4,121
+Tamara Sandor,22,122
+Justin Bieber,3,124
+Michael Buble,5,126
+Anne Murray,19,127
+Neil Young,25,128
+Sam Roberts,20,128
+Eileen McGann,13,130
+Adam Gontier,9,130
+Sarah McLachlan,14,136
+Leonard Cohen,6,139
+Micah Barnes,2,143
+---------------------------
+**VoteCount**
+2900,900
+---------------------------
+####3000####
+**Votes**
+Mae Moore,16,106
+Jann Arden,1,106
+Ashley Leggat,12,111
+Shania Twain,24,114
+Emilie Mover,18,116
+Celine Dion,7,118
+Serena Ryder,21,121
+Emily Haines,10,123
+Nicholas Scribner,23,124
+Jim Bryson,4,124
+Alanis Morissette,17,126
+Justin Bieber,3,126
+Tamara Sandor,22,127
+Avril Lavigne,11,128
+Sam Roberts,20,130
+Michael Buble,5,132
+Anne Murray,19,133
+Neil Young,25,134
+Adam Gontier,9,134
+Eileen McGann,13,137
+Sarah McLachlan,14,142
+Leonard Cohen,6,142
+Micah Barnes,2,148
+---------------------------
+**VoteCount**
+3000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Mae Moore,16,106
+Jann Arden,1,106
+Ashley Leggat,12,111
+Shania Twain,24,114
+Emilie Mover,18,116
+Celine Dion,7,118
+Serena Ryder,21,121
+Emily Haines,10,123
+Nicholas Scribner,23,124
+Jim Bryson,4,124
+Alanis Morissette,17,126
+Justin Bieber,3,126
+Tamara Sandor,22,127
+Avril Lavigne,11,128
+Sam Roberts,20,130
+Michael Buble,5,132
+Anne Murray,19,133
+Neil Young,25,134
+Adam Gontier,9,134
+Eileen McGann,13,137
+Sarah McLachlan,14,142
+Leonard Cohen,6,142
+Micah Barnes,2,148
+---------------------------
+**VoteCount**
+3000,0
+---------------------------
+####3100####
+**Votes**
+Ashley Leggat,12,118
+Jann Arden,1,118
+Shania Twain,24,119
+Emilie Mover,18,122
+Celine Dion,7,122
+Serena Ryder,21,123
+Emily Haines,10,126
+Jim Bryson,4,126
+Nicholas Scribner,23,130
+Justin Bieber,3,130
+Alanis Morissette,17,131
+Avril Lavigne,11,132
+Michael Buble,5,133
+Tamara Sandor,22,134
+Sam Roberts,20,134
+Anne Murray,19,137
+Eileen McGann,13,137
+Neil Young,25,139
+Adam Gontier,9,140
+Leonard Cohen,6,144
+Sarah McLachlan,14,147
+Micah Barnes,2,154
+---------------------------
+**VoteCount**
+3100,100
+---------------------------
+####3200####
+**Votes**
+Ashley Leggat,12,120
+Jann Arden,1,120
+Shania Twain,24,121
+Emilie Mover,18,125
+Celine Dion,7,127
+Serena Ryder,21,129
+Emily Haines,10,130
+Jim Bryson,4,130
+Justin Bieber,3,132
+Nicholas Scribner,23,135
+Avril Lavigne,11,135
+Alanis Morissette,17,138
+Michael Buble,5,138
+Sam Roberts,20,139
+Tamara Sandor,22,140
+Anne Murray,19,143
+Neil Young,25,145
+Eileen McGann,13,145
+Adam Gontier,9,147
+Sarah McLachlan,14,149
+Leonard Cohen,6,149
+Micah Barnes,2,159
+---------------------------
+**VoteCount**
+3200,200
+---------------------------
+####3300####
+**Votes**
+Ashley Leggat,12,124
+Jann Arden,1,124
+Shania Twain,24,128
+Emilie Mover,18,130
+Serena Ryder,21,131
+Emily Haines,10,132
+Jim Bryson,4,132
+Justin Bieber,3,132
+Celine Dion,7,134
+Nicholas Scribner,23,139
+Avril Lavigne,11,140
+Sam Roberts,20,142
+Alanis Morissette,17,142
+Michael Buble,5,147
+Tamara Sandor,22,148
+Eileen McGann,13,148
+Neil Young,25,149
+Anne Murray,19,150
+Adam Gontier,9,152
+Sarah McLachlan,14,153
+Leonard Cohen,6,154
+Micah Barnes,2,165
+---------------------------
+**VoteCount**
+3300,300
+---------------------------
+####3400####
+**Votes**
+Ashley Leggat,12,131
+Jann Arden,1,131
+Shania Twain,24,132
+Emilie Mover,18,133
+Jim Bryson,4,133
+Emily Haines,10,136
+Justin Bieber,3,136
+Serena Ryder,21,137
+Celine Dion,7,139
+Nicholas Scribner,23,142
+Avril Lavigne,11,143
+Alanis Morissette,17,145
+Sam Roberts,20,149
+Tamara Sandor,22,151
+Eileen McGann,13,151
+Neil Young,25,154
+Michael Buble,5,154
+Sarah McLachlan,14,155
+Adam Gontier,9,157
+Anne Murray,19,159
+Leonard Cohen,6,159
+Micah Barnes,2,169
+---------------------------
+**VoteCount**
+3400,400
+---------------------------
+####3500####
+**Votes**
+Shania Twain,24,135
+Jann Arden,1,135
+Ashley Leggat,12,137
+Emilie Mover,18,140
+Celine Dion,7,140
+Serena Ryder,21,141
+Jim Bryson,4,141
+Nicholas Scribner,23,143
+Emily Haines,10,143
+Justin Bieber,3,145
+Alanis Morissette,17,147
+Avril Lavigne,11,147
+Sam Roberts,20,153
+Eileen McGann,13,154
+Tamara Sandor,22,155
+Neil Young,25,158
+Sarah McLachlan,14,159
+Adam Gontier,9,159
+Michael Buble,5,159
+Anne Murray,19,164
+Leonard Cohen,6,168
+Micah Barnes,2,173
+---------------------------
+**VoteCount**
+3500,500
+---------------------------
+####3600####
+**Votes**
+Ashley Leggat,12,140
+Jann Arden,1,140
+Shania Twain,24,141
+Emilie Mover,18,141
+Nicholas Scribner,23,146
+Celine Dion,7,146
+Serena Ryder,21,147
+Emily Haines,10,147
+Jim Bryson,4,147
+Justin Bieber,3,148
+Avril Lavigne,11,150
+Alanis Morissette,17,152
+Sam Roberts,20,157
+Tamara Sandor,22,161
+Eileen McGann,13,161
+Adam Gontier,9,162
+Michael Buble,5,162
+Neil Young,25,163
+Anne Murray,19,165
+Sarah McLachlan,14,167
+Leonard Cohen,6,175
+Micah Barnes,2,178
+---------------------------
+**VoteCount**
+3600,600
+---------------------------
+####3700####
+**Votes**
+Ashley Leggat,12,145
+Jann Arden,1,145
+Shania Twain,24,146
+Emilie Mover,18,148
+Jim Bryson,4,148
+Serena Ryder,21,149
+Nicholas Scribner,23,150
+Emily Haines,10,152
+Celine Dion,7,152
+Justin Bieber,3,152
+Alanis Morissette,17,156
+Avril Lavigne,11,156
+Sam Roberts,20,164
+Eileen McGann,13,165
+Adam Gontier,9,165
+Anne Murray,19,167
+Michael Buble,5,167
+Neil Young,25,168
+Tamara Sandor,22,170
+Sarah McLachlan,14,171
+Leonard Cohen,6,177
+Micah Barnes,2,183
+---------------------------
+**VoteCount**
+3700,700
+---------------------------
+####3800####
+**Votes**
+Ashley Leggat,12,146
+Jann Arden,1,146
+Nicholas Scribner,23,151
+Shania Twain,24,153
+Serena Ryder,21,153
+Emilie Mover,18,153
+Jim Bryson,4,153
+Emily Haines,10,157
+Celine Dion,7,158
+Justin Bieber,3,159
+Alanis Morissette,17,161
+Avril Lavigne,11,164
+Sam Roberts,20,165
+Eileen McGann,13,169
+Neil Young,25,170
+Anne Murray,19,172
+Adam Gontier,9,173
+Michael Buble,5,174
+Tamara Sandor,22,175
+Leonard Cohen,6,178
+Sarah McLachlan,14,179
+Micah Barnes,2,187
+---------------------------
+**VoteCount**
+3800,800
+---------------------------
+####3900####
+**Votes**
+Ashley Leggat,12,151
+Jann Arden,1,151
+Nicholas Scribner,23,155
+Shania Twain,24,158
+Serena Ryder,21,158
+Emilie Mover,18,158
+Jim Bryson,4,160
+Emily Haines,10,161
+Celine Dion,7,163
+Avril Lavigne,11,165
+Justin Bieber,3,165
+Alanis Morissette,17,166
+Sam Roberts,20,169
+Neil Young,25,171
+Eileen McGann,13,172
+Anne Murray,19,174
+Tamara Sandor,22,177
+Michael Buble,5,177
+Adam Gontier,9,179
+Leonard Cohen,6,183
+Sarah McLachlan,14,186
+Micah Barnes,2,197
+---------------------------
+**VoteCount**
+3900,900
+---------------------------
+####4000####
+**Votes**
+Ashley Leggat,12,156
+Jann Arden,1,156
+Nicholas Scribner,23,160
+Emilie Mover,18,160
+Serena Ryder,21,161
+Shania Twain,24,163
+Emily Haines,10,164
+Jim Bryson,4,164
+Celine Dion,7,168
+Justin Bieber,3,168
+Avril Lavigne,11,169
+Alanis Morissette,17,171
+Sam Roberts,20,174
+Neil Young,25,175
+Anne Murray,19,177
+Eileen McGann,13,178
+Tamara Sandor,22,182
+Leonard Cohen,6,184
+Michael Buble,5,184
+Sarah McLachlan,14,188
+Adam Gontier,9,189
+Micah Barnes,2,205
+---------------------------
+**VoteCount**
+4000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Ashley Leggat,12,156
+Jann Arden,1,156
+Nicholas Scribner,23,160
+Emilie Mover,18,160
+Serena Ryder,21,161
+Shania Twain,24,163
+Emily Haines,10,164
+Jim Bryson,4,164
+Celine Dion,7,168
+Justin Bieber,3,168
+Avril Lavigne,11,169
+Alanis Morissette,17,171
+Sam Roberts,20,174
+Neil Young,25,175
+Anne Murray,19,177
+Eileen McGann,13,178
+Tamara Sandor,22,182
+Leonard Cohen,6,184
+Michael Buble,5,184
+Sarah McLachlan,14,188
+Adam Gontier,9,189
+Micah Barnes,2,205
+---------------------------
+**VoteCount**
+4000,0
+---------------------------
+####4100####
+**Votes**
+Nicholas Scribner,23,161
+Jann Arden,1,161
+Emilie Mover,18,163
+Serena Ryder,21,168
+Emily Haines,10,168
+Jim Bryson,4,170
+Shania Twain,24,171
+Celine Dion,7,173
+Avril Lavigne,11,174
+Alanis Morissette,17,175
+Sam Roberts,20,177
+Justin Bieber,3,177
+Anne Murray,19,178
+Neil Young,25,179
+Eileen McGann,13,183
+Leonard Cohen,6,188
+Tamara Sandor,22,190
+Sarah McLachlan,14,191
+Adam Gontier,9,192
+Michael Buble,5,192
+Micah Barnes,2,209
+---------------------------
+**VoteCount**
+4100,100
+---------------------------
+####4200####
+**Votes**
+Jann Arden,1,165
+Emilie Mover,18,166
+Nicholas Scribner,23,167
+Serena Ryder,21,172
+Emily Haines,10,172
+Jim Bryson,4,173
+Celine Dion,7,177
+Shania Twain,24,178
+Alanis Morissette,17,180
+Anne Murray,19,181
+Justin Bieber,3,181
+Avril Lavigne,11,183
+Sam Roberts,20,186
+Eileen McGann,13,186
+Neil Young,25,190
+Leonard Cohen,6,190
+Sarah McLachlan,14,193
+Tamara Sandor,22,194
+Michael Buble,5,194
+Adam Gontier,9,197
+Micah Barnes,2,215
+---------------------------
+**VoteCount**
+4200,200
+---------------------------
+####4300####
+**Votes**
+Nicholas Scribner,23,172
+Emilie Mover,18,172
+Jann Arden,1,172
+Serena Ryder,21,176
+Emily Haines,10,176
+Jim Bryson,4,178
+Shania Twain,24,182
+Celine Dion,7,182
+Anne Murray,19,186
+Alanis Morissette,17,186
+Avril Lavigne,11,186
+Justin Bieber,3,186
+Eileen McGann,13,188
+Sam Roberts,20,190
+Leonard Cohen,6,192
+Neil Young,25,195
+Sarah McLachlan,14,197
+Tamara Sandor,22,200
+Michael Buble,5,201
+Adam Gontier,9,202
+Micah Barnes,2,221
+---------------------------
+**VoteCount**
+4300,300
+---------------------------
+####4400####
+**Votes**
+Emilie Mover,18,175
+Jann Arden,1,175
+Nicholas Scribner,23,176
+Serena Ryder,21,183
+Emily Haines,10,184
+Shania Twain,24,185
+Celine Dion,7,185
+Jim Bryson,4,187
+Avril Lavigne,11,190
+Justin Bieber,3,190
+Anne Murray,19,191
+Alanis Morissette,17,191
+Sam Roberts,20,194
+Eileen McGann,13,195
+Leonard Cohen,6,196
+Neil Young,25,201
+Sarah McLachlan,14,201
+Michael Buble,5,202
+Tamara Sandor,22,206
+Adam Gontier,9,210
+Micah Barnes,2,223
+---------------------------
+**VoteCount**
+4400,400
+---------------------------
+####4500####
+**Votes**
+Emilie Mover,18,177
+Jann Arden,1,177
+Nicholas Scribner,23,179
+Shania Twain,24,185
+Serena Ryder,21,190
+Emily Haines,10,190
+Celine Dion,7,191
+Jim Bryson,4,193
+Avril Lavigne,11,195
+Justin Bieber,3,195
+Anne Murray,19,196
+Eileen McGann,13,199
+Sam Roberts,20,200
+Leonard Cohen,6,200
+Alanis Morissette,17,201
+Neil Young,25,206
+Sarah McLachlan,14,206
+Michael Buble,5,206
+Tamara Sandor,22,212
+Adam Gontier,9,213
+Micah Barnes,2,229
+---------------------------
+**VoteCount**
+4500,500
+---------------------------
+####4600####
+**Votes**
+Emilie Mover,18,182
+Jann Arden,1,182
+Nicholas Scribner,23,183
+Shania Twain,24,186
+Emily Haines,10,193
+Celine Dion,7,194
+Serena Ryder,21,196
+Anne Murray,19,198
+Jim Bryson,4,199
+Justin Bieber,3,200
+Avril Lavigne,11,201
+Eileen McGann,13,203
+Alanis Morissette,17,204
+Leonard Cohen,6,204
+Sam Roberts,20,207
+Michael Buble,5,210
+Neil Young,25,212
+Sarah McLachlan,14,213
+Tamara Sandor,22,216
+Adam Gontier,9,221
+Micah Barnes,2,236
+---------------------------
+**VoteCount**
+4600,600
+---------------------------
+####4700####
+**Votes**
+Nicholas Scribner,23,189
+Emilie Mover,18,189
+Jann Arden,1,189
+Shania Twain,24,190
+Emily Haines,10,196
+Celine Dion,7,198
+Serena Ryder,21,201
+Avril Lavigne,11,202
+Jim Bryson,4,202
+Anne Murray,19,203
+Eileen McGann,13,206
+Justin Bieber,3,208
+Alanis Morissette,17,209
+Leonard Cohen,6,209
+Sam Roberts,20,211
+Sarah McLachlan,14,217
+Michael Buble,5,218
+Neil Young,25,219
+Tamara Sandor,22,220
+Adam Gontier,9,225
+Micah Barnes,2,239
+---------------------------
+**VoteCount**
+4700,700
+---------------------------
+####4800####
+**Votes**
+Shania Twain,24,192
+Jann Arden,1,192
+Nicholas Scribner,23,194
+Emilie Mover,18,195
+Emily Haines,10,202
+Celine Dion,7,203
+Jim Bryson,4,203
+Anne Murray,19,208
+Eileen McGann,13,209
+Serena Ryder,21,210
+Sam Roberts,20,212
+Justin Bieber,3,212
+Alanis Morissette,17,214
+Avril Lavigne,11,214
+Leonard Cohen,6,214
+Sarah McLachlan,14,222
+Michael Buble,5,222
+Neil Young,25,223
+Tamara Sandor,22,225
+Adam Gontier,9,231
+Micah Barnes,2,243
+---------------------------
+**VoteCount**
+4800,800
+---------------------------
+####4900####
+**Votes**
+Shania Twain,24,197
+Jann Arden,1,197
+Emilie Mover,18,198
+Nicholas Scribner,23,200
+Emily Haines,10,202
+Jim Bryson,4,204
+Celine Dion,7,207
+Anne Murray,19,214
+Eileen McGann,13,215
+Sam Roberts,20,217
+Avril Lavigne,11,217
+Leonard Cohen,6,218
+Justin Bieber,3,218
+Serena Ryder,21,220
+Alanis Morissette,17,220
+Sarah McLachlan,14,226
+Neil Young,25,227
+Tamara Sandor,22,227
+Michael Buble,5,228
+Adam Gontier,9,234
+Micah Barnes,2,254
+---------------------------
+**VoteCount**
+4900,900
+---------------------------
+####5000####
+**Votes**
+Shania Twain,24,201
+Emilie Mover,18,201
+Jann Arden,1,201
+Nicholas Scribner,23,204
+Emily Haines,10,208
+Jim Bryson,4,211
+Celine Dion,7,215
+Anne Murray,19,217
+Eileen McGann,13,220
+Avril Lavigne,11,220
+Serena Ryder,21,222
+Sam Roberts,20,223
+Alanis Morissette,17,224
+Justin Bieber,3,224
+Leonard Cohen,6,226
+Tamara Sandor,22,229
+Michael Buble,5,229
+Sarah McLachlan,14,231
+Neil Young,25,233
+Adam Gontier,9,240
+Micah Barnes,2,261
+---------------------------
+**VoteCount**
+5000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Shania Twain,24,201
+Emilie Mover,18,201
+Jann Arden,1,201
+Nicholas Scribner,23,204
+Emily Haines,10,208
+Jim Bryson,4,211
+Celine Dion,7,215
+Anne Murray,19,217
+Eileen McGann,13,220
+Avril Lavigne,11,220
+Serena Ryder,21,222
+Sam Roberts,20,223
+Alanis Morissette,17,224
+Justin Bieber,3,224
+Leonard Cohen,6,226
+Tamara Sandor,22,229
+Michael Buble,5,229
+Sarah McLachlan,14,231
+Neil Young,25,233
+Adam Gontier,9,240
+Micah Barnes,2,261
+---------------------------
+**VoteCount**
+5000,0
+---------------------------
+####5100####
+**Votes**
+Emilie Mover,18,206
+Jann Arden,1,206
+Nicholas Scribner,23,213
+Emily Haines,10,215
+Jim Bryson,4,218
+Celine Dion,7,219
+Anne Murray,19,222
+Eileen McGann,13,222
+Avril Lavigne,11,223
+Sam Roberts,20,227
+Alanis Morissette,17,227
+Justin Bieber,3,227
+Serena Ryder,21,229
+Leonard Cohen,6,229
+Michael Buble,5,232
+Tamara Sandor,22,234
+Sarah McLachlan,14,238
+Neil Young,25,239
+Adam Gontier,9,246
+Micah Barnes,2,267
+---------------------------
+**VoteCount**
+5100,100
+---------------------------
+####5200####
+**Votes**
+Emilie Mover,18,214
+Jann Arden,1,214
+Emily Haines,10,217
+Nicholas Scribner,23,220
+Jim Bryson,4,221
+Celine Dion,7,223
+Eileen McGann,13,225
+Anne Murray,19,226
+Sam Roberts,20,230
+Avril Lavigne,11,232
+Leonard Cohen,6,232
+Justin Bieber,3,232
+Serena Ryder,21,233
+Alanis Morissette,17,236
+Michael Buble,5,238
+Tamara Sandor,22,239
+Neil Young,25,241
+Sarah McLachlan,14,242
+Adam Gontier,9,250
+Micah Barnes,2,274
+---------------------------
+**VoteCount**
+5200,200
+---------------------------
+####5300####
+**Votes**
+Emilie Mover,18,217
+Jann Arden,1,217
+Emily Haines,10,223
+Jim Bryson,4,223
+Nicholas Scribner,23,227
+Anne Murray,19,229
+Celine Dion,7,231
+Eileen McGann,13,232
+Justin Bieber,3,236
+Avril Lavigne,11,237
+Serena Ryder,21,238
+Sam Roberts,20,239
+Leonard Cohen,6,241
+Tamara Sandor,22,242
+Neil Young,25,243
+Alanis Morissette,17,243
+Michael Buble,5,243
+Sarah McLachlan,14,246
+Adam Gontier,9,254
+Micah Barnes,2,278
+---------------------------
+**VoteCount**
+5300,300
+---------------------------
+####5400####
+**Votes**
+Emilie Mover,18,221
+Jann Arden,1,221
+Jim Bryson,4,225
+Emily Haines,10,227
+Nicholas Scribner,23,229
+Anne Murray,19,235
+Celine Dion,7,236
+Serena Ryder,21,240
+Eileen McGann,13,240
+Justin Bieber,3,242
+Sam Roberts,20,244
+Neil Young,25,245
+Leonard Cohen,6,245
+Alanis Morissette,17,246
+Avril Lavigne,11,248
+Tamara Sandor,22,249
+Sarah McLachlan,14,252
+Michael Buble,5,253
+Adam Gontier,9,256
+Micah Barnes,2,285
+---------------------------
+**VoteCount**
+5400,400
+---------------------------
+####5500####
+**Votes**
+Emilie Mover,18,225
+Jann Arden,1,225
+Nicholas Scribner,23,231
+Emily Haines,10,231
+Jim Bryson,4,234
+Celine Dion,7,242
+Serena Ryder,21,243
+Anne Murray,19,243
+Alanis Morissette,17,248
+Eileen McGann,13,249
+Justin Bieber,3,249
+Sam Roberts,20,250
+Leonard Cohen,6,250
+Avril Lavigne,11,251
+Neil Young,25,253
+Sarah McLachlan,14,255
+Tamara Sandor,22,256
+Michael Buble,5,258
+Adam Gontier,9,259
+Micah Barnes,2,287
+---------------------------
+**VoteCount**
+5500,500
+---------------------------
+####5600####
+**Votes**
+Emilie Mover,18,228
+Jann Arden,1,228
+Nicholas Scribner,23,237
+Jim Bryson,4,237
+Emily Haines,10,238
+Anne Murray,19,248
+Serena Ryder,21,250
+Celine Dion,7,252
+Alanis Morissette,17,253
+Sam Roberts,20,254
+Eileen McGann,13,254
+Justin Bieber,3,254
+Leonard Cohen,6,255
+Neil Young,25,257
+Tamara Sandor,22,257
+Avril Lavigne,11,258
+Sarah McLachlan,14,261
+Adam Gontier,9,263
+Michael Buble,5,263
+Micah Barnes,2,292
+---------------------------
+**VoteCount**
+5600,600
+---------------------------
+####5700####
+**Votes**
+Emilie Mover,18,234
+Jann Arden,1,234
+Jim Bryson,4,238
+Emily Haines,10,240
+Nicholas Scribner,23,244
+Serena Ryder,21,254
+Anne Murray,19,256
+Eileen McGann,13,257
+Celine Dion,7,258
+Neil Young,25,259
+Sam Roberts,20,259
+Justin Bieber,3,259
+Alanis Morissette,17,260
+Avril Lavigne,11,260
+Leonard Cohen,6,261
+Adam Gontier,9,266
+Tamara Sandor,22,267
+Sarah McLachlan,14,267
+Michael Buble,5,268
+Micah Barnes,2,298
+---------------------------
+**VoteCount**
+5700,700
+---------------------------
+####5800####
+**Votes**
+Emilie Mover,18,236
+Jann Arden,1,236
+Emily Haines,10,247
+Jim Bryson,4,248
+Nicholas Scribner,23,252
+Celine Dion,7,259
+Anne Murray,19,260
+Neil Young,25,263
+Serena Ryder,21,263
+Alanis Morissette,17,263
+Sam Roberts,20,265
+Eileen McGann,13,265
+Leonard Cohen,6,265
+Justin Bieber,3,265
+Tamara Sandor,22,268
+Avril Lavigne,11,269
+Adam Gontier,9,269
+Sarah McLachlan,14,272
+Michael Buble,5,274
+Micah Barnes,2,300
+---------------------------
+**VoteCount**
+5800,800
+---------------------------
+####5900####
+**Votes**
+Emilie Mover,18,240
+Jann Arden,1,240
+Jim Bryson,4,252
+Emily Haines,10,256
+Celine Dion,7,260
+Nicholas Scribner,23,261
+Anne Murray,19,262
+Alanis Morissette,17,264
+Neil Young,25,268
+Sam Roberts,20,271
+Avril Lavigne,11,271
+Justin Bieber,3,271
+Serena Ryder,21,272
+Tamara Sandor,22,273
+Eileen McGann,13,273
+Leonard Cohen,6,273
+Adam Gontier,9,274
+Sarah McLachlan,14,278
+Michael Buble,5,280
+Micah Barnes,2,300
+---------------------------
+**VoteCount**
+5900,900
+---------------------------
+####6000####
+**Votes**
+Emilie Mover,18,244
+Jann Arden,1,244
+Jim Bryson,4,254
+Emily Haines,10,259
+Anne Murray,19,264
+Nicholas Scribner,23,268
+Alanis Morissette,17,270
+Neil Young,25,271
+Celine Dion,7,271
+Serena Ryder,21,274
+Justin Bieber,3,274
+Adam Gontier,9,276
+Tamara Sandor,22,277
+Sam Roberts,20,277
+Avril Lavigne,11,277
+Eileen McGann,13,280
+Leonard Cohen,6,280
+Michael Buble,5,284
+Sarah McLachlan,14,286
+Micah Barnes,2,309
+---------------------------
+**VoteCount**
+6000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Emilie Mover,18,244
+Jann Arden,1,244
+Jim Bryson,4,254
+Emily Haines,10,259
+Anne Murray,19,264
+Nicholas Scribner,23,268
+Alanis Morissette,17,270
+Neil Young,25,271
+Celine Dion,7,271
+Serena Ryder,21,274
+Justin Bieber,3,274
+Adam Gontier,9,276
+Tamara Sandor,22,277
+Sam Roberts,20,277
+Avril Lavigne,11,277
+Eileen McGann,13,280
+Leonard Cohen,6,280
+Michael Buble,5,284
+Sarah McLachlan,14,286
+Micah Barnes,2,309
+---------------------------
+**VoteCount**
+6000,0
+---------------------------
+####6100####
+**Votes**
+Jim Bryson,4,260
+Jann Arden,1,260
+Emily Haines,10,264
+Nicholas Scribner,23,273
+Anne Murray,19,273
+Alanis Morissette,17,273
+Celine Dion,7,275
+Neil Young,25,277
+Justin Bieber,3,278
+Serena Ryder,21,279
+Tamara Sandor,22,280
+Sam Roberts,20,280
+Avril Lavigne,11,280
+Leonard Cohen,6,283
+Eileen McGann,13,285
+Adam Gontier,9,285
+Sarah McLachlan,14,289
+Michael Buble,5,290
+Micah Barnes,2,311
+---------------------------
+**VoteCount**
+6100,100
+---------------------------
+####6200####
+**Votes**
+Jim Bryson,4,266
+Jann Arden,1,266
+Emily Haines,10,268
+Anne Murray,19,276
+Alanis Morissette,17,277
+Nicholas Scribner,23,280
+Serena Ryder,21,281
+Celine Dion,7,281
+Neil Young,25,285
+Sam Roberts,20,285
+Avril Lavigne,11,285
+Justin Bieber,3,286
+Tamara Sandor,22,287
+Adam Gontier,9,289
+Leonard Cohen,6,289
+Eileen McGann,13,290
+Michael Buble,5,292
+Sarah McLachlan,14,296
+Micah Barnes,2,316
+---------------------------
+**VoteCount**
+6200,200
+---------------------------
+####6300####
+**Votes**
+Jim Bryson,4,269
+Jann Arden,1,269
+Emily Haines,10,271
+Anne Murray,19,282
+Nicholas Scribner,23,283
+Celine Dion,7,284
+Alanis Morissette,17,285
+Sam Roberts,20,286
+Serena Ryder,21,288
+Neil Young,25,290
+Tamara Sandor,22,291
+Avril Lavigne,11,291
+Leonard Cohen,6,293
+Justin Bieber,3,294
+Michael Buble,5,297
+Eileen McGann,13,298
+Adam Gontier,9,299
+Sarah McLachlan,14,303
+Micah Barnes,2,322
+---------------------------
+**VoteCount**
+6300,300
+---------------------------
+####6400####
+**Votes**
+Jim Bryson,4,276
+Jann Arden,1,276
+Emily Haines,10,277
+Celine Dion,7,286
+Nicholas Scribner,23,287
+Anne Murray,19,287
+Sam Roberts,20,288
+Alanis Morissette,17,290
+Neil Young,25,292
+Serena Ryder,21,296
+Tamara Sandor,22,299
+Avril Lavigne,11,299
+Leonard Cohen,6,299
+Justin Bieber,3,299
+Adam Gontier,9,302
+Michael Buble,5,302
+Eileen McGann,13,303
+Sarah McLachlan,14,310
+Micah Barnes,2,327
+---------------------------
+**VoteCount**
+6400,400
+---------------------------
+####6500####
+**Votes**
+Jim Bryson,4,279
+Jann Arden,1,279
+Emily Haines,10,283
+Nicholas Scribner,23,290
+Sam Roberts,20,292
+Anne Murray,19,293
+Celine Dion,7,294
+Alanis Morissette,17,298
+Neil Young,25,300
+Serena Ryder,21,302
+Avril Lavigne,11,302
+Tamara Sandor,22,303
+Leonard Cohen,6,305
+Eileen McGann,13,306
+Adam Gontier,9,306
+Justin Bieber,3,308
+Michael Buble,5,311
+Sarah McLachlan,14,313
+Micah Barnes,2,331
+---------------------------
+**VoteCount**
+6500,500
+---------------------------
+####6600####
+**Votes**
+Jim Bryson,4,281
+Jann Arden,1,281
+Emily Haines,10,289
+Nicholas Scribner,23,294
+Sam Roberts,20,297
+Celine Dion,7,300
+Anne Murray,19,301
+Alanis Morissette,17,303
+Avril Lavigne,11,305
+Neil Young,25,306
+Tamara Sandor,22,306
+Serena Ryder,21,308
+Justin Bieber,3,311
+Adam Gontier,9,312
+Leonard Cohen,6,314
+Eileen McGann,13,315
+Michael Buble,5,316
+Sarah McLachlan,14,318
+Micah Barnes,2,338
+---------------------------
+**VoteCount**
+6600,600
+---------------------------
+####6700####
+**Votes**
+Jim Bryson,4,289
+Jann Arden,1,289
+Emily Haines,10,292
+Nicholas Scribner,23,299
+Celine Dion,7,301
+Sam Roberts,20,302
+Neil Young,25,306
+Anne Murray,19,309
+Alanis Morissette,17,309
+Avril Lavigne,11,309
+Tamara Sandor,22,310
+Serena Ryder,21,313
+Justin Bieber,3,314
+Adam Gontier,9,318
+Leonard Cohen,6,319
+Michael Buble,5,322
+Eileen McGann,13,324
+Sarah McLachlan,14,329
+Micah Barnes,2,341
+---------------------------
+**VoteCount**
+6700,700
+---------------------------
+####6800####
+**Votes**
+Emily Haines,10,293
+Jann Arden,1,293
+Jim Bryson,4,294
+Sam Roberts,20,306
+Nicholas Scribner,23,308
+Celine Dion,7,309
+Neil Young,25,315
+Anne Murray,19,315
+Tamara Sandor,22,316
+Serena Ryder,21,316
+Avril Lavigne,11,316
+Alanis Morissette,17,317
+Justin Bieber,3,317
+Adam Gontier,9,322
+Leonard Cohen,6,322
+Michael Buble,5,328
+Eileen McGann,13,329
+Sarah McLachlan,14,336
+Micah Barnes,2,343
+---------------------------
+**VoteCount**
+6800,800
+---------------------------
+####6900####
+**Votes**
+Emily Haines,10,297
+Jann Arden,1,297
+Jim Bryson,4,301
+Nicholas Scribner,23,311
+Sam Roberts,20,311
+Celine Dion,7,312
+Avril Lavigne,11,319
+Serena Ryder,21,321
+Alanis Morissette,17,321
+Tamara Sandor,22,322
+Anne Murray,19,322
+Justin Bieber,3,323
+Neil Young,25,326
+Adam Gontier,9,326
+Leonard Cohen,6,326
+Eileen McGann,13,332
+Michael Buble,5,336
+Sarah McLachlan,14,344
+Micah Barnes,2,348
+---------------------------
+**VoteCount**
+6900,900
+---------------------------
+####7000####
+**Votes**
+Emily Haines,10,300
+Jann Arden,1,300
+Jim Bryson,4,306
+Sam Roberts,20,317
+Nicholas Scribner,23,318
+Celine Dion,7,320
+Serena Ryder,21,323
+Avril Lavigne,11,324
+Anne Murray,19,328
+Neil Young,25,329
+Alanis Morissette,17,329
+Leonard Cohen,6,329
+Justin Bieber,3,329
+Tamara Sandor,22,332
+Adam Gontier,9,332
+Eileen McGann,13,339
+Michael Buble,5,339
+Sarah McLachlan,14,348
+Micah Barnes,2,353
+---------------------------
+**VoteCount**
+7000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Emily Haines,10,300
+Jann Arden,1,300
+Jim Bryson,4,306
+Sam Roberts,20,317
+Nicholas Scribner,23,318
+Celine Dion,7,320
+Serena Ryder,21,323
+Avril Lavigne,11,324
+Anne Murray,19,328
+Neil Young,25,329
+Alanis Morissette,17,329
+Leonard Cohen,6,329
+Justin Bieber,3,329
+Tamara Sandor,22,332
+Adam Gontier,9,332
+Eileen McGann,13,339
+Michael Buble,5,339
+Sarah McLachlan,14,348
+Micah Barnes,2,353
+---------------------------
+**VoteCount**
+7000,0
+---------------------------
+####7100####
+**Votes**
+Jim Bryson,4,312
+Jann Arden,1,312
+Nicholas Scribner,23,321
+Sam Roberts,20,321
+Celine Dion,7,323
+Serena Ryder,21,329
+Avril Lavigne,11,330
+Leonard Cohen,6,331
+Anne Murray,19,332
+Neil Young,25,335
+Alanis Morissette,17,335
+Adam Gontier,9,336
+Justin Bieber,3,336
+Tamara Sandor,22,338
+Eileen McGann,13,343
+Michael Buble,5,347
+Sarah McLachlan,14,354
+Micah Barnes,2,360
+---------------------------
+**VoteCount**
+7100,100
+---------------------------
+####7200####
+**Votes**
+Jim Bryson,4,316
+Jann Arden,1,316
+Sam Roberts,20,327
+Celine Dion,7,328
+Nicholas Scribner,23,330
+Serena Ryder,21,335
+Avril Lavigne,11,335
+Leonard Cohen,6,335
+Anne Murray,19,337
+Adam Gontier,9,339
+Neil Young,25,340
+Justin Bieber,3,342
+Alanis Morissette,17,344
+Tamara Sandor,22,345
+Eileen McGann,13,345
+Michael Buble,5,357
+Sarah McLachlan,14,358
+Micah Barnes,2,366
+---------------------------
+**VoteCount**
+7200,200
+---------------------------
+####7300####
+**Votes**
+Jim Bryson,4,320
+Jann Arden,1,320
+Nicholas Scribner,23,334
+Celine Dion,7,334
+Sam Roberts,20,335
+Avril Lavigne,11,339
+Leonard Cohen,6,340
+Serena Ryder,21,342
+Adam Gontier,9,343
+Anne Murray,19,344
+Neil Young,25,346
+Justin Bieber,3,346
+Tamara Sandor,22,349
+Alanis Morissette,17,352
+Eileen McGann,13,355
+Sarah McLachlan,14,362
+Michael Buble,5,362
+Micah Barnes,2,372
+---------------------------
+**VoteCount**
+7300,300
+---------------------------
+####7400####
+**Votes**
+Jim Bryson,4,328
+Jann Arden,1,328
+Sam Roberts,20,339
+Celine Dion,7,339
+Nicholas Scribner,23,341
+Avril Lavigne,11,344
+Serena Ryder,21,345
+Adam Gontier,9,347
+Leonard Cohen,6,347
+Neil Young,25,348
+Anne Murray,19,350
+Justin Bieber,3,352
+Tamara Sandor,22,356
+Alanis Morissette,17,356
+Eileen McGann,13,358
+Sarah McLachlan,14,366
+Michael Buble,5,368
+Micah Barnes,2,383
+---------------------------
+**VoteCount**
+7400,400
+---------------------------
+####7500####
+**Votes**
+Jim Bryson,4,330
+Jann Arden,1,330
+Sam Roberts,20,342
+Nicholas Scribner,23,346
+Celine Dion,7,346
+Serena Ryder,21,348
+Avril Lavigne,11,350
+Adam Gontier,9,353
+Neil Young,25,354
+Anne Murray,19,354
+Leonard Cohen,6,357
+Justin Bieber,3,361
+Alanis Morissette,17,364
+Eileen McGann,13,364
+Tamara Sandor,22,365
+Sarah McLachlan,14,370
+Michael Buble,5,371
+Micah Barnes,2,390
+---------------------------
+**VoteCount**
+7500,500
+---------------------------
+####7600####
+**Votes**
+Jim Bryson,4,336
+Jann Arden,1,336
+Sam Roberts,20,349
+Celine Dion,7,351
+Serena Ryder,21,352
+Nicholas Scribner,23,353
+Avril Lavigne,11,357
+Adam Gontier,9,359
+Neil Young,25,360
+Anne Murray,19,361
+Leonard Cohen,6,361
+Justin Bieber,3,362
+Alanis Morissette,17,368
+Eileen McGann,13,368
+Michael Buble,5,373
+Tamara Sandor,22,375
+Sarah McLachlan,14,379
+Micah Barnes,2,395
+---------------------------
+**VoteCount**
+7600,600
+---------------------------
+####7700####
+**Votes**
+Jim Bryson,4,344
+Jann Arden,1,344
+Sam Roberts,20,352
+Celine Dion,7,355
+Serena Ryder,21,358
+Nicholas Scribner,23,360
+Avril Lavigne,11,361
+Neil Young,25,363
+Justin Bieber,3,365
+Leonard Cohen,6,366
+Adam Gontier,9,367
+Eileen McGann,13,370
+Anne Murray,19,372
+Alanis Morissette,17,375
+Michael Buble,5,377
+Tamara Sandor,22,378
+Sarah McLachlan,14,388
+Micah Barnes,2,400
+---------------------------
+**VoteCount**
+7700,700
+---------------------------
+####7800####
+**Votes**
+Jim Bryson,4,354
+Jann Arden,1,354
+Celine Dion,7,358
+Sam Roberts,20,360
+Serena Ryder,21,362
+Avril Lavigne,11,363
+Nicholas Scribner,23,366
+Neil Young,25,367
+Justin Bieber,3,369
+Leonard Cohen,6,373
+Adam Gontier,9,374
+Eileen McGann,13,375
+Anne Murray,19,378
+Alanis Morissette,17,379
+Michael Buble,5,382
+Tamara Sandor,22,383
+Sarah McLachlan,14,391
+Micah Barnes,2,407
+---------------------------
+**VoteCount**
+7800,800
+---------------------------
+####7900####
+**Votes**
+Celine Dion,7,359
+Jim Bryson,4,359
+Jann Arden,1,359
+Sam Roberts,20,363
+Serena Ryder,21,365
+Avril Lavigne,11,371
+Nicholas Scribner,23,374
+Justin Bieber,3,375
+Neil Young,25,376
+Leonard Cohen,6,379
+Adam Gontier,9,380
+Anne Murray,19,381
+Eileen McGann,13,382
+Tamara Sandor,22,386
+Alanis Morissette,17,386
+Michael Buble,5,390
+Sarah McLachlan,14,397
+Micah Barnes,2,413
+---------------------------
+**VoteCount**
+7900,900
+---------------------------
+####8000####
+**Votes**
+Celine Dion,7,365
+Jim Bryson,4,365
+Jann Arden,1,365
+Sam Roberts,20,369
+Serena Ryder,21,371
+Avril Lavigne,11,378
+Justin Bieber,3,379
+Neil Young,25,380
+Leonard Cohen,6,381
+Nicholas Scribner,23,382
+Anne Murray,19,385
+Adam Gontier,9,386
+Eileen McGann,13,388
+Tamara Sandor,22,392
+Alanis Morissette,17,395
+Michael Buble,5,397
+Sarah McLachlan,14,401
+Micah Barnes,2,416
+---------------------------
+**VoteCount**
+8000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Celine Dion,7,365
+Jim Bryson,4,365
+Jann Arden,1,365
+Sam Roberts,20,369
+Serena Ryder,21,371
+Avril Lavigne,11,378
+Justin Bieber,3,379
+Neil Young,25,380
+Leonard Cohen,6,381
+Nicholas Scribner,23,382
+Anne Murray,19,385
+Adam Gontier,9,386
+Eileen McGann,13,388
+Tamara Sandor,22,392
+Alanis Morissette,17,395
+Michael Buble,5,397
+Sarah McLachlan,14,401
+Micah Barnes,2,416
+---------------------------
+**VoteCount**
+8000,0
+---------------------------
+####8100####
+**Votes**
+Jim Bryson,4,369
+Jann Arden,1,369
+Serena Ryder,21,378
+Sam Roberts,20,379
+Justin Bieber,3,382
+Leonard Cohen,6,384
+Avril Lavigne,11,386
+Nicholas Scribner,23,387
+Neil Young,25,389
+Anne Murray,19,389
+Adam Gontier,9,390
+Eileen McGann,13,397
+Tamara Sandor,22,398
+Michael Buble,5,401
+Alanis Morissette,17,402
+Sarah McLachlan,14,408
+Micah Barnes,2,422
+---------------------------
+**VoteCount**
+8100,100
+---------------------------
+####8200####
+**Votes**
+Jim Bryson,4,377
+Jann Arden,1,377
+Serena Ryder,21,380
+Sam Roberts,20,387
+Avril Lavigne,11,387
+Justin Bieber,3,387
+Nicholas Scribner,23,388
+Leonard Cohen,6,388
+Anne Murray,19,395
+Neil Young,25,396
+Adam Gontier,9,398
+Eileen McGann,13,401
+Tamara Sandor,22,404
+Alanis Morissette,17,405
+Michael Buble,5,409
+Sarah McLachlan,14,418
+Micah Barnes,2,433
+---------------------------
+**VoteCount**
+8200,200
+---------------------------
+####8300####
+**Votes**
+Serena Ryder,21,384
+Jann Arden,1,384
+Jim Bryson,4,388
+Avril Lavigne,11,390
+Justin Bieber,3,390
+Leonard Cohen,6,391
+Nicholas Scribner,23,394
+Sam Roberts,20,395
+Anne Murray,19,401
+Neil Young,25,402
+Adam Gontier,9,404
+Tamara Sandor,22,405
+Eileen McGann,13,408
+Alanis Morissette,17,411
+Michael Buble,5,414
+Sarah McLachlan,14,427
+Micah Barnes,2,442
+---------------------------
+**VoteCount**
+8300,300
+---------------------------
+####8400####
+**Votes**
+Serena Ryder,21,391
+Jann Arden,1,391
+Justin Bieber,3,393
+Avril Lavigne,11,394
+Jim Bryson,4,396
+Leonard Cohen,6,398
+Nicholas Scribner,23,399
+Sam Roberts,20,400
+Neil Young,25,403
+Tamara Sandor,22,411
+Anne Murray,19,412
+Eileen McGann,13,413
+Adam Gontier,9,415
+Alanis Morissette,17,416
+Michael Buble,5,417
+Sarah McLachlan,14,433
+Micah Barnes,2,448
+---------------------------
+**VoteCount**
+8400,400
+---------------------------
+####8500####
+**Votes**
+Justin Bieber,3,399
+Jann Arden,1,399
+Avril Lavigne,11,401
+Serena Ryder,21,402
+Jim Bryson,4,403
+Sam Roberts,20,404
+Leonard Cohen,6,404
+Nicholas Scribner,23,405
+Neil Young,25,411
+Tamara Sandor,22,413
+Anne Murray,19,416
+Eileen McGann,13,417
+Alanis Morissette,17,420
+Michael Buble,5,420
+Adam Gontier,9,423
+Sarah McLachlan,14,439
+Micah Barnes,2,454
+---------------------------
+**VoteCount**
+8500,500
+---------------------------
+####8600####
+**Votes**
+Avril Lavigne,11,404
+Jann Arden,1,404
+Serena Ryder,21,406
+Sam Roberts,20,407
+Jim Bryson,4,407
+Leonard Cohen,6,409
+Nicholas Scribner,23,410
+Justin Bieber,3,411
+Neil Young,25,415
+Anne Murray,19,423
+Tamara Sandor,22,425
+Alanis Morissette,17,426
+Eileen McGann,13,427
+Adam Gontier,9,428
+Michael Buble,5,428
+Sarah McLachlan,14,443
+Micah Barnes,2,457
+---------------------------
+**VoteCount**
+8600,600
+---------------------------
+####8700####
+**Votes**
+Jim Bryson,4,410
+Jann Arden,1,410
+Avril Lavigne,11,411
+Sam Roberts,20,413
+Serena Ryder,21,415
+Justin Bieber,3,415
+Nicholas Scribner,23,416
+Leonard Cohen,6,416
+Neil Young,25,421
+Anne Murray,19,429
+Tamara Sandor,22,430
+Eileen McGann,13,430
+Alanis Morissette,17,431
+Michael Buble,5,433
+Adam Gontier,9,434
+Sarah McLachlan,14,448
+Micah Barnes,2,468
+---------------------------
+**VoteCount**
+8700,700
+---------------------------
+####8800####
+**Votes**
+Serena Ryder,21,417
+Sam Roberts,20,417
+Avril Lavigne,11,417
+Jann Arden,1,417
+Leonard Cohen,6,420
+Jim Bryson,4,420
+Nicholas Scribner,23,422
+Justin Bieber,3,423
+Neil Young,25,428
+Eileen McGann,13,432
+Tamara Sandor,22,435
+Adam Gontier,9,436
+Anne Murray,19,437
+Alanis Morissette,17,440
+Michael Buble,5,443
+Sarah McLachlan,14,453
+Micah Barnes,2,473
+---------------------------
+**VoteCount**
+8800,800
+---------------------------
+####8900####
+**Votes**
+Avril Lavigne,11,420
+Jann Arden,1,420
+Sam Roberts,20,421
+Leonard Cohen,6,425
+Jim Bryson,4,428
+Nicholas Scribner,23,430
+Serena Ryder,21,430
+Justin Bieber,3,430
+Eileen McGann,13,435
+Tamara Sandor,22,438
+Neil Young,25,439
+Adam Gontier,9,440
+Anne Murray,19,442
+Alanis Morissette,17,445
+Michael Buble,5,450
+Sarah McLachlan,14,458
+Micah Barnes,2,479
+---------------------------
+**VoteCount**
+8900,900
+---------------------------
+####9000####
+**Votes**
+Sam Roberts,20,426
+Jann Arden,1,426
+Avril Lavigne,11,428
+Leonard Cohen,6,430
+Nicholas Scribner,23,434
+Justin Bieber,3,435
+Serena Ryder,21,436
+Eileen McGann,13,437
+Jim Bryson,4,439
+Tamara Sandor,22,445
+Adam Gontier,9,445
+Neil Young,25,447
+Anne Murray,19,447
+Alanis Morissette,17,449
+Michael Buble,5,454
+Sarah McLachlan,14,465
+Micah Barnes,2,487
+---------------------------
+**VoteCount**
+9000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Sam Roberts,20,426
+Jann Arden,1,426
+Avril Lavigne,11,428
+Leonard Cohen,6,430
+Nicholas Scribner,23,434
+Justin Bieber,3,435
+Serena Ryder,21,436
+Eileen McGann,13,437
+Jim Bryson,4,439
+Tamara Sandor,22,445
+Adam Gontier,9,445
+Neil Young,25,447
+Anne Murray,19,447
+Alanis Morissette,17,449
+Michael Buble,5,454
+Sarah McLachlan,14,465
+Micah Barnes,2,487
+---------------------------
+**VoteCount**
+9000,0
+---------------------------
+####9100####
+**Votes**
+Leonard Cohen,6,435
+Jann Arden,1,435
+Avril Lavigne,11,436
+Serena Ryder,21,440
+Nicholas Scribner,23,442
+Eileen McGann,13,442
+Justin Bieber,3,444
+Neil Young,25,450
+Tamara Sandor,22,450
+Jim Bryson,4,450
+Adam Gontier,9,452
+Anne Murray,19,453
+Alanis Morissette,17,457
+Michael Buble,5,457
+Sarah McLachlan,14,469
+Micah Barnes,2,492
+---------------------------
+**VoteCount**
+9100,100
+---------------------------
+####9200####
+**Votes**
+Avril Lavigne,11,440
+Jann Arden,1,440
+Leonard Cohen,6,441
+Serena Ryder,21,443
+Eileen McGann,13,447
+Justin Bieber,3,449
+Nicholas Scribner,23,452
+Adam Gontier,9,455
+Neil Young,25,457
+Tamara Sandor,22,457
+Anne Murray,19,457
+Michael Buble,5,463
+Jim Bryson,4,463
+Alanis Morissette,17,464
+Sarah McLachlan,14,477
+Micah Barnes,2,499
+---------------------------
+**VoteCount**
+9200,200
+---------------------------
+####9300####
+**Votes**
+Leonard Cohen,6,448
+Jann Arden,1,448
+Serena Ryder,21,451
+Avril Lavigne,11,451
+Eileen McGann,13,455
+Justin Bieber,3,455
+Nicholas Scribner,23,456
+Adam Gontier,9,458
+Neil Young,25,461
+Tamara Sandor,22,461
+Anne Murray,19,466
+Jim Bryson,4,467
+Michael Buble,5,468
+Alanis Morissette,17,469
+Sarah McLachlan,14,480
+Micah Barnes,2,510
+---------------------------
+**VoteCount**
+9300,300
+---------------------------
+####9400####
+**Votes**
+Avril Lavigne,11,452
+Jann Arden,1,452
+Leonard Cohen,6,454
+Nicholas Scribner,23,459
+Justin Bieber,3,461
+Serena Ryder,21,462
+Eileen McGann,13,463
+Neil Young,25,464
+Adam Gontier,9,464
+Tamara Sandor,22,468
+Jim Bryson,4,472
+Anne Murray,19,474
+Michael Buble,5,476
+Alanis Morissette,17,477
+Sarah McLachlan,14,487
+Micah Barnes,2,519
+---------------------------
+**VoteCount**
+9400,400
+---------------------------
+####9500####
+**Votes**
+Jann Arden,1,455
+Avril Lavigne,11,456
+Leonard Cohen,6,463
+Justin Bieber,3,464
+Nicholas Scribner,23,466
+Serena Ryder,21,466
+Eileen McGann,13,467
+Adam Gontier,9,470
+Neil Young,25,471
+Tamara Sandor,22,476
+Michael Buble,5,481
+Anne Murray,19,482
+Jim Bryson,4,482
+Alanis Morissette,17,483
+Sarah McLachlan,14,494
+Micah Barnes,2,528
+---------------------------
+**VoteCount**
+9500,500
+---------------------------
+####9600####
+**Votes**
+Avril Lavigne,11,463
+Jann Arden,1,463
+Leonard Cohen,6,467
+Nicholas Scribner,23,469
+Eileen McGann,13,469
+Serena Ryder,21,470
+Justin Bieber,3,472
+Adam Gontier,9,475
+Neil Young,25,479
+Tamara Sandor,22,484
+Michael Buble,5,487
+Jim Bryson,4,487
+Alanis Morissette,17,492
+Anne Murray,19,496
+Sarah McLachlan,14,498
+Micah Barnes,2,533
+---------------------------
+**VoteCount**
+9600,600
+---------------------------
+####9700####
+**Votes**
+Avril Lavigne,11,467
+Jann Arden,1,467
+Leonard Cohen,6,472
+Serena Ryder,21,474
+Eileen McGann,13,474
+Nicholas Scribner,23,478
+Justin Bieber,3,478
+Adam Gontier,9,485
+Neil Young,25,488
+Tamara Sandor,22,490
+Jim Bryson,4,492
+Alanis Morissette,17,497
+Michael Buble,5,498
+Anne Murray,19,501
+Sarah McLachlan,14,501
+Micah Barnes,2,542
+---------------------------
+**VoteCount**
+9700,700
+---------------------------
+####9800####
+**Votes**
+Avril Lavigne,11,471
+Jann Arden,1,471
+Eileen McGann,13,476
+Nicholas Scribner,23,482
+Leonard Cohen,6,482
+Justin Bieber,3,482
+Serena Ryder,21,484
+Adam Gontier,9,489
+Neil Young,25,495
+Tamara Sandor,22,498
+Jim Bryson,4,498
+Alanis Morissette,17,503
+Michael Buble,5,503
+Anne Murray,19,508
+Sarah McLachlan,14,509
+Micah Barnes,2,553
+---------------------------
+**VoteCount**
+9800,800
+---------------------------
+####9900####
+**Votes**
+Avril Lavigne,11,474
+Jann Arden,1,474
+Justin Bieber,3,484
+Eileen McGann,13,486
+Leonard Cohen,6,488
+Nicholas Scribner,23,489
+Serena Ryder,21,489
+Adam Gontier,9,493
+Jim Bryson,4,503
+Neil Young,25,505
+Tamara Sandor,22,506
+Alanis Morissette,17,509
+Michael Buble,5,509
+Anne Murray,19,516
+Sarah McLachlan,14,520
+Micah Barnes,2,559
+---------------------------
+**VoteCount**
+9900,900
+---------------------------
+####10000####
+**Votes**
+Avril Lavigne,11,479
+Jann Arden,1,479
+Justin Bieber,3,491
+Eileen McGann,13,493
+Nicholas Scribner,23,494
+Serena Ryder,21,495
+Leonard Cohen,6,498
+Adam Gontier,9,500
+Jim Bryson,4,507
+Neil Young,25,511
+Alanis Morissette,17,512
+Tamara Sandor,22,513
+Michael Buble,5,514
+Anne Murray,19,523
+Sarah McLachlan,14,527
+Micah Barnes,2,568
+---------------------------
+**VoteCount**
+10000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Avril Lavigne,11,479
+Jann Arden,1,479
+Justin Bieber,3,491
+Eileen McGann,13,493
+Nicholas Scribner,23,494
+Serena Ryder,21,495
+Leonard Cohen,6,498
+Adam Gontier,9,500
+Jim Bryson,4,507
+Neil Young,25,511
+Alanis Morissette,17,512
+Tamara Sandor,22,513
+Michael Buble,5,514
+Anne Murray,19,523
+Sarah McLachlan,14,527
+Micah Barnes,2,568
+---------------------------
+**VoteCount**
+10000,0
+---------------------------
+####10100####
+**Votes**
+Eileen McGann,13,496
+Justin Bieber,3,496
+Jann Arden,1,496
+Nicholas Scribner,23,498
+Serena Ryder,21,501
+Leonard Cohen,6,505
+Adam Gontier,9,508
+Jim Bryson,4,514
+Neil Young,25,517
+Alanis Morissette,17,517
+Michael Buble,5,517
+Tamara Sandor,22,523
+Anne Murray,19,531
+Sarah McLachlan,14,531
+Micah Barnes,2,575
+---------------------------
+**VoteCount**
+10100,100
+---------------------------
+####10200####
+**Votes**
+Jann Arden,1,501
+Nicholas Scribner,23,502
+Eileen McGann,13,502
+Justin Bieber,3,504
+Serena Ryder,21,508
+Leonard Cohen,6,514
+Adam Gontier,9,515
+Alanis Morissette,17,520
+Jim Bryson,4,520
+Michael Buble,5,524
+Neil Young,25,528
+Tamara Sandor,22,528
+Sarah McLachlan,14,536
+Anne Murray,19,540
+Micah Barnes,2,583
+---------------------------
+**VoteCount**
+10200,200
+---------------------------
+####10300####
+**Votes**
+Eileen McGann,13,510
+Justin Bieber,3,510
+Jann Arden,1,510
+Serena Ryder,21,512
+Nicholas Scribner,23,513
+Leonard Cohen,6,521
+Alanis Morissette,17,524
+Adam Gontier,9,525
+Michael Buble,5,527
+Jim Bryson,4,528
+Neil Young,25,532
+Tamara Sandor,22,534
+Sarah McLachlan,14,545
+Anne Murray,19,546
+Micah Barnes,2,588
+---------------------------
+**VoteCount**
+10300,300
+---------------------------
+####10400####
+**Votes**
+Nicholas Scribner,23,517
+Jann Arden,1,517
+Eileen McGann,13,518
+Justin Bieber,3,518
+Serena Ryder,21,519
+Leonard Cohen,6,530
+Alanis Morissette,17,532
+Michael Buble,5,533
+Adam Gontier,9,534
+Jim Bryson,4,534
+Tamara Sandor,22,539
+Neil Young,25,541
+Anne Murray,19,549
+Sarah McLachlan,14,550
+Micah Barnes,2,594
+---------------------------
+**VoteCount**
+10400,400
+---------------------------
+####10500####
+**Votes**
+Justin Bieber,3,523
+Jann Arden,1,523
+Nicholas Scribner,23,524
+Eileen McGann,13,525
+Serena Ryder,21,526
+Leonard Cohen,6,535
+Jim Bryson,4,538
+Alanis Morissette,17,540
+Michael Buble,5,540
+Tamara Sandor,22,545
+Adam Gontier,9,547
+Neil Young,25,549
+Anne Murray,19,552
+Sarah McLachlan,14,558
+Micah Barnes,2,600
+---------------------------
+**VoteCount**
+10500,500
+---------------------------
+####10600####
+**Votes**
+Justin Bieber,3,527
+Jann Arden,1,527
+Nicholas Scribner,23,531
+Eileen McGann,13,535
+Serena Ryder,21,541
+Jim Bryson,4,541
+Leonard Cohen,6,544
+Michael Buble,5,545
+Alanis Morissette,17,549
+Tamara Sandor,22,551
+Adam Gontier,9,552
+Neil Young,25,556
+Sarah McLachlan,14,560
+Anne Murray,19,563
+Micah Barnes,2,603
+---------------------------
+**VoteCount**
+10600,600
+---------------------------
+####10700####
+**Votes**
+Justin Bieber,3,536
+Jann Arden,1,536
+Nicholas Scribner,23,538
+Eileen McGann,13,542
+Jim Bryson,4,546
+Serena Ryder,21,548
+Michael Buble,5,550
+Leonard Cohen,6,552
+Tamara Sandor,22,554
+Adam Gontier,9,556
+Alanis Morissette,17,557
+Neil Young,25,560
+Sarah McLachlan,14,570
+Anne Murray,19,572
+Micah Barnes,2,608
+---------------------------
+**VoteCount**
+10700,700
+---------------------------
+####10800####
+**Votes**
+Nicholas Scribner,23,541
+Jann Arden,1,541
+Justin Bieber,3,542
+Eileen McGann,13,546
+Jim Bryson,4,550
+Serena Ryder,21,557
+Leonard Cohen,6,560
+Michael Buble,5,560
+Tamara Sandor,22,561
+Alanis Morissette,17,564
+Adam Gontier,9,566
+Neil Young,25,568
+Sarah McLachlan,14,576
+Anne Murray,19,578
+Micah Barnes,2,615
+---------------------------
+**VoteCount**
+10800,800
+---------------------------
+####10900####
+**Votes**
+Justin Bieber,3,545
+Jann Arden,1,545
+Nicholas Scribner,23,547
+Eileen McGann,13,553
+Jim Bryson,4,559
+Serena Ryder,21,564
+Tamara Sandor,22,567
+Leonard Cohen,6,567
+Michael Buble,5,569
+Alanis Morissette,17,570
+Adam Gontier,9,572
+Neil Young,25,577
+Anne Murray,19,585
+Sarah McLachlan,14,586
+Micah Barnes,2,619
+---------------------------
+**VoteCount**
+10900,900
+---------------------------
+####11000####
+**Votes**
+Justin Bieber,3,548
+Jann Arden,1,548
+Nicholas Scribner,23,554
+Eileen McGann,13,559
+Serena Ryder,21,565
+Jim Bryson,4,568
+Leonard Cohen,6,572
+Tamara Sandor,22,573
+Michael Buble,5,573
+Alanis Morissette,17,580
+Adam Gontier,9,582
+Neil Young,25,588
+Anne Murray,19,591
+Sarah McLachlan,14,596
+Micah Barnes,2,628
+---------------------------
+**VoteCount**
+11000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Justin Bieber,3,548
+Jann Arden,1,548
+Nicholas Scribner,23,554
+Eileen McGann,13,559
+Serena Ryder,21,565
+Jim Bryson,4,568
+Leonard Cohen,6,572
+Tamara Sandor,22,573
+Michael Buble,5,573
+Alanis Morissette,17,580
+Adam Gontier,9,582
+Neil Young,25,588
+Anne Murray,19,591
+Sarah McLachlan,14,596
+Micah Barnes,2,628
+---------------------------
+**VoteCount**
+11000,0
+---------------------------
+####11100####
+**Votes**
+Nicholas Scribner,23,561
+Jann Arden,1,561
+Eileen McGann,13,562
+Serena Ryder,21,572
+Jim Bryson,4,574
+Tamara Sandor,22,578
+Michael Buble,5,580
+Leonard Cohen,6,582
+Alanis Morissette,17,588
+Adam Gontier,9,590
+Neil Young,25,594
+Anne Murray,19,599
+Sarah McLachlan,14,600
+Micah Barnes,2,636
+---------------------------
+**VoteCount**
+11100,100
+---------------------------
+####11200####
+**Votes**
+Nicholas Scribner,23,570
+Eileen McGann,13,570
+Jann Arden,1,570
+Serena Ryder,21,580
+Tamara Sandor,22,583
+Leonard Cohen,6,585
+Michael Buble,5,585
+Jim Bryson,4,586
+Adam Gontier,9,595
+Alanis Morissette,17,596
+Neil Young,25,600
+Anne Murray,19,604
+Sarah McLachlan,14,608
+Micah Barnes,2,645
+---------------------------
+**VoteCount**
+11200,200
+---------------------------
+####11300####
+**Votes**
+Eileen McGann,13,578
+Jann Arden,1,578
+Serena Ryder,21,583
+Nicholas Scribner,23,584
+Tamara Sandor,22,590
+Jim Bryson,4,591
+Leonard Cohen,6,593
+Michael Buble,5,595
+Alanis Morissette,17,600
+Adam Gontier,9,600
+Neil Young,25,605
+Anne Murray,19,611
+Sarah McLachlan,14,617
+Micah Barnes,2,652
+---------------------------
+**VoteCount**
+11300,300
+---------------------------
+####11400####
+**Votes**
+Jann Arden,1,585
+Nicholas Scribner,23,586
+Eileen McGann,13,586
+Serena Ryder,21,591
+Tamara Sandor,22,594
+Jim Bryson,4,597
+Michael Buble,5,604
+Alanis Morissette,17,607
+Adam Gontier,9,608
+Leonard Cohen,6,608
+Neil Young,25,610
+Anne Murray,19,617
+Sarah McLachlan,14,627
+Micah Barnes,2,657
+---------------------------
+**VoteCount**
+11400,400
+---------------------------
+####11500####
+**Votes**
+Nicholas Scribner,23,594
+Jann Arden,1,594
+Eileen McGann,13,598
+Jim Bryson,4,600
+Serena Ryder,21,602
+Tamara Sandor,22,603
+Michael Buble,5,608
+Adam Gontier,9,610
+Leonard Cohen,6,613
+Alanis Morissette,17,619
+Neil Young,25,621
+Anne Murray,19,624
+Sarah McLachlan,14,632
+Micah Barnes,2,659
+---------------------------
+**VoteCount**
+11500,500
+---------------------------
+####11600####
+**Votes**
+Nicholas Scribner,23,600
+Jann Arden,1,600
+Eileen McGann,13,603
+Serena Ryder,21,609
+Tamara Sandor,22,612
+Jim Bryson,4,612
+Michael Buble,5,613
+Adam Gontier,9,617
+Leonard Cohen,6,621
+Neil Young,25,629
+Alanis Morissette,17,629
+Anne Murray,19,630
+Sarah McLachlan,14,637
+Micah Barnes,2,665
+---------------------------
+**VoteCount**
+11600,600
+---------------------------
+####11700####
+**Votes**
+Jann Arden,1,607
+Nicholas Scribner,23,608
+Eileen McGann,13,612
+Tamara Sandor,22,616
+Jim Bryson,4,617
+Serena Ryder,21,618
+Michael Buble,5,622
+Adam Gontier,9,624
+Leonard Cohen,6,626
+Neil Young,25,633
+Alanis Morissette,17,637
+Anne Murray,19,643
+Sarah McLachlan,14,643
+Micah Barnes,2,671
+---------------------------
+**VoteCount**
+11700,700
+---------------------------
+####11800####
+**Votes**
+Nicholas Scribner,23,613
+Jann Arden,1,613
+Eileen McGann,13,621
+Jim Bryson,4,621
+Tamara Sandor,22,624
+Serena Ryder,21,624
+Adam Gontier,9,631
+Michael Buble,5,634
+Neil Young,25,638
+Leonard Cohen,6,638
+Alanis Morissette,17,645
+Sarah McLachlan,14,646
+Anne Murray,19,653
+Micah Barnes,2,676
+---------------------------
+**VoteCount**
+11800,800
+---------------------------
+####11900####
+**Votes**
+Eileen McGann,13,624
+Jann Arden,1,624
+Nicholas Scribner,23,627
+Jim Bryson,4,628
+Serena Ryder,21,630
+Tamara Sandor,22,632
+Adam Gontier,9,635
+Michael Buble,5,641
+Neil Young,25,643
+Leonard Cohen,6,644
+Alanis Morissette,17,654
+Sarah McLachlan,14,654
+Anne Murray,19,656
+Micah Barnes,2,685
+---------------------------
+**VoteCount**
+11900,900
+---------------------------
+####12000####
+**Votes**
+Eileen McGann,13,631
+Jim Bryson,4,631
+Jann Arden,1,631
+Nicholas Scribner,23,637
+Tamara Sandor,22,637
+Serena Ryder,21,640
+Adam Gontier,9,644
+Neil Young,25,645
+Michael Buble,5,650
+Leonard Cohen,6,651
+Alanis Morissette,17,661
+Anne Murray,19,663
+Sarah McLachlan,14,663
+Micah Barnes,2,693
+---------------------------
+**VoteCount**
+12000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Eileen McGann,13,631
+Jim Bryson,4,631
+Jann Arden,1,631
+Nicholas Scribner,23,637
+Tamara Sandor,22,637
+Serena Ryder,21,640
+Adam Gontier,9,644
+Neil Young,25,645
+Michael Buble,5,650
+Leonard Cohen,6,651
+Alanis Morissette,17,661
+Anne Murray,19,663
+Sarah McLachlan,14,663
+Micah Barnes,2,693
+---------------------------
+**VoteCount**
+12000,0
+---------------------------
+####12100####
+**Votes**
+Jim Bryson,4,638
+Jann Arden,1,638
+Tamara Sandor,22,644
+Serena Ryder,21,646
+Nicholas Scribner,23,647
+Adam Gontier,9,651
+Neil Young,25,656
+Leonard Cohen,6,657
+Michael Buble,5,662
+Anne Murray,19,668
+Alanis Morissette,17,671
+Sarah McLachlan,14,671
+Micah Barnes,2,697
+---------------------------
+**VoteCount**
+12100,100
+---------------------------
+####12200####
+**Votes**
+Jim Bryson,4,645
+Jann Arden,1,645
+Serena Ryder,21,651
+Tamara Sandor,22,657
+Nicholas Scribner,23,658
+Adam Gontier,9,659
+Leonard Cohen,6,662
+Michael Buble,5,665
+Neil Young,25,666
+Anne Murray,19,676
+Alanis Morissette,17,677
+Sarah McLachlan,14,680
+Micah Barnes,2,705
+---------------------------
+**VoteCount**
+12200,200
+---------------------------
+####12300####
+**Votes**
+Jim Bryson,4,655
+Jann Arden,1,655
+Serena Ryder,21,657
+Adam Gontier,9,664
+Tamara Sandor,22,665
+Nicholas Scribner,23,666
+Leonard Cohen,6,668
+Neil Young,25,670
+Michael Buble,5,672
+Anne Murray,19,685
+Alanis Morissette,17,686
+Sarah McLachlan,14,687
+Micah Barnes,2,716
+---------------------------
+**VoteCount**
+12300,300
+---------------------------
+####12400####
+**Votes**
+Jim Bryson,4,658
+Jann Arden,1,658
+Serena Ryder,21,666
+Adam Gontier,9,672
+Nicholas Scribner,23,676
+Tamara Sandor,22,676
+Neil Young,25,679
+Leonard Cohen,6,679
+Michael Buble,5,679
+Anne Murray,19,691
+Alanis Morissette,17,691
+Sarah McLachlan,14,696
+Micah Barnes,2,725
+---------------------------
+**VoteCount**
+12400,400
+---------------------------
+####12500####
+**Votes**
+Jim Bryson,4,666
+Jann Arden,1,666
+Serena Ryder,21,672
+Adam Gontier,9,682
+Nicholas Scribner,23,683
+Neil Young,25,684
+Tamara Sandor,22,684
+Michael Buble,5,685
+Leonard Cohen,6,693
+Alanis Morissette,17,698
+Sarah McLachlan,14,700
+Anne Murray,19,703
+Micah Barnes,2,730
+---------------------------
+**VoteCount**
+12500,500
+---------------------------
+####12600####
+**Votes**
+Jim Bryson,4,671
+Jann Arden,1,671
+Serena Ryder,21,680
+Adam Gontier,9,687
+Nicholas Scribner,23,692
+Neil Young,25,695
+Tamara Sandor,22,695
+Michael Buble,5,695
+Leonard Cohen,6,702
+Sarah McLachlan,14,705
+Anne Murray,19,706
+Alanis Morissette,17,709
+Micah Barnes,2,738
+---------------------------
+**VoteCount**
+12600,600
+---------------------------
+####12700####
+**Votes**
+Jim Bryson,4,679
+Jann Arden,1,679
+Serena Ryder,21,689
+Adam Gontier,9,690
+Michael Buble,5,700
+Neil Young,25,701
+Nicholas Scribner,23,703
+Tamara Sandor,22,704
+Leonard Cohen,6,711
+Alanis Morissette,17,712
+Anne Murray,19,716
+Sarah McLachlan,14,716
+Micah Barnes,2,746
+---------------------------
+**VoteCount**
+12700,700
+---------------------------
+####12800####
+**Votes**
+Jann Arden,1,682
+Jim Bryson,4,683
+Serena Ryder,21,702
+Adam Gontier,9,703
+Michael Buble,5,705
+Nicholas Scribner,23,709
+Neil Young,25,714
+Tamara Sandor,22,714
+Alanis Morissette,17,716
+Leonard Cohen,6,719
+Sarah McLachlan,14,723
+Anne Murray,19,724
+Micah Barnes,2,752
+---------------------------
+**VoteCount**
+12800,800
+---------------------------
+####12900####
+**Votes**
+Jann Arden,1,688
+Jim Bryson,4,689
+Michael Buble,5,709
+Serena Ryder,21,711
+Adam Gontier,9,711
+Neil Young,25,720
+Nicholas Scribner,23,721
+Tamara Sandor,22,722
+Alanis Morissette,17,726
+Leonard Cohen,6,728
+Sarah McLachlan,14,730
+Anne Murray,19,733
+Micah Barnes,2,758
+---------------------------
+**VoteCount**
+12900,900
+---------------------------
+####13000####
+**Votes**
+Jim Bryson,4,700
+Jann Arden,1,700
+Michael Buble,5,713
+Serena Ryder,21,718
+Adam Gontier,9,719
+Tamara Sandor,22,725
+Neil Young,25,726
+Nicholas Scribner,23,730
+Sarah McLachlan,14,737
+Leonard Cohen,6,737
+Anne Murray,19,739
+Alanis Morissette,17,739
+Micah Barnes,2,763
+---------------------------
+**VoteCount**
+13000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Jim Bryson,4,700
+Jann Arden,1,700
+Michael Buble,5,713
+Serena Ryder,21,718
+Adam Gontier,9,719
+Tamara Sandor,22,725
+Neil Young,25,726
+Nicholas Scribner,23,730
+Sarah McLachlan,14,737
+Leonard Cohen,6,737
+Anne Murray,19,739
+Alanis Morissette,17,739
+Micah Barnes,2,763
+---------------------------
+**VoteCount**
+13000,0
+---------------------------
+####13100####
+**Votes**
+Michael Buble,5,718
+Jann Arden,1,718
+Serena Ryder,21,725
+Neil Young,25,732
+Adam Gontier,9,732
+Tamara Sandor,22,735
+Nicholas Scribner,23,740
+Leonard Cohen,6,741
+Sarah McLachlan,14,742
+Anne Murray,19,747
+Alanis Morissette,17,747
+Micah Barnes,2,769
+---------------------------
+**VoteCount**
+13100,100
+---------------------------
+####13200####
+**Votes**
+Michael Buble,5,726
+Jann Arden,1,726
+Serena Ryder,21,736
+Neil Young,25,738
+Adam Gontier,9,740
+Tamara Sandor,22,744
+Nicholas Scribner,23,747
+Leonard Cohen,6,748
+Sarah McLachlan,14,751
+Alanis Morissette,17,755
+Anne Murray,19,757
+Micah Barnes,2,778
+---------------------------
+**VoteCount**
+13200,200
+---------------------------
+####13300####
+**Votes**
+Michael Buble,5,731
+Jann Arden,1,731
+Serena Ryder,21,742
+Tamara Sandor,22,750
+Adam Gontier,9,752
+Neil Young,25,753
+Leonard Cohen,6,757
+Nicholas Scribner,23,758
+Sarah McLachlan,14,759
+Alanis Morissette,17,764
+Anne Murray,19,765
+Micah Barnes,2,784
+---------------------------
+**VoteCount**
+13300,300
+---------------------------
+####13400####
+**Votes**
+Michael Buble,5,738
+Jann Arden,1,738
+Serena Ryder,21,747
+Tamara Sandor,22,758
+Neil Young,25,760
+Adam Gontier,9,764
+Nicholas Scribner,23,766
+Leonard Cohen,6,767
+Sarah McLachlan,14,768
+Anne Murray,19,774
+Alanis Morissette,17,776
+Micah Barnes,2,790
+---------------------------
+**VoteCount**
+13400,400
+---------------------------
+####13500####
+**Votes**
+Michael Buble,5,743
+Jann Arden,1,743
+Serena Ryder,21,759
+Tamara Sandor,22,764
+Neil Young,25,765
+Adam Gontier,9,768
+Nicholas Scribner,23,776
+Leonard Cohen,6,777
+Sarah McLachlan,14,782
+Anne Murray,19,784
+Alanis Morissette,17,784
+Micah Barnes,2,801
+---------------------------
+**VoteCount**
+13500,500
+---------------------------
+####13600####
+**Votes**
+Michael Buble,5,750
+Jann Arden,1,750
+Serena Ryder,21,765
+Neil Young,25,771
+Tamara Sandor,22,773
+Adam Gontier,9,777
+Nicholas Scribner,23,783
+Leonard Cohen,6,789
+Alanis Morissette,17,792
+Sarah McLachlan,14,792
+Anne Murray,19,794
+Micah Barnes,2,810
+---------------------------
+**VoteCount**
+13600,600
+---------------------------
+####13700####
+**Votes**
+Michael Buble,5,757
+Jann Arden,1,757
+Serena Ryder,21,775
+Neil Young,25,779
+Tamara Sandor,22,783
+Adam Gontier,9,783
+Nicholas Scribner,23,791
+Leonard Cohen,6,798
+Sarah McLachlan,14,799
+Alanis Morissette,17,801
+Anne Murray,19,803
+Micah Barnes,2,820
+---------------------------
+**VoteCount**
+13700,700
+---------------------------
+####13800####
+**Votes**
+Michael Buble,5,763
+Jann Arden,1,763
+Serena Ryder,21,783
+Tamara Sandor,22,787
+Neil Young,25,788
+Adam Gontier,9,792
+Nicholas Scribner,23,799
+Sarah McLachlan,14,807
+Anne Murray,19,808
+Leonard Cohen,6,815
+Alanis Morissette,17,817
+Micah Barnes,2,824
+---------------------------
+**VoteCount**
+13800,800
+---------------------------
+####13900####
+**Votes**
+Jann Arden,1,776
+Michael Buble,5,777
+Neil Young,25,792
+Tamara Sandor,22,792
+Serena Ryder,21,796
+Adam Gontier,9,799
+Nicholas Scribner,23,804
+Sarah McLachlan,14,817
+Leonard Cohen,6,817
+Anne Murray,19,818
+Alanis Morissette,17,828
+Micah Barnes,2,830
+---------------------------
+**VoteCount**
+13900,900
+---------------------------
+####14000####
+**Votes**
+Michael Buble,5,784
+Jann Arden,1,784
+Tamara Sandor,22,797
+Neil Young,25,803
+Adam Gontier,9,805
+Serena Ryder,21,807
+Nicholas Scribner,23,815
+Leonard Cohen,6,821
+Anne Murray,19,828
+Sarah McLachlan,14,829
+Alanis Morissette,17,833
+Micah Barnes,2,840
+---------------------------
+**VoteCount**
+14000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Michael Buble,5,784
+Jann Arden,1,784
+Tamara Sandor,22,797
+Neil Young,25,803
+Adam Gontier,9,805
+Serena Ryder,21,807
+Nicholas Scribner,23,815
+Leonard Cohen,6,821
+Anne Murray,19,828
+Sarah McLachlan,14,829
+Alanis Morissette,17,833
+Micah Barnes,2,840
+---------------------------
+**VoteCount**
+14000,0
+---------------------------
+####14100####
+**Votes**
+Neil Young,25,808
+Jann Arden,1,808
+Tamara Sandor,22,810
+Serena Ryder,21,815
+Adam Gontier,9,816
+Nicholas Scribner,23,821
+Leonard Cohen,6,827
+Anne Murray,19,835
+Sarah McLachlan,14,835
+Alanis Morissette,17,840
+Micah Barnes,2,847
+---------------------------
+**VoteCount**
+14100,100
+---------------------------
+####14200####
+**Votes**
+Neil Young,25,814
+Jann Arden,1,814
+Tamara Sandor,22,820
+Adam Gontier,9,826
+Serena Ryder,21,830
+Leonard Cohen,6,832
+Nicholas Scribner,23,836
+Anne Murray,19,844
+Sarah McLachlan,14,845
+Alanis Morissette,17,850
+Micah Barnes,2,851
+---------------------------
+**VoteCount**
+14200,200
+---------------------------
+####14300####
+**Votes**
+Jann Arden,1,823
+Neil Young,25,824
+Tamara Sandor,22,832
+Adam Gontier,9,834
+Serena Ryder,21,840
+Leonard Cohen,6,843
+Nicholas Scribner,23,844
+Sarah McLachlan,14,851
+Anne Murray,19,856
+Micah Barnes,2,856
+Alanis Morissette,17,859
+---------------------------
+**VoteCount**
+14300,300
+---------------------------
+####14400####
+**Votes**
+Neil Young,25,833
+Jann Arden,1,833
+Tamara Sandor,22,841
+Leonard Cohen,6,849
+Adam Gontier,9,850
+Nicholas Scribner,23,853
+Serena Ryder,21,853
+Anne Murray,19,858
+Sarah McLachlan,14,860
+Alanis Morissette,17,866
+Micah Barnes,2,866
+---------------------------
+**VoteCount**
+14400,400
+---------------------------
+####14500####
+**Votes**
+Neil Young,25,839
+Jann Arden,1,839
+Tamara Sandor,22,853
+Leonard Cohen,6,856
+Serena Ryder,21,861
+Adam Gontier,9,861
+Nicholas Scribner,23,863
+Alanis Morissette,17,870
+Sarah McLachlan,14,872
+Anne Murray,19,874
+Micah Barnes,2,874
+---------------------------
+**VoteCount**
+14500,500
+---------------------------
+####14600####
+**Votes**
+Neil Young,25,843
+Jann Arden,1,843
+Tamara Sandor,22,861
+Leonard Cohen,6,866
+Adam Gontier,9,870
+Serena Ryder,21,872
+Nicholas Scribner,23,876
+Anne Murray,19,881
+Alanis Morissette,17,883
+Sarah McLachlan,14,883
+Micah Barnes,2,884
+---------------------------
+**VoteCount**
+14600,600
+---------------------------
+####14700####
+**Votes**
+Neil Young,25,849
+Jann Arden,1,849
+Tamara Sandor,22,873
+Adam Gontier,9,879
+Leonard Cohen,6,879
+Serena Ryder,21,881
+Anne Murray,19,887
+Nicholas Scribner,23,890
+Alanis Morissette,17,891
+Sarah McLachlan,14,891
+Micah Barnes,2,893
+---------------------------
+**VoteCount**
+14700,700
+---------------------------
+####14800####
+**Votes**
+Neil Young,25,854
+Jann Arden,1,854
+Tamara Sandor,22,879
+Serena Ryder,21,885
+Leonard Cohen,6,890
+Adam Gontier,9,896
+Sarah McLachlan,14,898
+Nicholas Scribner,23,900
+Anne Murray,19,900
+Alanis Morissette,17,901
+Micah Barnes,2,905
+---------------------------
+**VoteCount**
+14800,800
+---------------------------
+####14900####
+**Votes**
+Neil Young,25,862
+Jann Arden,1,862
+Tamara Sandor,22,888
+Serena Ryder,21,894
+Leonard Cohen,6,898
+Adam Gontier,9,902
+Sarah McLachlan,14,905
+Alanis Morissette,17,908
+Anne Murray,19,912
+Micah Barnes,2,912
+Nicholas Scribner,23,919
+---------------------------
+**VoteCount**
+14900,900
+---------------------------
+####15000####
+**Votes**
+Neil Young,25,872
+Jann Arden,1,872
+Tamara Sandor,22,899
+Serena Ryder,21,904
+Leonard Cohen,6,906
+Alanis Morissette,17,912
+Sarah McLachlan,14,913
+Adam Gontier,9,915
+Micah Barnes,2,922
+Anne Murray,19,923
+Nicholas Scribner,23,924
+---------------------------
+**VoteCount**
+15000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Neil Young,25,872
+Jann Arden,1,872
+Tamara Sandor,22,899
+Serena Ryder,21,904
+Leonard Cohen,6,906
+Alanis Morissette,17,912
+Sarah McLachlan,14,913
+Adam Gontier,9,915
+Micah Barnes,2,922
+Anne Murray,19,923
+Nicholas Scribner,23,924
+---------------------------
+**VoteCount**
+15000,0
+---------------------------
+####15100####
+**Votes**
+Tamara Sandor,22,905
+Jann Arden,1,905
+Serena Ryder,21,911
+Leonard Cohen,6,911
+Adam Gontier,9,918
+Alanis Morissette,17,922
+Sarah McLachlan,14,923
+Nicholas Scribner,23,929
+Anne Murray,19,930
+Micah Barnes,2,936
+---------------------------
+**VoteCount**
+15100,100
+---------------------------
+####15200####
+**Votes**
+Serena Ryder,21,916
+Jann Arden,1,916
+Tamara Sandor,22,920
+Leonard Cohen,6,924
+Sarah McLachlan,14,928
+Adam Gontier,9,929
+Alanis Morissette,17,933
+Anne Murray,19,935
+Nicholas Scribner,23,941
+Micah Barnes,2,948
+---------------------------
+**VoteCount**
+15200,200
+---------------------------
+####15300####
+**Votes**
+Serena Ryder,21,928
+Jann Arden,1,928
+Leonard Cohen,6,929
+Tamara Sandor,22,932
+Sarah McLachlan,14,933
+Adam Gontier,9,938
+Alanis Morissette,17,944
+Nicholas Scribner,23,948
+Anne Murray,19,948
+Micah Barnes,2,962
+---------------------------
+**VoteCount**
+15300,300
+---------------------------
+####15400####
+**Votes**
+Leonard Cohen,6,939
+Jann Arden,1,939
+Tamara Sandor,22,940
+Serena Ryder,21,940
+Adam Gontier,9,946
+Alanis Morissette,17,949
+Sarah McLachlan,14,952
+Nicholas Scribner,23,954
+Anne Murray,19,957
+Micah Barnes,2,974
+---------------------------
+**VoteCount**
+15400,400
+---------------------------
+####15500####
+**Votes**
+Serena Ryder,21,949
+Jann Arden,1,949
+Tamara Sandor,22,951
+Leonard Cohen,6,955
+Adam Gontier,9,958
+Sarah McLachlan,14,959
+Alanis Morissette,17,960
+Nicholas Scribner,23,964
+Anne Murray,19,967
+Micah Barnes,2,978
+---------------------------
+**VoteCount**
+15500,500
+---------------------------
+####15600####
+**Votes**
+Tamara Sandor,22,957
+Jann Arden,1,957
+Serena Ryder,21,960
+Leonard Cohen,6,964
+Adam Gontier,9,969
+Alanis Morissette,17,970
+Sarah McLachlan,14,973
+Nicholas Scribner,23,978
+Anne Murray,19,979
+Micah Barnes,2,983
+---------------------------
+**VoteCount**
+15600,600
+---------------------------
+####15700####
+**Votes**
+Tamara Sandor,22,967
+Jann Arden,1,967
+Serena Ryder,21,969
+Adam Gontier,9,973
+Alanis Morissette,17,976
+Leonard Cohen,6,977
+Sarah McLachlan,14,982
+Nicholas Scribner,23,989
+Anne Murray,19,992
+Micah Barnes,2,998
+---------------------------
+**VoteCount**
+15700,700
+---------------------------
+####15800####
+**Votes**
+Tamara Sandor,22,974
+Jann Arden,1,974
+Serena Ryder,21,978
+Alanis Morissette,17,982
+Leonard Cohen,6,985
+Adam Gontier,9,986
+Sarah McLachlan,14,999
+Nicholas Scribner,23,1002
+Anne Murray,19,1002
+Micah Barnes,2,1008
+---------------------------
+**VoteCount**
+15800,800
+---------------------------
+####15900####
+**Votes**
+Tamara Sandor,22,982
+Jann Arden,1,982
+Leonard Cohen,6,991
+Alanis Morissette,17,992
+Serena Ryder,21,996
+Adam Gontier,9,997
+Anne Murray,19,1007
+Sarah McLachlan,14,1013
+Nicholas Scribner,23,1014
+Micah Barnes,2,1016
+---------------------------
+**VoteCount**
+15900,900
+---------------------------
+####16000####
+**Votes**
+Tamara Sandor,22,987
+Jann Arden,1,987
+Serena Ryder,21,1006
+Adam Gontier,9,1006
+Leonard Cohen,6,1006
+Alanis Morissette,17,1008
+Sarah McLachlan,14,1016
+Anne Murray,19,1018
+Nicholas Scribner,23,1027
+Micah Barnes,2,1029
+---------------------------
+**VoteCount**
+16000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Tamara Sandor,22,987
+Jann Arden,1,987
+Serena Ryder,21,1006
+Adam Gontier,9,1006
+Leonard Cohen,6,1006
+Alanis Morissette,17,1008
+Sarah McLachlan,14,1016
+Anne Murray,19,1018
+Nicholas Scribner,23,1027
+Micah Barnes,2,1029
+---------------------------
+**VoteCount**
+16000,0
+---------------------------
+####16100####
+**Votes**
+Jann Arden,1,1012
+Leonard Cohen,6,1013
+Alanis Morissette,17,1015
+Adam Gontier,9,1015
+Serena Ryder,21,1019
+Sarah McLachlan,14,1025
+Anne Murray,19,1027
+Micah Barnes,2,1038
+Nicholas Scribner,23,1039
+---------------------------
+**VoteCount**
+16100,100
+---------------------------
+####16200####
+**Votes**
+Adam Gontier,9,1023
+Jann Arden,1,1023
+Alanis Morissette,17,1025
+Leonard Cohen,6,1027
+Serena Ryder,21,1033
+Sarah McLachlan,14,1036
+Anne Murray,19,1037
+Micah Barnes,2,1049
+Nicholas Scribner,23,1050
+---------------------------
+**VoteCount**
+16200,200
+---------------------------
+####16300####
+**Votes**
+Alanis Morissette,17,1032
+Jann Arden,1,1032
+Adam Gontier,9,1035
+Leonard Cohen,6,1036
+Serena Ryder,21,1045
+Anne Murray,19,1048
+Sarah McLachlan,14,1050
+Micah Barnes,2,1062
+Nicholas Scribner,23,1063
+---------------------------
+**VoteCount**
+16300,300
+---------------------------
+####16400####
+**Votes**
+Alanis Morissette,17,1044
+Jann Arden,1,1044
+Adam Gontier,9,1045
+Leonard Cohen,6,1049
+Anne Murray,19,1051
+Serena Ryder,21,1061
+Sarah McLachlan,14,1061
+Nicholas Scribner,23,1074
+Micah Barnes,2,1074
+---------------------------
+**VoteCount**
+16400,400
+---------------------------
+####16500####
+**Votes**
+Adam Gontier,9,1053
+Jann Arden,1,1053
+Leonard Cohen,6,1056
+Alanis Morissette,17,1059
+Anne Murray,19,1063
+Serena Ryder,21,1071
+Sarah McLachlan,14,1079
+Nicholas Scribner,23,1081
+Micah Barnes,2,1088
+---------------------------
+**VoteCount**
+16500,500
+---------------------------
+####16600####
+**Votes**
+Adam Gontier,9,1065
+Jann Arden,1,1065
+Leonard Cohen,6,1069
+Anne Murray,19,1071
+Alanis Morissette,17,1072
+Serena Ryder,21,1079
+Sarah McLachlan,14,1084
+Nicholas Scribner,23,1096
+Micah Barnes,2,1102
+---------------------------
+**VoteCount**
+16600,600
+---------------------------
+####16700####
+**Votes**
+Adam Gontier,9,1073
+Jann Arden,1,1073
+Leonard Cohen,6,1080
+Anne Murray,19,1082
+Alanis Morissette,17,1083
+Serena Ryder,21,1094
+Sarah McLachlan,14,1098
+Nicholas Scribner,23,1106
+Micah Barnes,2,1114
+---------------------------
+**VoteCount**
+16700,700
+---------------------------
+####16800####
+**Votes**
+Adam Gontier,9,1080
+Jann Arden,1,1080
+Leonard Cohen,6,1087
+Alanis Morissette,17,1092
+Anne Murray,19,1097
+Serena Ryder,21,1102
+Sarah McLachlan,14,1117
+Nicholas Scribner,23,1122
+Micah Barnes,2,1126
+---------------------------
+**VoteCount**
+16800,800
+---------------------------
+####16900####
+**Votes**
+Adam Gontier,9,1091
+Jann Arden,1,1091
+Leonard Cohen,6,1096
+Alanis Morissette,17,1106
+Anne Murray,19,1108
+Serena Ryder,21,1116
+Sarah McLachlan,14,1127
+Nicholas Scribner,23,1132
+Micah Barnes,2,1136
+---------------------------
+**VoteCount**
+16900,900
+---------------------------
+####17000####
+**Votes**
+Adam Gontier,9,1102
+Jann Arden,1,1102
+Leonard Cohen,6,1107
+Alanis Morissette,17,1119
+Anne Murray,19,1121
+Serena Ryder,21,1123
+Sarah McLachlan,14,1135
+Nicholas Scribner,23,1144
+Micah Barnes,2,1150
+---------------------------
+**VoteCount**
+17000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Adam Gontier,9,1102
+Jann Arden,1,1102
+Leonard Cohen,6,1107
+Alanis Morissette,17,1119
+Anne Murray,19,1121
+Serena Ryder,21,1123
+Sarah McLachlan,14,1135
+Nicholas Scribner,23,1144
+Micah Barnes,2,1150
+---------------------------
+**VoteCount**
+17000,0
+---------------------------
+####17100####
+**Votes**
+Leonard Cohen,6,1117
+Jann Arden,1,1117
+Alanis Morissette,17,1129
+Serena Ryder,21,1133
+Anne Murray,19,1137
+Sarah McLachlan,14,1145
+Nicholas Scribner,23,1159
+Micah Barnes,2,1164
+---------------------------
+**VoteCount**
+17100,100
+---------------------------
+####17200####
+**Votes**
+Leonard Cohen,6,1128
+Jann Arden,1,1128
+Serena Ryder,21,1146
+Alanis Morissette,17,1147
+Anne Murray,19,1152
+Sarah McLachlan,14,1157
+Nicholas Scribner,23,1168
+Micah Barnes,2,1175
+---------------------------
+**VoteCount**
+17200,200
+---------------------------
+####17300####
+**Votes**
+Leonard Cohen,6,1141
+Jann Arden,1,1141
+Anne Murray,19,1157
+Serena Ryder,21,1160
+Alanis Morissette,17,1167
+Sarah McLachlan,14,1168
+Nicholas Scribner,23,1180
+Micah Barnes,2,1187
+---------------------------
+**VoteCount**
+17300,300
+---------------------------
+####17400####
+**Votes**
+Leonard Cohen,6,1156
+Jann Arden,1,1156
+Anne Murray,19,1166
+Alanis Morissette,17,1175
+Serena Ryder,21,1177
+Sarah McLachlan,14,1178
+Nicholas Scribner,23,1185
+Micah Barnes,2,1208
+---------------------------
+**VoteCount**
+17400,400
+---------------------------
+####17500####
+**Votes**
+Leonard Cohen,6,1169
+Jann Arden,1,1169
+Anne Murray,19,1175
+Serena Ryder,21,1186
+Sarah McLachlan,14,1187
+Alanis Morissette,17,1192
+Nicholas Scribner,23,1204
+Micah Barnes,2,1219
+---------------------------
+**VoteCount**
+17500,500
+---------------------------
+####17600####
+**Votes**
+Jann Arden,1,1181
+Leonard Cohen,6,1182
+Anne Murray,19,1190
+Sarah McLachlan,14,1197
+Serena Ryder,21,1198
+Alanis Morissette,17,1202
+Nicholas Scribner,23,1212
+Micah Barnes,2,1239
+---------------------------
+**VoteCount**
+17600,600
+---------------------------
+####17700####
+**Votes**
+Leonard Cohen,6,1196
+Jann Arden,1,1196
+Anne Murray,19,1198
+Sarah McLachlan,14,1207
+Serena Ryder,21,1210
+Alanis Morissette,17,1212
+Nicholas Scribner,23,1227
+Micah Barnes,2,1255
+---------------------------
+**VoteCount**
+17700,700
+---------------------------
+####17800####
+**Votes**
+Leonard Cohen,6,1207
+Jann Arden,1,1207
+Anne Murray,19,1214
+Serena Ryder,21,1219
+Sarah McLachlan,14,1219
+Alanis Morissette,17,1227
+Nicholas Scribner,23,1238
+Micah Barnes,2,1270
+---------------------------
+**VoteCount**
+17800,800
+---------------------------
+####17900####
+**Votes**
+Anne Murray,19,1221
+Jann Arden,1,1221
+Leonard Cohen,6,1225
+Sarah McLachlan,14,1226
+Serena Ryder,21,1235
+Alanis Morissette,17,1241
+Nicholas Scribner,23,1247
+Micah Barnes,2,1285
+---------------------------
+**VoteCount**
+17900,900
+---------------------------
+####18000####
+**Votes**
+Anne Murray,19,1231
+Jann Arden,1,1231
+Sarah McLachlan,14,1237
+Leonard Cohen,6,1239
+Serena Ryder,21,1251
+Alanis Morissette,17,1255
+Nicholas Scribner,23,1262
+Micah Barnes,2,1295
+---------------------------
+**VoteCount**
+18000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Anne Murray,19,1231
+Jann Arden,1,1231
+Sarah McLachlan,14,1237
+Leonard Cohen,6,1239
+Serena Ryder,21,1251
+Alanis Morissette,17,1255
+Nicholas Scribner,23,1262
+Micah Barnes,2,1295
+---------------------------
+**VoteCount**
+18000,0
+---------------------------
+####18100####
+**Votes**
+Sarah McLachlan,14,1250
+Jann Arden,1,1250
+Leonard Cohen,6,1251
+Alanis Morissette,17,1265
+Serena Ryder,21,1273
+Nicholas Scribner,23,1277
+Micah Barnes,2,1304
+---------------------------
+**VoteCount**
+18100,100
+---------------------------
+####18200####
+**Votes**
+Sarah McLachlan,14,1264
+Jann Arden,1,1264
+Leonard Cohen,6,1269
+Serena Ryder,21,1283
+Alanis Morissette,17,1285
+Nicholas Scribner,23,1287
+Micah Barnes,2,1318
+---------------------------
+**VoteCount**
+18200,200
+---------------------------
+####18300####
+**Votes**
+Jann Arden,1,1272
+Sarah McLachlan,14,1273
+Leonard Cohen,6,1284
+Serena Ryder,21,1296
+Nicholas Scribner,23,1304
+Alanis Morissette,17,1306
+Micah Barnes,2,1335
+---------------------------
+**VoteCount**
+18300,300
+---------------------------
+####18400####
+**Votes**
+Sarah McLachlan,14,1287
+Jann Arden,1,1287
+Leonard Cohen,6,1295
+Serena Ryder,21,1313
+Nicholas Scribner,23,1314
+Alanis Morissette,17,1323
+Micah Barnes,2,1351
+---------------------------
+**VoteCount**
+18400,400
+---------------------------
+####18500####
+**Votes**
+Sarah McLachlan,14,1299
+Jann Arden,1,1299
+Leonard Cohen,6,1310
+Serena Ryder,21,1325
+Nicholas Scribner,23,1331
+Alanis Morissette,17,1337
+Micah Barnes,2,1369
+---------------------------
+**VoteCount**
+18500,500
+---------------------------
+####18600####
+**Votes**
+Sarah McLachlan,14,1311
+Jann Arden,1,1311
+Leonard Cohen,6,1325
+Serena Ryder,21,1342
+Nicholas Scribner,23,1343
+Alanis Morissette,17,1353
+Micah Barnes,2,1385
+---------------------------
+**VoteCount**
+18600,600
+---------------------------
+####18700####
+**Votes**
+Sarah McLachlan,14,1319
+Jann Arden,1,1319
+Leonard Cohen,6,1342
+Nicholas Scribner,23,1358
+Serena Ryder,21,1362
+Alanis Morissette,17,1364
+Micah Barnes,2,1406
+---------------------------
+**VoteCount**
+18700,700
+---------------------------
+####18800####
+**Votes**
+Sarah McLachlan,14,1334
+Jann Arden,1,1334
+Leonard Cohen,6,1353
+Nicholas Scribner,23,1371
+Serena Ryder,21,1376
+Alanis Morissette,17,1385
+Micah Barnes,2,1417
+---------------------------
+**VoteCount**
+18800,800
+---------------------------
+####18900####
+**Votes**
+Sarah McLachlan,14,1350
+Jann Arden,1,1350
+Leonard Cohen,6,1368
+Nicholas Scribner,23,1382
+Serena Ryder,21,1387
+Alanis Morissette,17,1397
+Micah Barnes,2,1436
+---------------------------
+**VoteCount**
+18900,900
+---------------------------
+####19000####
+**Votes**
+Sarah McLachlan,14,1363
+Jann Arden,1,1363
+Leonard Cohen,6,1387
+Nicholas Scribner,23,1399
+Serena Ryder,21,1400
+Alanis Morissette,17,1409
+Micah Barnes,2,1449
+---------------------------
+**VoteCount**
+19000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Sarah McLachlan,14,1363
+Jann Arden,1,1363
+Leonard Cohen,6,1387
+Nicholas Scribner,23,1399
+Serena Ryder,21,1400
+Alanis Morissette,17,1409
+Micah Barnes,2,1449
+---------------------------
+**VoteCount**
+19000,0
+---------------------------
+####19100####
+**Votes**
+Leonard Cohen,6,1401
+Jann Arden,1,1401
+Serena Ryder,21,1410
+Nicholas Scribner,23,1413
+Alanis Morissette,17,1420
+Micah Barnes,2,1462
+---------------------------
+**VoteCount**
+19100,100
+---------------------------
+####19200####
+**Votes**
+Jann Arden,1,1418
+Leonard Cohen,6,1419
+Serena Ryder,21,1421
+Nicholas Scribner,23,1434
+Alanis Morissette,17,1436
+Micah Barnes,2,1479
+---------------------------
+**VoteCount**
+19200,200
+---------------------------
+####19300####
+**Votes**
+Leonard Cohen,6,1433
+Jann Arden,1,1433
+Serena Ryder,21,1438
+Nicholas Scribner,23,1454
+Alanis Morissette,17,1455
+Micah Barnes,2,1494
+---------------------------
+**VoteCount**
+19300,300
+---------------------------
+####19400####
+**Votes**
+Jann Arden,1,1444
+Leonard Cohen,6,1445
+Serena Ryder,21,1457
+Alanis Morissette,17,1470
+Nicholas Scribner,23,1477
+Micah Barnes,2,1514
+---------------------------
+**VoteCount**
+19400,400
+---------------------------
+####19500####
+**Votes**
+Leonard Cohen,6,1458
+Jann Arden,1,1458
+Serena Ryder,21,1479
+Alanis Morissette,17,1482
+Nicholas Scribner,23,1498
+Micah Barnes,2,1532
+---------------------------
+**VoteCount**
+19500,500
+---------------------------
+####19600####
+**Votes**
+Leonard Cohen,6,1479
+Jann Arden,1,1479
+Serena Ryder,21,1491
+Alanis Morissette,17,1494
+Nicholas Scribner,23,1516
+Micah Barnes,2,1548
+---------------------------
+**VoteCount**
+19600,600
+---------------------------
+####19700####
+**Votes**
+Leonard Cohen,6,1491
+Jann Arden,1,1491
+Serena Ryder,21,1510
+Alanis Morissette,17,1519
+Nicholas Scribner,23,1531
+Micah Barnes,2,1565
+---------------------------
+**VoteCount**
+19700,700
+---------------------------
+####19800####
+**Votes**
+Leonard Cohen,6,1504
+Jann Arden,1,1504
+Serena Ryder,21,1528
+Alanis Morissette,17,1534
+Nicholas Scribner,23,1543
+Micah Barnes,2,1594
+---------------------------
+**VoteCount**
+19800,800
+---------------------------
+####19900####
+**Votes**
+Leonard Cohen,6,1516
+Jann Arden,1,1516
+Nicholas Scribner,23,1552
+Serena Ryder,21,1552
+Alanis Morissette,17,1554
+Micah Barnes,2,1617
+---------------------------
+**VoteCount**
+19900,900
+---------------------------
+####20000####
+**Votes**
+Leonard Cohen,6,1532
+Jann Arden,1,1532
+Alanis Morissette,17,1567
+Serena Ryder,21,1569
+Nicholas Scribner,23,1576
+Micah Barnes,2,1631
+---------------------------
+**VoteCount**
+20000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Leonard Cohen,6,1532
+Jann Arden,1,1532
+Alanis Morissette,17,1567
+Serena Ryder,21,1569
+Nicholas Scribner,23,1576
+Micah Barnes,2,1631
+---------------------------
+**VoteCount**
+20000,0
+---------------------------
+####20100####
+**Votes**
+Jann Arden,1,1551
+Alanis Morissette,17,1584
+Serena Ryder,21,1593
+Nicholas Scribner,23,1598
+Micah Barnes,2,1649
+---------------------------
+**VoteCount**
+20100,100
+---------------------------
+####20200####
+**Votes**
+Jann Arden,1,1570
+Alanis Morissette,17,1601
+Serena Ryder,21,1616
+Nicholas Scribner,23,1622
+Micah Barnes,2,1666
+---------------------------
+**VoteCount**
+20200,200
+---------------------------
+####20300####
+**Votes**
+Jann Arden,1,1597
+Alanis Morissette,17,1618
+Serena Ryder,21,1633
+Nicholas Scribner,23,1644
+Micah Barnes,2,1683
+---------------------------
+**VoteCount**
+20300,300
+---------------------------
+####20400####
+**Votes**
+Jann Arden,1,1631
+Alanis Morissette,17,1636
+Serena Ryder,21,1648
+Nicholas Scribner,23,1662
+Micah Barnes,2,1698
+---------------------------
+**VoteCount**
+20400,400
+---------------------------
+####20500####
+**Votes**
+Alanis Morissette,17,1654
+Jann Arden,1,1654
+Serena Ryder,21,1669
+Nicholas Scribner,23,1685
+Micah Barnes,2,1713
+---------------------------
+**VoteCount**
+20500,500
+---------------------------
+####20600####
+**Votes**
+Alanis Morissette,17,1675
+Jann Arden,1,1676
+Serena Ryder,21,1692
+Nicholas Scribner,23,1701
+Micah Barnes,2,1731
+---------------------------
+**VoteCount**
+20600,600
+---------------------------
+####20700####
+**Votes**
+Jann Arden,1,1695
+Alanis Morissette,17,1702
+Serena Ryder,21,1716
+Nicholas Scribner,23,1720
+Micah Barnes,2,1742
+---------------------------
+**VoteCount**
+20700,700
+---------------------------
+####20800####
+**Votes**
+Alanis Morissette,17,1718
+Jann Arden,1,1720
+Serena Ryder,21,1738
+Nicholas Scribner,23,1742
+Micah Barnes,2,1757
+---------------------------
+**VoteCount**
+20800,800
+---------------------------
+####20900####
+**Votes**
+Alanis Morissette,17,1737
+Jann Arden,1,1742
+Serena Ryder,21,1755
+Nicholas Scribner,23,1764
+Micah Barnes,2,1777
+---------------------------
+**VoteCount**
+20900,900
+---------------------------
+####21000####
+**Votes**
+Alanis Morissette,17,1760
+Jann Arden,1,1760
+Serena Ryder,21,1768
+Nicholas Scribner,23,1784
+Micah Barnes,2,1803
+---------------------------
+**VoteCount**
+21000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Alanis Morissette,17,1760
+Jann Arden,1,1760
+Serena Ryder,21,1768
+Nicholas Scribner,23,1784
+Micah Barnes,2,1803
+---------------------------
+**VoteCount**
+21000,0
+---------------------------
+####21100####
+**Votes**
+Jann Arden,1,1791
+Serena Ryder,21,1795
+Nicholas Scribner,23,1805
+Micah Barnes,2,1824
+---------------------------
+**VoteCount**
+21100,100
+---------------------------
+####21200####
+**Votes**
+Jann Arden,1,1812
+Serena Ryder,21,1824
+Nicholas Scribner,23,1832
+Micah Barnes,2,1847
+---------------------------
+**VoteCount**
+21200,200
+---------------------------
+####21300####
+**Votes**
+Jann Arden,1,1838
+Serena Ryder,21,1846
+Nicholas Scribner,23,1865
+Micah Barnes,2,1866
+---------------------------
+**VoteCount**
+21300,300
+---------------------------
+####21400####
+**Votes**
+Jann Arden,1,1866
+Serena Ryder,21,1869
+Micah Barnes,2,1884
+Nicholas Scribner,23,1896
+---------------------------
+**VoteCount**
+21400,400
+---------------------------
+####21500####
+**Votes**
+Serena Ryder,21,1893
+Jann Arden,1,1896
+Nicholas Scribner,23,1913
+Micah Barnes,2,1913
+---------------------------
+**VoteCount**
+21500,500
+---------------------------
+####21600####
+**Votes**
+Jann Arden,1,1919
+Serena Ryder,21,1921
+Micah Barnes,2,1933
+Nicholas Scribner,23,1942
+---------------------------
+**VoteCount**
+21600,600
+---------------------------
+####21700####
+**Votes**
+Jann Arden,1,1941
+Serena Ryder,21,1947
+Micah Barnes,2,1961
+Nicholas Scribner,23,1966
+---------------------------
+**VoteCount**
+21700,700
+---------------------------
+####21800####
+**Votes**
+Jann Arden,1,1968
+Serena Ryder,21,1975
+Nicholas Scribner,23,1986
+Micah Barnes,2,1986
+---------------------------
+**VoteCount**
+21800,800
+---------------------------
+####21900####
+**Votes**
+Jann Arden,1,1988
+Serena Ryder,21,1998
+Nicholas Scribner,23,2014
+Micah Barnes,2,2015
+---------------------------
+**VoteCount**
+21900,900
+---------------------------
+####22000####
+**Votes**
+Serena Ryder,21,2018
+Jann Arden,1,2018
+Nicholas Scribner,23,2036
+Micah Barnes,2,2043
+---------------------------
+**VoteCount**
+22000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Serena Ryder,21,2018
+Jann Arden,1,2018
+Nicholas Scribner,23,2036
+Micah Barnes,2,2043
+---------------------------
+**VoteCount**
+22000,0
+---------------------------
+####22100####
+**Votes**
+Jann Arden,1,2057
+Nicholas Scribner,23,2064
+Micah Barnes,2,2076
+---------------------------
+**VoteCount**
+22100,100
+---------------------------
+####22200####
+**Votes**
+Nicholas Scribner,23,2091
+Jann Arden,1,2093
+Micah Barnes,2,2113
+---------------------------
+**VoteCount**
+22200,200
+---------------------------
+####22300####
+**Votes**
+Nicholas Scribner,23,2123
+Jann Arden,1,2130
+Micah Barnes,2,2144
+---------------------------
+**VoteCount**
+22300,300
+---------------------------
+####22400####
+**Votes**
+Jann Arden,1,2156
+Nicholas Scribner,23,2169
+Micah Barnes,2,2172
+---------------------------
+**VoteCount**
+22400,400
+---------------------------
+####22500####
+**Votes**
+Jann Arden,1,2190
+Nicholas Scribner,23,2201
+Micah Barnes,2,2206
+---------------------------
+**VoteCount**
+22500,500
+---------------------------
+####22600####
+**Votes**
+Nicholas Scribner,23,2230
+Jann Arden,1,2231
+Micah Barnes,2,2236
+---------------------------
+**VoteCount**
+22600,600
+---------------------------
+####22700####
+**Votes**
+Micah Barnes,2,2260
+Nicholas Scribner,23,2268
+Jann Arden,1,2269
+---------------------------
+**VoteCount**
+22700,700
+---------------------------
+####22800####
+**Votes**
+Micah Barnes,2,2280
+Jann Arden,1,2304
+Nicholas Scribner,23,2313
+---------------------------
+**VoteCount**
+22800,800
+---------------------------
+####22900####
+**Votes**
+Micah Barnes,2,2315
+Nicholas Scribner,23,2339
+Jann Arden,1,2343
+---------------------------
+**VoteCount**
+22900,900
+---------------------------
+####23000####
+**Votes**
+Micah Barnes,2,2352
+Nicholas Scribner,23,2368
+Jann Arden,1,2377
+---------------------------
+**VoteCount**
+23000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Micah Barnes,2,2352
+Nicholas Scribner,23,2368
+Jann Arden,1,2377
+---------------------------
+**VoteCount**
+23000,0
+---------------------------
+####23100####
+**Votes**
+Nicholas Scribner,23,2421
+Jann Arden,1,2424
+---------------------------
+**VoteCount**
+23100,100
+---------------------------
+####23200####
+**Votes**
+Nicholas Scribner,23,2472
+Jann Arden,1,2473
+---------------------------
+**VoteCount**
+23200,200
+---------------------------
+####23300####
+**Votes**
+Nicholas Scribner,23,2521
+Jann Arden,1,2524
+---------------------------
+**VoteCount**
+23300,300
+---------------------------
+####23400####
+**Votes**
+Nicholas Scribner,23,2570
+Jann Arden,1,2575
+---------------------------
+**VoteCount**
+23400,400
+---------------------------
+####23500####
+**Votes**
+Nicholas Scribner,23,2611
+Jann Arden,1,2634
+---------------------------
+**VoteCount**
+23500,500
+---------------------------
+####23600####
+**Votes**
+Nicholas Scribner,23,2663
+Jann Arden,1,2682
+---------------------------
+**VoteCount**
+23600,600
+---------------------------
+####23700####
+**Votes**
+Nicholas Scribner,23,2715
+Jann Arden,1,2730
+---------------------------
+**VoteCount**
+23700,700
+---------------------------
+####23800####
+**Votes**
+Nicholas Scribner,23,2763
+Jann Arden,1,2782
+---------------------------
+**VoteCount**
+23800,800
+---------------------------
+####23900####
+**Votes**
+Nicholas Scribner,23,2813
+Jann Arden,1,2832
+---------------------------
+**VoteCount**
+23900,900
+---------------------------
+####24000####
+**Votes**
+Nicholas Scribner,23,2860
+Jann Arden,1,2885
+---------------------------
+**VoteCount**
+24000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Nicholas Scribner,23,2860
+Jann Arden,1,2885
+---------------------------
+**VoteCount**
+24000,0
+---------------------------
+####24100####
+**Votes**
+Jann Arden,1,2985
+---------------------------
+**VoteCount**
+24100,100
+---------------------------
+####24200####
+**Votes**
+Jann Arden,1,3085
+---------------------------
+**VoteCount**
+24200,200
+---------------------------
+####24300####
+**Votes**
+Jann Arden,1,3185
+---------------------------
+**VoteCount**
+24300,300
+---------------------------
+####24400####
+**Votes**
+Jann Arden,1,3285
+---------------------------
+**VoteCount**
+24400,400
+---------------------------
+####24500####
+**Votes**
+Jann Arden,1,3385
+---------------------------
+**VoteCount**
+24500,500
+---------------------------
+####24600####
+**Votes**
+Jann Arden,1,3485
+---------------------------
+**VoteCount**
+24600,600
+---------------------------
+####24700####
+**Votes**
+Jann Arden,1,3585
+---------------------------
+**VoteCount**
+24700,700
+---------------------------
+####24800####
+**Votes**
+Jann Arden,1,3685
+---------------------------
+**VoteCount**
+24800,800
+---------------------------
+####24900####
+**Votes**
+Jann Arden,1,3785
+---------------------------
+**VoteCount**
+24900,900
+---------------------------
+####25000####
+**Votes**
+Jann Arden,1,3885
+---------------------------
+**VoteCount**
+25000,0
+---------------------------
+####25100####
+**Votes**
+Jann Arden,1,3985
+---------------------------
+**VoteCount**
+25100,100
+---------------------------
+####25200####
+**Votes**
+Jann Arden,1,4085
+---------------------------
+**VoteCount**
+25200,200
+---------------------------
+####25300####
+**Votes**
+Jann Arden,1,4185
+---------------------------
+**VoteCount**
+25300,300
+---------------------------
+####25400####
+**Votes**
+Jann Arden,1,4285
+---------------------------
+**VoteCount**
+25400,400
+---------------------------
+####25500####
+**Votes**
+Jann Arden,1,4385
+---------------------------
+**VoteCount**
+25500,500
+---------------------------
+####25600####
+**Votes**
+Jann Arden,1,4485
+---------------------------
+**VoteCount**
+25600,600
+---------------------------
+####25700####
+**Votes**
+Jann Arden,1,4585
+---------------------------
+**VoteCount**
+25700,700
+---------------------------
+####25800####
+**Votes**
+Jann Arden,1,4685
+---------------------------
+**VoteCount**
+25800,800
+---------------------------
+####25900####
+**Votes**
+Jann Arden,1,4785
+---------------------------
+**VoteCount**
+25900,900
+---------------------------
+####26000####
+**Votes**
+Jann Arden,1,4885
+---------------------------
+**VoteCount**
+26000,0
+---------------------------
+####26100####
+**Votes**
+Jann Arden,1,4985
+---------------------------
+**VoteCount**
+26100,100
+---------------------------
+####26200####
+**Votes**
+Jann Arden,1,5085
+---------------------------
+**VoteCount**
+26200,200
+---------------------------
+####26300####
+**Votes**
+Jann Arden,1,5185
+---------------------------
+**VoteCount**
+26300,300
+---------------------------
+####26400####
+**Votes**
+Jann Arden,1,5285
+---------------------------
+**VoteCount**
+26400,400
+---------------------------
+####26500####
+**Votes**
+Jann Arden,1,5385
+---------------------------
+**VoteCount**
+26500,500
+---------------------------
+####26600####
+**Votes**
+Jann Arden,1,5485
+---------------------------
+**VoteCount**
+26600,600
+---------------------------
+####26700####
+**Votes**
+Jann Arden,1,5585
+---------------------------
+**VoteCount**
+26700,700
+---------------------------
+####26800####
+**Votes**
+Jann Arden,1,5685
+---------------------------
+**VoteCount**
+26800,800
+---------------------------
+####26900####
+**Votes**
+Jann Arden,1,5785
+---------------------------
+**VoteCount**
+26900,900
+---------------------------
+####27000####
+**Votes**
+Jann Arden,1,5885
+---------------------------
+**VoteCount**
+27000,0
+---------------------------
+####27100####
+**Votes**
+Jann Arden,1,5985
+---------------------------
+**VoteCount**
+27100,100
+---------------------------
+####27200####
+**Votes**
+Jann Arden,1,6085
+---------------------------
+**VoteCount**
+27200,200
+---------------------------
+####27300####
+**Votes**
+Jann Arden,1,6185
+---------------------------
+**VoteCount**
+27300,300
+---------------------------
+####27400####
+**Votes**
+Jann Arden,1,6285
+---------------------------
+**VoteCount**
+27400,400
+---------------------------
+####27500####
+**Votes**
+Jann Arden,1,6385
+---------------------------
+**VoteCount**
+27500,500
+---------------------------
+####27600####
+**Votes**
+Jann Arden,1,6485
+---------------------------
+**VoteCount**
+27600,600
+---------------------------
+####27700####
+**Votes**
+Jann Arden,1,6585
+---------------------------
+**VoteCount**
+27700,700
+---------------------------
+####27800####
+**Votes**
+Jann Arden,1,6685
+---------------------------
+**VoteCount**
+27800,800
+---------------------------
+####27900####
+**Votes**
+Jann Arden,1,6785
+---------------------------
+**VoteCount**
+27900,900
+---------------------------
+####28000####
+**Votes**
+Jann Arden,1,6885
+---------------------------
+**VoteCount**
+28000,0
+---------------------------
+####28100####
+**Votes**
+Jann Arden,1,6985
+---------------------------
+**VoteCount**
+28100,100
+---------------------------
+####28200####
+**Votes**
+Jann Arden,1,7085
+---------------------------
+**VoteCount**
+28200,200
+---------------------------
+####28300####
+**Votes**
+Jann Arden,1,7185
+---------------------------
+**VoteCount**
+28300,300
+---------------------------
+####28400####
+**Votes**
+Jann Arden,1,7285
+---------------------------
+**VoteCount**
+28400,400
+---------------------------
+####28500####
+**Votes**
+Jann Arden,1,7385
+---------------------------
+**VoteCount**
+28500,500
+---------------------------
+####28600####
+**Votes**
+Jann Arden,1,7485
+---------------------------
+**VoteCount**
+28600,600
+---------------------------
+####28700####
+**Votes**
+Jann Arden,1,7585
+---------------------------
+**VoteCount**
+28700,700
+---------------------------
+####28800####
+**Votes**
+Jann Arden,1,7685
+---------------------------
+**VoteCount**
+28800,800
+---------------------------
+####28900####
+**Votes**
+Jann Arden,1,7785
+---------------------------
+**VoteCount**
+28900,900
+---------------------------
+####29000####
+**Votes**
+Jann Arden,1,7885
+---------------------------
+**VoteCount**
+29000,0
+---------------------------
+####29100####
+**Votes**
+Jann Arden,1,7985
+---------------------------
+**VoteCount**
+29100,100
+---------------------------
+####29200####
+**Votes**
+Jann Arden,1,8085
+---------------------------
+**VoteCount**
+29200,200
+---------------------------
+####29300####
+**Votes**
+Jann Arden,1,8185
+---------------------------
+**VoteCount**
+29300,300
+---------------------------
+####29400####
+**Votes**
+Jann Arden,1,8285
+---------------------------
+**VoteCount**
+29400,400
+---------------------------
+####29500####
+**Votes**
+Jann Arden,1,8385
+---------------------------
+**VoteCount**
+29500,500
+---------------------------
+####29600####
+**Votes**
+Jann Arden,1,8485
+---------------------------
+**VoteCount**
+29600,600
+---------------------------
+####29700####
+**Votes**
+Jann Arden,1,8585
+---------------------------
+**VoteCount**
+29700,700
+---------------------------
+####29800####
+**Votes**
+Jann Arden,1,8685
+---------------------------
+**VoteCount**
+29800,800
+---------------------------
+####29900####
+**Votes**
+Jann Arden,1,8785
+---------------------------
+**VoteCount**
+29900,900
+---------------------------
+####30000####
+**Votes**
+Jann Arden,1,8885
+---------------------------
+**VoteCount**
+30000,0
+---------------------------
+####30100####
+**Votes**
+Jann Arden,1,8985
+---------------------------
+**VoteCount**
+30100,100
+---------------------------
+####30200####
+**Votes**
+Jann Arden,1,9085
+---------------------------
+**VoteCount**
+30200,200
+---------------------------
+####30300####
+**Votes**
+Jann Arden,1,9185
+---------------------------
+**VoteCount**
+30300,300
+---------------------------
+####30400####
+**Votes**
+Jann Arden,1,9285
+---------------------------
+**VoteCount**
+30400,400
+---------------------------
+####30500####
+**Votes**
+Jann Arden,1,9385
+---------------------------
+**VoteCount**
+30500,500
+---------------------------
+####30600####
+**Votes**
+Jann Arden,1,9485
+---------------------------
+**VoteCount**
+30600,600
+---------------------------
+####30700####
+**Votes**
+Jann Arden,1,9585
+---------------------------
+**VoteCount**
+30700,700
+---------------------------
+####30800####
+**Votes**
+Jann Arden,1,9685
+---------------------------
+**VoteCount**
+30800,800
+---------------------------
+####30900####
+**Votes**
+Jann Arden,1,9785
+---------------------------
+**VoteCount**
+30900,900
+---------------------------
+####31000####
+**Votes**
+Jann Arden,1,9885
+---------------------------
+**VoteCount**
+31000,0
+---------------------------
+####31100####
+**Votes**
+Jann Arden,1,9985
+---------------------------
+**VoteCount**
+31100,100
+---------------------------
+####31200####
+**Votes**
+Jann Arden,1,10085
+---------------------------
+**VoteCount**
+31200,200
+---------------------------
+####31300####
+**Votes**
+Jann Arden,1,10185
+---------------------------
+**VoteCount**
+31300,300
+---------------------------
+####31400####
+**Votes**
+Jann Arden,1,10285
+---------------------------
+**VoteCount**
+31400,400
+---------------------------
+####31500####
+**Votes**
+Jann Arden,1,10385
+---------------------------
+**VoteCount**
+31500,500
+---------------------------
+####31600####
+**Votes**
+Jann Arden,1,10485
+---------------------------
+**VoteCount**
+31600,600
+---------------------------
+####31700####
+**Votes**
+Jann Arden,1,10585
+---------------------------
+**VoteCount**
+31700,700
+---------------------------
+####31800####
+**Votes**
+Jann Arden,1,10685
+---------------------------
+**VoteCount**
+31800,800
+---------------------------
+####31900####
+**Votes**
+Jann Arden,1,10785
+---------------------------
+**VoteCount**
+31900,900
+---------------------------
+####32000####
+**Votes**
+Jann Arden,1,10885
+---------------------------
+**VoteCount**
+32000,0
+---------------------------
+####32100####
+**Votes**
+Jann Arden,1,10985
+---------------------------
+**VoteCount**
+32100,100
+---------------------------
+####32200####
+**Votes**
+Jann Arden,1,11085
+---------------------------
+**VoteCount**
+32200,200
+---------------------------
+####32300####
+**Votes**
+Jann Arden,1,11185
+---------------------------
+**VoteCount**
+32300,300
+---------------------------
+####32400####
+**Votes**
+Jann Arden,1,11285
+---------------------------
+**VoteCount**
+32400,400
+---------------------------
+####32500####
+**Votes**
+Jann Arden,1,11385
+---------------------------
+**VoteCount**
+32500,500
+---------------------------
+####32600####
+**Votes**
+Jann Arden,1,11485
+---------------------------
+**VoteCount**
+32600,600
+---------------------------
+####32700####
+**Votes**
+Jann Arden,1,11585
+---------------------------
+**VoteCount**
+32700,700
+---------------------------
+####32800####
+**Votes**
+Jann Arden,1,11685
+---------------------------
+**VoteCount**
+32800,800
+---------------------------
+####32900####
+**Votes**
+Jann Arden,1,11785
+---------------------------
+**VoteCount**
+32900,900
+---------------------------
+####33000####
+**Votes**
+Jann Arden,1,11885
+---------------------------
+**VoteCount**
+33000,0
+---------------------------
+####33100####
+**Votes**
+Jann Arden,1,11985
+---------------------------
+**VoteCount**
+33100,100
+---------------------------
+####33200####
+**Votes**
+Jann Arden,1,12085
+---------------------------
+**VoteCount**
+33200,200
+---------------------------
+####33300####
+**Votes**
+Jann Arden,1,12185
+---------------------------
+**VoteCount**
+33300,300
+---------------------------
+####33400####
+**Votes**
+Jann Arden,1,12285
+---------------------------
+**VoteCount**
+33400,400
+---------------------------
+####33500####
+**Votes**
+Jann Arden,1,12385
+---------------------------
+**VoteCount**
+33500,500
+---------------------------
+####33600####
+**Votes**
+Jann Arden,1,12485
+---------------------------
+**VoteCount**
+33600,600
+---------------------------
+####33700####
+**Votes**
+Jann Arden,1,12585
+---------------------------
+**VoteCount**
+33700,700
+---------------------------
+####33800####
+**Votes**
+Jann Arden,1,12685
+---------------------------
+**VoteCount**
+33800,800
+---------------------------
+####33900####
+**Votes**
+Jann Arden,1,12785
+---------------------------
+**VoteCount**
+33900,900
+---------------------------
+####34000####
+**Votes**
+Jann Arden,1,12885
+---------------------------
+**VoteCount**
+34000,0
+---------------------------
+####34100####
+**Votes**
+Jann Arden,1,12985
+---------------------------
+**VoteCount**
+34100,100
+---------------------------
+####34200####
+**Votes**
+Jann Arden,1,13085
+---------------------------
+**VoteCount**
+34200,200
+---------------------------
+####34300####
+**Votes**
+Jann Arden,1,13185
+---------------------------
+**VoteCount**
+34300,300
+---------------------------
+####34400####
+**Votes**
+Jann Arden,1,13285
+---------------------------
+**VoteCount**
+34400,400
+---------------------------
+####34500####
+**Votes**
+Jann Arden,1,13385
+---------------------------
+**VoteCount**
+34500,500
+---------------------------
+####34600####
+**Votes**
+Jann Arden,1,13485
+---------------------------
+**VoteCount**
+34600,600
+---------------------------
+####34700####
+**Votes**
+Jann Arden,1,13585
+---------------------------
+**VoteCount**
+34700,700
+---------------------------
+####34800####
+**Votes**
+Jann Arden,1,13685
+---------------------------
+**VoteCount**
+34800,800
+---------------------------
+####34900####
+**Votes**
+Jann Arden,1,13785
+---------------------------
+**VoteCount**
+34900,900
+---------------------------
+####35000####
+**Votes**
+Jann Arden,1,13885
+---------------------------
+**VoteCount**
+35000,0
+---------------------------
+####35100####
+**Votes**
+Jann Arden,1,13985
+---------------------------
+**VoteCount**
+35100,100
+---------------------------
+####35200####
+**Votes**
+Jann Arden,1,14085
+---------------------------
+**VoteCount**
+35200,200
+---------------------------
+####35300####
+**Votes**
+Jann Arden,1,14185
+---------------------------
+**VoteCount**
+35300,300
+---------------------------
+####35400####
+**Votes**
+Jann Arden,1,14285
+---------------------------
+**VoteCount**
+35400,400
+---------------------------
+####35500####
+**Votes**
+Jann Arden,1,14385
+---------------------------
+**VoteCount**
+35500,500
+---------------------------
+####35600####
+**Votes**
+Jann Arden,1,14485
+---------------------------
+**VoteCount**
+35600,600
+---------------------------
+####35700####
+**Votes**
+Jann Arden,1,14585
+---------------------------
+**VoteCount**
+35700,700
+---------------------------
+####35800####
+**Votes**
+Jann Arden,1,14685
+---------------------------
+**VoteCount**
+35800,800
+---------------------------
+####35900####
+**Votes**
+Jann Arden,1,14785
+---------------------------
+**VoteCount**
+35900,900
+---------------------------
+####36000####
+**Votes**
+Jann Arden,1,14885
+---------------------------
+**VoteCount**
+36000,0
+---------------------------
+####36100####
+**Votes**
+Jann Arden,1,14985
+---------------------------
+**VoteCount**
+36100,100
+---------------------------
+####36200####
+**Votes**
+Jann Arden,1,15085
+---------------------------
+**VoteCount**
+36200,200
+---------------------------
+####36300####
+**Votes**
+Jann Arden,1,15185
+---------------------------
+**VoteCount**
+36300,300
+---------------------------
+####36400####
+**Votes**
+Jann Arden,1,15285
+---------------------------
+**VoteCount**
+36400,400
+---------------------------
+####36500####
+**Votes**
+Jann Arden,1,15385
+---------------------------
+**VoteCount**
+36500,500
+---------------------------
+####36600####
+**Votes**
+Jann Arden,1,15485
+---------------------------
+**VoteCount**
+36600,600
+---------------------------
+####36700####
+**Votes**
+Jann Arden,1,15585
+---------------------------
+**VoteCount**
+36700,700
+---------------------------
+####36800####
+**Votes**
+Jann Arden,1,15685
+---------------------------
+**VoteCount**
+36800,800
+---------------------------
+####36900####
+**Votes**
+Jann Arden,1,15785
+---------------------------
+**VoteCount**
+36900,900
+---------------------------
+####37000####
+**Votes**
+Jann Arden,1,15885
+---------------------------
+**VoteCount**
+37000,0
+---------------------------
+####37100####
+**Votes**
+Jann Arden,1,15985
+---------------------------
+**VoteCount**
+37100,100
+---------------------------
+####37200####
+**Votes**
+Jann Arden,1,16085
+---------------------------
+**VoteCount**
+37200,200
+---------------------------
+####37300####
+**Votes**
+Jann Arden,1,16185
+---------------------------
+**VoteCount**
+37300,300
+---------------------------
+####37400####
+**Votes**
+Jann Arden,1,16285
+---------------------------
+**VoteCount**
+37400,400
+---------------------------
+####37500####
+**Votes**
+Jann Arden,1,16385
+---------------------------
+**VoteCount**
+37500,500
+---------------------------
+####37600####
+**Votes**
+Jann Arden,1,16485
+---------------------------
+**VoteCount**
+37600,600
+---------------------------
+####37700####
+**Votes**
+Jann Arden,1,16585
+---------------------------
+**VoteCount**
+37700,700
+---------------------------
+####37800####
+**Votes**
+Jann Arden,1,16685
+---------------------------
+**VoteCount**
+37800,800
+---------------------------
+####37900####
+**Votes**
+Jann Arden,1,16785
+---------------------------
+**VoteCount**
+37900,900
+---------------------------
+####38000####
+**Votes**
+Jann Arden,1,16885
+---------------------------
+**VoteCount**
+38000,0
+---------------------------
+####38100####
+**Votes**
+Jann Arden,1,16985
+---------------------------
+**VoteCount**
+38100,100
+---------------------------
+####38200####
+**Votes**
+Jann Arden,1,17085
+---------------------------
+**VoteCount**
+38200,200
+---------------------------
+####38300####
+**Votes**
+Jann Arden,1,17185
+---------------------------
+**VoteCount**
+38300,300
+---------------------------
+####38400####
+**Votes**
+Jann Arden,1,17285
+---------------------------
+**VoteCount**
+38400,400
+---------------------------
+####38500####
+**Votes**
+Jann Arden,1,17385
+---------------------------
+**VoteCount**
+38500,500
+---------------------------
+####38600####
+**Votes**
+Jann Arden,1,17485
+---------------------------
+**VoteCount**
+38600,600
+---------------------------
+####38700####
+**Votes**
+Jann Arden,1,17585
+---------------------------
+**VoteCount**
+38700,700
+---------------------------
+####38800####
+**Votes**
+Jann Arden,1,17685
+---------------------------
+**VoteCount**
+38800,800
+---------------------------
+####38900####
+**Votes**
+Jann Arden,1,17785
+---------------------------
+**VoteCount**
+38900,900
+---------------------------
+####39000####
+**Votes**
+Jann Arden,1,17885
+---------------------------
+**VoteCount**
+39000,0
+---------------------------
+####39100####
+**Votes**
+Jann Arden,1,17985
+---------------------------
+**VoteCount**
+39100,100
+---------------------------
+####39200####
+**Votes**
+Jann Arden,1,18085
+---------------------------
+**VoteCount**
+39200,200
+---------------------------
+####39300####
+**Votes**
+Jann Arden,1,18185
+---------------------------
+**VoteCount**
+39300,300
+---------------------------
+####39400####
+**Votes**
+Jann Arden,1,18285
+---------------------------
+**VoteCount**
+39400,400
+---------------------------
+####39500####
+**Votes**
+Jann Arden,1,18385
+---------------------------
+**VoteCount**
+39500,500
+---------------------------
+####39600####
+**Votes**
+Jann Arden,1,18485
+---------------------------
+**VoteCount**
+39600,600
+---------------------------
+####39700####
+**Votes**
+Jann Arden,1,18585
+---------------------------
+**VoteCount**
+39700,700
+---------------------------
+####39800####
+**Votes**
+Jann Arden,1,18685
+---------------------------
+**VoteCount**
+39800,800
+---------------------------
+####39900####
+**Votes**
+Jann Arden,1,18785
+---------------------------
+**VoteCount**
+39900,900
+---------------------------
+####40000####
+**Votes**
+Jann Arden,1,18885
+---------------------------
+**VoteCount**
+40000,0
+---------------------------
+####40100####
+**Votes**
+Jann Arden,1,18985
+---------------------------
+**VoteCount**
+40100,100
+---------------------------
+####40200####
+**Votes**
+Jann Arden,1,19085
+---------------------------
+**VoteCount**
+40200,200
+---------------------------
+####40300####
+**Votes**
+Jann Arden,1,19185
+---------------------------
+**VoteCount**
+40300,300
+---------------------------
+####40400####
+**Votes**
+Jann Arden,1,19285
+---------------------------
+**VoteCount**
+40400,400
+---------------------------
+####40500####
+**Votes**
+Jann Arden,1,19385
+---------------------------
+**VoteCount**
+40500,500
+---------------------------
+####40600####
+**Votes**
+Jann Arden,1,19485
+---------------------------
+**VoteCount**
+40600,600
+---------------------------
+####40700####
+**Votes**
+Jann Arden,1,19585
+---------------------------
+**VoteCount**
+40700,700
+---------------------------
+####40800####
+**Votes**
+Jann Arden,1,19685
+---------------------------
+**VoteCount**
+40800,800
+---------------------------
+####40900####
+**Votes**
+Jann Arden,1,19785
+---------------------------
+**VoteCount**
+40900,900
+---------------------------
+####41000####
+**Votes**
+Jann Arden,1,19885
+---------------------------
+**VoteCount**
+41000,0
+---------------------------
+####41100####
+**Votes**
+Jann Arden,1,19985
+---------------------------
+**VoteCount**
+41100,100
+---------------------------
+####41200####
+**Votes**
+Jann Arden,1,20085
+---------------------------
+**VoteCount**
+41200,200
+---------------------------
+####41300####
+**Votes**
+Jann Arden,1,20185
+---------------------------
+**VoteCount**
+41300,300
+---------------------------
+####41400####
+**Votes**
+Jann Arden,1,20285
+---------------------------
+**VoteCount**
+41400,400
+---------------------------
+####41500####
+**Votes**
+Jann Arden,1,20385
+---------------------------
+**VoteCount**
+41500,500
+---------------------------
+####41600####
+**Votes**
+Jann Arden,1,20485
+---------------------------
+**VoteCount**
+41600,600
+---------------------------
+####41700####
+**Votes**
+Jann Arden,1,20585
+---------------------------
+**VoteCount**
+41700,700
+---------------------------
+####41800####
+**Votes**
+Jann Arden,1,20685
+---------------------------
+**VoteCount**
+41800,800
+---------------------------
+####41900####
+**Votes**
+Jann Arden,1,20785
+---------------------------
+**VoteCount**
+41900,900
+---------------------------
+####42000####
+**Votes**
+Jann Arden,1,20885
+---------------------------
+**VoteCount**
+42000,0
+---------------------------
+####42100####
+**Votes**
+Jann Arden,1,20985
+---------------------------
+**VoteCount**
+42100,100
+---------------------------
+####42200####
+**Votes**
+Jann Arden,1,21085
+---------------------------
+**VoteCount**
+42200,200
+---------------------------
+####42300####
+**Votes**
+Jann Arden,1,21185
+---------------------------
+**VoteCount**
+42300,300
+---------------------------
+####42400####
+**Votes**
+Jann Arden,1,21285
+---------------------------
+**VoteCount**
+42400,400
+---------------------------
+####42500####
+**Votes**
+Jann Arden,1,21385
+---------------------------
+**VoteCount**
+42500,500
+---------------------------

@@ -1,0 +1,8057 @@
+####100####
+**Votes**
+Tamara Sandor,1
+Alanis Morissette,1
+Sarah McLachlan,1
+Adam Gontier,1
+Jim Bryson,1
+Micah Barnes,1
+Emilie Mover,2
+Emily Haines,2
+Celine Dion,2
+Nicholas Scribner,3
+Anne Murray,3
+Ashley Leggat,3
+Justin Bieber,3
+Serena Ryder,4
+Mae Moore,4
+Joni Mitchell,5
+Shania Twain,6
+Avril Lavigne,6
+Michael Buble,6
+Sam Roberts,8
+Jann Arden,8
+Eileen McGann,14
+Leonard Cohen,15
+---------------------------
+**VoteCount**
+100,100
+---------------------------
+####200####
+**Votes**
+Jim Bryson,1
+Tamara Sandor,2
+Nelly Furtado,2
+Emilie Mover,3
+Sarah McLachlan,3
+Serena Ryder,4
+Emily Haines,4
+Micah Barnes,4
+Alanis Morissette,5
+Celine Dion,5
+Nicholas Scribner,6
+Ashley Leggat,6
+Adam Gontier,6
+Justin Bieber,6
+Anne Murray,7
+Mae Moore,7
+Joni Mitchell,9
+Michael Buble,9
+Shania Twain,10
+Sam Roberts,10
+Avril Lavigne,12
+Jann Arden,21
+Leonard Cohen,27
+Eileen McGann,31
+---------------------------
+**VoteCount**
+200,200
+---------------------------
+####300####
+**Votes**
+Nelly Furtado,4
+Neil Young,5
+Sarah McLachlan,5
+Emily Haines,5
+Jim Bryson,5
+Micah Barnes,6
+Nicholas Scribner,7
+Tamara Sandor,7
+Serena Ryder,7
+Anne Murray,7
+Emilie Mover,7
+Celine Dion,7
+Alanis Morissette,8
+Adam Gontier,8
+Joni Mitchell,9
+Ashley Leggat,9
+Mae Moore,10
+Justin Bieber,11
+Shania Twain,12
+Avril Lavigne,13
+Sam Roberts,14
+Michael Buble,14
+Jann Arden,37
+Leonard Cohen,41
+Eileen McGann,42
+---------------------------
+**VoteCount**
+300,300
+---------------------------
+####400####
+**Votes**
+Neil Young,6
+Jim Bryson,6
+Micah Barnes,7
+Nicholas Scribner,8
+Nelly Furtado,8
+Serena Ryder,9
+Alanis Morissette,9
+Emily Haines,9
+Adam Gontier,9
+Anne Murray,10
+Sarah McLachlan,10
+Celine Dion,10
+Tamara Sandor,11
+Mae Moore,11
+Joni Mitchell,11
+Emilie Mover,12
+Shania Twain,15
+Sam Roberts,15
+Ashley Leggat,15
+Avril Lavigne,15
+Michael Buble,15
+Justin Bieber,16
+Leonard Cohen,52
+Jann Arden,53
+Eileen McGann,58
+---------------------------
+**VoteCount**
+400,400
+---------------------------
+####500####
+**Votes**
+Neil Young,6
+Serena Ryder,10
+Anne Murray,10
+Jim Bryson,10
+Micah Barnes,10
+Alanis Morissette,11
+Nelly Furtado,11
+Nicholas Scribner,12
+Tamara Sandor,12
+Mae Moore,12
+Joni Mitchell,12
+Emily Haines,12
+Adam Gontier,13
+Celine Dion,14
+Emilie Mover,16
+Sarah McLachlan,16
+Avril Lavigne,17
+Justin Bieber,17
+Ashley Leggat,18
+Shania Twain,19
+Sam Roberts,19
+Michael Buble,21
+Leonard Cohen,66
+Jann Arden,67
+Eileen McGann,69
+---------------------------
+**VoteCount**
+500,500
+---------------------------
+####600####
+**Votes**
+Micah Barnes,10
+Alanis Morissette,11
+Nelly Furtado,11
+Jim Bryson,12
+Neil Young,13
+Anne Murray,13
+Joni Mitchell,13
+Emily Haines,13
+Nicholas Scribner,14
+Mae Moore,14
+Serena Ryder,16
+Sarah McLachlan,16
+Adam Gontier,16
+Celine Dion,18
+Tamara Sandor,19
+Shania Twain,21
+Sam Roberts,21
+Justin Bieber,21
+Emilie Mover,22
+Ashley Leggat,22
+Michael Buble,22
+Avril Lavigne,25
+Jann Arden,77
+Leonard Cohen,79
+Eileen McGann,81
+---------------------------
+**VoteCount**
+600,600
+---------------------------
+####700####
+**Votes**
+Micah Barnes,10
+Nelly Furtado,13
+Joni Mitchell,14
+Neil Young,15
+Alanis Morissette,15
+Jim Bryson,15
+Nicholas Scribner,17
+Anne Murray,17
+Emily Haines,18
+Sarah McLachlan,19
+Serena Ryder,20
+Mae Moore,20
+Celine Dion,20
+Shania Twain,22
+Adam Gontier,22
+Ashley Leggat,23
+Tamara Sandor,24
+Emilie Mover,24
+Michael Buble,24
+Sam Roberts,25
+Justin Bieber,25
+Avril Lavigne,26
+Jann Arden,88
+Leonard Cohen,89
+Eileen McGann,95
+---------------------------
+**VoteCount**
+700,700
+---------------------------
+####800####
+**Votes**
+Micah Barnes,15
+Joni Mitchell,16
+Neil Young,17
+Alanis Morissette,17
+Nicholas Scribner,18
+Nelly Furtado,18
+Anne Murray,19
+Jim Bryson,19
+Sarah McLachlan,20
+Emily Haines,20
+Celine Dion,20
+Mae Moore,22
+Serena Ryder,23
+Shania Twain,24
+Adam Gontier,24
+Tamara Sandor,25
+Ashley Leggat,25
+Sam Roberts,27
+Michael Buble,27
+Emilie Mover,29
+Avril Lavigne,30
+Justin Bieber,31
+Leonard Cohen,98
+Jann Arden,104
+Eileen McGann,112
+---------------------------
+**VoteCount**
+800,800
+---------------------------
+####900####
+**Votes**
+Micah Barnes,16
+Joni Mitchell,18
+Nicholas Scribner,19
+Nelly Furtado,19
+Neil Young,20
+Alanis Morissette,20
+Emily Haines,22
+Anne Murray,23
+Serena Ryder,24
+Adam Gontier,24
+Tamara Sandor,25
+Mae Moore,25
+Shania Twain,26
+Sarah McLachlan,26
+Celine Dion,26
+Jim Bryson,27
+Sam Roberts,29
+Ashley Leggat,29
+Michael Buble,30
+Avril Lavigne,31
+Justin Bieber,33
+Emilie Mover,35
+Leonard Cohen,108
+Jann Arden,119
+Eileen McGann,126
+---------------------------
+**VoteCount**
+900,900
+---------------------------
+####1000####
+**Votes**
+Joni Mitchell,19
+Micah Barnes,19
+Nicholas Scribner,22
+Neil Young,23
+Alanis Morissette,23
+Emily Haines,24
+Nelly Furtado,24
+Anne Murray,25
+Serena Ryder,26
+Tamara Sandor,27
+Adam Gontier,28
+Jim Bryson,28
+Sarah McLachlan,29
+Shania Twain,30
+Mae Moore,30
+Celine Dion,31
+Sam Roberts,32
+Avril Lavigne,33
+Michael Buble,34
+Ashley Leggat,35
+Justin Bieber,35
+Emilie Mover,40
+Leonard Cohen,117
+Eileen McGann,132
+Jann Arden,134
+---------------------------
+**VoteCount**
+1000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Joni Mitchell,19
+Micah Barnes,19
+Nicholas Scribner,22
+Neil Young,23
+Alanis Morissette,23
+Emily Haines,24
+Nelly Furtado,24
+Anne Murray,25
+Serena Ryder,26
+Tamara Sandor,27
+Adam Gontier,28
+Jim Bryson,28
+Sarah McLachlan,29
+Shania Twain,30
+Mae Moore,30
+Celine Dion,31
+Sam Roberts,32
+Avril Lavigne,33
+Michael Buble,34
+Ashley Leggat,35
+Justin Bieber,35
+Emilie Mover,40
+Leonard Cohen,117
+Eileen McGann,132
+Jann Arden,134
+---------------------------
+**VoteCount**
+1000,0
+---------------------------
+####1100####
+**Votes**
+Micah Barnes,23
+Neil Young,24
+Nicholas Scribner,24
+Alanis Morissette,26
+Emily Haines,26
+Nelly Furtado,28
+Serena Ryder,29
+Tamara Sandor,30
+Mae Moore,31
+Sarah McLachlan,32
+Celine Dion,32
+Sam Roberts,33
+Anne Murray,33
+Adam Gontier,33
+Shania Twain,34
+Jim Bryson,34
+Avril Lavigne,35
+Ashley Leggat,38
+Michael Buble,38
+Justin Bieber,39
+Emilie Mover,44
+Leonard Cohen,128
+Eileen McGann,139
+Jann Arden,148
+---------------------------
+**VoteCount**
+1100,100
+---------------------------
+####1200####
+**Votes**
+Neil Young,25
+Micah Barnes,26
+Nicholas Scribner,27
+Alanis Morissette,27
+Emily Haines,29
+Nelly Furtado,31
+Serena Ryder,32
+Tamara Sandor,34
+Mae Moore,34
+Sam Roberts,35
+Anne Murray,35
+Adam Gontier,35
+Shania Twain,37
+Sarah McLachlan,37
+Avril Lavigne,37
+Celine Dion,38
+Jim Bryson,38
+Ashley Leggat,41
+Michael Buble,43
+Justin Bieber,44
+Emilie Mover,48
+Leonard Cohen,139
+Eileen McGann,150
+Jann Arden,159
+---------------------------
+**VoteCount**
+1200,200
+---------------------------
+####1300####
+**Votes**
+Neil Young,27
+Nicholas Scribner,30
+Alanis Morissette,31
+Emily Haines,31
+Serena Ryder,32
+Micah Barnes,32
+Nelly Furtado,33
+Tamara Sandor,36
+Mae Moore,36
+Shania Twain,37
+Adam Gontier,38
+Sam Roberts,40
+Sarah McLachlan,40
+Celine Dion,40
+Anne Murray,41
+Jim Bryson,41
+Ashley Leggat,42
+Avril Lavigne,42
+Michael Buble,47
+Emilie Mover,48
+Justin Bieber,51
+Leonard Cohen,147
+Eileen McGann,169
+Jann Arden,170
+---------------------------
+**VoteCount**
+1300,300
+---------------------------
+####1400####
+**Votes**
+Neil Young,29
+Alanis Morissette,32
+Nicholas Scribner,33
+Emily Haines,33
+Serena Ryder,34
+Micah Barnes,34
+Nelly Furtado,36
+Mae Moore,38
+Tamara Sandor,40
+Shania Twain,41
+Adam Gontier,42
+Sam Roberts,43
+Jim Bryson,43
+Anne Murray,44
+Celine Dion,44
+Sarah McLachlan,45
+Avril Lavigne,45
+Ashley Leggat,47
+Michael Buble,51
+Emilie Mover,52
+Justin Bieber,52
+Leonard Cohen,157
+Eileen McGann,181
+Jann Arden,185
+---------------------------
+**VoteCount**
+1400,400
+---------------------------
+####1500####
+**Votes**
+Neil Young,30
+Emily Haines,34
+Alanis Morissette,35
+Nicholas Scribner,36
+Micah Barnes,37
+Serena Ryder,39
+Nelly Furtado,39
+Mae Moore,40
+Tamara Sandor,43
+Shania Twain,45
+Adam Gontier,45
+Sam Roberts,46
+Anne Murray,46
+Celine Dion,47
+Avril Lavigne,48
+Jim Bryson,48
+Sarah McLachlan,49
+Ashley Leggat,51
+Michael Buble,54
+Justin Bieber,56
+Emilie Mover,57
+Leonard Cohen,171
+Eileen McGann,189
+Jann Arden,196
+---------------------------
+**VoteCount**
+1500,500
+---------------------------
+####1600####
+**Votes**
+Emily Haines,34
+Neil Young,37
+Nicholas Scribner,38
+Serena Ryder,39
+Alanis Morissette,39
+Micah Barnes,40
+Nelly Furtado,41
+Tamara Sandor,44
+Shania Twain,45
+Mae Moore,45
+Sam Roberts,48
+Anne Murray,48
+Adam Gontier,48
+Celine Dion,48
+Avril Lavigne,50
+Jim Bryson,50
+Ashley Leggat,52
+Sarah McLachlan,54
+Justin Bieber,58
+Emilie Mover,60
+Michael Buble,60
+Leonard Cohen,187
+Eileen McGann,201
+Jann Arden,215
+---------------------------
+**VoteCount**
+1600,600
+---------------------------
+####1700####
+**Votes**
+Emily Haines,36
+Neil Young,38
+Alanis Morissette,40
+Nicholas Scribner,41
+Serena Ryder,42
+Nelly Furtado,44
+Micah Barnes,46
+Tamara Sandor,47
+Mae Moore,47
+Shania Twain,50
+Sam Roberts,51
+Avril Lavigne,51
+Adam Gontier,51
+Anne Murray,52
+Celine Dion,52
+Ashley Leggat,55
+Sarah McLachlan,56
+Jim Bryson,57
+Justin Bieber,59
+Emilie Mover,62
+Michael Buble,64
+Leonard Cohen,201
+Eileen McGann,213
+Jann Arden,226
+---------------------------
+**VoteCount**
+1700,700
+---------------------------
+####1800####
+**Votes**
+Emily Haines,38
+Neil Young,40
+Nicholas Scribner,43
+Serena Ryder,44
+Alanis Morissette,44
+Micah Barnes,46
+Nelly Furtado,47
+Tamara Sandor,51
+Mae Moore,51
+Shania Twain,53
+Sam Roberts,54
+Adam Gontier,54
+Celine Dion,54
+Avril Lavigne,55
+Anne Murray,58
+Sarah McLachlan,60
+Ashley Leggat,60
+Jim Bryson,61
+Justin Bieber,61
+Emilie Mover,65
+Michael Buble,69
+Leonard Cohen,210
+Eileen McGann,226
+Jann Arden,237
+---------------------------
+**VoteCount**
+1800,800
+---------------------------
+####1900####
+**Votes**
+Emily Haines,41
+Neil Young,42
+Nicholas Scribner,44
+Serena Ryder,45
+Alanis Morissette,47
+Nelly Furtado,51
+Micah Barnes,51
+Mae Moore,54
+Tamara Sandor,55
+Avril Lavigne,57
+Celine Dion,57
+Shania Twain,58
+Sam Roberts,58
+Anne Murray,58
+Adam Gontier,60
+Ashley Leggat,61
+Jim Bryson,64
+Sarah McLachlan,65
+Justin Bieber,65
+Emilie Mover,69
+Michael Buble,71
+Leonard Cohen,226
+Eileen McGann,237
+Jann Arden,245
+---------------------------
+**VoteCount**
+1900,900
+---------------------------
+####2000####
+**Votes**
+Neil Young,45
+Emily Haines,45
+Nicholas Scribner,46
+Serena Ryder,46
+Alanis Morissette,50
+Mae Moore,54
+Micah Barnes,55
+Nelly Furtado,56
+Tamara Sandor,57
+Celine Dion,59
+Shania Twain,61
+Anne Murray,61
+Avril Lavigne,61
+Sam Roberts,62
+Ashley Leggat,63
+Adam Gontier,63
+Justin Bieber,66
+Sarah McLachlan,67
+Jim Bryson,70
+Emilie Mover,73
+Michael Buble,75
+Leonard Cohen,238
+Eileen McGann,247
+Jann Arden,261
+---------------------------
+**VoteCount**
+2000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Neil Young,45
+Emily Haines,45
+Nicholas Scribner,46
+Serena Ryder,46
+Alanis Morissette,50
+Mae Moore,54
+Micah Barnes,55
+Nelly Furtado,56
+Tamara Sandor,57
+Celine Dion,59
+Shania Twain,61
+Anne Murray,61
+Avril Lavigne,61
+Sam Roberts,62
+Ashley Leggat,63
+Adam Gontier,63
+Justin Bieber,66
+Sarah McLachlan,67
+Jim Bryson,70
+Emilie Mover,73
+Michael Buble,75
+Leonard Cohen,238
+Eileen McGann,247
+Jann Arden,261
+---------------------------
+**VoteCount**
+2000,0
+---------------------------
+####2100####
+**Votes**
+Serena Ryder,47
+Nicholas Scribner,51
+Emily Haines,51
+Alanis Morissette,54
+Mae Moore,56
+Nelly Furtado,58
+Tamara Sandor,59
+Micah Barnes,60
+Avril Lavigne,63
+Celine Dion,64
+Shania Twain,65
+Anne Murray,66
+Ashley Leggat,66
+Sam Roberts,67
+Adam Gontier,67
+Sarah McLachlan,70
+Justin Bieber,72
+Jim Bryson,73
+Emilie Mover,78
+Michael Buble,78
+Leonard Cohen,246
+Eileen McGann,256
+Jann Arden,269
+---------------------------
+**VoteCount**
+2100,100
+---------------------------
+####2200####
+**Votes**
+Serena Ryder,49
+Nicholas Scribner,52
+Emily Haines,54
+Mae Moore,57
+Alanis Morissette,58
+Nelly Furtado,62
+Tamara Sandor,63
+Avril Lavigne,64
+Celine Dion,64
+Micah Barnes,64
+Ashley Leggat,66
+Anne Murray,68
+Sam Roberts,69
+Shania Twain,70
+Adam Gontier,70
+Sarah McLachlan,72
+Justin Bieber,76
+Jim Bryson,77
+Emilie Mover,82
+Michael Buble,82
+Leonard Cohen,264
+Eileen McGann,270
+Jann Arden,283
+---------------------------
+**VoteCount**
+2200,200
+---------------------------
+####2300####
+**Votes**
+Nicholas Scribner,52
+Serena Ryder,52
+Emily Haines,58
+Alanis Morissette,60
+Mae Moore,62
+Nelly Furtado,64
+Celine Dion,65
+Micah Barnes,66
+Tamara Sandor,67
+Avril Lavigne,69
+Anne Murray,71
+Adam Gontier,71
+Sam Roberts,72
+Ashley Leggat,72
+Shania Twain,74
+Sarah McLachlan,75
+Justin Bieber,77
+Jim Bryson,81
+Michael Buble,83
+Emilie Mover,85
+Eileen McGann,280
+Leonard Cohen,285
+Jann Arden,295
+---------------------------
+**VoteCount**
+2300,300
+---------------------------
+####2400####
+**Votes**
+Nicholas Scribner,57
+Serena Ryder,57
+Alanis Morissette,62
+Emily Haines,62
+Nelly Furtado,66
+Celine Dion,68
+Tamara Sandor,69
+Micah Barnes,69
+Mae Moore,71
+Adam Gontier,71
+Avril Lavigne,72
+Anne Murray,73
+Ashley Leggat,73
+Sam Roberts,76
+Shania Twain,77
+Sarah McLachlan,77
+Justin Bieber,81
+Jim Bryson,85
+Michael Buble,89
+Emilie Mover,90
+Eileen McGann,287
+Leonard Cohen,299
+Jann Arden,305
+---------------------------
+**VoteCount**
+2400,400
+---------------------------
+####2500####
+**Votes**
+Serena Ryder,57
+Nicholas Scribner,58
+Alanis Morissette,65
+Emily Haines,66
+Nelly Furtado,69
+Micah Barnes,70
+Tamara Sandor,72
+Mae Moore,73
+Celine Dion,73
+Avril Lavigne,74
+Adam Gontier,74
+Ashley Leggat,75
+Anne Murray,78
+Shania Twain,79
+Sam Roberts,79
+Sarah McLachlan,79
+Justin Bieber,83
+Jim Bryson,89
+Michael Buble,92
+Emilie Mover,93
+Eileen McGann,301
+Leonard Cohen,318
+Jann Arden,319
+---------------------------
+**VoteCount**
+2500,500
+---------------------------
+####2600####
+**Votes**
+Serena Ryder,59
+Nicholas Scribner,60
+Alanis Morissette,68
+Emily Haines,70
+Nelly Furtado,71
+Micah Barnes,71
+Mae Moore,74
+Tamara Sandor,75
+Celine Dion,75
+Adam Gontier,77
+Ashley Leggat,78
+Avril Lavigne,79
+Anne Murray,81
+Shania Twain,82
+Sam Roberts,83
+Justin Bieber,84
+Sarah McLachlan,85
+Emilie Mover,96
+Jim Bryson,96
+Michael Buble,99
+Eileen McGann,309
+Jann Arden,327
+Leonard Cohen,337
+---------------------------
+**VoteCount**
+2600,600
+---------------------------
+####2700####
+**Votes**
+Serena Ryder,60
+Nicholas Scribner,64
+Alanis Morissette,70
+Micah Barnes,73
+Emily Haines,74
+Mae Moore,77
+Tamara Sandor,78
+Nelly Furtado,78
+Celine Dion,78
+Ashley Leggat,81
+Avril Lavigne,81
+Adam Gontier,81
+Anne Murray,84
+Sam Roberts,85
+Justin Bieber,85
+Shania Twain,86
+Sarah McLachlan,88
+Jim Bryson,98
+Emilie Mover,101
+Michael Buble,101
+Eileen McGann,318
+Jann Arden,337
+Leonard Cohen,358
+---------------------------
+**VoteCount**
+2700,700
+---------------------------
+####2800####
+**Votes**
+Serena Ryder,65
+Nicholas Scribner,67
+Alanis Morissette,71
+Micah Barnes,74
+Emily Haines,76
+Celine Dion,79
+Nelly Furtado,80
+Mae Moore,82
+Tamara Sandor,83
+Ashley Leggat,83
+Avril Lavigne,83
+Adam Gontier,85
+Sam Roberts,86
+Justin Bieber,88
+Anne Murray,89
+Shania Twain,91
+Sarah McLachlan,92
+Jim Bryson,101
+Michael Buble,104
+Emilie Mover,110
+Eileen McGann,329
+Jann Arden,351
+Leonard Cohen,367
+---------------------------
+**VoteCount**
+2800,800
+---------------------------
+####2900####
+**Votes**
+Serena Ryder,68
+Nicholas Scribner,72
+Alanis Morissette,74
+Micah Barnes,77
+Emily Haines,80
+Nelly Furtado,82
+Celine Dion,83
+Tamara Sandor,85
+Mae Moore,85
+Ashley Leggat,85
+Avril Lavigne,87
+Adam Gontier,89
+Justin Bieber,89
+Sam Roberts,91
+Anne Murray,91
+Sarah McLachlan,94
+Shania Twain,95
+Jim Bryson,104
+Michael Buble,108
+Emilie Mover,112
+Eileen McGann,343
+Jann Arden,358
+Leonard Cohen,384
+---------------------------
+**VoteCount**
+2900,900
+---------------------------
+####3000####
+**Votes**
+Nicholas Scribner,74
+Serena Ryder,74
+Alanis Morissette,78
+Micah Barnes,78
+Emily Haines,83
+Nelly Furtado,84
+Celine Dion,85
+Mae Moore,86
+Ashley Leggat,87
+Justin Bieber,91
+Tamara Sandor,92
+Avril Lavigne,92
+Adam Gontier,92
+Sam Roberts,94
+Anne Murray,94
+Shania Twain,97
+Sarah McLachlan,102
+Jim Bryson,105
+Michael Buble,111
+Emilie Mover,114
+Eileen McGann,353
+Jann Arden,370
+Leonard Cohen,400
+---------------------------
+**VoteCount**
+3000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Nicholas Scribner,74
+Serena Ryder,74
+Alanis Morissette,78
+Micah Barnes,78
+Emily Haines,83
+Nelly Furtado,84
+Celine Dion,85
+Mae Moore,86
+Ashley Leggat,87
+Justin Bieber,91
+Tamara Sandor,92
+Avril Lavigne,92
+Adam Gontier,92
+Sam Roberts,94
+Anne Murray,94
+Shania Twain,97
+Sarah McLachlan,102
+Jim Bryson,105
+Michael Buble,111
+Emilie Mover,114
+Eileen McGann,353
+Jann Arden,370
+Leonard Cohen,400
+---------------------------
+**VoteCount**
+3000,0
+---------------------------
+####3100####
+**Votes**
+Serena Ryder,77
+Micah Barnes,82
+Alanis Morissette,86
+Emily Haines,86
+Nelly Furtado,88
+Celine Dion,88
+Mae Moore,90
+Justin Bieber,92
+Ashley Leggat,93
+Avril Lavigne,94
+Tamara Sandor,96
+Adam Gontier,96
+Anne Murray,97
+Sam Roberts,100
+Sarah McLachlan,105
+Shania Twain,106
+Jim Bryson,107
+Michael Buble,114
+Emilie Mover,121
+Eileen McGann,359
+Jann Arden,377
+Leonard Cohen,408
+---------------------------
+**VoteCount**
+3100,100
+---------------------------
+####3200####
+**Votes**
+Serena Ryder,77
+Micah Barnes,85
+Emily Haines,88
+Celine Dion,88
+Alanis Morissette,89
+Mae Moore,93
+Justin Bieber,94
+Avril Lavigne,95
+Ashley Leggat,96
+Nelly Furtado,96
+Adam Gontier,98
+Tamara Sandor,99
+Sam Roberts,104
+Anne Murray,105
+Shania Twain,111
+Sarah McLachlan,111
+Jim Bryson,115
+Michael Buble,118
+Emilie Mover,125
+Eileen McGann,370
+Jann Arden,390
+Leonard Cohen,415
+---------------------------
+**VoteCount**
+3200,200
+---------------------------
+####3300####
+**Votes**
+Serena Ryder,80
+Micah Barnes,85
+Celine Dion,90
+Emily Haines,91
+Alanis Morissette,93
+Ashley Leggat,97
+Mae Moore,98
+Avril Lavigne,98
+Adam Gontier,99
+Nelly Furtado,100
+Justin Bieber,101
+Tamara Sandor,102
+Sam Roberts,107
+Anne Murray,110
+Sarah McLachlan,112
+Shania Twain,117
+Michael Buble,118
+Jim Bryson,119
+Emilie Mover,127
+Eileen McGann,385
+Jann Arden,405
+Leonard Cohen,428
+---------------------------
+**VoteCount**
+3300,300
+---------------------------
+####3400####
+**Votes**
+Serena Ryder,82
+Micah Barnes,86
+Celine Dion,91
+Emily Haines,92
+Alanis Morissette,96
+Mae Moore,99
+Ashley Leggat,99
+Nelly Furtado,103
+Tamara Sandor,104
+Avril Lavigne,105
+Adam Gontier,105
+Justin Bieber,105
+Sam Roberts,110
+Anne Murray,112
+Sarah McLachlan,114
+Michael Buble,119
+Shania Twain,121
+Jim Bryson,123
+Emilie Mover,130
+Eileen McGann,400
+Jann Arden,420
+Leonard Cohen,446
+---------------------------
+**VoteCount**
+3400,400
+---------------------------
+####3500####
+**Votes**
+Serena Ryder,86
+Micah Barnes,89
+Emily Haines,94
+Celine Dion,95
+Alanis Morissette,99
+Ashley Leggat,101
+Mae Moore,102
+Nelly Furtado,104
+Tamara Sandor,106
+Justin Bieber,107
+Adam Gontier,108
+Avril Lavigne,109
+Sam Roberts,114
+Anne Murray,117
+Sarah McLachlan,117
+Michael Buble,122
+Shania Twain,124
+Jim Bryson,126
+Emilie Mover,134
+Eileen McGann,412
+Jann Arden,433
+Leonard Cohen,463
+---------------------------
+**VoteCount**
+3500,500
+---------------------------
+####3600####
+**Votes**
+Serena Ryder,89
+Micah Barnes,91
+Emily Haines,95
+Celine Dion,97
+Alanis Morissette,100
+Mae Moore,104
+Ashley Leggat,105
+Tamara Sandor,108
+Nelly Furtado,109
+Justin Bieber,109
+Avril Lavigne,112
+Adam Gontier,112
+Sam Roberts,117
+Anne Murray,118
+Sarah McLachlan,119
+Michael Buble,123
+Shania Twain,127
+Jim Bryson,130
+Emilie Mover,138
+Eileen McGann,430
+Jann Arden,449
+Leonard Cohen,480
+---------------------------
+**VoteCount**
+3600,600
+---------------------------
+####3700####
+**Votes**
+Serena Ryder,91
+Micah Barnes,93
+Emily Haines,96
+Celine Dion,98
+Alanis Morissette,102
+Mae Moore,108
+Ashley Leggat,110
+Nelly Furtado,113
+Justin Bieber,113
+Adam Gontier,114
+Tamara Sandor,115
+Sam Roberts,118
+Anne Murray,120
+Avril Lavigne,120
+Sarah McLachlan,123
+Shania Twain,127
+Michael Buble,129
+Jim Bryson,134
+Emilie Mover,141
+Eileen McGann,444
+Jann Arden,458
+Leonard Cohen,495
+---------------------------
+**VoteCount**
+3700,700
+---------------------------
+####3800####
+**Votes**
+Serena Ryder,95
+Micah Barnes,96
+Emily Haines,98
+Celine Dion,102
+Alanis Morissette,104
+Mae Moore,112
+Nelly Furtado,113
+Ashley Leggat,114
+Justin Bieber,115
+Tamara Sandor,118
+Sam Roberts,120
+Anne Murray,121
+Adam Gontier,122
+Avril Lavigne,125
+Sarah McLachlan,126
+Michael Buble,133
+Shania Twain,134
+Jim Bryson,138
+Emilie Mover,144
+Eileen McGann,455
+Jann Arden,470
+Leonard Cohen,507
+---------------------------
+**VoteCount**
+3800,800
+---------------------------
+####3900####
+**Votes**
+Micah Barnes,97
+Serena Ryder,98
+Emily Haines,102
+Celine Dion,104
+Alanis Morissette,109
+Mae Moore,114
+Nelly Furtado,115
+Justin Bieber,116
+Ashley Leggat,117
+Tamara Sandor,122
+Sam Roberts,123
+Anne Murray,125
+Adam Gontier,126
+Sarah McLachlan,129
+Avril Lavigne,130
+Michael Buble,136
+Shania Twain,138
+Jim Bryson,140
+Emilie Mover,145
+Eileen McGann,475
+Jann Arden,486
+Leonard Cohen,515
+---------------------------
+**VoteCount**
+3900,900
+---------------------------
+####4000####
+**Votes**
+Serena Ryder,100
+Micah Barnes,100
+Emily Haines,107
+Celine Dion,107
+Alanis Morissette,112
+Mae Moore,115
+Ashley Leggat,118
+Nelly Furtado,120
+Justin Bieber,120
+Tamara Sandor,125
+Sam Roberts,125
+Anne Murray,128
+Adam Gontier,130
+Sarah McLachlan,134
+Avril Lavigne,137
+Michael Buble,137
+Shania Twain,141
+Jim Bryson,142
+Emilie Mover,149
+Eileen McGann,490
+Jann Arden,500
+Leonard Cohen,525
+---------------------------
+**VoteCount**
+4000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Serena Ryder,100
+Micah Barnes,100
+Emily Haines,107
+Celine Dion,107
+Alanis Morissette,112
+Mae Moore,115
+Ashley Leggat,118
+Nelly Furtado,120
+Justin Bieber,120
+Tamara Sandor,125
+Sam Roberts,125
+Anne Murray,128
+Adam Gontier,130
+Sarah McLachlan,134
+Avril Lavigne,137
+Michael Buble,137
+Shania Twain,141
+Jim Bryson,142
+Emilie Mover,149
+Eileen McGann,490
+Jann Arden,500
+Leonard Cohen,525
+---------------------------
+**VoteCount**
+4000,0
+---------------------------
+####4100####
+**Votes**
+Micah Barnes,105
+Emily Haines,112
+Alanis Morissette,113
+Celine Dion,113
+Mae Moore,118
+Ashley Leggat,120
+Justin Bieber,123
+Nelly Furtado,125
+Tamara Sandor,126
+Sam Roberts,131
+Anne Murray,132
+Sarah McLachlan,136
+Adam Gontier,138
+Michael Buble,139
+Avril Lavigne,142
+Shania Twain,145
+Jim Bryson,148
+Emilie Mover,154
+Eileen McGann,501
+Jann Arden,508
+Leonard Cohen,533
+---------------------------
+**VoteCount**
+4100,100
+---------------------------
+####4200####
+**Votes**
+Micah Barnes,109
+Alanis Morissette,114
+Emily Haines,117
+Celine Dion,119
+Mae Moore,124
+Ashley Leggat,125
+Justin Bieber,125
+Tamara Sandor,127
+Nelly Furtado,129
+Sam Roberts,134
+Anne Murray,138
+Sarah McLachlan,140
+Adam Gontier,141
+Avril Lavigne,144
+Michael Buble,144
+Jim Bryson,151
+Shania Twain,153
+Emilie Mover,158
+Eileen McGann,508
+Jann Arden,518
+Leonard Cohen,544
+---------------------------
+**VoteCount**
+4200,200
+---------------------------
+####4300####
+**Votes**
+Micah Barnes,111
+Alanis Morissette,119
+Emily Haines,120
+Celine Dion,123
+Tamara Sandor,128
+Mae Moore,129
+Ashley Leggat,129
+Justin Bieber,129
+Nelly Furtado,133
+Sam Roberts,139
+Anne Murray,142
+Sarah McLachlan,144
+Adam Gontier,144
+Michael Buble,146
+Avril Lavigne,147
+Shania Twain,156
+Jim Bryson,156
+Emilie Mover,162
+Eileen McGann,517
+Jann Arden,536
+Leonard Cohen,552
+---------------------------
+**VoteCount**
+4300,300
+---------------------------
+####4400####
+**Votes**
+Micah Barnes,114
+Alanis Morissette,123
+Emily Haines,123
+Celine Dion,127
+Tamara Sandor,129
+Mae Moore,132
+Ashley Leggat,133
+Justin Bieber,134
+Nelly Furtado,135
+Sam Roberts,141
+Anne Murray,146
+Michael Buble,147
+Sarah McLachlan,148
+Adam Gontier,151
+Avril Lavigne,152
+Jim Bryson,156
+Shania Twain,160
+Emilie Mover,162
+Eileen McGann,536
+Jann Arden,548
+Leonard Cohen,565
+---------------------------
+**VoteCount**
+4400,400
+---------------------------
+####4500####
+**Votes**
+Micah Barnes,118
+Emily Haines,124
+Alanis Morissette,125
+Celine Dion,128
+Tamara Sandor,134
+Ashley Leggat,136
+Justin Bieber,136
+Mae Moore,139
+Nelly Furtado,139
+Sam Roberts,145
+Michael Buble,148
+Anne Murray,149
+Sarah McLachlan,149
+Avril Lavigne,154
+Adam Gontier,155
+Jim Bryson,159
+Emilie Mover,162
+Shania Twain,163
+Eileen McGann,552
+Jann Arden,564
+Leonard Cohen,583
+---------------------------
+**VoteCount**
+4500,500
+---------------------------
+####4600####
+**Votes**
+Micah Barnes,120
+Emily Haines,128
+Alanis Morissette,131
+Celine Dion,131
+Tamara Sandor,138
+Justin Bieber,138
+Ashley Leggat,140
+Mae Moore,141
+Nelly Furtado,141
+Sam Roberts,148
+Sarah McLachlan,151
+Michael Buble,151
+Anne Murray,154
+Avril Lavigne,158
+Adam Gontier,159
+Jim Bryson,162
+Shania Twain,165
+Emilie Mover,165
+Eileen McGann,568
+Jann Arden,577
+Leonard Cohen,596
+---------------------------
+**VoteCount**
+4600,600
+---------------------------
+####4700####
+**Votes**
+Micah Barnes,123
+Emily Haines,130
+Alanis Morissette,139
+Justin Bieber,139
+Ashley Leggat,140
+Celine Dion,140
+Tamara Sandor,141
+Nelly Furtado,147
+Mae Moore,148
+Sam Roberts,149
+Michael Buble,152
+Sarah McLachlan,154
+Anne Murray,155
+Avril Lavigne,162
+Adam Gontier,162
+Shania Twain,166
+Jim Bryson,168
+Emilie Mover,169
+Eileen McGann,585
+Jann Arden,591
+Leonard Cohen,602
+---------------------------
+**VoteCount**
+4700,700
+---------------------------
+####4800####
+**Votes**
+Micah Barnes,128
+Emily Haines,134
+Justin Bieber,142
+Alanis Morissette,143
+Celine Dion,143
+Ashley Leggat,144
+Tamara Sandor,147
+Sam Roberts,151
+Mae Moore,153
+Nelly Furtado,154
+Anne Murray,157
+Sarah McLachlan,158
+Michael Buble,158
+Shania Twain,166
+Avril Lavigne,167
+Adam Gontier,169
+Emilie Mover,171
+Jim Bryson,171
+Eileen McGann,595
+Jann Arden,600
+Leonard Cohen,611
+---------------------------
+**VoteCount**
+4800,800
+---------------------------
+####4900####
+**Votes**
+Micah Barnes,130
+Emily Haines,136
+Alanis Morissette,144
+Justin Bieber,145
+Celine Dion,146
+Ashley Leggat,148
+Tamara Sandor,149
+Sam Roberts,153
+Nelly Furtado,157
+Michael Buble,159
+Mae Moore,162
+Anne Murray,164
+Sarah McLachlan,165
+Shania Twain,167
+Emilie Mover,172
+Avril Lavigne,172
+Adam Gontier,173
+Jim Bryson,175
+Eileen McGann,607
+Jann Arden,616
+Leonard Cohen,622
+---------------------------
+**VoteCount**
+4900,900
+---------------------------
+####5000####
+**Votes**
+Emily Haines,140
+Micah Barnes,140
+Alanis Morissette,145
+Celine Dion,150
+Tamara Sandor,153
+Sam Roberts,153
+Justin Bieber,153
+Ashley Leggat,155
+Michael Buble,160
+Nelly Furtado,161
+Mae Moore,163
+Anne Murray,167
+Sarah McLachlan,169
+Shania Twain,171
+Avril Lavigne,173
+Adam Gontier,174
+Jim Bryson,179
+Emilie Mover,180
+Eileen McGann,621
+Jann Arden,622
+Leonard Cohen,633
+---------------------------
+**VoteCount**
+5000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Emily Haines,140
+Micah Barnes,140
+Alanis Morissette,145
+Celine Dion,150
+Tamara Sandor,153
+Sam Roberts,153
+Justin Bieber,153
+Ashley Leggat,155
+Michael Buble,160
+Nelly Furtado,161
+Mae Moore,163
+Anne Murray,167
+Sarah McLachlan,169
+Shania Twain,171
+Avril Lavigne,173
+Adam Gontier,174
+Jim Bryson,179
+Emilie Mover,180
+Eileen McGann,621
+Jann Arden,622
+Leonard Cohen,633
+---------------------------
+**VoteCount**
+5000,0
+---------------------------
+####5100####
+**Votes**
+Micah Barnes,146
+Alanis Morissette,153
+Celine Dion,153
+Sam Roberts,156
+Ashley Leggat,156
+Justin Bieber,156
+Tamara Sandor,158
+Michael Buble,163
+Mae Moore,165
+Nelly Furtado,165
+Anne Murray,169
+Sarah McLachlan,178
+Shania Twain,180
+Adam Gontier,180
+Avril Lavigne,182
+Emilie Mover,183
+Jim Bryson,187
+Jann Arden,628
+Eileen McGann,629
+Leonard Cohen,635
+---------------------------
+**VoteCount**
+5100,100
+---------------------------
+####5200####
+**Votes**
+Micah Barnes,153
+Alanis Morissette,155
+Celine Dion,159
+Sam Roberts,160
+Ashley Leggat,160
+Justin Bieber,163
+Michael Buble,167
+Mae Moore,168
+Nelly Furtado,169
+Tamara Sandor,171
+Anne Murray,176
+Sarah McLachlan,179
+Shania Twain,183
+Emilie Mover,184
+Avril Lavigne,184
+Adam Gontier,185
+Jim Bryson,190
+Jann Arden,634
+Eileen McGann,641
+Leonard Cohen,641
+---------------------------
+**VoteCount**
+5200,200
+---------------------------
+####5300####
+**Votes**
+Micah Barnes,155
+Alanis Morissette,156
+Ashley Leggat,164
+Celine Dion,164
+Sam Roberts,166
+Justin Bieber,167
+Nelly Furtado,170
+Michael Buble,170
+Mae Moore,171
+Tamara Sandor,176
+Anne Murray,179
+Sarah McLachlan,184
+Shania Twain,185
+Avril Lavigne,185
+Emilie Mover,187
+Jim Bryson,192
+Adam Gontier,194
+Jann Arden,647
+Leonard Cohen,654
+Eileen McGann,656
+---------------------------
+**VoteCount**
+5300,300
+---------------------------
+####5400####
+**Votes**
+Alanis Morissette,161
+Micah Barnes,161
+Ashley Leggat,167
+Celine Dion,168
+Sam Roberts,169
+Justin Bieber,170
+Nelly Furtado,173
+Mae Moore,174
+Michael Buble,174
+Tamara Sandor,181
+Anne Murray,181
+Shania Twain,188
+Sarah McLachlan,189
+Avril Lavigne,189
+Emilie Mover,194
+Jim Bryson,194
+Adam Gontier,197
+Jann Arden,657
+Eileen McGann,663
+Leonard Cohen,672
+---------------------------
+**VoteCount**
+5400,400
+---------------------------
+####5500####
+**Votes**
+Alanis Morissette,163
+Micah Barnes,168
+Celine Dion,172
+Justin Bieber,173
+Sam Roberts,174
+Nelly Furtado,175
+Mae Moore,176
+Ashley Leggat,176
+Michael Buble,176
+Anne Murray,184
+Tamara Sandor,185
+Shania Twain,189
+Avril Lavigne,190
+Sarah McLachlan,195
+Emilie Mover,196
+Jim Bryson,198
+Adam Gontier,200
+Jann Arden,672
+Eileen McGann,676
+Leonard Cohen,684
+---------------------------
+**VoteCount**
+5500,500
+---------------------------
+####5600####
+**Votes**
+Alanis Morissette,165
+Micah Barnes,174
+Sam Roberts,176
+Celine Dion,176
+Justin Bieber,177
+Mae Moore,178
+Ashley Leggat,178
+Nelly Furtado,180
+Michael Buble,181
+Anne Murray,187
+Tamara Sandor,190
+Avril Lavigne,192
+Shania Twain,193
+Emilie Mover,200
+Jim Bryson,200
+Sarah McLachlan,201
+Adam Gontier,203
+Jann Arden,679
+Eileen McGann,692
+Leonard Cohen,700
+---------------------------
+**VoteCount**
+5600,600
+---------------------------
+####5700####
+**Votes**
+Alanis Morissette,171
+Micah Barnes,176
+Celine Dion,178
+Ashley Leggat,180
+Sam Roberts,181
+Mae Moore,181
+Michael Buble,182
+Justin Bieber,182
+Nelly Furtado,183
+Anne Murray,190
+Tamara Sandor,194
+Shania Twain,197
+Avril Lavigne,197
+Emilie Mover,201
+Sarah McLachlan,203
+Jim Bryson,203
+Adam Gontier,206
+Jann Arden,697
+Eileen McGann,708
+Leonard Cohen,712
+---------------------------
+**VoteCount**
+5700,700
+---------------------------
+####5800####
+**Votes**
+Alanis Morissette,173
+Ashley Leggat,181
+Celine Dion,181
+Micah Barnes,182
+Michael Buble,185
+Sam Roberts,186
+Mae Moore,187
+Justin Bieber,187
+Nelly Furtado,189
+Anne Murray,193
+Tamara Sandor,197
+Shania Twain,199
+Avril Lavigne,203
+Jim Bryson,205
+Sarah McLachlan,207
+Emilie Mover,210
+Adam Gontier,210
+Jann Arden,706
+Eileen McGann,718
+Leonard Cohen,723
+---------------------------
+**VoteCount**
+5800,800
+---------------------------
+####5900####
+**Votes**
+Alanis Morissette,176
+Ashley Leggat,185
+Celine Dion,186
+Micah Barnes,187
+Sam Roberts,188
+Justin Bieber,189
+Nelly Furtado,191
+Michael Buble,191
+Mae Moore,192
+Anne Murray,197
+Tamara Sandor,199
+Shania Twain,202
+Avril Lavigne,205
+Jim Bryson,210
+Sarah McLachlan,211
+Adam Gontier,212
+Emilie Mover,213
+Jann Arden,721
+Eileen McGann,729
+Leonard Cohen,738
+---------------------------
+**VoteCount**
+5900,900
+---------------------------
+####6000####
+**Votes**
+Sam Roberts,189
+Alanis Morissette,189
+Ashley Leggat,189
+Micah Barnes,189
+Michael Buble,191
+Justin Bieber,192
+Mae Moore,194
+Celine Dion,195
+Nelly Furtado,196
+Anne Murray,198
+Tamara Sandor,203
+Shania Twain,204
+Avril Lavigne,208
+Sarah McLachlan,212
+Jim Bryson,212
+Emilie Mover,217
+Adam Gontier,220
+Jann Arden,728
+Eileen McGann,743
+Leonard Cohen,753
+---------------------------
+**VoteCount**
+6000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Sam Roberts,189
+Alanis Morissette,189
+Ashley Leggat,189
+Micah Barnes,189
+Michael Buble,191
+Justin Bieber,192
+Mae Moore,194
+Celine Dion,195
+Nelly Furtado,196
+Anne Murray,198
+Tamara Sandor,203
+Shania Twain,204
+Avril Lavigne,208
+Sarah McLachlan,212
+Jim Bryson,212
+Emilie Mover,217
+Adam Gontier,220
+Jann Arden,728
+Eileen McGann,743
+Leonard Cohen,753
+---------------------------
+**VoteCount**
+6000,0
+---------------------------
+####6100####
+**Votes**
+Ashley Leggat,190
+Alanis Morissette,191
+Michael Buble,196
+Micah Barnes,196
+Mae Moore,199
+Celine Dion,199
+Justin Bieber,199
+Anne Murray,202
+Nelly Furtado,202
+Tamara Sandor,208
+Shania Twain,210
+Avril Lavigne,213
+Jim Bryson,217
+Sarah McLachlan,219
+Emilie Mover,220
+Adam Gontier,224
+Jann Arden,735
+Eileen McGann,752
+Leonard Cohen,761
+---------------------------
+**VoteCount**
+6100,100
+---------------------------
+####6200####
+**Votes**
+Alanis Morissette,194
+Ashley Leggat,197
+Michael Buble,199
+Mae Moore,202
+Micah Barnes,202
+Anne Murray,207
+Celine Dion,207
+Nelly Furtado,208
+Justin Bieber,208
+Tamara Sandor,211
+Shania Twain,212
+Sarah McLachlan,221
+Avril Lavigne,222
+Emilie Mover,223
+Jim Bryson,223
+Adam Gontier,226
+Jann Arden,744
+Eileen McGann,761
+Leonard Cohen,766
+---------------------------
+**VoteCount**
+6200,200
+---------------------------
+####6300####
+**Votes**
+Ashley Leggat,200
+Alanis Morissette,201
+Mae Moore,205
+Michael Buble,205
+Micah Barnes,208
+Tamara Sandor,213
+Celine Dion,213
+Justin Bieber,213
+Shania Twain,215
+Nelly Furtado,216
+Anne Murray,217
+Emilie Mover,225
+Sarah McLachlan,225
+Jim Bryson,225
+Avril Lavigne,227
+Adam Gontier,229
+Jann Arden,748
+Eileen McGann,772
+Leonard Cohen,776
+---------------------------
+**VoteCount**
+6300,300
+---------------------------
+####6400####
+**Votes**
+Ashley Leggat,201
+Alanis Morissette,203
+Mae Moore,206
+Michael Buble,208
+Celine Dion,214
+Micah Barnes,214
+Justin Bieber,216
+Shania Twain,218
+Anne Murray,220
+Tamara Sandor,221
+Nelly Furtado,221
+Emilie Mover,227
+Jim Bryson,228
+Sarah McLachlan,229
+Avril Lavigne,230
+Adam Gontier,234
+Jann Arden,764
+Eileen McGann,789
+Leonard Cohen,790
+---------------------------
+**VoteCount**
+6400,400
+---------------------------
+####6500####
+**Votes**
+Ashley Leggat,204
+Alanis Morissette,205
+Mae Moore,212
+Michael Buble,212
+Celine Dion,219
+Justin Bieber,219
+Micah Barnes,219
+Shania Twain,223
+Nelly Furtado,223
+Tamara Sandor,224
+Anne Murray,224
+Sarah McLachlan,231
+Jim Bryson,232
+Emilie Mover,234
+Adam Gontier,235
+Avril Lavigne,237
+Jann Arden,778
+Eileen McGann,801
+Leonard Cohen,801
+---------------------------
+**VoteCount**
+6500,500
+---------------------------
+####6600####
+**Votes**
+Ashley Leggat,206
+Alanis Morissette,208
+Michael Buble,215
+Mae Moore,217
+Celine Dion,221
+Justin Bieber,222
+Micah Barnes,225
+Shania Twain,226
+Anne Murray,227
+Tamara Sandor,230
+Nelly Furtado,230
+Sarah McLachlan,235
+Emilie Mover,237
+Jim Bryson,237
+Adam Gontier,238
+Avril Lavigne,241
+Jann Arden,789
+Eileen McGann,812
+Leonard Cohen,817
+---------------------------
+**VoteCount**
+6600,600
+---------------------------
+####6700####
+**Votes**
+Ashley Leggat,208
+Alanis Morissette,211
+Mae Moore,218
+Michael Buble,221
+Celine Dion,224
+Micah Barnes,225
+Justin Bieber,228
+Anne Murray,230
+Shania Twain,232
+Tamara Sandor,234
+Nelly Furtado,236
+Jim Bryson,237
+Sarah McLachlan,239
+Emilie Mover,240
+Adam Gontier,244
+Avril Lavigne,246
+Jann Arden,798
+Eileen McGann,830
+Leonard Cohen,832
+---------------------------
+**VoteCount**
+6700,700
+---------------------------
+####6800####
+**Votes**
+Ashley Leggat,211
+Alanis Morissette,217
+Mae Moore,223
+Michael Buble,225
+Celine Dion,228
+Justin Bieber,230
+Micah Barnes,230
+Anne Murray,232
+Shania Twain,235
+Tamara Sandor,237
+Jim Bryson,238
+Nelly Furtado,240
+Sarah McLachlan,242
+Emilie Mover,244
+Avril Lavigne,246
+Adam Gontier,251
+Jann Arden,814
+Eileen McGann,845
+Leonard Cohen,845
+---------------------------
+**VoteCount**
+6800,800
+---------------------------
+####6900####
+**Votes**
+Ashley Leggat,216
+Alanis Morissette,219
+Michael Buble,228
+Mae Moore,230
+Celine Dion,232
+Micah Barnes,235
+Justin Bieber,236
+Shania Twain,238
+Anne Murray,239
+Jim Bryson,241
+Tamara Sandor,243
+Nelly Furtado,244
+Sarah McLachlan,246
+Emilie Mover,248
+Avril Lavigne,249
+Adam Gontier,252
+Jann Arden,823
+Leonard Cohen,856
+Eileen McGann,858
+---------------------------
+**VoteCount**
+6900,900
+---------------------------
+####7000####
+**Votes**
+Alanis Morissette,220
+Ashley Leggat,220
+Mae Moore,232
+Michael Buble,233
+Micah Barnes,236
+Celine Dion,239
+Anne Murray,240
+Justin Bieber,241
+Jim Bryson,244
+Shania Twain,246
+Tamara Sandor,249
+Nelly Furtado,249
+Sarah McLachlan,250
+Avril Lavigne,251
+Emilie Mover,253
+Adam Gontier,257
+Jann Arden,837
+Leonard Cohen,867
+Eileen McGann,869
+---------------------------
+**VoteCount**
+7000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Alanis Morissette,220
+Ashley Leggat,220
+Mae Moore,232
+Michael Buble,233
+Micah Barnes,236
+Celine Dion,239
+Anne Murray,240
+Justin Bieber,241
+Jim Bryson,244
+Shania Twain,246
+Tamara Sandor,249
+Nelly Furtado,249
+Sarah McLachlan,250
+Avril Lavigne,251
+Emilie Mover,253
+Adam Gontier,257
+Jann Arden,837
+Leonard Cohen,867
+Eileen McGann,869
+---------------------------
+**VoteCount**
+7000,0
+---------------------------
+####7100####
+**Votes**
+Ashley Leggat,226
+Mae Moore,234
+Anne Murray,243
+Michael Buble,244
+Micah Barnes,245
+Celine Dion,246
+Jim Bryson,246
+Justin Bieber,247
+Shania Twain,249
+Tamara Sandor,250
+Nelly Furtado,255
+Avril Lavigne,256
+Sarah McLachlan,257
+Adam Gontier,258
+Emilie Mover,259
+Jann Arden,846
+Leonard Cohen,875
+Eileen McGann,877
+---------------------------
+**VoteCount**
+7100,100
+---------------------------
+####7200####
+**Votes**
+Ashley Leggat,232
+Mae Moore,238
+Anne Murray,245
+Michael Buble,248
+Jim Bryson,250
+Micah Barnes,250
+Celine Dion,251
+Shania Twain,252
+Tamara Sandor,255
+Justin Bieber,256
+Avril Lavigne,259
+Nelly Furtado,259
+Adam Gontier,262
+Sarah McLachlan,263
+Emilie Mover,269
+Jann Arden,854
+Leonard Cohen,884
+Eileen McGann,886
+---------------------------
+**VoteCount**
+7200,200
+---------------------------
+####7300####
+**Votes**
+Ashley Leggat,237
+Mae Moore,245
+Anne Murray,253
+Micah Barnes,254
+Jim Bryson,255
+Michael Buble,256
+Tamara Sandor,258
+Shania Twain,259
+Celine Dion,260
+Avril Lavigne,263
+Justin Bieber,263
+Adam Gontier,264
+Nelly Furtado,265
+Sarah McLachlan,267
+Emilie Mover,271
+Jann Arden,859
+Leonard Cohen,889
+Eileen McGann,895
+---------------------------
+**VoteCount**
+7300,300
+---------------------------
+####7400####
+**Votes**
+Ashley Leggat,241
+Mae Moore,247
+Anne Murray,257
+Jim Bryson,257
+Micah Barnes,257
+Michael Buble,261
+Tamara Sandor,262
+Shania Twain,263
+Avril Lavigne,264
+Adam Gontier,267
+Celine Dion,267
+Justin Bieber,268
+Sarah McLachlan,269
+Nelly Furtado,270
+Emilie Mover,276
+Jann Arden,877
+Leonard Cohen,900
+Eileen McGann,910
+---------------------------
+**VoteCount**
+7400,400
+---------------------------
+####7500####
+**Votes**
+Ashley Leggat,244
+Mae Moore,252
+Jim Bryson,258
+Anne Murray,259
+Micah Barnes,263
+Tamara Sandor,264
+Michael Buble,265
+Adam Gontier,268
+Celine Dion,269
+Shania Twain,270
+Avril Lavigne,270
+Justin Bieber,274
+Sarah McLachlan,275
+Nelly Furtado,275
+Emilie Mover,281
+Jann Arden,890
+Leonard Cohen,914
+Eileen McGann,922
+---------------------------
+**VoteCount**
+7500,500
+---------------------------
+####7600####
+**Votes**
+Ashley Leggat,248
+Mae Moore,257
+Anne Murray,261
+Jim Bryson,263
+Micah Barnes,264
+Tamara Sandor,266
+Michael Buble,270
+Shania Twain,273
+Avril Lavigne,273
+Celine Dion,274
+Justin Bieber,276
+Adam Gontier,277
+Nelly Furtado,281
+Sarah McLachlan,282
+Emilie Mover,286
+Jann Arden,901
+Leonard Cohen,925
+Eileen McGann,936
+---------------------------
+**VoteCount**
+7600,600
+---------------------------
+####7700####
+**Votes**
+Ashley Leggat,252
+Mae Moore,261
+Anne Murray,266
+Jim Bryson,267
+Micah Barnes,267
+Michael Buble,272
+Tamara Sandor,273
+Shania Twain,278
+Justin Bieber,279
+Avril Lavigne,280
+Nelly Furtado,281
+Adam Gontier,282
+Celine Dion,282
+Sarah McLachlan,285
+Emilie Mover,291
+Jann Arden,911
+Leonard Cohen,934
+Eileen McGann,952
+---------------------------
+**VoteCount**
+7700,700
+---------------------------
+####7800####
+**Votes**
+Ashley Leggat,254
+Mae Moore,266
+Anne Murray,268
+Jim Bryson,268
+Micah Barnes,274
+Michael Buble,277
+Tamara Sandor,278
+Shania Twain,281
+Avril Lavigne,283
+Nelly Furtado,283
+Adam Gontier,284
+Justin Bieber,284
+Celine Dion,285
+Sarah McLachlan,293
+Emilie Mover,296
+Jann Arden,925
+Leonard Cohen,950
+Eileen McGann,964
+---------------------------
+**VoteCount**
+7800,800
+---------------------------
+####7900####
+**Votes**
+Ashley Leggat,257
+Mae Moore,267
+Anne Murray,270
+Jim Bryson,272
+Micah Barnes,277
+Tamara Sandor,281
+Michael Buble,283
+Shania Twain,284
+Avril Lavigne,289
+Adam Gontier,289
+Nelly Furtado,289
+Celine Dion,290
+Justin Bieber,290
+Sarah McLachlan,298
+Emilie Mover,299
+Jann Arden,935
+Leonard Cohen,964
+Eileen McGann,979
+---------------------------
+**VoteCount**
+7900,900
+---------------------------
+####8000####
+**Votes**
+Mae Moore,269
+Ashley Leggat,269
+Anne Murray,274
+Jim Bryson,275
+Micah Barnes,278
+Tamara Sandor,285
+Michael Buble,286
+Shania Twain,287
+Adam Gontier,290
+Avril Lavigne,292
+Nelly Furtado,292
+Justin Bieber,292
+Celine Dion,295
+Sarah McLachlan,303
+Emilie Mover,309
+Jann Arden,948
+Leonard Cohen,974
+Eileen McGann,995
+---------------------------
+**VoteCount**
+8000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Mae Moore,269
+Ashley Leggat,269
+Anne Murray,274
+Jim Bryson,275
+Micah Barnes,278
+Tamara Sandor,285
+Michael Buble,286
+Shania Twain,287
+Adam Gontier,290
+Avril Lavigne,292
+Nelly Furtado,292
+Justin Bieber,292
+Celine Dion,295
+Sarah McLachlan,303
+Emilie Mover,309
+Jann Arden,948
+Leonard Cohen,974
+Eileen McGann,995
+---------------------------
+**VoteCount**
+8000,0
+---------------------------
+####8100####
+**Votes**
+Ashley Leggat,274
+Jim Bryson,280
+Anne Murray,282
+Micah Barnes,282
+Michael Buble,292
+Shania Twain,294
+Adam Gontier,294
+Tamara Sandor,295
+Nelly Furtado,298
+Justin Bieber,298
+Avril Lavigne,299
+Celine Dion,300
+Sarah McLachlan,307
+Emilie Mover,315
+Jann Arden,954
+Leonard Cohen,980
+Eileen McGann,1000
+---------------------------
+**VoteCount**
+8100,100
+---------------------------
+####8200####
+**Votes**
+Ashley Leggat,283
+Jim Bryson,285
+Anne Murray,286
+Micah Barnes,291
+Tamara Sandor,297
+Shania Twain,298
+Adam Gontier,298
+Justin Bieber,301
+Avril Lavigne,303
+Celine Dion,303
+Michael Buble,303
+Nelly Furtado,305
+Emilie Mover,317
+Sarah McLachlan,317
+Jann Arden,963
+Leonard Cohen,988
+Eileen McGann,1006
+---------------------------
+**VoteCount**
+8200,200
+---------------------------
+####8300####
+**Votes**
+Anne Murray,291
+Ashley Leggat,291
+Jim Bryson,291
+Micah Barnes,295
+Shania Twain,303
+Adam Gontier,305
+Justin Bieber,306
+Tamara Sandor,307
+Avril Lavigne,308
+Celine Dion,308
+Nelly Furtado,310
+Michael Buble,312
+Emilie Mover,323
+Sarah McLachlan,323
+Jann Arden,968
+Leonard Cohen,991
+Eileen McGann,1012
+---------------------------
+**VoteCount**
+8300,300
+---------------------------
+####8400####
+**Votes**
+Anne Murray,294
+Jim Bryson,295
+Ashley Leggat,296
+Micah Barnes,299
+Shania Twain,305
+Adam Gontier,311
+Justin Bieber,311
+Celine Dion,312
+Tamara Sandor,316
+Avril Lavigne,316
+Nelly Furtado,316
+Michael Buble,316
+Emilie Mover,330
+Sarah McLachlan,330
+Jann Arden,978
+Leonard Cohen,999
+Eileen McGann,1020
+---------------------------
+**VoteCount**
+8400,400
+---------------------------
+####8500####
+**Votes**
+Jim Bryson,296
+Ashley Leggat,299
+Anne Murray,300
+Shania Twain,309
+Micah Barnes,311
+Adam Gontier,314
+Celine Dion,314
+Avril Lavigne,317
+Justin Bieber,317
+Tamara Sandor,319
+Nelly Furtado,320
+Michael Buble,321
+Emilie Mover,332
+Sarah McLachlan,336
+Jann Arden,988
+Leonard Cohen,1016
+Eileen McGann,1035
+---------------------------
+**VoteCount**
+8500,500
+---------------------------
+####8600####
+**Votes**
+Anne Murray,300
+Ashley Leggat,303
+Jim Bryson,303
+Shania Twain,312
+Micah Barnes,317
+Adam Gontier,318
+Celine Dion,319
+Avril Lavigne,321
+Michael Buble,323
+Tamara Sandor,325
+Nelly Furtado,325
+Justin Bieber,326
+Emilie Mover,336
+Sarah McLachlan,337
+Jann Arden,997
+Leonard Cohen,1032
+Eileen McGann,1050
+---------------------------
+**VoteCount**
+8600,600
+---------------------------
+####8700####
+**Votes**
+Anne Murray,305
+Ashley Leggat,305
+Jim Bryson,306
+Shania Twain,316
+Adam Gontier,322
+Micah Barnes,322
+Celine Dion,323
+Avril Lavigne,326
+Michael Buble,326
+Tamara Sandor,328
+Nelly Furtado,330
+Justin Bieber,332
+Sarah McLachlan,340
+Emilie Mover,342
+Jann Arden,1011
+Leonard Cohen,1044
+Eileen McGann,1066
+---------------------------
+**VoteCount**
+8700,700
+---------------------------
+####8800####
+**Votes**
+Ashley Leggat,306
+Jim Bryson,310
+Anne Murray,311
+Shania Twain,318
+Micah Barnes,326
+Adam Gontier,327
+Tamara Sandor,328
+Celine Dion,328
+Avril Lavigne,331
+Michael Buble,331
+Nelly Furtado,334
+Justin Bieber,334
+Emilie Mover,346
+Sarah McLachlan,349
+Jann Arden,1030
+Leonard Cohen,1057
+Eileen McGann,1078
+---------------------------
+**VoteCount**
+8800,800
+---------------------------
+####8900####
+**Votes**
+Anne Murray,312
+Ashley Leggat,312
+Jim Bryson,317
+Shania Twain,321
+Tamara Sandor,328
+Micah Barnes,329
+Adam Gontier,331
+Celine Dion,332
+Justin Bieber,335
+Nelly Furtado,336
+Michael Buble,337
+Avril Lavigne,339
+Emilie Mover,350
+Sarah McLachlan,359
+Jann Arden,1044
+Leonard Cohen,1072
+Eileen McGann,1090
+---------------------------
+**VoteCount**
+8900,900
+---------------------------
+####9000####
+**Votes**
+Anne Murray,316
+Ashley Leggat,316
+Jim Bryson,320
+Shania Twain,325
+Tamara Sandor,332
+Celine Dion,335
+Justin Bieber,336
+Adam Gontier,337
+Micah Barnes,337
+Michael Buble,341
+Avril Lavigne,343
+Nelly Furtado,344
+Emilie Mover,352
+Sarah McLachlan,362
+Jann Arden,1057
+Leonard Cohen,1092
+Eileen McGann,1099
+---------------------------
+**VoteCount**
+9000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Anne Murray,316
+Ashley Leggat,316
+Jim Bryson,320
+Shania Twain,325
+Tamara Sandor,332
+Celine Dion,335
+Justin Bieber,336
+Adam Gontier,337
+Micah Barnes,337
+Michael Buble,341
+Avril Lavigne,343
+Nelly Furtado,344
+Emilie Mover,352
+Sarah McLachlan,362
+Jann Arden,1057
+Leonard Cohen,1092
+Eileen McGann,1099
+---------------------------
+**VoteCount**
+9000,0
+---------------------------
+####9100####
+**Votes**
+Ashley Leggat,321
+Jim Bryson,325
+Shania Twain,329
+Micah Barnes,340
+Tamara Sandor,341
+Adam Gontier,343
+Celine Dion,343
+Michael Buble,345
+Justin Bieber,346
+Avril Lavigne,348
+Nelly Furtado,352
+Emilie Mover,357
+Sarah McLachlan,368
+Jann Arden,1067
+Leonard Cohen,1098
+Eileen McGann,1105
+---------------------------
+**VoteCount**
+9100,100
+---------------------------
+####9200####
+**Votes**
+Ashley Leggat,324
+Jim Bryson,328
+Shania Twain,332
+Micah Barnes,347
+Tamara Sandor,349
+Michael Buble,349
+Celine Dion,350
+Justin Bieber,351
+Adam Gontier,352
+Avril Lavigne,358
+Nelly Furtado,358
+Emilie Mover,364
+Sarah McLachlan,373
+Jann Arden,1077
+Leonard Cohen,1104
+Eileen McGann,1112
+---------------------------
+**VoteCount**
+9200,200
+---------------------------
+####9300####
+**Votes**
+Ashley Leggat,327
+Jim Bryson,335
+Shania Twain,342
+Celine Dion,354
+Micah Barnes,355
+Tamara Sandor,356
+Adam Gontier,356
+Michael Buble,356
+Justin Bieber,359
+Avril Lavigne,362
+Nelly Furtado,364
+Emilie Mover,371
+Sarah McLachlan,381
+Jann Arden,1084
+Leonard Cohen,1109
+Eileen McGann,1117
+---------------------------
+**VoteCount**
+9300,300
+---------------------------
+####9400####
+**Votes**
+Ashley Leggat,334
+Jim Bryson,339
+Shania Twain,347
+Adam Gontier,357
+Celine Dion,359
+Tamara Sandor,361
+Michael Buble,362
+Micah Barnes,364
+Avril Lavigne,366
+Justin Bieber,368
+Nelly Furtado,371
+Emilie Mover,379
+Sarah McLachlan,390
+Jann Arden,1091
+Leonard Cohen,1118
+Eileen McGann,1122
+---------------------------
+**VoteCount**
+9400,400
+---------------------------
+####9500####
+**Votes**
+Ashley Leggat,339
+Jim Bryson,343
+Shania Twain,353
+Celine Dion,363
+Adam Gontier,365
+Michael Buble,366
+Tamara Sandor,367
+Micah Barnes,373
+Avril Lavigne,374
+Justin Bieber,375
+Nelly Furtado,377
+Emilie Mover,384
+Sarah McLachlan,393
+Jann Arden,1098
+Leonard Cohen,1128
+Eileen McGann,1130
+---------------------------
+**VoteCount**
+9500,500
+---------------------------
+####9600####
+**Votes**
+Ashley Leggat,340
+Jim Bryson,344
+Shania Twain,358
+Adam Gontier,366
+Celine Dion,366
+Michael Buble,368
+Tamara Sandor,372
+Micah Barnes,378
+Avril Lavigne,380
+Nelly Furtado,382
+Justin Bieber,382
+Emilie Mover,387
+Sarah McLachlan,398
+Jann Arden,1110
+Leonard Cohen,1145
+Eileen McGann,1152
+---------------------------
+**VoteCount**
+9600,600
+---------------------------
+####9700####
+**Votes**
+Ashley Leggat,344
+Jim Bryson,353
+Shania Twain,361
+Adam Gontier,369
+Celine Dion,370
+Michael Buble,370
+Tamara Sandor,376
+Justin Bieber,383
+Micah Barnes,383
+Avril Lavigne,386
+Nelly Furtado,387
+Emilie Mover,396
+Sarah McLachlan,401
+Jann Arden,1127
+Leonard Cohen,1159
+Eileen McGann,1163
+---------------------------
+**VoteCount**
+9700,700
+---------------------------
+####9800####
+**Votes**
+Ashley Leggat,345
+Jim Bryson,358
+Shania Twain,365
+Adam Gontier,374
+Michael Buble,374
+Celine Dion,375
+Tamara Sandor,378
+Micah Barnes,385
+Justin Bieber,386
+Nelly Furtado,394
+Avril Lavigne,397
+Emilie Mover,401
+Sarah McLachlan,404
+Jann Arden,1139
+Leonard Cohen,1171
+Eileen McGann,1182
+---------------------------
+**VoteCount**
+9800,800
+---------------------------
+####9900####
+**Votes**
+Ashley Leggat,346
+Jim Bryson,362
+Shania Twain,370
+Adam Gontier,376
+Michael Buble,377
+Celine Dion,381
+Tamara Sandor,383
+Micah Barnes,387
+Justin Bieber,393
+Nelly Furtado,398
+Avril Lavigne,400
+Emilie Mover,406
+Sarah McLachlan,409
+Jann Arden,1157
+Leonard Cohen,1183
+Eileen McGann,1200
+---------------------------
+**VoteCount**
+9900,900
+---------------------------
+####10000####
+**Votes**
+Ashley Leggat,358
+Jim Bryson,370
+Shania Twain,374
+Adam Gontier,376
+Michael Buble,379
+Tamara Sandor,386
+Celine Dion,386
+Micah Barnes,388
+Justin Bieber,401
+Nelly Furtado,402
+Avril Lavigne,403
+Emilie Mover,408
+Sarah McLachlan,414
+Jann Arden,1171
+Leonard Cohen,1195
+Eileen McGann,1217
+---------------------------
+**VoteCount**
+10000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Ashley Leggat,358
+Jim Bryson,370
+Shania Twain,374
+Adam Gontier,376
+Michael Buble,379
+Tamara Sandor,386
+Celine Dion,386
+Micah Barnes,388
+Justin Bieber,401
+Nelly Furtado,402
+Avril Lavigne,403
+Emilie Mover,408
+Sarah McLachlan,414
+Jann Arden,1171
+Leonard Cohen,1195
+Eileen McGann,1217
+---------------------------
+**VoteCount**
+10000,0
+---------------------------
+####10100####
+**Votes**
+Shania Twain,377
+Jim Bryson,378
+Adam Gontier,383
+Michael Buble,383
+Celine Dion,394
+Micah Barnes,394
+Tamara Sandor,397
+Nelly Furtado,406
+Avril Lavigne,410
+Justin Bieber,410
+Sarah McLachlan,414
+Emilie Mover,415
+Jann Arden,1179
+Leonard Cohen,1203
+Eileen McGann,1227
+---------------------------
+**VoteCount**
+10100,100
+---------------------------
+####10200####
+**Votes**
+Jim Bryson,383
+Shania Twain,384
+Adam Gontier,385
+Michael Buble,388
+Celine Dion,398
+Micah Barnes,400
+Tamara Sandor,403
+Nelly Furtado,414
+Avril Lavigne,415
+Justin Bieber,419
+Emilie Mover,420
+Sarah McLachlan,423
+Jann Arden,1187
+Leonard Cohen,1213
+Eileen McGann,1238
+---------------------------
+**VoteCount**
+10200,200
+---------------------------
+####10300####
+**Votes**
+Shania Twain,387
+Adam Gontier,389
+Jim Bryson,391
+Michael Buble,392
+Celine Dion,404
+Micah Barnes,405
+Tamara Sandor,410
+Nelly Furtado,420
+Avril Lavigne,421
+Justin Bieber,423
+Emilie Mover,425
+Sarah McLachlan,430
+Jann Arden,1197
+Leonard Cohen,1223
+Eileen McGann,1253
+---------------------------
+**VoteCount**
+10300,300
+---------------------------
+####10400####
+**Votes**
+Shania Twain,390
+Adam Gontier,391
+Michael Buble,398
+Jim Bryson,401
+Celine Dion,411
+Micah Barnes,413
+Tamara Sandor,415
+Avril Lavigne,426
+Nelly Furtado,430
+Justin Bieber,430
+Emilie Mover,431
+Sarah McLachlan,431
+Jann Arden,1210
+Leonard Cohen,1234
+Eileen McGann,1259
+---------------------------
+**VoteCount**
+10400,400
+---------------------------
+####10500####
+**Votes**
+Shania Twain,395
+Adam Gontier,397
+Michael Buble,405
+Jim Bryson,407
+Celine Dion,417
+Tamara Sandor,418
+Micah Barnes,419
+Avril Lavigne,429
+Nelly Furtado,434
+Emilie Mover,436
+Sarah McLachlan,436
+Justin Bieber,442
+Jann Arden,1222
+Leonard Cohen,1245
+Eileen McGann,1268
+---------------------------
+**VoteCount**
+10500,500
+---------------------------
+####10600####
+**Votes**
+Adam Gontier,402
+Shania Twain,403
+Michael Buble,408
+Jim Bryson,412
+Celine Dion,421
+Tamara Sandor,422
+Micah Barnes,424
+Avril Lavigne,434
+Nelly Furtado,437
+Emilie Mover,441
+Sarah McLachlan,443
+Justin Bieber,445
+Jann Arden,1238
+Leonard Cohen,1258
+Eileen McGann,1282
+---------------------------
+**VoteCount**
+10600,600
+---------------------------
+####10700####
+**Votes**
+Adam Gontier,409
+Shania Twain,410
+Michael Buble,412
+Jim Bryson,416
+Celine Dion,425
+Tamara Sandor,426
+Micah Barnes,431
+Avril Lavigne,438
+Nelly Furtado,441
+Emilie Mover,447
+Justin Bieber,447
+Sarah McLachlan,450
+Jann Arden,1258
+Leonard Cohen,1264
+Eileen McGann,1296
+---------------------------
+**VoteCount**
+10700,700
+---------------------------
+####10800####
+**Votes**
+Shania Twain,413
+Adam Gontier,413
+Michael Buble,417
+Jim Bryson,420
+Celine Dion,429
+Tamara Sandor,431
+Micah Barnes,436
+Avril Lavigne,441
+Nelly Furtado,446
+Justin Bieber,452
+Emilie Mover,453
+Sarah McLachlan,454
+Jann Arden,1271
+Leonard Cohen,1286
+Eileen McGann,1308
+---------------------------
+**VoteCount**
+10800,800
+---------------------------
+####10900####
+**Votes**
+Shania Twain,417
+Adam Gontier,418
+Michael Buble,422
+Jim Bryson,425
+Tamara Sandor,433
+Celine Dion,433
+Micah Barnes,443
+Avril Lavigne,446
+Nelly Furtado,450
+Emilie Mover,454
+Justin Bieber,458
+Sarah McLachlan,463
+Jann Arden,1285
+Leonard Cohen,1305
+Eileen McGann,1318
+---------------------------
+**VoteCount**
+10900,900
+---------------------------
+####11000####
+**Votes**
+Shania Twain,420
+Adam Gontier,420
+Michael Buble,426
+Jim Bryson,430
+Celine Dion,434
+Tamara Sandor,436
+Micah Barnes,447
+Avril Lavigne,450
+Emilie Mover,459
+Nelly Furtado,461
+Justin Bieber,466
+Sarah McLachlan,472
+Jann Arden,1299
+Leonard Cohen,1319
+Eileen McGann,1331
+---------------------------
+**VoteCount**
+11000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Shania Twain,420
+Adam Gontier,420
+Michael Buble,426
+Jim Bryson,430
+Celine Dion,434
+Tamara Sandor,436
+Micah Barnes,447
+Avril Lavigne,450
+Emilie Mover,459
+Nelly Furtado,461
+Justin Bieber,466
+Sarah McLachlan,472
+Jann Arden,1299
+Leonard Cohen,1319
+Eileen McGann,1331
+---------------------------
+**VoteCount**
+11000,0
+---------------------------
+####11100####
+**Votes**
+Adam Gontier,428
+Michael Buble,433
+Jim Bryson,442
+Celine Dion,443
+Tamara Sandor,446
+Micah Barnes,449
+Avril Lavigne,454
+Emilie Mover,463
+Nelly Furtado,467
+Justin Bieber,470
+Sarah McLachlan,475
+Jann Arden,1312
+Leonard Cohen,1331
+Eileen McGann,1337
+---------------------------
+**VoteCount**
+11100,100
+---------------------------
+####11200####
+**Votes**
+Adam Gontier,434
+Michael Buble,441
+Jim Bryson,448
+Celine Dion,452
+Tamara Sandor,453
+Micah Barnes,454
+Avril Lavigne,457
+Emilie Mover,471
+Nelly Furtado,474
+Justin Bieber,478
+Sarah McLachlan,480
+Jann Arden,1322
+Leonard Cohen,1341
+Eileen McGann,1345
+---------------------------
+**VoteCount**
+11200,200
+---------------------------
+####11300####
+**Votes**
+Adam Gontier,442
+Michael Buble,444
+Jim Bryson,456
+Micah Barnes,457
+Celine Dion,460
+Avril Lavigne,461
+Tamara Sandor,464
+Emilie Mover,478
+Nelly Furtado,482
+Justin Bieber,483
+Sarah McLachlan,487
+Jann Arden,1334
+Leonard Cohen,1350
+Eileen McGann,1352
+---------------------------
+**VoteCount**
+11300,300
+---------------------------
+####11400####
+**Votes**
+Adam Gontier,450
+Michael Buble,454
+Jim Bryson,462
+Avril Lavigne,465
+Micah Barnes,466
+Tamara Sandor,468
+Celine Dion,468
+Emilie Mover,485
+Nelly Furtado,485
+Justin Bieber,489
+Sarah McLachlan,495
+Jann Arden,1344
+Leonard Cohen,1358
+Eileen McGann,1361
+---------------------------
+**VoteCount**
+11400,400
+---------------------------
+####11500####
+**Votes**
+Adam Gontier,456
+Michael Buble,463
+Avril Lavigne,470
+Jim Bryson,470
+Micah Barnes,472
+Tamara Sandor,474
+Celine Dion,474
+Justin Bieber,491
+Emilie Mover,492
+Nelly Furtado,493
+Sarah McLachlan,501
+Jann Arden,1355
+Leonard Cohen,1366
+Eileen McGann,1373
+---------------------------
+**VoteCount**
+11500,500
+---------------------------
+####11600####
+**Votes**
+Adam Gontier,458
+Michael Buble,471
+Jim Bryson,474
+Micah Barnes,476
+Tamara Sandor,478
+Avril Lavigne,480
+Celine Dion,481
+Justin Bieber,493
+Emilie Mover,496
+Nelly Furtado,497
+Sarah McLachlan,511
+Jann Arden,1373
+Leonard Cohen,1375
+Eileen McGann,1387
+---------------------------
+**VoteCount**
+11600,600
+---------------------------
+####11700####
+**Votes**
+Adam Gontier,461
+Michael Buble,478
+Jim Bryson,479
+Tamara Sandor,482
+Micah Barnes,483
+Avril Lavigne,486
+Celine Dion,486
+Justin Bieber,500
+Emilie Mover,502
+Nelly Furtado,503
+Sarah McLachlan,515
+Leonard Cohen,1388
+Jann Arden,1388
+Eileen McGann,1399
+---------------------------
+**VoteCount**
+11700,700
+---------------------------
+####11800####
+**Votes**
+Adam Gontier,464
+Tamara Sandor,485
+Jim Bryson,485
+Michael Buble,486
+Celine Dion,487
+Micah Barnes,487
+Avril Lavigne,493
+Justin Bieber,504
+Emilie Mover,508
+Nelly Furtado,510
+Sarah McLachlan,523
+Leonard Cohen,1401
+Jann Arden,1403
+Eileen McGann,1414
+---------------------------
+**VoteCount**
+11800,800
+---------------------------
+####11900####
+**Votes**
+Adam Gontier,468
+Micah Barnes,490
+Tamara Sandor,492
+Celine Dion,493
+Michael Buble,493
+Jim Bryson,497
+Avril Lavigne,500
+Justin Bieber,506
+Emilie Mover,508
+Nelly Furtado,517
+Sarah McLachlan,528
+Leonard Cohen,1411
+Jann Arden,1419
+Eileen McGann,1428
+---------------------------
+**VoteCount**
+11900,900
+---------------------------
+####12000####
+**Votes**
+Adam Gontier,478
+Michael Buble,496
+Tamara Sandor,497
+Celine Dion,498
+Micah Barnes,499
+Jim Bryson,500
+Avril Lavigne,506
+Justin Bieber,510
+Emilie Mover,513
+Nelly Furtado,522
+Sarah McLachlan,534
+Leonard Cohen,1426
+Jann Arden,1433
+Eileen McGann,1438
+---------------------------
+**VoteCount**
+12000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Adam Gontier,478
+Michael Buble,496
+Tamara Sandor,497
+Celine Dion,498
+Micah Barnes,499
+Jim Bryson,500
+Avril Lavigne,506
+Justin Bieber,510
+Emilie Mover,513
+Nelly Furtado,522
+Sarah McLachlan,534
+Leonard Cohen,1426
+Jann Arden,1433
+Eileen McGann,1438
+---------------------------
+**VoteCount**
+12000,0
+---------------------------
+####12100####
+**Votes**
+Michael Buble,501
+Celine Dion,505
+Jim Bryson,505
+Micah Barnes,505
+Tamara Sandor,506
+Avril Lavigne,513
+Justin Bieber,515
+Emilie Mover,519
+Nelly Furtado,529
+Sarah McLachlan,542
+Leonard Cohen,1436
+Jann Arden,1443
+Eileen McGann,1453
+---------------------------
+**VoteCount**
+12100,100
+---------------------------
+####12200####
+**Votes**
+Michael Buble,505
+Jim Bryson,514
+Avril Lavigne,516
+Tamara Sandor,517
+Justin Bieber,517
+Micah Barnes,517
+Celine Dion,518
+Emilie Mover,524
+Nelly Furtado,537
+Sarah McLachlan,550
+Leonard Cohen,1444
+Jann Arden,1451
+Eileen McGann,1462
+---------------------------
+**VoteCount**
+12200,200
+---------------------------
+####12300####
+**Votes**
+Michael Buble,514
+Jim Bryson,519
+Avril Lavigne,522
+Micah Barnes,525
+Tamara Sandor,526
+Celine Dion,526
+Justin Bieber,527
+Emilie Mover,530
+Nelly Furtado,541
+Sarah McLachlan,556
+Leonard Cohen,1454
+Jann Arden,1464
+Eileen McGann,1468
+---------------------------
+**VoteCount**
+12300,300
+---------------------------
+####12400####
+**Votes**
+Michael Buble,519
+Avril Lavigne,527
+Jim Bryson,528
+Justin Bieber,531
+Celine Dion,532
+Micah Barnes,535
+Tamara Sandor,536
+Emilie Mover,539
+Nelly Furtado,548
+Sarah McLachlan,562
+Leonard Cohen,1469
+Jann Arden,1470
+Eileen McGann,1476
+---------------------------
+**VoteCount**
+12400,400
+---------------------------
+####12500####
+**Votes**
+Michael Buble,528
+Avril Lavigne,533
+Jim Bryson,535
+Justin Bieber,536
+Celine Dion,537
+Micah Barnes,541
+Tamara Sandor,545
+Emilie Mover,551
+Nelly Furtado,553
+Sarah McLachlan,572
+Jann Arden,1478
+Eileen McGann,1481
+Leonard Cohen,1482
+---------------------------
+**VoteCount**
+12500,500
+---------------------------
+####12600####
+**Votes**
+Jim Bryson,539
+Michael Buble,541
+Justin Bieber,542
+Avril Lavigne,544
+Celine Dion,544
+Micah Barnes,544
+Tamara Sandor,555
+Emilie Mover,557
+Nelly Furtado,559
+Sarah McLachlan,577
+Leonard Cohen,1489
+Jann Arden,1489
+Eileen McGann,1492
+---------------------------
+**VoteCount**
+12600,600
+---------------------------
+####12700####
+**Votes**
+Jim Bryson,543
+Avril Lavigne,548
+Justin Bieber,548
+Michael Buble,549
+Celine Dion,552
+Micah Barnes,554
+Tamara Sandor,560
+Emilie Mover,563
+Nelly Furtado,564
+Sarah McLachlan,584
+Jann Arden,1498
+Leonard Cohen,1502
+Eileen McGann,1507
+---------------------------
+**VoteCount**
+12700,700
+---------------------------
+####12800####
+**Votes**
+Jim Bryson,548
+Avril Lavigne,554
+Michael Buble,554
+Justin Bieber,554
+Celine Dion,559
+Micah Barnes,563
+Tamara Sandor,564
+Emilie Mover,567
+Nelly Furtado,569
+Sarah McLachlan,586
+Jann Arden,1514
+Leonard Cohen,1516
+Eileen McGann,1524
+---------------------------
+**VoteCount**
+12800,800
+---------------------------
+####12900####
+**Votes**
+Jim Bryson,554
+Justin Bieber,556
+Michael Buble,558
+Avril Lavigne,560
+Celine Dion,568
+Tamara Sandor,570
+Micah Barnes,570
+Nelly Furtado,573
+Emilie Mover,574
+Sarah McLachlan,596
+Jann Arden,1527
+Leonard Cohen,1528
+Eileen McGann,1538
+---------------------------
+**VoteCount**
+12900,900
+---------------------------
+####13000####
+**Votes**
+Avril Lavigne,562
+Michael Buble,562
+Justin Bieber,566
+Jim Bryson,568
+Tamara Sandor,571
+Micah Barnes,576
+Celine Dion,577
+Emilie Mover,578
+Nelly Furtado,580
+Sarah McLachlan,601
+Leonard Cohen,1537
+Jann Arden,1542
+Eileen McGann,1552
+---------------------------
+**VoteCount**
+13000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Avril Lavigne,562
+Michael Buble,562
+Justin Bieber,566
+Jim Bryson,568
+Tamara Sandor,571
+Micah Barnes,576
+Celine Dion,577
+Emilie Mover,578
+Nelly Furtado,580
+Sarah McLachlan,601
+Leonard Cohen,1537
+Jann Arden,1542
+Eileen McGann,1552
+---------------------------
+**VoteCount**
+13000,0
+---------------------------
+####13100####
+**Votes**
+Michael Buble,570
+Tamara Sandor,575
+Jim Bryson,575
+Justin Bieber,575
+Emilie Mover,581
+Micah Barnes,582
+Celine Dion,586
+Nelly Furtado,589
+Sarah McLachlan,611
+Leonard Cohen,1546
+Jann Arden,1555
+Eileen McGann,1565
+---------------------------
+**VoteCount**
+13100,100
+---------------------------
+####13200####
+**Votes**
+Michael Buble,574
+Tamara Sandor,584
+Jim Bryson,584
+Emilie Mover,587
+Micah Barnes,589
+Justin Bieber,590
+Nelly Furtado,596
+Celine Dion,597
+Sarah McLachlan,612
+Leonard Cohen,1556
+Jann Arden,1568
+Eileen McGann,1573
+---------------------------
+**VoteCount**
+13200,200
+---------------------------
+####13300####
+**Votes**
+Michael Buble,584
+Emilie Mover,589
+Jim Bryson,593
+Tamara Sandor,594
+Justin Bieber,595
+Micah Barnes,597
+Celine Dion,601
+Nelly Furtado,608
+Sarah McLachlan,616
+Leonard Cohen,1563
+Eileen McGann,1585
+Jann Arden,1585
+---------------------------
+**VoteCount**
+13300,300
+---------------------------
+####13400####
+**Votes**
+Michael Buble,590
+Emilie Mover,596
+Jim Bryson,601
+Justin Bieber,601
+Micah Barnes,603
+Tamara Sandor,604
+Celine Dion,610
+Nelly Furtado,615
+Sarah McLachlan,626
+Leonard Cohen,1575
+Eileen McGann,1592
+Jann Arden,1597
+---------------------------
+**VoteCount**
+13400,400
+---------------------------
+####13500####
+**Votes**
+Michael Buble,600
+Emilie Mover,602
+Justin Bieber,606
+Tamara Sandor,608
+Micah Barnes,611
+Jim Bryson,613
+Celine Dion,621
+Nelly Furtado,622
+Sarah McLachlan,630
+Leonard Cohen,1587
+Eileen McGann,1605
+Jann Arden,1605
+---------------------------
+**VoteCount**
+13500,500
+---------------------------
+####13600####
+**Votes**
+Emilie Mover,608
+Michael Buble,611
+Justin Bieber,612
+Jim Bryson,616
+Micah Barnes,619
+Tamara Sandor,622
+Nelly Furtado,629
+Celine Dion,630
+Sarah McLachlan,636
+Leonard Cohen,1595
+Jann Arden,1612
+Eileen McGann,1620
+---------------------------
+**VoteCount**
+13600,600
+---------------------------
+####13700####
+**Votes**
+Emilie Mover,615
+Michael Buble,619
+Justin Bieber,619
+Jim Bryson,622
+Tamara Sandor,625
+Micah Barnes,627
+Celine Dion,633
+Nelly Furtado,637
+Sarah McLachlan,655
+Leonard Cohen,1606
+Jann Arden,1624
+Eileen McGann,1628
+---------------------------
+**VoteCount**
+13700,700
+---------------------------
+####13800####
+**Votes**
+Emilie Mover,625
+Michael Buble,625
+Justin Bieber,626
+Jim Bryson,630
+Tamara Sandor,633
+Celine Dion,635
+Micah Barnes,635
+Nelly Furtado,642
+Sarah McLachlan,663
+Leonard Cohen,1614
+Jann Arden,1637
+Eileen McGann,1645
+---------------------------
+**VoteCount**
+13800,800
+---------------------------
+####13900####
+**Votes**
+Emilie Mover,632
+Justin Bieber,632
+Michael Buble,633
+Jim Bryson,634
+Tamara Sandor,637
+Celine Dion,641
+Micah Barnes,641
+Nelly Furtado,649
+Sarah McLachlan,666
+Leonard Cohen,1629
+Jann Arden,1655
+Eileen McGann,1661
+---------------------------
+**VoteCount**
+13900,900
+---------------------------
+####14000####
+**Votes**
+Emilie Mover,636
+Michael Buble,636
+Justin Bieber,637
+Jim Bryson,642
+Tamara Sandor,643
+Celine Dion,648
+Micah Barnes,650
+Nelly Furtado,653
+Sarah McLachlan,671
+Leonard Cohen,1649
+Jann Arden,1665
+Eileen McGann,1680
+---------------------------
+**VoteCount**
+14000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Emilie Mover,636
+Michael Buble,636
+Justin Bieber,637
+Jim Bryson,642
+Tamara Sandor,643
+Celine Dion,648
+Micah Barnes,650
+Nelly Furtado,653
+Sarah McLachlan,671
+Leonard Cohen,1649
+Jann Arden,1665
+Eileen McGann,1680
+---------------------------
+**VoteCount**
+14000,0
+---------------------------
+####14100####
+**Votes**
+Michael Buble,644
+Justin Bieber,644
+Jim Bryson,649
+Tamara Sandor,651
+Celine Dion,657
+Nelly Furtado,659
+Micah Barnes,660
+Sarah McLachlan,685
+Leonard Cohen,1659
+Jann Arden,1672
+Eileen McGann,1694
+---------------------------
+**VoteCount**
+14100,100
+---------------------------
+####14200####
+**Votes**
+Justin Bieber,653
+Michael Buble,654
+Tamara Sandor,659
+Jim Bryson,660
+Nelly Furtado,666
+Celine Dion,667
+Micah Barnes,668
+Sarah McLachlan,694
+Leonard Cohen,1674
+Jann Arden,1678
+Eileen McGann,1701
+---------------------------
+**VoteCount**
+14200,200
+---------------------------
+####14300####
+**Votes**
+Michael Buble,660
+Justin Bieber,662
+Tamara Sandor,664
+Jim Bryson,669
+Nelly Furtado,672
+Celine Dion,674
+Micah Barnes,674
+Sarah McLachlan,703
+Leonard Cohen,1690
+Jann Arden,1693
+Eileen McGann,1713
+---------------------------
+**VoteCount**
+14300,300
+---------------------------
+####14400####
+**Votes**
+Michael Buble,666
+Justin Bieber,667
+Tamara Sandor,669
+Jim Bryson,675
+Nelly Furtado,680
+Celine Dion,686
+Micah Barnes,686
+Sarah McLachlan,720
+Leonard Cohen,1702
+Jann Arden,1702
+Eileen McGann,1721
+---------------------------
+**VoteCount**
+14400,400
+---------------------------
+####14500####
+**Votes**
+Tamara Sandor,671
+Justin Bieber,673
+Michael Buble,676
+Nelly Furtado,685
+Jim Bryson,688
+Celine Dion,697
+Micah Barnes,697
+Sarah McLachlan,731
+Jann Arden,1713
+Leonard Cohen,1715
+Eileen McGann,1728
+---------------------------
+**VoteCount**
+14500,500
+---------------------------
+####14600####
+**Votes**
+Tamara Sandor,677
+Justin Bieber,678
+Michael Buble,682
+Nelly Furtado,700
+Jim Bryson,703
+Celine Dion,704
+Micah Barnes,711
+Sarah McLachlan,738
+Jann Arden,1721
+Leonard Cohen,1726
+Eileen McGann,1734
+---------------------------
+**VoteCount**
+14600,600
+---------------------------
+####14700####
+**Votes**
+Justin Bieber,684
+Tamara Sandor,687
+Michael Buble,689
+Celine Dion,709
+Jim Bryson,709
+Nelly Furtado,712
+Micah Barnes,717
+Sarah McLachlan,745
+Leonard Cohen,1736
+Jann Arden,1738
+Eileen McGann,1748
+---------------------------
+**VoteCount**
+14700,700
+---------------------------
+####14800####
+**Votes**
+Justin Bieber,691
+Tamara Sandor,694
+Michael Buble,700
+Jim Bryson,713
+Celine Dion,721
+Micah Barnes,725
+Nelly Furtado,727
+Sarah McLachlan,749
+Leonard Cohen,1747
+Jann Arden,1748
+Eileen McGann,1759
+---------------------------
+**VoteCount**
+14800,800
+---------------------------
+####14900####
+**Votes**
+Justin Bieber,693
+Tamara Sandor,703
+Michael Buble,707
+Jim Bryson,721
+Celine Dion,730
+Nelly Furtado,732
+Micah Barnes,734
+Sarah McLachlan,755
+Leonard Cohen,1758
+Jann Arden,1766
+Eileen McGann,1775
+---------------------------
+**VoteCount**
+14900,900
+---------------------------
+####15000####
+**Votes**
+Justin Bieber,706
+Tamara Sandor,709
+Michael Buble,711
+Jim Bryson,726
+Nelly Furtado,737
+Celine Dion,739
+Micah Barnes,740
+Sarah McLachlan,759
+Leonard Cohen,1775
+Jann Arden,1785
+Eileen McGann,1787
+---------------------------
+**VoteCount**
+15000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Justin Bieber,706
+Tamara Sandor,709
+Michael Buble,711
+Jim Bryson,726
+Nelly Furtado,737
+Celine Dion,739
+Micah Barnes,740
+Sarah McLachlan,759
+Leonard Cohen,1775
+Jann Arden,1785
+Eileen McGann,1787
+---------------------------
+**VoteCount**
+15000,0
+---------------------------
+####15100####
+**Votes**
+Tamara Sandor,719
+Michael Buble,722
+Jim Bryson,733
+Nelly Furtado,745
+Celine Dion,747
+Micah Barnes,749
+Sarah McLachlan,769
+Leonard Cohen,1786
+Jann Arden,1797
+Eileen McGann,1801
+---------------------------
+**VoteCount**
+15100,100
+---------------------------
+####15200####
+**Votes**
+Tamara Sandor,731
+Michael Buble,731
+Jim Bryson,743
+Nelly Furtado,753
+Celine Dion,756
+Micah Barnes,761
+Sarah McLachlan,782
+Leonard Cohen,1799
+Jann Arden,1804
+Eileen McGann,1808
+---------------------------
+**VoteCount**
+15200,200
+---------------------------
+####15300####
+**Votes**
+Michael Buble,741
+Tamara Sandor,744
+Jim Bryson,753
+Nelly Furtado,762
+Micah Barnes,771
+Celine Dion,772
+Sarah McLachlan,791
+Leonard Cohen,1808
+Jann Arden,1809
+Eileen McGann,1817
+---------------------------
+**VoteCount**
+15300,300
+---------------------------
+####15400####
+**Votes**
+Tamara Sandor,750
+Michael Buble,752
+Jim Bryson,760
+Nelly Furtado,767
+Celine Dion,783
+Micah Barnes,785
+Sarah McLachlan,801
+Leonard Cohen,1818
+Jann Arden,1822
+Eileen McGann,1830
+---------------------------
+**VoteCount**
+15400,400
+---------------------------
+####15500####
+**Votes**
+Tamara Sandor,760
+Michael Buble,760
+Jim Bryson,765
+Nelly Furtado,777
+Celine Dion,796
+Micah Barnes,796
+Sarah McLachlan,811
+Leonard Cohen,1830
+Jann Arden,1835
+Eileen McGann,1838
+---------------------------
+**VoteCount**
+15500,500
+---------------------------
+####15600####
+**Votes**
+Tamara Sandor,772
+Michael Buble,773
+Jim Bryson,773
+Nelly Furtado,787
+Celine Dion,802
+Micah Barnes,806
+Sarah McLachlan,817
+Leonard Cohen,1841
+Eileen McGann,1847
+Jann Arden,1850
+---------------------------
+**VoteCount**
+15600,600
+---------------------------
+####15700####
+**Votes**
+Michael Buble,779
+Tamara Sandor,781
+Jim Bryson,784
+Nelly Furtado,798
+Celine Dion,808
+Micah Barnes,816
+Sarah McLachlan,826
+Leonard Cohen,1850
+Jann Arden,1862
+Eileen McGann,1864
+---------------------------
+**VoteCount**
+15700,700
+---------------------------
+####15800####
+**Votes**
+Jim Bryson,789
+Michael Buble,790
+Tamara Sandor,795
+Nelly Furtado,810
+Celine Dion,816
+Micah Barnes,821
+Sarah McLachlan,834
+Leonard Cohen,1867
+Jann Arden,1870
+Eileen McGann,1876
+---------------------------
+**VoteCount**
+15800,800
+---------------------------
+####15900####
+**Votes**
+Michael Buble,800
+Jim Bryson,802
+Tamara Sandor,803
+Nelly Furtado,822
+Celine Dion,823
+Micah Barnes,827
+Sarah McLachlan,844
+Jann Arden,1879
+Eileen McGann,1884
+Leonard Cohen,1884
+---------------------------
+**VoteCount**
+15900,900
+---------------------------
+####16000####
+**Votes**
+Tamara Sandor,806
+Michael Buble,806
+Jim Bryson,811
+Nelly Furtado,829
+Celine Dion,831
+Micah Barnes,837
+Sarah McLachlan,857
+Jann Arden,1893
+Leonard Cohen,1898
+Eileen McGann,1900
+---------------------------
+**VoteCount**
+16000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Tamara Sandor,806
+Michael Buble,806
+Jim Bryson,811
+Nelly Furtado,829
+Celine Dion,831
+Micah Barnes,837
+Sarah McLachlan,857
+Jann Arden,1893
+Leonard Cohen,1898
+Eileen McGann,1900
+---------------------------
+**VoteCount**
+16000,0
+---------------------------
+####16100####
+**Votes**
+Michael Buble,815
+Jim Bryson,822
+Celine Dion,836
+Nelly Furtado,838
+Micah Barnes,852
+Sarah McLachlan,869
+Jann Arden,1907
+Leonard Cohen,1911
+Eileen McGann,1912
+---------------------------
+**VoteCount**
+16100,100
+---------------------------
+####16200####
+**Votes**
+Michael Buble,827
+Jim Bryson,833
+Nelly Furtado,847
+Celine Dion,853
+Micah Barnes,866
+Sarah McLachlan,878
+Jann Arden,1914
+Eileen McGann,1922
+Leonard Cohen,1922
+---------------------------
+**VoteCount**
+16200,200
+---------------------------
+####16300####
+**Votes**
+Michael Buble,835
+Jim Bryson,843
+Nelly Furtado,856
+Celine Dion,864
+Micah Barnes,874
+Sarah McLachlan,884
+Eileen McGann,1934
+Jann Arden,1934
+Leonard Cohen,1938
+---------------------------
+**VoteCount**
+16300,300
+---------------------------
+####16400####
+**Votes**
+Michael Buble,848
+Jim Bryson,852
+Nelly Furtado,865
+Celine Dion,869
+Micah Barnes,889
+Sarah McLachlan,895
+Leonard Cohen,1944
+Eileen McGann,1947
+Jann Arden,1953
+---------------------------
+**VoteCount**
+16400,400
+---------------------------
+####16500####
+**Votes**
+Michael Buble,858
+Jim Bryson,858
+Nelly Furtado,873
+Celine Dion,884
+Sarah McLachlan,903
+Micah Barnes,904
+Leonard Cohen,1959
+Jann Arden,1961
+Eileen McGann,1962
+---------------------------
+**VoteCount**
+16500,500
+---------------------------
+####16600####
+**Votes**
+Michael Buble,873
+Jim Bryson,875
+Nelly Furtado,881
+Celine Dion,896
+Micah Barnes,912
+Sarah McLachlan,913
+Jann Arden,1968
+Leonard Cohen,1971
+Eileen McGann,1973
+---------------------------
+**VoteCount**
+16600,600
+---------------------------
+####16700####
+**Votes**
+Jim Bryson,882
+Michael Buble,886
+Nelly Furtado,894
+Celine Dion,907
+Micah Barnes,920
+Sarah McLachlan,926
+Jann Arden,1980
+Leonard Cohen,1983
+Eileen McGann,1984
+---------------------------
+**VoteCount**
+16700,700
+---------------------------
+####16800####
+**Votes**
+Michael Buble,894
+Jim Bryson,897
+Nelly Furtado,902
+Celine Dion,919
+Micah Barnes,930
+Sarah McLachlan,933
+Jann Arden,1993
+Leonard Cohen,1995
+Eileen McGann,1999
+---------------------------
+**VoteCount**
+16800,800
+---------------------------
+####16900####
+**Votes**
+Michael Buble,902
+Jim Bryson,905
+Nelly Furtado,907
+Celine Dion,929
+Micah Barnes,945
+Sarah McLachlan,949
+Jann Arden,2001
+Leonard Cohen,2009
+Eileen McGann,2015
+---------------------------
+**VoteCount**
+16900,900
+---------------------------
+####17000####
+**Votes**
+Michael Buble,916
+Jim Bryson,916
+Nelly Furtado,921
+Celine Dion,937
+Micah Barnes,956
+Sarah McLachlan,957
+Jann Arden,2009
+Leonard Cohen,2024
+Eileen McGann,2026
+---------------------------
+**VoteCount**
+17000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Michael Buble,916
+Jim Bryson,916
+Nelly Furtado,921
+Celine Dion,937
+Micah Barnes,956
+Sarah McLachlan,957
+Jann Arden,2009
+Leonard Cohen,2024
+Eileen McGann,2026
+---------------------------
+**VoteCount**
+17000,0
+---------------------------
+####17100####
+**Votes**
+Jim Bryson,924
+Nelly Furtado,930
+Celine Dion,946
+Sarah McLachlan,966
+Micah Barnes,970
+Jann Arden,2026
+Eileen McGann,2038
+Leonard Cohen,2046
+---------------------------
+**VoteCount**
+17100,100
+---------------------------
+####17200####
+**Votes**
+Jim Bryson,937
+Nelly Furtado,942
+Celine Dion,960
+Micah Barnes,980
+Sarah McLachlan,982
+Jann Arden,2037
+Eileen McGann,2052
+Leonard Cohen,2056
+---------------------------
+**VoteCount**
+17200,200
+---------------------------
+####17300####
+**Votes**
+Jim Bryson,945
+Nelly Furtado,954
+Celine Dion,970
+Micah Barnes,995
+Sarah McLachlan,996
+Jann Arden,2057
+Leonard Cohen,2064
+Eileen McGann,2065
+---------------------------
+**VoteCount**
+17300,300
+---------------------------
+####17400####
+**Votes**
+Jim Bryson,959
+Nelly Furtado,964
+Celine Dion,980
+Micah Barnes,1005
+Sarah McLachlan,1008
+Leonard Cohen,2075
+Jann Arden,2075
+Eileen McGann,2080
+---------------------------
+**VoteCount**
+17400,400
+---------------------------
+####17500####
+**Votes**
+Jim Bryson,970
+Nelly Furtado,977
+Celine Dion,990
+Micah Barnes,1017
+Sarah McLachlan,1022
+Jann Arden,2087
+Leonard Cohen,2088
+Eileen McGann,2095
+---------------------------
+**VoteCount**
+17500,500
+---------------------------
+####17600####
+**Votes**
+Jim Bryson,981
+Nelly Furtado,994
+Celine Dion,999
+Micah Barnes,1030
+Sarah McLachlan,1033
+Leonard Cohen,2099
+Jann Arden,2099
+Eileen McGann,2111
+---------------------------
+**VoteCount**
+17600,600
+---------------------------
+####17700####
+**Votes**
+Jim Bryson,994
+Celine Dion,1008
+Nelly Furtado,1011
+Sarah McLachlan,1043
+Micah Barnes,1045
+Jann Arden,2107
+Leonard Cohen,2110
+Eileen McGann,2128
+---------------------------
+**VoteCount**
+17700,700
+---------------------------
+####17800####
+**Votes**
+Jim Bryson,1007
+Celine Dion,1018
+Nelly Furtado,1021
+Micah Barnes,1054
+Sarah McLachlan,1060
+Leonard Cohen,2123
+Jann Arden,2123
+Eileen McGann,2140
+---------------------------
+**VoteCount**
+17800,800
+---------------------------
+####17900####
+**Votes**
+Jim Bryson,1021
+Celine Dion,1030
+Nelly Furtado,1038
+Micah Barnes,1064
+Sarah McLachlan,1075
+Jann Arden,2132
+Leonard Cohen,2136
+Eileen McGann,2150
+---------------------------
+**VoteCount**
+17900,900
+---------------------------
+####18000####
+**Votes**
+Celine Dion,1041
+Jim Bryson,1041
+Nelly Furtado,1042
+Micah Barnes,1074
+Sarah McLachlan,1093
+Leonard Cohen,2145
+Jann Arden,2147
+Eileen McGann,2163
+---------------------------
+**VoteCount**
+18000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Celine Dion,1041
+Jim Bryson,1041
+Nelly Furtado,1042
+Micah Barnes,1074
+Sarah McLachlan,1093
+Leonard Cohen,2145
+Jann Arden,2147
+Eileen McGann,2163
+---------------------------
+**VoteCount**
+18000,0
+---------------------------
+####18100####
+**Votes**
+Nelly Furtado,1055
+Jim Bryson,1062
+Micah Barnes,1087
+Sarah McLachlan,1107
+Leonard Cohen,2158
+Jann Arden,2160
+Eileen McGann,2176
+---------------------------
+**VoteCount**
+18100,100
+---------------------------
+####18200####
+**Votes**
+Nelly Furtado,1069
+Jim Bryson,1074
+Micah Barnes,1105
+Sarah McLachlan,1117
+Leonard Cohen,2172
+Jann Arden,2178
+Eileen McGann,2190
+---------------------------
+**VoteCount**
+18200,200
+---------------------------
+####18300####
+**Votes**
+Nelly Furtado,1084
+Jim Bryson,1085
+Micah Barnes,1120
+Sarah McLachlan,1128
+Leonard Cohen,2189
+Jann Arden,2194
+Eileen McGann,2205
+---------------------------
+**VoteCount**
+18300,300
+---------------------------
+####18400####
+**Votes**
+Nelly Furtado,1096
+Jim Bryson,1101
+Micah Barnes,1128
+Sarah McLachlan,1142
+Jann Arden,2209
+Leonard Cohen,2212
+Eileen McGann,2217
+---------------------------
+**VoteCount**
+18400,400
+---------------------------
+####18500####
+**Votes**
+Nelly Furtado,1113
+Jim Bryson,1114
+Micah Barnes,1139
+Sarah McLachlan,1152
+Jann Arden,2224
+Leonard Cohen,2229
+Eileen McGann,2234
+---------------------------
+**VoteCount**
+18500,500
+---------------------------
+####18600####
+**Votes**
+Jim Bryson,1122
+Nelly Furtado,1127
+Micah Barnes,1155
+Sarah McLachlan,1163
+Jann Arden,2236
+Eileen McGann,2251
+Leonard Cohen,2251
+---------------------------
+**VoteCount**
+18600,600
+---------------------------
+####18700####
+**Votes**
+Jim Bryson,1135
+Nelly Furtado,1143
+Micah Barnes,1171
+Sarah McLachlan,1177
+Jann Arden,2248
+Leonard Cohen,2261
+Eileen McGann,2270
+---------------------------
+**VoteCount**
+18700,700
+---------------------------
+####18800####
+**Votes**
+Jim Bryson,1142
+Nelly Furtado,1153
+Micah Barnes,1182
+Sarah McLachlan,1194
+Jann Arden,2271
+Leonard Cohen,2277
+Eileen McGann,2286
+---------------------------
+**VoteCount**
+18800,800
+---------------------------
+####18900####
+**Votes**
+Jim Bryson,1152
+Nelly Furtado,1171
+Micah Barnes,1190
+Sarah McLachlan,1208
+Jann Arden,2283
+Leonard Cohen,2292
+Eileen McGann,2309
+---------------------------
+**VoteCount**
+18900,900
+---------------------------
+####19000####
+**Votes**
+Jim Bryson,1177
+Nelly Furtado,1184
+Micah Barnes,1202
+Sarah McLachlan,1216
+Jann Arden,2297
+Leonard Cohen,2306
+Eileen McGann,2323
+---------------------------
+**VoteCount**
+19000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Jim Bryson,1177
+Nelly Furtado,1184
+Micah Barnes,1202
+Sarah McLachlan,1216
+Jann Arden,2297
+Leonard Cohen,2306
+Eileen McGann,2323
+---------------------------
+**VoteCount**
+19000,0
+---------------------------
+####19100####
+**Votes**
+Nelly Furtado,1200
+Micah Barnes,1222
+Sarah McLachlan,1228
+Jann Arden,2314
+Leonard Cohen,2321
+Eileen McGann,2343
+---------------------------
+**VoteCount**
+19100,100
+---------------------------
+####19200####
+**Votes**
+Nelly Furtado,1213
+Micah Barnes,1235
+Sarah McLachlan,1248
+Jann Arden,2333
+Leonard Cohen,2341
+Eileen McGann,2358
+---------------------------
+**VoteCount**
+19200,200
+---------------------------
+####19300####
+**Votes**
+Nelly Furtado,1226
+Micah Barnes,1246
+Sarah McLachlan,1266
+Jann Arden,2349
+Leonard Cohen,2360
+Eileen McGann,2381
+---------------------------
+**VoteCount**
+19300,300
+---------------------------
+####19400####
+**Votes**
+Nelly Furtado,1243
+Micah Barnes,1261
+Sarah McLachlan,1280
+Jann Arden,2367
+Leonard Cohen,2376
+Eileen McGann,2401
+---------------------------
+**VoteCount**
+19400,400
+---------------------------
+####19500####
+**Votes**
+Nelly Furtado,1257
+Micah Barnes,1278
+Sarah McLachlan,1294
+Jann Arden,2381
+Leonard Cohen,2396
+Eileen McGann,2422
+---------------------------
+**VoteCount**
+19500,500
+---------------------------
+####19600####
+**Votes**
+Nelly Furtado,1268
+Micah Barnes,1292
+Sarah McLachlan,1312
+Jann Arden,2399
+Leonard Cohen,2415
+Eileen McGann,2442
+---------------------------
+**VoteCount**
+19600,600
+---------------------------
+####19700####
+**Votes**
+Nelly Furtado,1284
+Micah Barnes,1302
+Sarah McLachlan,1324
+Jann Arden,2426
+Leonard Cohen,2437
+Eileen McGann,2455
+---------------------------
+**VoteCount**
+19700,700
+---------------------------
+####19800####
+**Votes**
+Nelly Furtado,1299
+Micah Barnes,1312
+Sarah McLachlan,1342
+Jann Arden,2450
+Leonard Cohen,2454
+Eileen McGann,2471
+---------------------------
+**VoteCount**
+19800,800
+---------------------------
+####19900####
+**Votes**
+Nelly Furtado,1310
+Micah Barnes,1326
+Sarah McLachlan,1364
+Jann Arden,2470
+Leonard Cohen,2474
+Eileen McGann,2484
+---------------------------
+**VoteCount**
+19900,900
+---------------------------
+####20000####
+**Votes**
+Nelly Furtado,1338
+Micah Barnes,1339
+Sarah McLachlan,1377
+Jann Arden,2483
+Leonard Cohen,2492
+Eileen McGann,2499
+---------------------------
+**VoteCount**
+20000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Nelly Furtado,1338
+Micah Barnes,1339
+Sarah McLachlan,1377
+Jann Arden,2483
+Leonard Cohen,2492
+Eileen McGann,2499
+---------------------------
+**VoteCount**
+20000,0
+---------------------------
+####20100####
+**Votes**
+Micah Barnes,1355
+Sarah McLachlan,1403
+Jann Arden,2500
+Eileen McGann,2514
+Leonard Cohen,2518
+---------------------------
+**VoteCount**
+20100,100
+---------------------------
+####20200####
+**Votes**
+Micah Barnes,1378
+Sarah McLachlan,1420
+Jann Arden,2515
+Leonard Cohen,2536
+Eileen McGann,2541
+---------------------------
+**VoteCount**
+20200,200
+---------------------------
+####20300####
+**Votes**
+Micah Barnes,1401
+Sarah McLachlan,1440
+Jann Arden,2533
+Leonard Cohen,2553
+Eileen McGann,2563
+---------------------------
+**VoteCount**
+20300,300
+---------------------------
+####20400####
+**Votes**
+Micah Barnes,1418
+Sarah McLachlan,1460
+Jann Arden,2548
+Leonard Cohen,2576
+Eileen McGann,2588
+---------------------------
+**VoteCount**
+20400,400
+---------------------------
+####20500####
+**Votes**
+Micah Barnes,1434
+Sarah McLachlan,1476
+Jann Arden,2571
+Leonard Cohen,2593
+Eileen McGann,2616
+---------------------------
+**VoteCount**
+20500,500
+---------------------------
+####20600####
+**Votes**
+Micah Barnes,1454
+Sarah McLachlan,1493
+Jann Arden,2597
+Leonard Cohen,2616
+Eileen McGann,2630
+---------------------------
+**VoteCount**
+20600,600
+---------------------------
+####20700####
+**Votes**
+Micah Barnes,1466
+Sarah McLachlan,1513
+Jann Arden,2625
+Leonard Cohen,2638
+Eileen McGann,2648
+---------------------------
+**VoteCount**
+20700,700
+---------------------------
+####20800####
+**Votes**
+Micah Barnes,1480
+Sarah McLachlan,1531
+Jann Arden,2649
+Leonard Cohen,2660
+Eileen McGann,2670
+---------------------------
+**VoteCount**
+20800,800
+---------------------------
+####20900####
+**Votes**
+Micah Barnes,1494
+Sarah McLachlan,1554
+Jann Arden,2667
+Leonard Cohen,2681
+Eileen McGann,2694
+---------------------------
+**VoteCount**
+20900,900
+---------------------------
+####21000####
+**Votes**
+Micah Barnes,1517
+Sarah McLachlan,1566
+Jann Arden,2692
+Leonard Cohen,2700
+Eileen McGann,2715
+---------------------------
+**VoteCount**
+21000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Micah Barnes,1517
+Sarah McLachlan,1566
+Jann Arden,2692
+Leonard Cohen,2700
+Eileen McGann,2715
+---------------------------
+**VoteCount**
+21000,0
+---------------------------
+####21100####
+**Votes**
+Sarah McLachlan,1588
+Jann Arden,2713
+Leonard Cohen,2733
+Eileen McGann,2739
+---------------------------
+**VoteCount**
+21100,100
+---------------------------
+####21200####
+**Votes**
+Sarah McLachlan,1607
+Jann Arden,2737
+Eileen McGann,2760
+Leonard Cohen,2769
+---------------------------
+**VoteCount**
+21200,200
+---------------------------
+####21300####
+**Votes**
+Sarah McLachlan,1632
+Jann Arden,2761
+Eileen McGann,2781
+Leonard Cohen,2799
+---------------------------
+**VoteCount**
+21300,300
+---------------------------
+####21400####
+**Votes**
+Sarah McLachlan,1656
+Jann Arden,2786
+Eileen McGann,2811
+Leonard Cohen,2820
+---------------------------
+**VoteCount**
+21400,400
+---------------------------
+####21500####
+**Votes**
+Sarah McLachlan,1684
+Jann Arden,2806
+Eileen McGann,2834
+Leonard Cohen,2849
+---------------------------
+**VoteCount**
+21500,500
+---------------------------
+####21600####
+**Votes**
+Sarah McLachlan,1706
+Jann Arden,2836
+Eileen McGann,2859
+Leonard Cohen,2872
+---------------------------
+**VoteCount**
+21600,600
+---------------------------
+####21700####
+**Votes**
+Sarah McLachlan,1726
+Jann Arden,2858
+Eileen McGann,2885
+Leonard Cohen,2904
+---------------------------
+**VoteCount**
+21700,700
+---------------------------
+####21800####
+**Votes**
+Sarah McLachlan,1747
+Jann Arden,2892
+Eileen McGann,2906
+Leonard Cohen,2928
+---------------------------
+**VoteCount**
+21800,800
+---------------------------
+####21900####
+**Votes**
+Sarah McLachlan,1771
+Jann Arden,2917
+Eileen McGann,2932
+Leonard Cohen,2953
+---------------------------
+**VoteCount**
+21900,900
+---------------------------
+####22000####
+**Votes**
+Sarah McLachlan,1795
+Jann Arden,2945
+Eileen McGann,2956
+Leonard Cohen,2977
+---------------------------
+**VoteCount**
+22000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Sarah McLachlan,1795
+Jann Arden,2945
+Eileen McGann,2956
+Leonard Cohen,2977
+---------------------------
+**VoteCount**
+22000,0
+---------------------------
+####22100####
+**Votes**
+Eileen McGann,2982
+Jann Arden,2983
+Leonard Cohen,3013
+---------------------------
+**VoteCount**
+22100,100
+---------------------------
+####22200####
+**Votes**
+Eileen McGann,3013
+Jann Arden,3015
+Leonard Cohen,3050
+---------------------------
+**VoteCount**
+22200,200
+---------------------------
+####22300####
+**Votes**
+Eileen McGann,3042
+Jann Arden,3052
+Leonard Cohen,3084
+---------------------------
+**VoteCount**
+22300,300
+---------------------------
+####22400####
+**Votes**
+Eileen McGann,3073
+Jann Arden,3082
+Leonard Cohen,3123
+---------------------------
+**VoteCount**
+22400,400
+---------------------------
+####22500####
+**Votes**
+Eileen McGann,3107
+Jann Arden,3117
+Leonard Cohen,3154
+---------------------------
+**VoteCount**
+22500,500
+---------------------------
+####22600####
+**Votes**
+Jann Arden,3144
+Eileen McGann,3146
+Leonard Cohen,3188
+---------------------------
+**VoteCount**
+22600,600
+---------------------------
+####22700####
+**Votes**
+Eileen McGann,3177
+Jann Arden,3184
+Leonard Cohen,3217
+---------------------------
+**VoteCount**
+22700,700
+---------------------------
+####22800####
+**Votes**
+Eileen McGann,3211
+Jann Arden,3216
+Leonard Cohen,3251
+---------------------------
+**VoteCount**
+22800,800
+---------------------------
+####22900####
+**Votes**
+Jann Arden,3248
+Eileen McGann,3253
+Leonard Cohen,3277
+---------------------------
+**VoteCount**
+22900,900
+---------------------------
+####23000####
+**Votes**
+Jann Arden,3276
+Eileen McGann,3294
+Leonard Cohen,3308
+---------------------------
+**VoteCount**
+23000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Jann Arden,3276
+Eileen McGann,3294
+Leonard Cohen,3308
+---------------------------
+**VoteCount**
+23000,0
+---------------------------
+####23100####
+**Votes**
+Eileen McGann,3339
+Leonard Cohen,3363
+---------------------------
+**VoteCount**
+23100,100
+---------------------------
+####23200####
+**Votes**
+Eileen McGann,3389
+Leonard Cohen,3413
+---------------------------
+**VoteCount**
+23200,200
+---------------------------
+####23300####
+**Votes**
+Eileen McGann,3444
+Leonard Cohen,3458
+---------------------------
+**VoteCount**
+23300,300
+---------------------------
+####23400####
+**Votes**
+Eileen McGann,3499
+Leonard Cohen,3503
+---------------------------
+**VoteCount**
+23400,400
+---------------------------
+####23500####
+**Votes**
+Eileen McGann,3545
+Leonard Cohen,3557
+---------------------------
+**VoteCount**
+23500,500
+---------------------------
+####23600####
+**Votes**
+Eileen McGann,3595
+Leonard Cohen,3607
+---------------------------
+**VoteCount**
+23600,600
+---------------------------
+####23700####
+**Votes**
+Eileen McGann,3639
+Leonard Cohen,3663
+---------------------------
+**VoteCount**
+23700,700
+---------------------------
+####23800####
+**Votes**
+Eileen McGann,3686
+Leonard Cohen,3716
+---------------------------
+**VoteCount**
+23800,800
+---------------------------
+####23900####
+**Votes**
+Eileen McGann,3740
+Leonard Cohen,3762
+---------------------------
+**VoteCount**
+23900,900
+---------------------------
+####24000####
+**Votes**
+Eileen McGann,3786
+Leonard Cohen,3816
+---------------------------
+**VoteCount**
+24000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Eileen McGann,3786
+Leonard Cohen,3816
+---------------------------
+**VoteCount**
+24000,0
+---------------------------
+####24100####
+**Votes**
+Leonard Cohen,3916
+---------------------------
+**VoteCount**
+24100,100
+---------------------------
+####24200####
+**Votes**
+Leonard Cohen,4016
+---------------------------
+**VoteCount**
+24200,200
+---------------------------
+####24300####
+**Votes**
+Leonard Cohen,4116
+---------------------------
+**VoteCount**
+24300,300
+---------------------------
+####24400####
+**Votes**
+Leonard Cohen,4216
+---------------------------
+**VoteCount**
+24400,400
+---------------------------
+####24500####
+**Votes**
+Leonard Cohen,4316
+---------------------------
+**VoteCount**
+24500,500
+---------------------------
+####24600####
+**Votes**
+Leonard Cohen,4416
+---------------------------
+**VoteCount**
+24600,600
+---------------------------
+####24700####
+**Votes**
+Leonard Cohen,4516
+---------------------------
+**VoteCount**
+24700,700
+---------------------------
+####24800####
+**Votes**
+Leonard Cohen,4616
+---------------------------
+**VoteCount**
+24800,800
+---------------------------
+####24900####
+**Votes**
+Leonard Cohen,4716
+---------------------------
+**VoteCount**
+24900,900
+---------------------------
+####25000####
+**Votes**
+Leonard Cohen,4816
+---------------------------
+**VoteCount**
+25000,0
+---------------------------
+####25100####
+**Votes**
+Leonard Cohen,4916
+---------------------------
+**VoteCount**
+25100,100
+---------------------------
+####25200####
+**Votes**
+Leonard Cohen,5016
+---------------------------
+**VoteCount**
+25200,200
+---------------------------
+####25300####
+**Votes**
+Leonard Cohen,5116
+---------------------------
+**VoteCount**
+25300,300
+---------------------------
+####25400####
+**Votes**
+Leonard Cohen,5216
+---------------------------
+**VoteCount**
+25400,400
+---------------------------
+####25500####
+**Votes**
+Leonard Cohen,5316
+---------------------------
+**VoteCount**
+25500,500
+---------------------------
+####25600####
+**Votes**
+Leonard Cohen,5416
+---------------------------
+**VoteCount**
+25600,600
+---------------------------
+####25700####
+**Votes**
+Leonard Cohen,5516
+---------------------------
+**VoteCount**
+25700,700
+---------------------------
+####25800####
+**Votes**
+Leonard Cohen,5616
+---------------------------
+**VoteCount**
+25800,800
+---------------------------
+####25900####
+**Votes**
+Leonard Cohen,5716
+---------------------------
+**VoteCount**
+25900,900
+---------------------------
+####26000####
+**Votes**
+Leonard Cohen,5816
+---------------------------
+**VoteCount**
+26000,0
+---------------------------
+####26100####
+**Votes**
+Leonard Cohen,5916
+---------------------------
+**VoteCount**
+26100,100
+---------------------------
+####26200####
+**Votes**
+Leonard Cohen,6016
+---------------------------
+**VoteCount**
+26200,200
+---------------------------
+####26300####
+**Votes**
+Leonard Cohen,6116
+---------------------------
+**VoteCount**
+26300,300
+---------------------------
+####26400####
+**Votes**
+Leonard Cohen,6216
+---------------------------
+**VoteCount**
+26400,400
+---------------------------
+####26500####
+**Votes**
+Leonard Cohen,6316
+---------------------------
+**VoteCount**
+26500,500
+---------------------------
+####26600####
+**Votes**
+Leonard Cohen,6416
+---------------------------
+**VoteCount**
+26600,600
+---------------------------
+####26700####
+**Votes**
+Leonard Cohen,6516
+---------------------------
+**VoteCount**
+26700,700
+---------------------------
+####26800####
+**Votes**
+Leonard Cohen,6616
+---------------------------
+**VoteCount**
+26800,800
+---------------------------
+####26900####
+**Votes**
+Leonard Cohen,6716
+---------------------------
+**VoteCount**
+26900,900
+---------------------------
+####27000####
+**Votes**
+Leonard Cohen,6816
+---------------------------
+**VoteCount**
+27000,0
+---------------------------
+####27100####
+**Votes**
+Leonard Cohen,6916
+---------------------------
+**VoteCount**
+27100,100
+---------------------------
+####27200####
+**Votes**
+Leonard Cohen,7016
+---------------------------
+**VoteCount**
+27200,200
+---------------------------
+####27300####
+**Votes**
+Leonard Cohen,7116
+---------------------------
+**VoteCount**
+27300,300
+---------------------------
+####27400####
+**Votes**
+Leonard Cohen,7216
+---------------------------
+**VoteCount**
+27400,400
+---------------------------
+####27500####
+**Votes**
+Leonard Cohen,7316
+---------------------------
+**VoteCount**
+27500,500
+---------------------------
+####27600####
+**Votes**
+Leonard Cohen,7416
+---------------------------
+**VoteCount**
+27600,600
+---------------------------
+####27700####
+**Votes**
+Leonard Cohen,7516
+---------------------------
+**VoteCount**
+27700,700
+---------------------------
+####27800####
+**Votes**
+Leonard Cohen,7616
+---------------------------
+**VoteCount**
+27800,800
+---------------------------
+####27900####
+**Votes**
+Leonard Cohen,7716
+---------------------------
+**VoteCount**
+27900,900
+---------------------------
+####28000####
+**Votes**
+Leonard Cohen,7816
+---------------------------
+**VoteCount**
+28000,0
+---------------------------
+####28100####
+**Votes**
+Leonard Cohen,7916
+---------------------------
+**VoteCount**
+28100,100
+---------------------------
+####28200####
+**Votes**
+Leonard Cohen,8016
+---------------------------
+**VoteCount**
+28200,200
+---------------------------
+####28300####
+**Votes**
+Leonard Cohen,8116
+---------------------------
+**VoteCount**
+28300,300
+---------------------------
+####28400####
+**Votes**
+Leonard Cohen,8216
+---------------------------
+**VoteCount**
+28400,400
+---------------------------
+####28500####
+**Votes**
+Leonard Cohen,8316
+---------------------------
+**VoteCount**
+28500,500
+---------------------------
+####28600####
+**Votes**
+Leonard Cohen,8416
+---------------------------
+**VoteCount**
+28600,600
+---------------------------
+####28700####
+**Votes**
+Leonard Cohen,8516
+---------------------------
+**VoteCount**
+28700,700
+---------------------------
+####28800####
+**Votes**
+Leonard Cohen,8616
+---------------------------
+**VoteCount**
+28800,800
+---------------------------
+####28900####
+**Votes**
+Leonard Cohen,8716
+---------------------------
+**VoteCount**
+28900,900
+---------------------------
+####29000####
+**Votes**
+Leonard Cohen,8816
+---------------------------
+**VoteCount**
+29000,0
+---------------------------
+####29100####
+**Votes**
+Leonard Cohen,8916
+---------------------------
+**VoteCount**
+29100,100
+---------------------------
+####29200####
+**Votes**
+Leonard Cohen,9016
+---------------------------
+**VoteCount**
+29200,200
+---------------------------
+####29300####
+**Votes**
+Leonard Cohen,9116
+---------------------------
+**VoteCount**
+29300,300
+---------------------------
+####29400####
+**Votes**
+Leonard Cohen,9216
+---------------------------
+**VoteCount**
+29400,400
+---------------------------
+####29500####
+**Votes**
+Leonard Cohen,9316
+---------------------------
+**VoteCount**
+29500,500
+---------------------------
+####29600####
+**Votes**
+Leonard Cohen,9416
+---------------------------
+**VoteCount**
+29600,600
+---------------------------
+####29700####
+**Votes**
+Leonard Cohen,9516
+---------------------------
+**VoteCount**
+29700,700
+---------------------------
+####29800####
+**Votes**
+Leonard Cohen,9616
+---------------------------
+**VoteCount**
+29800,800
+---------------------------
+####29900####
+**Votes**
+Leonard Cohen,9716
+---------------------------
+**VoteCount**
+29900,900
+---------------------------
+####30000####
+**Votes**
+Leonard Cohen,9816
+---------------------------
+**VoteCount**
+30000,0
+---------------------------
+####30100####
+**Votes**
+Leonard Cohen,9916
+---------------------------
+**VoteCount**
+30100,100
+---------------------------
+####30200####
+**Votes**
+Leonard Cohen,10016
+---------------------------
+**VoteCount**
+30200,200
+---------------------------
+####30300####
+**Votes**
+Leonard Cohen,10116
+---------------------------
+**VoteCount**
+30300,300
+---------------------------
+####30400####
+**Votes**
+Leonard Cohen,10216
+---------------------------
+**VoteCount**
+30400,400
+---------------------------
+####30500####
+**Votes**
+Leonard Cohen,10316
+---------------------------
+**VoteCount**
+30500,500
+---------------------------
+####30600####
+**Votes**
+Leonard Cohen,10416
+---------------------------
+**VoteCount**
+30600,600
+---------------------------
+####30700####
+**Votes**
+Leonard Cohen,10516
+---------------------------
+**VoteCount**
+30700,700
+---------------------------
+####30800####
+**Votes**
+Leonard Cohen,10616
+---------------------------
+**VoteCount**
+30800,800
+---------------------------
+####30900####
+**Votes**
+Leonard Cohen,10716
+---------------------------
+**VoteCount**
+30900,900
+---------------------------
+####31000####
+**Votes**
+Leonard Cohen,10816
+---------------------------
+**VoteCount**
+31000,0
+---------------------------
+####31100####
+**Votes**
+Leonard Cohen,10916
+---------------------------
+**VoteCount**
+31100,100
+---------------------------
+####31200####
+**Votes**
+Leonard Cohen,11016
+---------------------------
+**VoteCount**
+31200,200
+---------------------------
+####31300####
+**Votes**
+Leonard Cohen,11116
+---------------------------
+**VoteCount**
+31300,300
+---------------------------
+####31400####
+**Votes**
+Leonard Cohen,11216
+---------------------------
+**VoteCount**
+31400,400
+---------------------------
+####31500####
+**Votes**
+Leonard Cohen,11316
+---------------------------
+**VoteCount**
+31500,500
+---------------------------
+####31600####
+**Votes**
+Leonard Cohen,11416
+---------------------------
+**VoteCount**
+31600,600
+---------------------------
+####31700####
+**Votes**
+Leonard Cohen,11516
+---------------------------
+**VoteCount**
+31700,700
+---------------------------
+####31800####
+**Votes**
+Leonard Cohen,11616
+---------------------------
+**VoteCount**
+31800,800
+---------------------------
+####31900####
+**Votes**
+Leonard Cohen,11716
+---------------------------
+**VoteCount**
+31900,900
+---------------------------
+####32000####
+**Votes**
+Leonard Cohen,11816
+---------------------------
+**VoteCount**
+32000,0
+---------------------------
+####32100####
+**Votes**
+Leonard Cohen,11916
+---------------------------
+**VoteCount**
+32100,100
+---------------------------
+####32200####
+**Votes**
+Leonard Cohen,12016
+---------------------------
+**VoteCount**
+32200,200
+---------------------------
+####32300####
+**Votes**
+Leonard Cohen,12116
+---------------------------
+**VoteCount**
+32300,300
+---------------------------
+####32400####
+**Votes**
+Leonard Cohen,12216
+---------------------------
+**VoteCount**
+32400,400
+---------------------------
+####32500####
+**Votes**
+Leonard Cohen,12316
+---------------------------
+**VoteCount**
+32500,500
+---------------------------
+####32600####
+**Votes**
+Leonard Cohen,12416
+---------------------------
+**VoteCount**
+32600,600
+---------------------------
+####32700####
+**Votes**
+Leonard Cohen,12516
+---------------------------
+**VoteCount**
+32700,700
+---------------------------
+####32800####
+**Votes**
+Leonard Cohen,12616
+---------------------------
+**VoteCount**
+32800,800
+---------------------------
+####32900####
+**Votes**
+Leonard Cohen,12716
+---------------------------
+**VoteCount**
+32900,900
+---------------------------
+####33000####
+**Votes**
+Leonard Cohen,12816
+---------------------------
+**VoteCount**
+33000,0
+---------------------------
+####33100####
+**Votes**
+Leonard Cohen,12916
+---------------------------
+**VoteCount**
+33100,100
+---------------------------
+####33200####
+**Votes**
+Leonard Cohen,13016
+---------------------------
+**VoteCount**
+33200,200
+---------------------------
+####33300####
+**Votes**
+Leonard Cohen,13116
+---------------------------
+**VoteCount**
+33300,300
+---------------------------
+####33400####
+**Votes**
+Leonard Cohen,13216
+---------------------------
+**VoteCount**
+33400,400
+---------------------------
+####33500####
+**Votes**
+Leonard Cohen,13316
+---------------------------
+**VoteCount**
+33500,500
+---------------------------
+####33600####
+**Votes**
+Leonard Cohen,13416
+---------------------------
+**VoteCount**
+33600,600
+---------------------------
+####33700####
+**Votes**
+Leonard Cohen,13516
+---------------------------
+**VoteCount**
+33700,700
+---------------------------
+####33800####
+**Votes**
+Leonard Cohen,13616
+---------------------------
+**VoteCount**
+33800,800
+---------------------------
+####33900####
+**Votes**
+Leonard Cohen,13716
+---------------------------
+**VoteCount**
+33900,900
+---------------------------
+####34000####
+**Votes**
+Leonard Cohen,13816
+---------------------------
+**VoteCount**
+34000,0
+---------------------------
+####34100####
+**Votes**
+Leonard Cohen,13916
+---------------------------
+**VoteCount**
+34100,100
+---------------------------
+####34200####
+**Votes**
+Leonard Cohen,14016
+---------------------------
+**VoteCount**
+34200,200
+---------------------------
+####34300####
+**Votes**
+Leonard Cohen,14116
+---------------------------
+**VoteCount**
+34300,300
+---------------------------
+####34400####
+**Votes**
+Leonard Cohen,14216
+---------------------------
+**VoteCount**
+34400,400
+---------------------------
+####34500####
+**Votes**
+Leonard Cohen,14316
+---------------------------
+**VoteCount**
+34500,500
+---------------------------
+####34600####
+**Votes**
+Leonard Cohen,14416
+---------------------------
+**VoteCount**
+34600,600
+---------------------------
+####34700####
+**Votes**
+Leonard Cohen,14516
+---------------------------
+**VoteCount**
+34700,700
+---------------------------
+####34800####
+**Votes**
+Leonard Cohen,14616
+---------------------------
+**VoteCount**
+34800,800
+---------------------------
+####34900####
+**Votes**
+Leonard Cohen,14716
+---------------------------
+**VoteCount**
+34900,900
+---------------------------
+####35000####
+**Votes**
+Leonard Cohen,14816
+---------------------------
+**VoteCount**
+35000,0
+---------------------------
+####35100####
+**Votes**
+Leonard Cohen,14916
+---------------------------
+**VoteCount**
+35100,100
+---------------------------
+####35200####
+**Votes**
+Leonard Cohen,15016
+---------------------------
+**VoteCount**
+35200,200
+---------------------------
+####35300####
+**Votes**
+Leonard Cohen,15116
+---------------------------
+**VoteCount**
+35300,300
+---------------------------
+####35400####
+**Votes**
+Leonard Cohen,15216
+---------------------------
+**VoteCount**
+35400,400
+---------------------------
+####35500####
+**Votes**
+Leonard Cohen,15316
+---------------------------
+**VoteCount**
+35500,500
+---------------------------
+####35600####
+**Votes**
+Leonard Cohen,15416
+---------------------------
+**VoteCount**
+35600,600
+---------------------------
+####35700####
+**Votes**
+Leonard Cohen,15516
+---------------------------
+**VoteCount**
+35700,700
+---------------------------
+####35800####
+**Votes**
+Leonard Cohen,15616
+---------------------------
+**VoteCount**
+35800,800
+---------------------------
+####35900####
+**Votes**
+Leonard Cohen,15716
+---------------------------
+**VoteCount**
+35900,900
+---------------------------
+####36000####
+**Votes**
+Leonard Cohen,15816
+---------------------------
+**VoteCount**
+36000,0
+---------------------------
+####36100####
+**Votes**
+Leonard Cohen,15916
+---------------------------
+**VoteCount**
+36100,100
+---------------------------
+####36200####
+**Votes**
+Leonard Cohen,16016
+---------------------------
+**VoteCount**
+36200,200
+---------------------------
+####36300####
+**Votes**
+Leonard Cohen,16116
+---------------------------
+**VoteCount**
+36300,300
+---------------------------
+####36400####
+**Votes**
+Leonard Cohen,16216
+---------------------------
+**VoteCount**
+36400,400
+---------------------------
+####36500####
+**Votes**
+Leonard Cohen,16316
+---------------------------
+**VoteCount**
+36500,500
+---------------------------
+####36600####
+**Votes**
+Leonard Cohen,16416
+---------------------------
+**VoteCount**
+36600,600
+---------------------------
+####36700####
+**Votes**
+Leonard Cohen,16516
+---------------------------
+**VoteCount**
+36700,700
+---------------------------
+####36800####
+**Votes**
+Leonard Cohen,16616
+---------------------------
+**VoteCount**
+36800,800
+---------------------------
+####36900####
+**Votes**
+Leonard Cohen,16716
+---------------------------
+**VoteCount**
+36900,900
+---------------------------
+####37000####
+**Votes**
+Leonard Cohen,16816
+---------------------------
+**VoteCount**
+37000,0
+---------------------------
+####37100####
+**Votes**
+Leonard Cohen,16916
+---------------------------
+**VoteCount**
+37100,100
+---------------------------
+####37200####
+**Votes**
+Leonard Cohen,17016
+---------------------------
+**VoteCount**
+37200,200
+---------------------------
+####37300####
+**Votes**
+Leonard Cohen,17116
+---------------------------
+**VoteCount**
+37300,300
+---------------------------
+####37400####
+**Votes**
+Leonard Cohen,17216
+---------------------------
+**VoteCount**
+37400,400
+---------------------------
+####37500####
+**Votes**
+Leonard Cohen,17316
+---------------------------
+**VoteCount**
+37500,500
+---------------------------
+####37600####
+**Votes**
+Leonard Cohen,17416
+---------------------------
+**VoteCount**
+37600,600
+---------------------------
+####37700####
+**Votes**
+Leonard Cohen,17516
+---------------------------
+**VoteCount**
+37700,700
+---------------------------
+####37800####
+**Votes**
+Leonard Cohen,17616
+---------------------------
+**VoteCount**
+37800,800
+---------------------------
+####37900####
+**Votes**
+Leonard Cohen,17716
+---------------------------
+**VoteCount**
+37900,900
+---------------------------
+####38000####
+**Votes**
+Leonard Cohen,17816
+---------------------------
+**VoteCount**
+38000,0
+---------------------------
+####38100####
+**Votes**
+Leonard Cohen,17916
+---------------------------
+**VoteCount**
+38100,100
+---------------------------
+####38200####
+**Votes**
+Leonard Cohen,18016
+---------------------------
+**VoteCount**
+38200,200
+---------------------------
+####38300####
+**Votes**
+Leonard Cohen,18116
+---------------------------
+**VoteCount**
+38300,300
+---------------------------
+####38400####
+**Votes**
+Leonard Cohen,18216
+---------------------------
+**VoteCount**
+38400,400
+---------------------------
+####38500####
+**Votes**
+Leonard Cohen,18316
+---------------------------
+**VoteCount**
+38500,500
+---------------------------
+####38600####
+**Votes**
+Leonard Cohen,18416
+---------------------------
+**VoteCount**
+38600,600
+---------------------------
+####38700####
+**Votes**
+Leonard Cohen,18516
+---------------------------
+**VoteCount**
+38700,700
+---------------------------
+####38800####
+**Votes**
+Leonard Cohen,18616
+---------------------------
+**VoteCount**
+38800,800
+---------------------------
+####38900####
+**Votes**
+Leonard Cohen,18716
+---------------------------
+**VoteCount**
+38900,900
+---------------------------
+####39000####
+**Votes**
+Leonard Cohen,18816
+---------------------------
+**VoteCount**
+39000,0
+---------------------------
+####39100####
+**Votes**
+Leonard Cohen,18916
+---------------------------
+**VoteCount**
+39100,100
+---------------------------
+####39200####
+**Votes**
+Leonard Cohen,19016
+---------------------------
+**VoteCount**
+39200,200
+---------------------------
+####39300####
+**Votes**
+Leonard Cohen,19116
+---------------------------
+**VoteCount**
+39300,300
+---------------------------
+####39400####
+**Votes**
+Leonard Cohen,19216
+---------------------------
+**VoteCount**
+39400,400
+---------------------------
+####39500####
+**Votes**
+Leonard Cohen,19316
+---------------------------
+**VoteCount**
+39500,500
+---------------------------
+####39600####
+**Votes**
+Leonard Cohen,19416
+---------------------------
+**VoteCount**
+39600,600
+---------------------------
+####39700####
+**Votes**
+Leonard Cohen,19516
+---------------------------
+**VoteCount**
+39700,700
+---------------------------
+####39800####
+**Votes**
+Leonard Cohen,19616
+---------------------------
+**VoteCount**
+39800,800
+---------------------------
+####39900####
+**Votes**
+Leonard Cohen,19716
+---------------------------
+**VoteCount**
+39900,900
+---------------------------
+####40000####
+**Votes**
+Leonard Cohen,19816
+---------------------------
+**VoteCount**
+40000,0
+---------------------------
+####40100####
+**Votes**
+Leonard Cohen,19916
+---------------------------
+**VoteCount**
+40100,100
+---------------------------
+####40200####
+**Votes**
+Leonard Cohen,20016
+---------------------------
+**VoteCount**
+40200,200
+---------------------------
+####40300####
+**Votes**
+Leonard Cohen,20116
+---------------------------
+**VoteCount**
+40300,300
+---------------------------
+####40400####
+**Votes**
+Leonard Cohen,20216
+---------------------------
+**VoteCount**
+40400,400
+---------------------------
+####40500####
+**Votes**
+Leonard Cohen,20316
+---------------------------
+**VoteCount**
+40500,500
+---------------------------
+####40600####
+**Votes**
+Leonard Cohen,20416
+---------------------------
+**VoteCount**
+40600,600
+---------------------------
+####40700####
+**Votes**
+Leonard Cohen,20516
+---------------------------
+**VoteCount**
+40700,700
+---------------------------
+####40800####
+**Votes**
+Leonard Cohen,20616
+---------------------------
+**VoteCount**
+40800,800
+---------------------------
+####40900####
+**Votes**
+Leonard Cohen,20716
+---------------------------
+**VoteCount**
+40900,900
+---------------------------
+####41000####
+**Votes**
+Leonard Cohen,20816
+---------------------------
+**VoteCount**
+41000,0
+---------------------------
+####41100####
+**Votes**
+Leonard Cohen,20916
+---------------------------
+**VoteCount**
+41100,100
+---------------------------
+####41200####
+**Votes**
+Leonard Cohen,21016
+---------------------------
+**VoteCount**
+41200,200
+---------------------------
+####41300####
+**Votes**
+Leonard Cohen,21116
+---------------------------
+**VoteCount**
+41300,300
+---------------------------
+####41400####
+**Votes**
+Leonard Cohen,21216
+---------------------------
+**VoteCount**
+41400,400
+---------------------------
+####41500####
+**Votes**
+Leonard Cohen,21316
+---------------------------
+**VoteCount**
+41500,500
+---------------------------
+####41600####
+**Votes**
+Leonard Cohen,21416
+---------------------------
+**VoteCount**
+41600,600
+---------------------------
+####41700####
+**Votes**
+Leonard Cohen,21516
+---------------------------
+**VoteCount**
+41700,700
+---------------------------
+####41800####
+**Votes**
+Leonard Cohen,21616
+---------------------------
+**VoteCount**
+41800,800
+---------------------------
+####41900####
+**Votes**
+Leonard Cohen,21716
+---------------------------
+**VoteCount**
+41900,900
+---------------------------
+####42000####
+**Votes**
+Leonard Cohen,21816
+---------------------------
+**VoteCount**
+42000,0
+---------------------------
+####42100####
+**Votes**
+Leonard Cohen,21916
+---------------------------
+**VoteCount**
+42100,100
+---------------------------
+####42200####
+**Votes**
+Leonard Cohen,22016
+---------------------------
+**VoteCount**
+42200,200
+---------------------------
+####42300####
+**Votes**
+Leonard Cohen,22116
+---------------------------
+**VoteCount**
+42300,300
+---------------------------
+####42400####
+**Votes**
+Leonard Cohen,22216
+---------------------------
+**VoteCount**
+42400,400
+---------------------------
+####42500####
+**Votes**
+Leonard Cohen,22316
+---------------------------
+**VoteCount**
+42500,500
+---------------------------
+####42600####
+**Votes**
+Leonard Cohen,22416
+---------------------------
+**VoteCount**
+42600,600
+---------------------------
+####42700####
+**Votes**
+Leonard Cohen,22516
+---------------------------
+**VoteCount**
+42700,700
+---------------------------
+####42800####
+**Votes**
+Leonard Cohen,22616
+---------------------------
+**VoteCount**
+42800,800
+---------------------------
+####42900####
+**Votes**
+Leonard Cohen,22716
+---------------------------
+**VoteCount**
+42900,900
+---------------------------
+####43000####
+**Votes**
+Leonard Cohen,22816
+---------------------------
+**VoteCount**
+43000,0
+---------------------------
+####43100####
+**Votes**
+Leonard Cohen,22916
+---------------------------
+**VoteCount**
+43100,100
+---------------------------
+####43200####
+**Votes**
+Leonard Cohen,23016
+---------------------------
+**VoteCount**
+43200,200
+---------------------------
+####43300####
+**Votes**
+Leonard Cohen,23116
+---------------------------
+**VoteCount**
+43300,300
+---------------------------
+####43400####
+**Votes**
+Leonard Cohen,23216
+---------------------------
+**VoteCount**
+43400,400
+---------------------------
+####43500####
+**Votes**
+Leonard Cohen,23316
+---------------------------
+**VoteCount**
+43500,500
+---------------------------
+####43600####
+**Votes**
+Leonard Cohen,23416
+---------------------------
+**VoteCount**
+43600,600
+---------------------------
+####43700####
+**Votes**
+Leonard Cohen,23516
+---------------------------
+**VoteCount**
+43700,700
+---------------------------
+####43800####
+**Votes**
+Leonard Cohen,23616
+---------------------------
+**VoteCount**
+43800,800
+---------------------------
+####43900####
+**Votes**
+Leonard Cohen,23716
+---------------------------
+**VoteCount**
+43900,900
+---------------------------
+####44000####
+**Votes**
+Leonard Cohen,23816
+---------------------------
+**VoteCount**
+44000,0
+---------------------------
+####44100####
+**Votes**
+Leonard Cohen,23916
+---------------------------
+**VoteCount**
+44100,100
+---------------------------
+####44200####
+**Votes**
+Leonard Cohen,24016
+---------------------------
+**VoteCount**
+44200,200
+---------------------------
+####44300####
+**Votes**
+Leonard Cohen,24116
+---------------------------
+**VoteCount**
+44300,300
+---------------------------
+####44400####
+**Votes**
+Leonard Cohen,24216
+---------------------------
+**VoteCount**
+44400,400
+---------------------------
+####44500####
+**Votes**
+Leonard Cohen,24316
+---------------------------
+**VoteCount**
+44500,500
+---------------------------
+####44600####
+**Votes**
+Leonard Cohen,24416
+---------------------------
+**VoteCount**
+44600,600
+---------------------------
+####44700####
+**Votes**
+Leonard Cohen,24516
+---------------------------
+**VoteCount**
+44700,700
+---------------------------
+####44800####
+**Votes**
+Leonard Cohen,24616
+---------------------------
+**VoteCount**
+44800,800
+---------------------------
+####44900####
+**Votes**
+Leonard Cohen,24716
+---------------------------
+**VoteCount**
+44900,900
+---------------------------
+####45000####
+**Votes**
+Leonard Cohen,24816
+---------------------------
+**VoteCount**
+45000,0
+---------------------------
+####45100####
+**Votes**
+Leonard Cohen,24916
+---------------------------
+**VoteCount**
+45100,100
+---------------------------
+####45200####
+**Votes**
+Leonard Cohen,25016
+---------------------------
+**VoteCount**
+45200,200
+---------------------------
+####45300####
+**Votes**
+Leonard Cohen,25116
+---------------------------
+**VoteCount**
+45300,300
+---------------------------
+####45400####
+**Votes**
+Leonard Cohen,25216
+---------------------------
+**VoteCount**
+45400,400
+---------------------------
+####45500####
+**Votes**
+Leonard Cohen,25316
+---------------------------
+**VoteCount**
+45500,500
+---------------------------
+####45600####
+**Votes**
+Leonard Cohen,25416
+---------------------------
+**VoteCount**
+45600,600
+---------------------------
+####45700####
+**Votes**
+Leonard Cohen,25516
+---------------------------
+**VoteCount**
+45700,700
+---------------------------
+####45800####
+**Votes**
+Leonard Cohen,25616
+---------------------------
+**VoteCount**
+45800,800
+---------------------------
+####45900####
+**Votes**
+Leonard Cohen,25716
+---------------------------
+**VoteCount**
+45900,900
+---------------------------
+####46000####
+**Votes**
+Leonard Cohen,25816
+---------------------------
+**VoteCount**
+46000,0
+---------------------------
+####46100####
+**Votes**
+Leonard Cohen,25916
+---------------------------
+**VoteCount**
+46100,100
+---------------------------
+####46200####
+**Votes**
+Leonard Cohen,26016
+---------------------------
+**VoteCount**
+46200,200
+---------------------------
+####46300####
+**Votes**
+Leonard Cohen,26116
+---------------------------
+**VoteCount**
+46300,300
+---------------------------
+####46400####
+**Votes**
+Leonard Cohen,26216
+---------------------------
+**VoteCount**
+46400,400
+---------------------------
+####46500####
+**Votes**
+Leonard Cohen,26316
+---------------------------
+**VoteCount**
+46500,500
+---------------------------
+####46600####
+**Votes**
+Leonard Cohen,26416
+---------------------------
+**VoteCount**
+46600,600
+---------------------------
+####46700####
+**Votes**
+Leonard Cohen,26516
+---------------------------
+**VoteCount**
+46700,700
+---------------------------
+####46800####
+**Votes**
+Leonard Cohen,26616
+---------------------------
+**VoteCount**
+46800,800
+---------------------------
+####46900####
+**Votes**
+Leonard Cohen,26716
+---------------------------
+**VoteCount**
+46900,900
+---------------------------
+####47000####
+**Votes**
+Leonard Cohen,26816
+---------------------------
+**VoteCount**
+47000,0
+---------------------------
+####47100####
+**Votes**
+Leonard Cohen,26916
+---------------------------
+**VoteCount**
+47100,100
+---------------------------
+####47200####
+**Votes**
+Leonard Cohen,27016
+---------------------------
+**VoteCount**
+47200,200
+---------------------------
+####47300####
+**Votes**
+Leonard Cohen,27116
+---------------------------
+**VoteCount**
+47300,300
+---------------------------
+####47400####
+**Votes**
+Leonard Cohen,27216
+---------------------------
+**VoteCount**
+47400,400
+---------------------------
+####47500####
+**Votes**
+Leonard Cohen,27316
+---------------------------
+**VoteCount**
+47500,500
+---------------------------
+####47600####
+**Votes**
+Leonard Cohen,27416
+---------------------------
+**VoteCount**
+47600,600
+---------------------------
+####47700####
+**Votes**
+Leonard Cohen,27516
+---------------------------
+**VoteCount**
+47700,700
+---------------------------
+####47800####
+**Votes**
+Leonard Cohen,27616
+---------------------------
+**VoteCount**
+47800,800
+---------------------------
+####47900####
+**Votes**
+Leonard Cohen,27716
+---------------------------
+**VoteCount**
+47900,900
+---------------------------
+####48000####
+**Votes**
+Leonard Cohen,27816
+---------------------------
+**VoteCount**
+48000,0
+---------------------------
+####48100####
+**Votes**
+Leonard Cohen,27916
+---------------------------
+**VoteCount**
+48100,100
+---------------------------
+####48200####
+**Votes**
+Leonard Cohen,28016
+---------------------------
+**VoteCount**
+48200,200
+---------------------------
+####48300####
+**Votes**
+Leonard Cohen,28116
+---------------------------
+**VoteCount**
+48300,300
+---------------------------
+####48400####
+**Votes**
+Leonard Cohen,28216
+---------------------------
+**VoteCount**
+48400,400
+---------------------------
+####48500####
+**Votes**
+Leonard Cohen,28316
+---------------------------
+**VoteCount**
+48500,500
+---------------------------
+####48600####
+**Votes**
+Leonard Cohen,28416
+---------------------------
+**VoteCount**
+48600,600
+---------------------------
+####48700####
+**Votes**
+Leonard Cohen,28516
+---------------------------
+**VoteCount**
+48700,700
+---------------------------
+####48800####
+**Votes**
+Leonard Cohen,28616
+---------------------------
+**VoteCount**
+48800,800
+---------------------------
+####48900####
+**Votes**
+Leonard Cohen,28716
+---------------------------
+**VoteCount**
+48900,900
+---------------------------
+####49000####
+**Votes**
+Leonard Cohen,28816
+---------------------------
+**VoteCount**
+49000,0
+---------------------------
+####49100####
+**Votes**
+Leonard Cohen,28916
+---------------------------
+**VoteCount**
+49100,100
+---------------------------
+####49200####
+**Votes**
+Leonard Cohen,29016
+---------------------------
+**VoteCount**
+49200,200
+---------------------------
+####49300####
+**Votes**
+Leonard Cohen,29116
+---------------------------
+**VoteCount**
+49300,300
+---------------------------
+####49400####
+**Votes**
+Leonard Cohen,29216
+---------------------------
+**VoteCount**
+49400,400
+---------------------------
+####49500####
+**Votes**
+Leonard Cohen,29316
+---------------------------
+**VoteCount**
+49500,500
+---------------------------
+####49600####
+**Votes**
+Leonard Cohen,29416
+---------------------------
+**VoteCount**
+49600,600
+---------------------------
+####49700####
+**Votes**
+Leonard Cohen,29516
+---------------------------
+**VoteCount**
+49700,700
+---------------------------
+####49800####
+**Votes**
+Leonard Cohen,29616
+---------------------------
+**VoteCount**
+49800,800
+---------------------------
+####49900####
+**Votes**
+Leonard Cohen,29716
+---------------------------
+**VoteCount**
+49900,900
+---------------------------
+####50000####
+**Votes**
+Leonard Cohen,29816
+---------------------------
+**VoteCount**
+50000,0
+---------------------------
+####50100####
+**Votes**
+Leonard Cohen,29916
+---------------------------
+**VoteCount**
+50100,100
+---------------------------
+####50200####
+**Votes**
+Leonard Cohen,30016
+---------------------------
+**VoteCount**
+50200,200
+---------------------------
+####50300####
+**Votes**
+Leonard Cohen,30116
+---------------------------
+**VoteCount**
+50300,300
+---------------------------
+####50400####
+**Votes**
+Leonard Cohen,30216
+---------------------------
+**VoteCount**
+50400,400
+---------------------------
+####50500####
+**Votes**
+Leonard Cohen,30316
+---------------------------
+**VoteCount**
+50500,500
+---------------------------
+####50600####
+**Votes**
+Leonard Cohen,30416
+---------------------------
+**VoteCount**
+50600,600
+---------------------------
+####50700####
+**Votes**
+Leonard Cohen,30516
+---------------------------
+**VoteCount**
+50700,700
+---------------------------
+####50800####
+**Votes**
+Leonard Cohen,30616
+---------------------------
+**VoteCount**
+50800,800
+---------------------------
+####50900####
+**Votes**
+Leonard Cohen,30716
+---------------------------
+**VoteCount**
+50900,900
+---------------------------
+####51000####
+**Votes**
+Leonard Cohen,30816
+---------------------------
+**VoteCount**
+51000,0
+---------------------------
+####51100####
+**Votes**
+Leonard Cohen,30916
+---------------------------
+**VoteCount**
+51100,100
+---------------------------
+####51200####
+**Votes**
+Leonard Cohen,31016
+---------------------------
+**VoteCount**
+51200,200
+---------------------------
+####51300####
+**Votes**
+Leonard Cohen,31116
+---------------------------
+**VoteCount**
+51300,300
+---------------------------
+####51400####
+**Votes**
+Leonard Cohen,31216
+---------------------------
+**VoteCount**
+51400,400
+---------------------------
+####51500####
+**Votes**
+Leonard Cohen,31316
+---------------------------
+**VoteCount**
+51500,500
+---------------------------
+####51600####
+**Votes**
+Leonard Cohen,31416
+---------------------------
+**VoteCount**
+51600,600
+---------------------------
+####51700####
+**Votes**
+Leonard Cohen,31516
+---------------------------
+**VoteCount**
+51700,700
+---------------------------
+####51800####
+**Votes**
+Leonard Cohen,31616
+---------------------------
+**VoteCount**
+51800,800
+---------------------------
+####51900####
+**Votes**
+Leonard Cohen,31716
+---------------------------
+**VoteCount**
+51900,900
+---------------------------
+####52000####
+**Votes**
+Leonard Cohen,31816
+---------------------------
+**VoteCount**
+52000,0
+---------------------------
+####52100####
+**Votes**
+Leonard Cohen,31916
+---------------------------
+**VoteCount**
+52100,100
+---------------------------
+####52200####
+**Votes**
+Leonard Cohen,32016
+---------------------------
+**VoteCount**
+52200,200
+---------------------------
+####52300####
+**Votes**
+Leonard Cohen,32116
+---------------------------
+**VoteCount**
+52300,300
+---------------------------
+####52400####
+**Votes**
+Leonard Cohen,32216
+---------------------------
+**VoteCount**
+52400,400
+---------------------------
+####52500####
+**Votes**
+Leonard Cohen,32316
+---------------------------
+**VoteCount**
+52500,500
+---------------------------
+####52600####
+**Votes**
+Leonard Cohen,32416
+---------------------------
+**VoteCount**
+52600,600
+---------------------------
+####52700####
+**Votes**
+Leonard Cohen,32516
+---------------------------
+**VoteCount**
+52700,700
+---------------------------
+####52800####
+**Votes**
+Leonard Cohen,32616
+---------------------------
+**VoteCount**
+52800,800
+---------------------------
+####52900####
+**Votes**
+Leonard Cohen,32716
+---------------------------
+**VoteCount**
+52900,900
+---------------------------
+####53000####
+**Votes**
+Leonard Cohen,32816
+---------------------------
+**VoteCount**
+53000,0
+---------------------------
+####53100####
+**Votes**
+Leonard Cohen,32916
+---------------------------
+**VoteCount**
+53100,100
+---------------------------
+####53200####
+**Votes**
+Leonard Cohen,33016
+---------------------------
+**VoteCount**
+53200,200
+---------------------------
+####53300####
+**Votes**
+Leonard Cohen,33116
+---------------------------
+**VoteCount**
+53300,300
+---------------------------
+####53400####
+**Votes**
+Leonard Cohen,33216
+---------------------------
+**VoteCount**
+53400,400
+---------------------------
+####53500####
+**Votes**
+Leonard Cohen,33316
+---------------------------
+**VoteCount**
+53500,500
+---------------------------
+####53600####
+**Votes**
+Leonard Cohen,33416
+---------------------------
+**VoteCount**
+53600,600
+---------------------------
+####53700####
+**Votes**
+Leonard Cohen,33516
+---------------------------
+**VoteCount**
+53700,700
+---------------------------
+####53800####
+**Votes**
+Leonard Cohen,33616
+---------------------------
+**VoteCount**
+53800,800
+---------------------------
+####53900####
+**Votes**
+Leonard Cohen,33716
+---------------------------
+**VoteCount**
+53900,900
+---------------------------
+####54000####
+**Votes**
+Leonard Cohen,33816
+---------------------------
+**VoteCount**
+54000,0
+---------------------------
+####54100####
+**Votes**
+Leonard Cohen,33916
+---------------------------
+**VoteCount**
+54100,100
+---------------------------
+####54200####
+**Votes**
+Leonard Cohen,34016
+---------------------------
+**VoteCount**
+54200,200
+---------------------------
+####54300####
+**Votes**
+Leonard Cohen,34116
+---------------------------
+**VoteCount**
+54300,300
+---------------------------
+####54400####
+**Votes**
+Leonard Cohen,34216
+---------------------------
+**VoteCount**
+54400,400
+---------------------------
+####54500####
+**Votes**
+Leonard Cohen,34316
+---------------------------
+**VoteCount**
+54500,500
+---------------------------
+####54600####
+**Votes**
+Leonard Cohen,34416
+---------------------------
+**VoteCount**
+54600,600
+---------------------------
+####54700####
+**Votes**
+Leonard Cohen,34516
+---------------------------
+**VoteCount**
+54700,700
+---------------------------
+####54800####
+**Votes**
+Leonard Cohen,34616
+---------------------------
+**VoteCount**
+54800,800
+---------------------------
+####54900####
+**Votes**
+Leonard Cohen,34716
+---------------------------
+**VoteCount**
+54900,900
+---------------------------
+####55000####
+**Votes**
+Leonard Cohen,34816
+---------------------------
+**VoteCount**
+55000,0
+---------------------------
+####55100####
+**Votes**
+Leonard Cohen,34916
+---------------------------
+**VoteCount**
+55100,100
+---------------------------
+####55200####
+**Votes**
+Leonard Cohen,35016
+---------------------------
+**VoteCount**
+55200,200
+---------------------------
+####55300####
+**Votes**
+Leonard Cohen,35116
+---------------------------
+**VoteCount**
+55300,300
+---------------------------
+####55400####
+**Votes**
+Leonard Cohen,35216
+---------------------------
+**VoteCount**
+55400,400
+---------------------------
+####55500####
+**Votes**
+Leonard Cohen,35316
+---------------------------
+**VoteCount**
+55500,500
+---------------------------
+####55600####
+**Votes**
+Leonard Cohen,35416
+---------------------------
+**VoteCount**
+55600,600
+---------------------------
+####55700####
+**Votes**
+Leonard Cohen,35516
+---------------------------
+**VoteCount**
+55700,700
+---------------------------
+####55800####
+**Votes**
+Leonard Cohen,35616
+---------------------------
+**VoteCount**
+55800,800
+---------------------------
+####55900####
+**Votes**
+Leonard Cohen,35716
+---------------------------
+**VoteCount**
+55900,900
+---------------------------
+####56000####
+**Votes**
+Leonard Cohen,35816
+---------------------------
+**VoteCount**
+56000,0
+---------------------------
+####56100####
+**Votes**
+Leonard Cohen,35916
+---------------------------
+**VoteCount**
+56100,100
+---------------------------
+####56200####
+**Votes**
+Leonard Cohen,36016
+---------------------------
+**VoteCount**
+56200,200
+---------------------------
+####56300####
+**Votes**
+Leonard Cohen,36116
+---------------------------
+**VoteCount**
+56300,300
+---------------------------
+####56400####
+**Votes**
+Leonard Cohen,36216
+---------------------------
+**VoteCount**
+56400,400
+---------------------------
+####56500####
+**Votes**
+Leonard Cohen,36316
+---------------------------
+**VoteCount**
+56500,500
+---------------------------
+####56600####
+**Votes**
+Leonard Cohen,36416
+---------------------------
+**VoteCount**
+56600,600
+---------------------------
+####56700####
+**Votes**
+Leonard Cohen,36516
+---------------------------
+**VoteCount**
+56700,700
+---------------------------
+####56800####
+**Votes**
+Leonard Cohen,36616
+---------------------------
+**VoteCount**
+56800,800
+---------------------------
+####56900####
+**Votes**
+Leonard Cohen,36716
+---------------------------
+**VoteCount**
+56900,900
+---------------------------
+####57000####
+**Votes**
+Leonard Cohen,36816
+---------------------------
+**VoteCount**
+57000,0
+---------------------------
+####57100####
+**Votes**
+Leonard Cohen,36916
+---------------------------
+**VoteCount**
+57100,100
+---------------------------
+####57200####
+**Votes**
+Leonard Cohen,37016
+---------------------------
+**VoteCount**
+57200,200
+---------------------------
+####57300####
+**Votes**
+Leonard Cohen,37116
+---------------------------
+**VoteCount**
+57300,300
+---------------------------
+####57400####
+**Votes**
+Leonard Cohen,37216
+---------------------------
+**VoteCount**
+57400,400
+---------------------------
+####57500####
+**Votes**
+Leonard Cohen,37316
+---------------------------
+**VoteCount**
+57500,500
+---------------------------
+####57600####
+**Votes**
+Leonard Cohen,37416
+---------------------------
+**VoteCount**
+57600,600
+---------------------------
+####57700####
+**Votes**
+Leonard Cohen,37516
+---------------------------
+**VoteCount**
+57700,700
+---------------------------
+####57800####
+**Votes**
+Leonard Cohen,37616
+---------------------------
+**VoteCount**
+57800,800
+---------------------------
+####57900####
+**Votes**
+Leonard Cohen,37716
+---------------------------
+**VoteCount**
+57900,900
+---------------------------
+####58000####
+**Votes**
+Leonard Cohen,37816
+---------------------------
+**VoteCount**
+58000,0
+---------------------------
+####58100####
+**Votes**
+Leonard Cohen,37916
+---------------------------
+**VoteCount**
+58100,100
+---------------------------
+####58200####
+**Votes**
+Leonard Cohen,38016
+---------------------------
+**VoteCount**
+58200,200
+---------------------------
+####58300####
+**Votes**
+Leonard Cohen,38116
+---------------------------
+**VoteCount**
+58300,300
+---------------------------
+####58400####
+**Votes**
+Leonard Cohen,38216
+---------------------------
+**VoteCount**
+58400,400
+---------------------------
+####58500####
+**Votes**
+Leonard Cohen,38316
+---------------------------
+**VoteCount**
+58500,500
+---------------------------
+####58600####
+**Votes**
+Leonard Cohen,38416
+---------------------------
+**VoteCount**
+58600,600
+---------------------------
+####58700####
+**Votes**
+Leonard Cohen,38516
+---------------------------
+**VoteCount**
+58700,700
+---------------------------
+####58800####
+**Votes**
+Leonard Cohen,38616
+---------------------------
+**VoteCount**
+58800,800
+---------------------------
+####58900####
+**Votes**
+Leonard Cohen,38716
+---------------------------
+**VoteCount**
+58900,900
+---------------------------
+####59000####
+**Votes**
+Leonard Cohen,38816
+---------------------------
+**VoteCount**
+59000,0
+---------------------------
+####59100####
+**Votes**
+Leonard Cohen,38916
+---------------------------
+**VoteCount**
+59100,100
+---------------------------
+####59200####
+**Votes**
+Leonard Cohen,39016
+---------------------------
+**VoteCount**
+59200,200
+---------------------------
+####59300####
+**Votes**
+Leonard Cohen,39116
+---------------------------
+**VoteCount**
+59300,300
+---------------------------
+####59400####
+**Votes**
+Leonard Cohen,39216
+---------------------------
+**VoteCount**
+59400,400
+---------------------------
+####59500####
+**Votes**
+Leonard Cohen,39316
+---------------------------
+**VoteCount**
+59500,500
+---------------------------
+####59600####
+**Votes**
+Leonard Cohen,39416
+---------------------------
+**VoteCount**
+59600,600
+---------------------------
+####59700####
+**Votes**
+Leonard Cohen,39516
+---------------------------
+**VoteCount**
+59700,700
+---------------------------
+####59800####
+**Votes**
+Leonard Cohen,39616
+---------------------------
+**VoteCount**
+59800,800
+---------------------------
+####59900####
+**Votes**
+Leonard Cohen,39716
+---------------------------
+**VoteCount**
+59900,900
+---------------------------
+####60000####
+**Votes**
+Leonard Cohen,39816
+---------------------------
+**VoteCount**
+60000,0
+---------------------------
+####60100####
+**Votes**
+Leonard Cohen,39916
+---------------------------
+**VoteCount**
+60100,100
+---------------------------
+####60200####
+**Votes**
+Leonard Cohen,40016
+---------------------------
+**VoteCount**
+60200,200
+---------------------------
+####60300####
+**Votes**
+Leonard Cohen,40116
+---------------------------
+**VoteCount**
+60300,300
+---------------------------
+####60400####
+**Votes**
+Leonard Cohen,40216
+---------------------------
+**VoteCount**
+60400,400
+---------------------------
+####60500####
+**Votes**
+Leonard Cohen,40316
+---------------------------
+**VoteCount**
+60500,500
+---------------------------
+####60600####
+**Votes**
+Leonard Cohen,40416
+---------------------------
+**VoteCount**
+60600,600
+---------------------------
+####60700####
+**Votes**
+Leonard Cohen,40516
+---------------------------
+**VoteCount**
+60700,700
+---------------------------
+####60800####
+**Votes**
+Leonard Cohen,40616
+---------------------------
+**VoteCount**
+60800,800
+---------------------------
+####60900####
+**Votes**
+Leonard Cohen,40716
+---------------------------
+**VoteCount**
+60900,900
+---------------------------
+####61000####
+**Votes**
+Leonard Cohen,40816
+---------------------------
+**VoteCount**
+61000,0
+---------------------------
+####61100####
+**Votes**
+Leonard Cohen,40916
+---------------------------
+**VoteCount**
+61100,100
+---------------------------
+####61200####
+**Votes**
+Leonard Cohen,41016
+---------------------------
+**VoteCount**
+61200,200
+---------------------------
+####61300####
+**Votes**
+Leonard Cohen,41116
+---------------------------
+**VoteCount**
+61300,300
+---------------------------
+####61400####
+**Votes**
+Leonard Cohen,41216
+---------------------------
+**VoteCount**
+61400,400
+---------------------------
+####61500####
+**Votes**
+Leonard Cohen,41316
+---------------------------
+**VoteCount**
+61500,500
+---------------------------
+####61600####
+**Votes**
+Leonard Cohen,41416
+---------------------------
+**VoteCount**
+61600,600
+---------------------------
+####61700####
+**Votes**
+Leonard Cohen,41516
+---------------------------
+**VoteCount**
+61700,700
+---------------------------
+####61800####
+**Votes**
+Leonard Cohen,41616
+---------------------------
+**VoteCount**
+61800,800
+---------------------------
+####61900####
+**Votes**
+Leonard Cohen,41716
+---------------------------
+**VoteCount**
+61900,900
+---------------------------
+####62000####
+**Votes**
+Leonard Cohen,41816
+---------------------------
+**VoteCount**
+62000,0
+---------------------------
+####62100####
+**Votes**
+Leonard Cohen,41916
+---------------------------
+**VoteCount**
+62100,100
+---------------------------
+####62200####
+**Votes**
+Leonard Cohen,42016
+---------------------------
+**VoteCount**
+62200,200
+---------------------------
+####62300####
+**Votes**
+Leonard Cohen,42116
+---------------------------
+**VoteCount**
+62300,300
+---------------------------
+####62400####
+**Votes**
+Leonard Cohen,42216
+---------------------------
+**VoteCount**
+62400,400
+---------------------------
+####62500####
+**Votes**
+Leonard Cohen,42316
+---------------------------
+**VoteCount**
+62500,500
+---------------------------
+####62600####
+**Votes**
+Leonard Cohen,42416
+---------------------------
+**VoteCount**
+62600,600
+---------------------------
+####62700####
+**Votes**
+Leonard Cohen,42516
+---------------------------
+**VoteCount**
+62700,700
+---------------------------
+####62800####
+**Votes**
+Leonard Cohen,42616
+---------------------------
+**VoteCount**
+62800,800
+---------------------------
+####62900####
+**Votes**
+Leonard Cohen,42716
+---------------------------
+**VoteCount**
+62900,900
+---------------------------
+####63000####
+**Votes**
+Leonard Cohen,42816
+---------------------------
+**VoteCount**
+63000,0
+---------------------------
+####63100####
+**Votes**
+Leonard Cohen,42916
+---------------------------
+**VoteCount**
+63100,100
+---------------------------
+####63200####
+**Votes**
+Leonard Cohen,43016
+---------------------------
+**VoteCount**
+63200,200
+---------------------------
+####63300####
+**Votes**
+Leonard Cohen,43116
+---------------------------
+**VoteCount**
+63300,300
+---------------------------
+####63400####
+**Votes**
+Leonard Cohen,43216
+---------------------------
+**VoteCount**
+63400,400
+---------------------------
+####63500####
+**Votes**
+Leonard Cohen,43316
+---------------------------
+**VoteCount**
+63500,500
+---------------------------
+####63600####
+**Votes**
+Leonard Cohen,43416
+---------------------------
+**VoteCount**
+63600,600
+---------------------------
+####63700####
+**Votes**
+Leonard Cohen,43516
+---------------------------
+**VoteCount**
+63700,700
+---------------------------
+####63800####
+**Votes**
+Leonard Cohen,43616
+---------------------------
+**VoteCount**
+63800,800
+---------------------------
+####63900####
+**Votes**
+Leonard Cohen,43716
+---------------------------
+**VoteCount**
+63900,900
+---------------------------
+####64000####
+**Votes**
+Leonard Cohen,43816
+---------------------------
+**VoteCount**
+64000,0
+---------------------------
+####64100####
+**Votes**
+Leonard Cohen,43916
+---------------------------
+**VoteCount**
+64100,100
+---------------------------
+####64200####
+**Votes**
+Leonard Cohen,44016
+---------------------------
+**VoteCount**
+64200,200
+---------------------------
+####64300####
+**Votes**
+Leonard Cohen,44116
+---------------------------
+**VoteCount**
+64300,300
+---------------------------
+####64400####
+**Votes**
+Leonard Cohen,44216
+---------------------------
+**VoteCount**
+64400,400
+---------------------------
+####64500####
+**Votes**
+Leonard Cohen,44316
+---------------------------
+**VoteCount**
+64500,500
+---------------------------
+####64600####
+**Votes**
+Leonard Cohen,44416
+---------------------------
+**VoteCount**
+64600,600
+---------------------------
+####64700####
+**Votes**
+Leonard Cohen,44516
+---------------------------
+**VoteCount**
+64700,700
+---------------------------
+####64800####
+**Votes**
+Leonard Cohen,44616
+---------------------------
+**VoteCount**
+64800,800
+---------------------------
+####64900####
+**Votes**
+Leonard Cohen,44716
+---------------------------
+**VoteCount**
+64900,900
+---------------------------
+####65000####
+**Votes**
+Leonard Cohen,44816
+---------------------------
+**VoteCount**
+65000,0
+---------------------------
+####65100####
+**Votes**
+Leonard Cohen,44916
+---------------------------
+**VoteCount**
+65100,100
+---------------------------
+####65200####
+**Votes**
+Leonard Cohen,45016
+---------------------------
+**VoteCount**
+65200,200
+---------------------------
+####65300####
+**Votes**
+Leonard Cohen,45116
+---------------------------
+**VoteCount**
+65300,300
+---------------------------
+####65400####
+**Votes**
+Leonard Cohen,45216
+---------------------------
+**VoteCount**
+65400,400
+---------------------------
+####65500####
+**Votes**
+Leonard Cohen,45316
+---------------------------
+**VoteCount**
+65500,500
+---------------------------
+####65600####
+**Votes**
+Leonard Cohen,45416
+---------------------------
+**VoteCount**
+65600,600
+---------------------------
