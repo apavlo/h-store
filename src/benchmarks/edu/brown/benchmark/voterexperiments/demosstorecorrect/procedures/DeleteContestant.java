@@ -69,7 +69,9 @@ public class DeleteContestant extends VoltProcedure {
 	);
 	
     public final SQLStmt findLowestContestant = new SQLStmt(
-		"SELECT vc.contestant_number, vc.num_votes, c.contestant_name FROM v_votes_by_contestant vc JOIN contestants c ON c.contestant_number = vc.contestant_number ORDER BY num_votes ASC LIMIT 1;"
+		"SELECT vc.contestant_number, vc.num_votes, c.contestant_name FROM v_votes_by_contestant vc " + 
+		 "JOIN contestants c ON c.contestant_number = vc.contestant_number " +
+		 "ORDER BY num_votes ASC, vc.contestant_number DESC LIMIT 1;"
     );
     
     public final SQLStmt deleteLowestContestant = new SQLStmt(
@@ -107,7 +109,7 @@ public class DeleteContestant extends VoltProcedure {
 		  + "        , contestants AS a"
 		  + "    WHERE a.contestant_number = b.contestant_number"
 		  + " ORDER BY num_votes ASC"
-		  + "        , contestant_number ASC"
+		  + "        , contestant_number DESC"
 		  + " LIMIT 3");
 	
 	public final SQLStmt getTrendingStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
@@ -124,7 +126,7 @@ public class DeleteContestant extends VoltProcedure {
 			  + "     FROM v_votes_by_contestant b"
 			  + "        , contestants AS a"
 			  + "    WHERE a.contestant_number = b.contestant_number"
-			  + " ORDER BY num_votes ASC"
+			  + " ORDER BY num_votes DESC"
 			  + "        , contestant_number ASC");
 	
 	public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT cnt FROM votes_count WHERE row_id=1;");
