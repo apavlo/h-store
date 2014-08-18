@@ -44,50 +44,67 @@ import edu.brown.benchmark.sstore4demuxopexp.SStore4DemuxOpExpConstants;
 	singlePartition = true
 )
 public class Demux extends VoltProcedure {
-	
-	
-	protected void toSetTriggerTableName()
-	{
-		addTriggerTable("s1");
-	}
-	
-	public final SQLStmt pullFromS1 = new SQLStmt(
-		"SELECT vote_id, part_id FROM s1;"
-	);
-	
+    HashMap<Integer, SQLStmt> procMap = new HashMap<Integer, SQLStmt>();
+
+    protected void toSetTriggerTableName() {
+        addTriggerTable("s1");
+    }
+
+    public final SQLStmt pullFromS1 = new SQLStmt(
+        "SELECT vote_id, part_id FROM s1;"
+    );
+
     public final SQLStmt ins11Stmt = new SQLStmt(
 	    "INSERT INTO s11 (vote_id, part_id) VALUES (?, ?);"
     );
-    
+
     public final SQLStmt ins12Stmt = new SQLStmt(
     	"INSERT INTO s12 (vote_id, part_id) VALUES (?, ?);"
     );
-    
+ 
     public final SQLStmt ins13Stmt = new SQLStmt(
         "INSERT INTO s13 (vote_id, part_id) VALUES (?, ?);"
     );
-        
+ 
     public final SQLStmt ins14Stmt = new SQLStmt(
         "INSERT INTO s14 (vote_id, part_id) VALUES (?, ?);"
     );
-            
+
     public final SQLStmt ins15Stmt = new SQLStmt(
         "INSERT INTO s15 (vote_id, part_id) VALUES (?, ?);"
     );
-            
+
     public final SQLStmt ins16Stmt = new SQLStmt(
         "INSERT INTO s16 (vote_id, part_id) VALUES (?, ?);"
     );
-            
+
     public final SQLStmt ins17Stmt = new SQLStmt(
         "INSERT INTO s17 (vote_id, part_id) VALUES (?, ?);"
     );
-            
+
     public final SQLStmt clearS1 = new SQLStmt(
     	"DELETE FROM s1;"
     );
-    
+
     public long run(int part_id) {
+<<<<<<< HEAD
+        procMap.put(0, ins11Stmt);
+        procMap.put(1, ins12Stmt);
+        procMap.put(2, ins13Stmt);
+        procMap.put(3, ins14Stmt);
+        procMap.put(4, ins15Stmt);
+        procMap.put(5, ins16Stmt);
+        procMap.put(6, ins17Stmt);
+
+	voltQueueSQL(pullFromS1);
+	VoltTable s1Data[] = voltExecuteSQLForceSinglePartition();
+
+	for (int i=0; i < s1Data[0].getRowCount(); i++) {
+	    int vote_id = (int)(s1Data[0].fetchRow(i).getLong(0));
+	    voltQueueSQL(procMap.get(vote_id % 7), vote_id, part_id);
+	}
+	voltExecuteSQLForceSinglePartition();
+=======
 		voltQueueSQL(pullFromS1);
 		VoltTable s1Data[] = voltExecuteSQLForceSinglePartition();
 		
@@ -120,6 +137,7 @@ public class Demux extends VoltProcedure {
 			}
 		}
 		voltExecuteSQLForceSinglePartition();
+>>>>>>> 51f23590a2d4b1401305f294de4e0c0c323e459c
 		
         voltQueueSQL(clearS1);
         voltExecuteSQLForceSinglePartition();
