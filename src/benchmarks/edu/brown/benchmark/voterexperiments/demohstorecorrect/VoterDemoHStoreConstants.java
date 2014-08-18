@@ -38,7 +38,7 @@ public abstract class VoterDemoHStoreConstants {
     public static final int VOTE_THRESHOLD = 1000;
     public static final int BOARD_REFRESH = 100;
 	public static final int MAX_VOTES = 1; 
-	public static final int NUM_CONTESTANTS = 25; 
+	public static final int NUM_CONTESTANTS = 12; 
 	
 	public static final String OUTPUT_FILE = "logs/demohstoreout.txt";
 	public static final String OVERWRITE_FILE = "logs/demohstorecurrent.txt";
@@ -53,7 +53,7 @@ public abstract class VoterDemoHStoreConstants {
 	public static final String JIANG_HOST = "istc7";
 	public static final String ISTC1_HOST = "istc1";
 	public static final String ISTC1_CLIENT = "istc2";
-	public static final String LOCAL_HOST = "demo";
+	public static final String LOCAL_HOST = "localhost"; //CHANGE ME
 	
 	public static final int SERVER_PORT_NUM = 9510;
 	public static final int VOTE_PORT_NUM = 9511;

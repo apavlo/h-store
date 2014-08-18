@@ -179,19 +179,21 @@ public class PhoneCallGenerator {
 			if(VoterWinSStoreConstants.DEBUG) 
 				VoterWinSStoreUtil.writeVoteToFile("------------------FINISHED-------------------");
 		}
-		if(remainingCandidates.size() < 3)
-		{
-			return currentNum;
-		}
 		
 		if(resetVotes > VoterWinSStoreConstants.VOTE_THRESHOLD - 10)
 		{
+			if(remainingCandidates.size() == 2)
+			{
+				return VoterWinSStoreConstants.CHOSEN_ONE;
+			}
 			deletedCandidateVotes = 0;
 			if(totalVotes.get(lowestCandidate) < totalVotes.get(secondLowestCandidate))
 			{
 				if(VoterWinSStoreConstants.DEBUG) 
+				{
 					VoterWinSStoreUtil.writeVoteToFile("lowestCandidate catching up: " + lowestCandidate + " to " + secondLowestCandidate);
 					VoterWinSStoreUtil.writeVoteToFile("lowestCandidate: " + totalVotes.get(lowestCandidate) + "  second: " + totalVotes.get(secondLowestCandidate));
+				}
 				return lowestCandidate;
 			}
 			else
@@ -267,7 +269,23 @@ public class PhoneCallGenerator {
 	        		contestantNumber = randomRemainingContestant();
 	        	}
 	        }
-	        if (rand.nextInt(100) == 0) {
+	        
+	        if(validVotes < 500)
+	        {
+	        	contestantNumber = randomRemainingContestant();
+	        }
+	        
+	        if(remainingCandidates.size() <= 5 && remainingCandidates.size() > 1)
+	        {
+	        	if(rand.nextInt(100) < 5)
+	        	{
+	        		contestantNumber = VoterWinSStoreConstants.CHOSEN_ONE;
+	        	}
+	        	else {
+	        		contestantNumber = randomRemainingContestant();
+	        	}
+	        }
+	        if (rand.nextInt(100) < (releasedCandidates.size())*2 && VoterWinSStoreConstants.CHOSEN_ONE != lowestCandidate) {
 	        	int size = releasedCandidates.size();
 	        	int item = rand.nextInt(size);
 	        	int i = 0;
@@ -278,21 +296,6 @@ public class PhoneCallGenerator {
 	        			break;
 	        		}
 	        		i++;
-	        	}
-	        }
-	        if(validVotes < 500)
-	        {
-	        	contestantNumber = randomRemainingContestant();
-	        }
-	        
-	        if(remainingCandidates.size() <= 5 && remainingCandidates.size() > 1)
-	        {
-	        	if(rand.nextInt(100) < 2)
-	        	{
-	        		contestantNumber = VoterWinSStoreConstants.CHOSEN_ONE;
-	        	}
-	        	else {
-	        		contestantNumber = randomRemainingContestant();
 	        	}
 	        }
 	        contestantNumber = checkVoteControl(contestantNumber);

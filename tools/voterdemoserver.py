@@ -1,5 +1,5 @@
 import socket
-import sys
+import sys, argparse
 import time
 import Queue
 from threading import Semaphore 
@@ -21,6 +21,7 @@ h_lock = Semaphore(1)
 s_lock = Semaphore(1)
 h_votes = Queue.Queue()
 s_votes = Queue.Queue()
+waittime = 0.001
 print 'Socket created'
 
 try:
@@ -48,10 +49,12 @@ def getvotes(filename):
 	f.close()
 
 def popvotes(conn, votes, lock):
+	global waittime
 	while True:
 		data = conn.recv(1024)
 		lock.acquire()
 		conn.sendall(votes.get())
+		time.sleep(waittime)
 		lock.release()
 	
 	conn.close()
@@ -102,6 +105,16 @@ def bothConnected(conn, conn2):
 	conn.close()
 	conn2.close()
 
+parser = argparse.ArgumentParser(description='Starts running the vote feeder for h-store and/or s-store.')
+parser.add_argument('-w','--wait', help='wait in between sending next vote (in seconds)', type=float, default=0.001)
+parser.add_argument('-f','--file', help='filename to read', default="demo-votes.txt")
+
+args = parser.parse_args()
+
+waittime = args.wait
+FILE = args.file
+print(FILE)
+print(waittime)
 getvotes(FILE)
 start_new_thread(hthread, ())
 start_new_thread(sthread, ())

@@ -1,0 +1,10 @@
+constants: h-store + s-store
+ - number of contestants
+ - number of threads vs txnrate
+ - h-store on demo, s-store on vmdemo
+ - recompile
+voterdemoserver.py
+- waittime
+- filename
+voter.py
+- number of contestants

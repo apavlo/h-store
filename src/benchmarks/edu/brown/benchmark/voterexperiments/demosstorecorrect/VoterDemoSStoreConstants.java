@@ -38,7 +38,7 @@ public abstract class VoterDemoSStoreConstants {
     public static final int VOTE_THRESHOLD = 1000;
     public static final int BOARD_REFRESH = 100;
 	public static final int MAX_VOTES = 1; 
-	public static final int NUM_CONTESTANTS = 25; 
+	public static final int NUM_CONTESTANTS = 12; 
 	
 	public static final String OUTPUT_FILE = "logs/demosstoreout.txt";
 	public static final String OVERWRITE_FILE = "logs/demosstorecurrent.txt";
@@ -56,7 +56,7 @@ public abstract class VoterDemoSStoreConstants {
 	public static final String ISTC1_CLIENT = "istc2";
 	public static final int SERVER_PORT_NUM = 9510;
 	public static final int VOTE_PORT_NUM = 9512;
-	public static final String LOCAL_HOST = "demo";
+	public static final String LOCAL_HOST = "localhost";//WRONG. SHOULD BE DEMO.
 
 	// Initialize some common constants and variables
     public static final String CONTESTANT_NAMES_CSV = "Jann Arden,Micah Barnes,Justin Bieber,Jim Bryson,Michael Buble," +

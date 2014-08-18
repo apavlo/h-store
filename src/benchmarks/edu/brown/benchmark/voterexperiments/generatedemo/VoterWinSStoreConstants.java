@@ -38,7 +38,7 @@ public abstract class VoterWinSStoreConstants {
     public static final int VOTE_THRESHOLD = 1000;
     public static final int PRINT_THRESHOLD = 100;
 	public static final int MAX_VOTES = 1; 
-	public static final int NUM_CONTESTANTS = 25; 
+	public static final int NUM_CONTESTANTS = 12; 
 
 	// Initialize some common constants and variables
     public static final String CONTESTANT_NAMES_CSV = "Jann Arden,Micah Barnes,Justin Bieber,Jim Bryson,Michael Buble," +

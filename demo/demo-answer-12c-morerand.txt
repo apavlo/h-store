@@ -1,0 +1,2945 @@
+####100####
+**Votes**
+Celine Dion,7,6
+Adam Gontier,9,7
+Justin Bieber,3,7
+Micah Barnes,2,7
+Jim Bryson,4,8
+Jann Arden,1,8
+Emily Haines,10,9
+Nelly Furtado,8,9
+Leonard Cohen,6,9
+Ashley Leggat,12,10
+Avril Lavigne,11,10
+Michael Buble,5,10
+---------------------------
+**VoteCount**
+100,100
+---------------------------
+####200####
+**Votes**
+Celine Dion,7,11
+Ashley Leggat,12,12
+Adam Gontier,9,12
+Jann Arden,1,12
+Emily Haines,10,18
+Michael Buble,5,18
+Jim Bryson,4,18
+Justin Bieber,3,18
+Micah Barnes,2,18
+Nelly Furtado,8,19
+Avril Lavigne,11,22
+Leonard Cohen,6,22
+---------------------------
+**VoteCount**
+200,200
+---------------------------
+####300####
+**Votes**
+Ashley Leggat,12,18
+Celine Dion,7,18
+Adam Gontier,9,22
+Emily Haines,10,24
+Nelly Furtado,8,25
+Justin Bieber,3,25
+Michael Buble,5,26
+Jann Arden,1,26
+Leonard Cohen,6,28
+Avril Lavigne,11,29
+Micah Barnes,2,29
+Jim Bryson,4,30
+---------------------------
+**VoteCount**
+300,300
+---------------------------
+####400####
+**Votes**
+Ashley Leggat,12,24
+Celine Dion,7,25
+Adam Gontier,9,32
+Michael Buble,5,32
+Justin Bieber,3,33
+Micah Barnes,2,33
+Emily Haines,10,34
+Avril Lavigne,11,35
+Jann Arden,1,36
+Nelly Furtado,8,38
+Leonard Cohen,6,39
+Jim Bryson,4,39
+---------------------------
+**VoteCount**
+400,400
+---------------------------
+####500####
+**Votes**
+Ashley Leggat,12,33
+Celine Dion,7,36
+Justin Bieber,3,36
+Micah Barnes,2,39
+Emily Haines,10,40
+Adam Gontier,9,41
+Avril Lavigne,11,42
+Leonard Cohen,6,45
+Michael Buble,5,45
+Nelly Furtado,8,46
+Jann Arden,1,46
+Jim Bryson,4,51
+---------------------------
+**VoteCount**
+500,500
+---------------------------
+####600####
+**Votes**
+Celine Dion,7,42
+Justin Bieber,3,42
+Ashley Leggat,12,44
+Jann Arden,1,46
+Micah Barnes,2,48
+Leonard Cohen,6,49
+Michael Buble,5,50
+Emily Haines,10,52
+Nelly Furtado,8,53
+Adam Gontier,9,54
+Avril Lavigne,11,55
+Jim Bryson,4,65
+---------------------------
+**VoteCount**
+600,600
+---------------------------
+####700####
+**Votes**
+Celine Dion,7,47
+Jann Arden,1,47
+Justin Bieber,3,50
+Michael Buble,5,53
+Ashley Leggat,12,56
+Leonard Cohen,6,60
+Micah Barnes,2,60
+Nelly Furtado,8,61
+Adam Gontier,9,65
+Emily Haines,10,66
+Avril Lavigne,11,67
+Jim Bryson,4,68
+---------------------------
+**VoteCount**
+700,700
+---------------------------
+####800####
+**Votes**
+Celine Dion,7,53
+Jann Arden,1,53
+Michael Buble,5,59
+Justin Bieber,3,62
+Micah Barnes,2,65
+Adam Gontier,9,67
+Ashley Leggat,12,69
+Nelly Furtado,8,69
+Leonard Cohen,6,70
+Jim Bryson,4,75
+Emily Haines,10,78
+Avril Lavigne,11,80
+---------------------------
+**VoteCount**
+800,800
+---------------------------
+####900####
+**Votes**
+Celine Dion,7,59
+Jann Arden,1,59
+Michael Buble,5,64
+Adam Gontier,9,72
+Justin Bieber,3,72
+Leonard Cohen,6,75
+Nelly Furtado,8,77
+Micah Barnes,2,79
+Ashley Leggat,12,80
+Jim Bryson,4,82
+Emily Haines,10,89
+Avril Lavigne,11,92
+---------------------------
+**VoteCount**
+900,900
+---------------------------
+####1000####
+**Votes**
+Celine Dion,7,64
+Jann Arden,1,64
+Michael Buble,5,71
+Justin Bieber,3,78
+Leonard Cohen,6,80
+Nelly Furtado,8,85
+Adam Gontier,9,86
+Micah Barnes,2,88
+Ashley Leggat,12,90
+Jim Bryson,4,90
+Avril Lavigne,11,99
+Emily Haines,10,105
+---------------------------
+**VoteCount**
+1000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Celine Dion,7,64
+Jann Arden,1,64
+Michael Buble,5,71
+Justin Bieber,3,78
+Leonard Cohen,6,80
+Nelly Furtado,8,85
+Adam Gontier,9,86
+Micah Barnes,2,88
+Ashley Leggat,12,90
+Jim Bryson,4,90
+Avril Lavigne,11,99
+Emily Haines,10,105
+---------------------------
+**VoteCount**
+1000,0
+---------------------------
+####1100####
+**Votes**
+Michael Buble,5,78
+Jann Arden,1,78
+Justin Bieber,3,86
+Leonard Cohen,6,89
+Nelly Furtado,8,90
+Micah Barnes,2,94
+Adam Gontier,9,95
+Jim Bryson,4,99
+Ashley Leggat,12,100
+Avril Lavigne,11,109
+Emily Haines,10,118
+---------------------------
+**VoteCount**
+1100,100
+---------------------------
+####1200####
+**Votes**
+Michael Buble,5,89
+Jann Arden,1,89
+Nelly Furtado,8,94
+Justin Bieber,3,98
+Leonard Cohen,6,100
+Adam Gontier,9,101
+Micah Barnes,2,104
+Ashley Leggat,12,105
+Jim Bryson,4,109
+Avril Lavigne,11,114
+Emily Haines,10,133
+---------------------------
+**VoteCount**
+1200,200
+---------------------------
+####1300####
+**Votes**
+Michael Buble,5,99
+Jann Arden,1,99
+Justin Bieber,3,103
+Adam Gontier,9,107
+Leonard Cohen,6,108
+Nelly Furtado,8,109
+Ashley Leggat,12,113
+Micah Barnes,2,115
+Jim Bryson,4,117
+Avril Lavigne,11,125
+Emily Haines,10,141
+---------------------------
+**VoteCount**
+1300,300
+---------------------------
+####1400####
+**Votes**
+Michael Buble,5,108
+Jann Arden,1,108
+Justin Bieber,3,110
+Nelly Furtado,8,115
+Leonard Cohen,6,115
+Adam Gontier,9,121
+Micah Barnes,2,124
+Ashley Leggat,12,125
+Jim Bryson,4,128
+Avril Lavigne,11,133
+Emily Haines,10,149
+---------------------------
+**VoteCount**
+1400,400
+---------------------------
+####1500####
+**Votes**
+Justin Bieber,3,117
+Jann Arden,1,117
+Nelly Furtado,8,123
+Michael Buble,5,124
+Adam Gontier,9,126
+Leonard Cohen,6,129
+Ashley Leggat,12,130
+Jim Bryson,4,134
+Micah Barnes,2,135
+Avril Lavigne,11,146
+Emily Haines,10,155
+---------------------------
+**VoteCount**
+1500,500
+---------------------------
+####1600####
+**Votes**
+Nelly Furtado,8,128
+Jann Arden,1,128
+Justin Bieber,3,130
+Adam Gontier,9,132
+Michael Buble,5,135
+Leonard Cohen,6,139
+Micah Barnes,2,140
+Ashley Leggat,12,143
+Jim Bryson,4,144
+Avril Lavigne,11,154
+Emily Haines,10,163
+---------------------------
+**VoteCount**
+1600,600
+---------------------------
+####1700####
+**Votes**
+Jann Arden,1,134
+Nelly Furtado,8,135
+Adam Gontier,9,138
+Michael Buble,5,145
+Justin Bieber,3,147
+Ashley Leggat,12,150
+Micah Barnes,2,150
+Leonard Cohen,6,151
+Jim Bryson,4,152
+Avril Lavigne,11,160
+Emily Haines,10,174
+---------------------------
+**VoteCount**
+1700,700
+---------------------------
+####1800####
+**Votes**
+Nelly Furtado,8,147
+Jann Arden,1,147
+Adam Gontier,9,148
+Michael Buble,5,151
+Justin Bieber,3,155
+Jim Bryson,4,157
+Ashley Leggat,12,160
+Micah Barnes,2,160
+Leonard Cohen,6,161
+Avril Lavigne,11,170
+Emily Haines,10,180
+---------------------------
+**VoteCount**
+1800,800
+---------------------------
+####1900####
+**Votes**
+Adam Gontier,9,156
+Nelly Furtado,8,156
+Jann Arden,1,156
+Michael Buble,5,162
+Justin Bieber,3,165
+Micah Barnes,2,166
+Leonard Cohen,6,167
+Jim Bryson,4,168
+Ashley Leggat,12,170
+Avril Lavigne,11,181
+Emily Haines,10,189
+---------------------------
+**VoteCount**
+1900,900
+---------------------------
+####2000####
+**Votes**
+Nelly Furtado,8,160
+Jann Arden,1,160
+Adam Gontier,9,169
+Michael Buble,5,172
+Micah Barnes,2,173
+Leonard Cohen,6,176
+Ashley Leggat,12,179
+Jim Bryson,4,179
+Justin Bieber,3,180
+Avril Lavigne,11,191
+Emily Haines,10,197
+---------------------------
+**VoteCount**
+2000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Nelly Furtado,8,160
+Jann Arden,1,160
+Adam Gontier,9,169
+Michael Buble,5,172
+Micah Barnes,2,173
+Leonard Cohen,6,176
+Ashley Leggat,12,179
+Jim Bryson,4,179
+Justin Bieber,3,180
+Avril Lavigne,11,191
+Emily Haines,10,197
+---------------------------
+**VoteCount**
+2000,0
+---------------------------
+####2100####
+**Votes**
+Adam Gontier,9,178
+Jann Arden,1,178
+Michael Buble,5,180
+Leonard Cohen,6,181
+Micah Barnes,2,181
+Ashley Leggat,12,185
+Jim Bryson,4,188
+Justin Bieber,3,193
+Avril Lavigne,11,203
+Emily Haines,10,209
+---------------------------
+**VoteCount**
+2100,100
+---------------------------
+####2200####
+**Votes**
+Michael Buble,5,189
+Micah Barnes,2,189
+Jann Arden,1,189
+Ashley Leggat,12,190
+Adam Gontier,9,193
+Leonard Cohen,6,195
+Jim Bryson,4,197
+Justin Bieber,3,203
+Emily Haines,10,215
+Avril Lavigne,11,216
+---------------------------
+**VoteCount**
+2200,200
+---------------------------
+####2300####
+**Votes**
+Michael Buble,5,198
+Micah Barnes,2,198
+Jann Arden,1,198
+Leonard Cohen,6,200
+Ashley Leggat,12,201
+Adam Gontier,9,202
+Jim Bryson,4,206
+Justin Bieber,3,214
+Emily Haines,10,229
+Avril Lavigne,11,230
+---------------------------
+**VoteCount**
+2300,300
+---------------------------
+####2400####
+**Votes**
+Micah Barnes,2,206
+Jann Arden,1,206
+Leonard Cohen,6,208
+Adam Gontier,9,209
+Michael Buble,5,209
+Jim Bryson,4,214
+Ashley Leggat,12,215
+Justin Bieber,3,226
+Avril Lavigne,11,241
+Emily Haines,10,242
+---------------------------
+**VoteCount**
+2400,400
+---------------------------
+####2500####
+**Votes**
+Micah Barnes,2,215
+Jann Arden,1,215
+Michael Buble,5,217
+Leonard Cohen,6,218
+Jim Bryson,4,218
+Adam Gontier,9,222
+Ashley Leggat,12,225
+Justin Bieber,3,236
+Avril Lavigne,11,254
+Emily Haines,10,256
+---------------------------
+**VoteCount**
+2500,500
+---------------------------
+####2600####
+**Votes**
+Micah Barnes,2,223
+Jann Arden,1,223
+Michael Buble,5,224
+Leonard Cohen,6,228
+Jim Bryson,4,230
+Adam Gontier,9,234
+Ashley Leggat,12,239
+Justin Bieber,3,247
+Emily Haines,10,262
+Avril Lavigne,11,266
+---------------------------
+**VoteCount**
+2600,600
+---------------------------
+####2700####
+**Votes**
+Michael Buble,5,233
+Jann Arden,1,233
+Jim Bryson,4,236
+Micah Barnes,2,239
+Adam Gontier,9,243
+Leonard Cohen,6,245
+Ashley Leggat,12,249
+Justin Bieber,3,257
+Emily Haines,10,270
+Avril Lavigne,11,271
+---------------------------
+**VoteCount**
+2700,700
+---------------------------
+####2800####
+**Votes**
+Michael Buble,5,242
+Jann Arden,1,242
+Jim Bryson,4,246
+Micah Barnes,2,247
+Leonard Cohen,6,253
+Adam Gontier,9,254
+Ashley Leggat,12,263
+Justin Bieber,3,270
+Avril Lavigne,11,279
+Emily Haines,10,280
+---------------------------
+**VoteCount**
+2800,800
+---------------------------
+####2900####
+**Votes**
+Micah Barnes,2,252
+Jann Arden,1,252
+Michael Buble,5,255
+Jim Bryson,4,255
+Leonard Cohen,6,267
+Adam Gontier,9,268
+Ashley Leggat,12,270
+Justin Bieber,3,278
+Emily Haines,10,288
+Avril Lavigne,11,291
+---------------------------
+**VoteCount**
+2900,900
+---------------------------
+####3000####
+**Votes**
+Michael Buble,5,261
+Jann Arden,1,261
+Micah Barnes,2,262
+Jim Bryson,4,267
+Ashley Leggat,12,276
+Leonard Cohen,6,277
+Adam Gontier,9,279
+Justin Bieber,3,292
+Emily Haines,10,298
+Avril Lavigne,11,303
+---------------------------
+**VoteCount**
+3000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Michael Buble,5,261
+Jann Arden,1,261
+Micah Barnes,2,262
+Jim Bryson,4,267
+Ashley Leggat,12,276
+Leonard Cohen,6,277
+Adam Gontier,9,279
+Justin Bieber,3,292
+Emily Haines,10,298
+Avril Lavigne,11,303
+---------------------------
+**VoteCount**
+3000,0
+---------------------------
+####3100####
+**Votes**
+Jim Bryson,4,273
+Jann Arden,1,273
+Micah Barnes,2,279
+Leonard Cohen,6,285
+Adam Gontier,9,287
+Ashley Leggat,12,289
+Justin Bieber,3,306
+Emily Haines,10,310
+Avril Lavigne,11,313
+---------------------------
+**VoteCount**
+3100,100
+---------------------------
+####3200####
+**Votes**
+Jim Bryson,4,282
+Jann Arden,1,282
+Micah Barnes,2,294
+Ashley Leggat,12,296
+Adam Gontier,9,298
+Leonard Cohen,6,301
+Emily Haines,10,320
+Avril Lavigne,11,321
+Justin Bieber,3,321
+---------------------------
+**VoteCount**
+3200,200
+---------------------------
+####3300####
+**Votes**
+Jim Bryson,4,288
+Jann Arden,1,288
+Micah Barnes,2,305
+Adam Gontier,9,308
+Leonard Cohen,6,310
+Ashley Leggat,12,313
+Justin Bieber,3,332
+Avril Lavigne,11,334
+Emily Haines,10,337
+---------------------------
+**VoteCount**
+3300,300
+---------------------------
+####3400####
+**Votes**
+Jann Arden,1,295
+Jim Bryson,4,296
+Adam Gontier,9,315
+Micah Barnes,2,317
+Leonard Cohen,6,319
+Ashley Leggat,12,331
+Avril Lavigne,11,344
+Emily Haines,10,349
+Justin Bieber,3,349
+---------------------------
+**VoteCount**
+3400,400
+---------------------------
+####3500####
+**Votes**
+Jim Bryson,4,306
+Jann Arden,1,306
+Adam Gontier,9,324
+Micah Barnes,2,328
+Leonard Cohen,6,332
+Ashley Leggat,12,340
+Avril Lavigne,11,355
+Justin Bieber,3,360
+Emily Haines,10,364
+---------------------------
+**VoteCount**
+3500,500
+---------------------------
+####3600####
+**Votes**
+Jim Bryson,4,323
+Jann Arden,1,323
+Adam Gontier,9,333
+Micah Barnes,2,338
+Leonard Cohen,6,341
+Ashley Leggat,12,350
+Justin Bieber,3,362
+Avril Lavigne,11,370
+Emily Haines,10,375
+---------------------------
+**VoteCount**
+3600,600
+---------------------------
+####3700####
+**Votes**
+Jim Bryson,4,331
+Jann Arden,1,331
+Adam Gontier,9,343
+Leonard Cohen,6,352
+Micah Barnes,2,355
+Ashley Leggat,12,363
+Justin Bieber,3,376
+Avril Lavigne,11,379
+Emily Haines,10,385
+---------------------------
+**VoteCount**
+3700,700
+---------------------------
+####3800####
+**Votes**
+Jim Bryson,4,340
+Jann Arden,1,340
+Adam Gontier,9,356
+Micah Barnes,2,364
+Leonard Cohen,6,366
+Ashley Leggat,12,375
+Justin Bieber,3,387
+Avril Lavigne,11,392
+Emily Haines,10,395
+---------------------------
+**VoteCount**
+3800,800
+---------------------------
+####3900####
+**Votes**
+Jim Bryson,4,353
+Jann Arden,1,353
+Adam Gontier,9,370
+Micah Barnes,2,373
+Leonard Cohen,6,378
+Ashley Leggat,12,388
+Justin Bieber,3,394
+Emily Haines,10,402
+Avril Lavigne,11,404
+---------------------------
+**VoteCount**
+3900,900
+---------------------------
+####4000####
+**Votes**
+Jim Bryson,4,364
+Jann Arden,1,364
+Adam Gontier,9,380
+Micah Barnes,2,384
+Leonard Cohen,6,387
+Ashley Leggat,12,399
+Emily Haines,10,411
+Avril Lavigne,11,412
+Justin Bieber,3,414
+---------------------------
+**VoteCount**
+4000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Jim Bryson,4,364
+Jann Arden,1,364
+Adam Gontier,9,380
+Micah Barnes,2,384
+Leonard Cohen,6,387
+Ashley Leggat,12,399
+Emily Haines,10,411
+Avril Lavigne,11,412
+Justin Bieber,3,414
+---------------------------
+**VoteCount**
+4000,0
+---------------------------
+####4100####
+**Votes**
+Micah Barnes,2,389
+Jann Arden,1,389
+Adam Gontier,9,392
+Leonard Cohen,6,398
+Ashley Leggat,12,409
+Avril Lavigne,11,422
+Emily Haines,10,422
+Justin Bieber,3,430
+---------------------------
+**VoteCount**
+4100,100
+---------------------------
+####4200####
+**Votes**
+Micah Barnes,2,406
+Jann Arden,1,406
+Adam Gontier,9,407
+Leonard Cohen,6,409
+Ashley Leggat,12,418
+Avril Lavigne,11,431
+Emily Haines,10,432
+Justin Bieber,3,442
+---------------------------
+**VoteCount**
+4200,200
+---------------------------
+####4300####
+**Votes**
+Jann Arden,1,417
+Adam Gontier,9,418
+Micah Barnes,2,418
+Leonard Cohen,6,424
+Ashley Leggat,12,427
+Avril Lavigne,11,444
+Emily Haines,10,444
+Justin Bieber,3,459
+---------------------------
+**VoteCount**
+4300,300
+---------------------------
+####4400####
+**Votes**
+Micah Barnes,2,429
+Jann Arden,1,429
+Adam Gontier,9,430
+Leonard Cohen,6,432
+Ashley Leggat,12,442
+Emily Haines,10,454
+Avril Lavigne,11,464
+Justin Bieber,3,471
+---------------------------
+**VoteCount**
+4400,400
+---------------------------
+####4500####
+**Votes**
+Micah Barnes,2,440
+Jann Arden,1,440
+Adam Gontier,9,447
+Leonard Cohen,6,449
+Ashley Leggat,12,454
+Emily Haines,10,466
+Avril Lavigne,11,472
+Justin Bieber,3,483
+---------------------------
+**VoteCount**
+4500,500
+---------------------------
+####4600####
+**Votes**
+Micah Barnes,2,448
+Jann Arden,1,448
+Adam Gontier,9,458
+Leonard Cohen,6,462
+Ashley Leggat,12,468
+Emily Haines,10,480
+Avril Lavigne,11,489
+Justin Bieber,3,498
+---------------------------
+**VoteCount**
+4600,600
+---------------------------
+####4700####
+**Votes**
+Micah Barnes,2,460
+Jann Arden,1,460
+Adam Gontier,9,476
+Leonard Cohen,6,476
+Ashley Leggat,12,481
+Emily Haines,10,490
+Avril Lavigne,11,499
+Justin Bieber,3,509
+---------------------------
+**VoteCount**
+4700,700
+---------------------------
+####4800####
+**Votes**
+Micah Barnes,2,472
+Jann Arden,1,472
+Adam Gontier,9,488
+Leonard Cohen,6,494
+Ashley Leggat,12,497
+Emily Haines,10,498
+Avril Lavigne,11,507
+Justin Bieber,3,523
+---------------------------
+**VoteCount**
+4800,800
+---------------------------
+####4900####
+**Votes**
+Micah Barnes,2,483
+Jann Arden,1,483
+Leonard Cohen,6,504
+Adam Gontier,9,505
+Emily Haines,10,508
+Ashley Leggat,12,509
+Avril Lavigne,11,518
+Justin Bieber,3,541
+---------------------------
+**VoteCount**
+4900,900
+---------------------------
+####5000####
+**Votes**
+Micah Barnes,2,494
+Jann Arden,1,494
+Ashley Leggat,12,521
+Emily Haines,10,521
+Adam Gontier,9,521
+Leonard Cohen,6,521
+Avril Lavigne,11,524
+Justin Bieber,3,555
+---------------------------
+**VoteCount**
+5000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Micah Barnes,2,494
+Jann Arden,1,494
+Ashley Leggat,12,521
+Emily Haines,10,521
+Adam Gontier,9,521
+Leonard Cohen,6,521
+Avril Lavigne,11,524
+Justin Bieber,3,555
+---------------------------
+**VoteCount**
+5000,0
+---------------------------
+####5100####
+**Votes**
+Avril Lavigne,11,528
+Jann Arden,1,528
+Ashley Leggat,12,532
+Emily Haines,10,533
+Leonard Cohen,6,533
+Adam Gontier,9,534
+Justin Bieber,3,569
+---------------------------
+**VoteCount**
+5100,100
+---------------------------
+####5200####
+**Votes**
+Avril Lavigne,11,541
+Jann Arden,1,541
+Ashley Leggat,12,543
+Emily Haines,10,549
+Leonard Cohen,6,549
+Adam Gontier,9,551
+Justin Bieber,3,583
+---------------------------
+**VoteCount**
+5200,200
+---------------------------
+####5300####
+**Votes**
+Ashley Leggat,12,556
+Emily Haines,10,556
+Jann Arden,1,556
+Avril Lavigne,11,559
+Leonard Cohen,6,564
+Adam Gontier,9,566
+Justin Bieber,3,600
+---------------------------
+**VoteCount**
+5300,300
+---------------------------
+####5400####
+**Votes**
+Ashley Leggat,12,565
+Jann Arden,1,565
+Emily Haines,10,568
+Avril Lavigne,11,577
+Leonard Cohen,6,581
+Adam Gontier,9,585
+Justin Bieber,3,616
+---------------------------
+**VoteCount**
+5400,400
+---------------------------
+####5500####
+**Votes**
+Ashley Leggat,12,572
+Jann Arden,1,572
+Emily Haines,10,578
+Leonard Cohen,6,597
+Avril Lavigne,11,602
+Adam Gontier,9,605
+Justin Bieber,3,631
+---------------------------
+**VoteCount**
+5500,500
+---------------------------
+####5600####
+**Votes**
+Ashley Leggat,12,587
+Jann Arden,1,587
+Emily Haines,10,592
+Leonard Cohen,6,608
+Adam Gontier,9,619
+Avril Lavigne,11,622
+Justin Bieber,3,642
+---------------------------
+**VoteCount**
+5600,600
+---------------------------
+####5700####
+**Votes**
+Jann Arden,1,597
+Ashley Leggat,12,598
+Emily Haines,10,607
+Leonard Cohen,6,623
+Adam Gontier,9,629
+Avril Lavigne,11,639
+Justin Bieber,3,664
+---------------------------
+**VoteCount**
+5700,700
+---------------------------
+####5800####
+**Votes**
+Ashley Leggat,12,610
+Jann Arden,1,610
+Emily Haines,10,621
+Leonard Cohen,6,637
+Adam Gontier,9,643
+Avril Lavigne,11,659
+Justin Bieber,3,677
+---------------------------
+**VoteCount**
+5800,800
+---------------------------
+####5900####
+**Votes**
+Ashley Leggat,12,620
+Jann Arden,1,620
+Emily Haines,10,637
+Leonard Cohen,6,655
+Adam Gontier,9,657
+Avril Lavigne,11,670
+Justin Bieber,3,698
+---------------------------
+**VoteCount**
+5900,900
+---------------------------
+####6000####
+**Votes**
+Ashley Leggat,12,634
+Jann Arden,1,634
+Emily Haines,10,648
+Adam Gontier,9,668
+Leonard Cohen,6,674
+Avril Lavigne,11,685
+Justin Bieber,3,714
+---------------------------
+**VoteCount**
+6000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Ashley Leggat,12,634
+Jann Arden,1,634
+Emily Haines,10,648
+Adam Gontier,9,668
+Leonard Cohen,6,674
+Avril Lavigne,11,685
+Justin Bieber,3,714
+---------------------------
+**VoteCount**
+6000,0
+---------------------------
+####6100####
+**Votes**
+Emily Haines,10,664
+Jann Arden,1,664
+Adam Gontier,9,681
+Leonard Cohen,6,692
+Avril Lavigne,11,698
+Justin Bieber,3,724
+---------------------------
+**VoteCount**
+6100,100
+---------------------------
+####6200####
+**Votes**
+Emily Haines,10,681
+Jann Arden,1,681
+Adam Gontier,9,696
+Leonard Cohen,6,707
+Avril Lavigne,11,717
+Justin Bieber,3,741
+---------------------------
+**VoteCount**
+6200,200
+---------------------------
+####6300####
+**Votes**
+Emily Haines,10,692
+Jann Arden,1,692
+Adam Gontier,9,707
+Leonard Cohen,6,730
+Avril Lavigne,11,741
+Justin Bieber,3,761
+---------------------------
+**VoteCount**
+6300,300
+---------------------------
+####6400####
+**Votes**
+Emily Haines,10,708
+Jann Arden,1,708
+Adam Gontier,9,724
+Leonard Cohen,6,742
+Avril Lavigne,11,759
+Justin Bieber,3,782
+---------------------------
+**VoteCount**
+6400,400
+---------------------------
+####6500####
+**Votes**
+Emily Haines,10,722
+Jann Arden,1,722
+Adam Gontier,9,739
+Leonard Cohen,6,762
+Avril Lavigne,11,784
+Justin Bieber,3,794
+---------------------------
+**VoteCount**
+6500,500
+---------------------------
+####6600####
+**Votes**
+Emily Haines,10,742
+Jann Arden,1,742
+Adam Gontier,9,758
+Leonard Cohen,6,779
+Avril Lavigne,11,799
+Justin Bieber,3,803
+---------------------------
+**VoteCount**
+6600,600
+---------------------------
+####6700####
+**Votes**
+Jann Arden,1,755
+Emily Haines,10,756
+Adam Gontier,9,778
+Leonard Cohen,6,799
+Avril Lavigne,11,812
+Justin Bieber,3,823
+---------------------------
+**VoteCount**
+6700,700
+---------------------------
+####6800####
+**Votes**
+Jann Arden,1,775
+Emily Haines,10,776
+Adam Gontier,9,795
+Leonard Cohen,6,810
+Avril Lavigne,11,826
+Justin Bieber,3,841
+---------------------------
+**VoteCount**
+6800,800
+---------------------------
+####6900####
+**Votes**
+Emily Haines,10,799
+Jann Arden,1,799
+Adam Gontier,9,808
+Leonard Cohen,6,827
+Avril Lavigne,11,834
+Justin Bieber,3,856
+---------------------------
+**VoteCount**
+6900,900
+---------------------------
+####7000####
+**Votes**
+Emily Haines,10,815
+Jann Arden,1,815
+Adam Gontier,9,822
+Leonard Cohen,6,845
+Avril Lavigne,11,856
+Justin Bieber,3,870
+---------------------------
+**VoteCount**
+7000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Emily Haines,10,815
+Jann Arden,1,815
+Adam Gontier,9,822
+Leonard Cohen,6,845
+Avril Lavigne,11,856
+Justin Bieber,3,870
+---------------------------
+**VoteCount**
+7000,0
+---------------------------
+####7100####
+**Votes**
+Adam Gontier,9,834
+Jann Arden,1,837
+Leonard Cohen,6,870
+Avril Lavigne,11,875
+Justin Bieber,3,892
+---------------------------
+**VoteCount**
+7100,100
+---------------------------
+####7200####
+**Votes**
+Adam Gontier,9,859
+Jann Arden,1,860
+Leonard Cohen,6,885
+Avril Lavigne,11,897
+Justin Bieber,3,907
+---------------------------
+**VoteCount**
+7200,200
+---------------------------
+####7300####
+**Votes**
+Jann Arden,1,876
+Adam Gontier,9,878
+Leonard Cohen,6,905
+Avril Lavigne,11,924
+Justin Bieber,3,925
+---------------------------
+**VoteCount**
+7300,300
+---------------------------
+####7400####
+**Votes**
+Adam Gontier,9,890
+Jann Arden,1,907
+Leonard Cohen,6,924
+Avril Lavigne,11,941
+Justin Bieber,3,946
+---------------------------
+**VoteCount**
+7400,400
+---------------------------
+####7500####
+**Votes**
+Adam Gontier,9,905
+Jann Arden,1,938
+Leonard Cohen,6,944
+Avril Lavigne,11,956
+Justin Bieber,3,965
+---------------------------
+**VoteCount**
+7500,500
+---------------------------
+####7600####
+**Votes**
+Adam Gontier,9,922
+Jann Arden,1,959
+Leonard Cohen,6,966
+Avril Lavigne,11,972
+Justin Bieber,3,989
+---------------------------
+**VoteCount**
+7600,600
+---------------------------
+####7700####
+**Votes**
+Adam Gontier,9,942
+Leonard Cohen,6,981
+Jann Arden,1,983
+Avril Lavigne,11,999
+Justin Bieber,3,1003
+---------------------------
+**VoteCount**
+7700,700
+---------------------------
+####7800####
+**Votes**
+Adam Gontier,9,964
+Leonard Cohen,6,1001
+Jann Arden,1,1004
+Avril Lavigne,11,1015
+Justin Bieber,3,1024
+---------------------------
+**VoteCount**
+7800,800
+---------------------------
+####7900####
+**Votes**
+Adam Gontier,9,993
+Leonard Cohen,6,1020
+Avril Lavigne,11,1028
+Jann Arden,1,1029
+Justin Bieber,3,1038
+---------------------------
+**VoteCount**
+7900,900
+---------------------------
+####8000####
+**Votes**
+Adam Gontier,9,1023
+Leonard Cohen,6,1034
+Avril Lavigne,11,1041
+Jann Arden,1,1050
+Justin Bieber,3,1060
+---------------------------
+**VoteCount**
+8000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Adam Gontier,9,1023
+Leonard Cohen,6,1034
+Avril Lavigne,11,1041
+Jann Arden,1,1050
+Justin Bieber,3,1060
+---------------------------
+**VoteCount**
+8000,0
+---------------------------
+####8100####
+**Votes**
+Leonard Cohen,6,1062
+Avril Lavigne,11,1065
+Justin Bieber,3,1079
+Jann Arden,1,1079
+---------------------------
+**VoteCount**
+8100,100
+---------------------------
+####8200####
+**Votes**
+Leonard Cohen,6,1084
+Avril Lavigne,11,1085
+Justin Bieber,3,1105
+Jann Arden,1,1111
+---------------------------
+**VoteCount**
+8200,200
+---------------------------
+####8300####
+**Votes**
+Leonard Cohen,6,1102
+Avril Lavigne,11,1116
+Justin Bieber,3,1125
+Jann Arden,1,1142
+---------------------------
+**VoteCount**
+8300,300
+---------------------------
+####8400####
+**Votes**
+Leonard Cohen,6,1122
+Avril Lavigne,11,1141
+Justin Bieber,3,1150
+Jann Arden,1,1172
+---------------------------
+**VoteCount**
+8400,400
+---------------------------
+####8500####
+**Votes**
+Leonard Cohen,6,1146
+Avril Lavigne,11,1166
+Justin Bieber,3,1173
+Jann Arden,1,1200
+---------------------------
+**VoteCount**
+8500,500
+---------------------------
+####8600####
+**Votes**
+Leonard Cohen,6,1167
+Justin Bieber,3,1193
+Avril Lavigne,11,1196
+Jann Arden,1,1229
+---------------------------
+**VoteCount**
+8600,600
+---------------------------
+####8700####
+**Votes**
+Leonard Cohen,6,1191
+Justin Bieber,3,1214
+Avril Lavigne,11,1219
+Jann Arden,1,1261
+---------------------------
+**VoteCount**
+8700,700
+---------------------------
+####8800####
+**Votes**
+Leonard Cohen,6,1220
+Avril Lavigne,11,1233
+Justin Bieber,3,1239
+Jann Arden,1,1293
+---------------------------
+**VoteCount**
+8800,800
+---------------------------
+####8900####
+**Votes**
+Leonard Cohen,6,1244
+Avril Lavigne,11,1254
+Justin Bieber,3,1271
+Jann Arden,1,1316
+---------------------------
+**VoteCount**
+8900,900
+---------------------------
+####9000####
+**Votes**
+Avril Lavigne,11,1272
+Leonard Cohen,6,1272
+Justin Bieber,3,1302
+Jann Arden,1,1339
+---------------------------
+**VoteCount**
+9000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Avril Lavigne,11,1272
+Leonard Cohen,6,1272
+Justin Bieber,3,1302
+Jann Arden,1,1339
+---------------------------
+**VoteCount**
+9000,0
+---------------------------
+####9100####
+**Votes**
+Leonard Cohen,6,1307
+Justin Bieber,3,1326
+Jann Arden,1,1380
+---------------------------
+**VoteCount**
+9100,100
+---------------------------
+####9200####
+**Votes**
+Leonard Cohen,6,1336
+Justin Bieber,3,1358
+Jann Arden,1,1419
+---------------------------
+**VoteCount**
+9200,200
+---------------------------
+####9300####
+**Votes**
+Leonard Cohen,6,1364
+Justin Bieber,3,1395
+Jann Arden,1,1454
+---------------------------
+**VoteCount**
+9300,300
+---------------------------
+####9400####
+**Votes**
+Leonard Cohen,6,1403
+Justin Bieber,3,1433
+Jann Arden,1,1477
+---------------------------
+**VoteCount**
+9400,400
+---------------------------
+####9500####
+**Votes**
+Leonard Cohen,6,1434
+Justin Bieber,3,1471
+Jann Arden,1,1508
+---------------------------
+**VoteCount**
+9500,500
+---------------------------
+####9600####
+**Votes**
+Leonard Cohen,6,1463
+Justin Bieber,3,1504
+Jann Arden,1,1546
+---------------------------
+**VoteCount**
+9600,600
+---------------------------
+####9700####
+**Votes**
+Leonard Cohen,6,1497
+Justin Bieber,3,1529
+Jann Arden,1,1587
+---------------------------
+**VoteCount**
+9700,700
+---------------------------
+####9800####
+**Votes**
+Leonard Cohen,6,1535
+Justin Bieber,3,1559
+Jann Arden,1,1619
+---------------------------
+**VoteCount**
+9800,800
+---------------------------
+####9900####
+**Votes**
+Leonard Cohen,6,1561
+Justin Bieber,3,1586
+Jann Arden,1,1666
+---------------------------
+**VoteCount**
+9900,900
+---------------------------
+####10000####
+**Votes**
+Leonard Cohen,6,1605
+Justin Bieber,3,1609
+Jann Arden,1,1699
+---------------------------
+**VoteCount**
+10000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Leonard Cohen,6,1605
+Justin Bieber,3,1609
+Jann Arden,1,1699
+---------------------------
+**VoteCount**
+10000,0
+---------------------------
+####10100####
+**Votes**
+Justin Bieber,3,1662
+Jann Arden,1,1746
+---------------------------
+**VoteCount**
+10100,100
+---------------------------
+####10200####
+**Votes**
+Justin Bieber,3,1717
+Jann Arden,1,1791
+---------------------------
+**VoteCount**
+10200,200
+---------------------------
+####10300####
+**Votes**
+Justin Bieber,3,1762
+Jann Arden,1,1846
+---------------------------
+**VoteCount**
+10300,300
+---------------------------
+####10400####
+**Votes**
+Justin Bieber,3,1811
+Jann Arden,1,1897
+---------------------------
+**VoteCount**
+10400,400
+---------------------------
+####10500####
+**Votes**
+Justin Bieber,3,1857
+Jann Arden,1,1951
+---------------------------
+**VoteCount**
+10500,500
+---------------------------
+####10600####
+**Votes**
+Justin Bieber,3,1900
+Jann Arden,1,2008
+---------------------------
+**VoteCount**
+10600,600
+---------------------------
+####10700####
+**Votes**
+Justin Bieber,3,1949
+Jann Arden,1,2059
+---------------------------
+**VoteCount**
+10700,700
+---------------------------
+####10800####
+**Votes**
+Justin Bieber,3,1987
+Jann Arden,1,2121
+---------------------------
+**VoteCount**
+10800,800
+---------------------------
+####10900####
+**Votes**
+Justin Bieber,3,2030
+Jann Arden,1,2178
+---------------------------
+**VoteCount**
+10900,900
+---------------------------
+####11000####
+**Votes**
+Justin Bieber,3,2076
+Jann Arden,1,2232
+---------------------------
+**VoteCount**
+11000,0
+---------------------------
+####DELETECANDIDATE####
+**Votes**
+Justin Bieber,3,2076
+Jann Arden,1,2232
+---------------------------
+**VoteCount**
+11000,0
+---------------------------
+####11100####
+**Votes**
+Jann Arden,1,2332
+---------------------------
+**VoteCount**
+11100,100
+---------------------------
+####11200####
+**Votes**
+Jann Arden,1,2432
+---------------------------
+**VoteCount**
+11200,200
+---------------------------
+####11300####
+**Votes**
+Jann Arden,1,2532
+---------------------------
+**VoteCount**
+11300,300
+---------------------------
+####11400####
+**Votes**
+Jann Arden,1,2632
+---------------------------
+**VoteCount**
+11400,400
+---------------------------
+####11500####
+**Votes**
+Jann Arden,1,2732
+---------------------------
+**VoteCount**
+11500,500
+---------------------------
+####11600####
+**Votes**
+Jann Arden,1,2832
+---------------------------
+**VoteCount**
+11600,600
+---------------------------
+####11700####
+**Votes**
+Jann Arden,1,2932
+---------------------------
+**VoteCount**
+11700,700
+---------------------------
+####11800####
+**Votes**
+Jann Arden,1,3032
+---------------------------
+**VoteCount**
+11800,800
+---------------------------
+####11900####
+**Votes**
+Jann Arden,1,3132
+---------------------------
+**VoteCount**
+11900,900
+---------------------------
+####12000####
+**Votes**
+Jann Arden,1,3232
+---------------------------
+**VoteCount**
+12000,0
+---------------------------
+####12100####
+**Votes**
+Jann Arden,1,3332
+---------------------------
+**VoteCount**
+12100,100
+---------------------------
+####12200####
+**Votes**
+Jann Arden,1,3432
+---------------------------
+**VoteCount**
+12200,200
+---------------------------
+####12300####
+**Votes**
+Jann Arden,1,3532
+---------------------------
+**VoteCount**
+12300,300
+---------------------------
+####12400####
+**Votes**
+Jann Arden,1,3632
+---------------------------
+**VoteCount**
+12400,400
+---------------------------
+####12500####
+**Votes**
+Jann Arden,1,3732
+---------------------------
+**VoteCount**
+12500,500
+---------------------------
+####12600####
+**Votes**
+Jann Arden,1,3832
+---------------------------
+**VoteCount**
+12600,600
+---------------------------
+####12700####
+**Votes**
+Jann Arden,1,3932
+---------------------------
+**VoteCount**
+12700,700
+---------------------------
+####12800####
+**Votes**
+Jann Arden,1,4032
+---------------------------
+**VoteCount**
+12800,800
+---------------------------
+####12900####
+**Votes**
+Jann Arden,1,4132
+---------------------------
+**VoteCount**
+12900,900
+---------------------------
+####13000####
+**Votes**
+Jann Arden,1,4232
+---------------------------
+**VoteCount**
+13000,0
+---------------------------
+####13100####
+**Votes**
+Jann Arden,1,4332
+---------------------------
+**VoteCount**
+13100,100
+---------------------------
+####13200####
+**Votes**
+Jann Arden,1,4432
+---------------------------
+**VoteCount**
+13200,200
+---------------------------
+####13300####
+**Votes**
+Jann Arden,1,4532
+---------------------------
+**VoteCount**
+13300,300
+---------------------------
+####13400####
+**Votes**
+Jann Arden,1,4632
+---------------------------
+**VoteCount**
+13400,400
+---------------------------
+####13500####
+**Votes**
+Jann Arden,1,4732
+---------------------------
+**VoteCount**
+13500,500
+---------------------------
+####13600####
+**Votes**
+Jann Arden,1,4832
+---------------------------
+**VoteCount**
+13600,600
+---------------------------
+####13700####
+**Votes**
+Jann Arden,1,4932
+---------------------------
+**VoteCount**
+13700,700
+---------------------------
+####13800####
+**Votes**
+Jann Arden,1,5032
+---------------------------
+**VoteCount**
+13800,800
+---------------------------
+####13900####
+**Votes**
+Jann Arden,1,5132
+---------------------------
+**VoteCount**
+13900,900
+---------------------------
+####14000####
+**Votes**
+Jann Arden,1,5232
+---------------------------
+**VoteCount**
+14000,0
+---------------------------
+####14100####
+**Votes**
+Jann Arden,1,5332
+---------------------------
+**VoteCount**
+14100,100
+---------------------------
+####14200####
+**Votes**
+Jann Arden,1,5432
+---------------------------
+**VoteCount**
+14200,200
+---------------------------
+####14300####
+**Votes**
+Jann Arden,1,5532
+---------------------------
+**VoteCount**
+14300,300
+---------------------------
+####14400####
+**Votes**
+Jann Arden,1,5632
+---------------------------
+**VoteCount**
+14400,400
+---------------------------
+####14500####
+**Votes**
+Jann Arden,1,5732
+---------------------------
+**VoteCount**
+14500,500
+---------------------------
+####14600####
+**Votes**
+Jann Arden,1,5832
+---------------------------
+**VoteCount**
+14600,600
+---------------------------
+####14700####
+**Votes**
+Jann Arden,1,5932
+---------------------------
+**VoteCount**
+14700,700
+---------------------------
+####14800####
+**Votes**
+Jann Arden,1,6032
+---------------------------
+**VoteCount**
+14800,800
+---------------------------
+####14900####
+**Votes**
+Jann Arden,1,6132
+---------------------------
+**VoteCount**
+14900,900
+---------------------------
+####15000####
+**Votes**
+Jann Arden,1,6232
+---------------------------
+**VoteCount**
+15000,0
+---------------------------
+####15100####
+**Votes**
+Jann Arden,1,6332
+---------------------------
+**VoteCount**
+15100,100
+---------------------------
+####15200####
+**Votes**
+Jann Arden,1,6432
+---------------------------
+**VoteCount**
+15200,200
+---------------------------
+####15300####
+**Votes**
+Jann Arden,1,6532
+---------------------------
+**VoteCount**
+15300,300
+---------------------------
+####15400####
+**Votes**
+Jann Arden,1,6632
+---------------------------
+**VoteCount**
+15400,400
+---------------------------
+####15500####
+**Votes**
+Jann Arden,1,6732
+---------------------------
+**VoteCount**
+15500,500
+---------------------------
+####15600####
+**Votes**
+Jann Arden,1,6832
+---------------------------
+**VoteCount**
+15600,600
+---------------------------
+####15700####
+**Votes**
+Jann Arden,1,6932
+---------------------------
+**VoteCount**
+15700,700
+---------------------------
+####15800####
+**Votes**
+Jann Arden,1,7032
+---------------------------
+**VoteCount**
+15800,800
+---------------------------
+####15900####
+**Votes**
+Jann Arden,1,7132
+---------------------------
+**VoteCount**
+15900,900
+---------------------------
+####16000####
+**Votes**
+Jann Arden,1,7232
+---------------------------
+**VoteCount**
+16000,0
+---------------------------
+####16100####
+**Votes**
+Jann Arden,1,7332
+---------------------------
+**VoteCount**
+16100,100
+---------------------------
+####16200####
+**Votes**
+Jann Arden,1,7432
+---------------------------
+**VoteCount**
+16200,200
+---------------------------
+####16300####
+**Votes**
+Jann Arden,1,7532
+---------------------------
+**VoteCount**
+16300,300
+---------------------------
+####16400####
+**Votes**
+Jann Arden,1,7632
+---------------------------
+**VoteCount**
+16400,400
+---------------------------
+####16500####
+**Votes**
+Jann Arden,1,7732
+---------------------------
+**VoteCount**
+16500,500
+---------------------------
+####16600####
+**Votes**
+Jann Arden,1,7832
+---------------------------
+**VoteCount**
+16600,600
+---------------------------
+####16700####
+**Votes**
+Jann Arden,1,7932
+---------------------------
+**VoteCount**
+16700,700
+---------------------------
+####16800####
+**Votes**
+Jann Arden,1,8032
+---------------------------
+**VoteCount**
+16800,800
+---------------------------
+####16900####
+**Votes**
+Jann Arden,1,8132
+---------------------------
+**VoteCount**
+16900,900
+---------------------------
+####17000####
+**Votes**
+Jann Arden,1,8232
+---------------------------
+**VoteCount**
+17000,0
+---------------------------
+####17100####
+**Votes**
+Jann Arden,1,8332
+---------------------------
+**VoteCount**
+17100,100
+---------------------------
+####17200####
+**Votes**
+Jann Arden,1,8432
+---------------------------
+**VoteCount**
+17200,200
+---------------------------
+####17300####
+**Votes**
+Jann Arden,1,8532
+---------------------------
+**VoteCount**
+17300,300
+---------------------------
+####17400####
+**Votes**
+Jann Arden,1,8632
+---------------------------
+**VoteCount**
+17400,400
+---------------------------
+####17500####
+**Votes**
+Jann Arden,1,8732
+---------------------------
+**VoteCount**
+17500,500
+---------------------------
+####17600####
+**Votes**
+Jann Arden,1,8832
+---------------------------
+**VoteCount**
+17600,600
+---------------------------
+####17700####
+**Votes**
+Jann Arden,1,8932
+---------------------------
+**VoteCount**
+17700,700
+---------------------------
+####17800####
+**Votes**
+Jann Arden,1,9032
+---------------------------
+**VoteCount**
+17800,800
+---------------------------
+####17900####
+**Votes**
+Jann Arden,1,9132
+---------------------------
+**VoteCount**
+17900,900
+---------------------------
+####18000####
+**Votes**
+Jann Arden,1,9232
+---------------------------
+**VoteCount**
+18000,0
+---------------------------
+####18100####
+**Votes**
+Jann Arden,1,9332
+---------------------------
+**VoteCount**
+18100,100
+---------------------------
+####18200####
+**Votes**
+Jann Arden,1,9432
+---------------------------
+**VoteCount**
+18200,200
+---------------------------
+####18300####
+**Votes**
+Jann Arden,1,9532
+---------------------------
+**VoteCount**
+18300,300
+---------------------------
+####18400####
+**Votes**
+Jann Arden,1,9632
+---------------------------
+**VoteCount**
+18400,400
+---------------------------
+####18500####
+**Votes**
+Jann Arden,1,9732
+---------------------------
+**VoteCount**
+18500,500
+---------------------------
+####18600####
+**Votes**
+Jann Arden,1,9832
+---------------------------
+**VoteCount**
+18600,600
+---------------------------
+####18700####
+**Votes**
+Jann Arden,1,9932
+---------------------------
+**VoteCount**
+18700,700
+---------------------------
+####18800####
+**Votes**
+Jann Arden,1,10032
+---------------------------
+**VoteCount**
+18800,800
+---------------------------
+####18900####
+**Votes**
+Jann Arden,1,10132
+---------------------------
+**VoteCount**
+18900,900
+---------------------------
+####19000####
+**Votes**
+Jann Arden,1,10232
+---------------------------
+**VoteCount**
+19000,0
+---------------------------
+####19100####
+**Votes**
+Jann Arden,1,10332
+---------------------------
+**VoteCount**
+19100,100
+---------------------------
+####19200####
+**Votes**
+Jann Arden,1,10432
+---------------------------
+**VoteCount**
+19200,200
+---------------------------
+####19300####
+**Votes**
+Jann Arden,1,10532
+---------------------------
+**VoteCount**
+19300,300
+---------------------------
+####19400####
+**Votes**
+Jann Arden,1,10632
+---------------------------
+**VoteCount**
+19400,400
+---------------------------
+####19500####
+**Votes**
+Jann Arden,1,10732
+---------------------------
+**VoteCount**
+19500,500
+---------------------------
+####19600####
+**Votes**
+Jann Arden,1,10832
+---------------------------
+**VoteCount**
+19600,600
+---------------------------
+####19700####
+**Votes**
+Jann Arden,1,10932
+---------------------------
+**VoteCount**
+19700,700
+---------------------------
+####19800####
+**Votes**
+Jann Arden,1,11032
+---------------------------
+**VoteCount**
+19800,800
+---------------------------
+####19900####
+**Votes**
+Jann Arden,1,11132
+---------------------------
+**VoteCount**
+19900,900
+---------------------------
+####20000####
+**Votes**
+Jann Arden,1,11232
+---------------------------
+**VoteCount**
+20000,0
+---------------------------
+####20100####
+**Votes**
+Jann Arden,1,11332
+---------------------------
+**VoteCount**
+20100,100
+---------------------------
+####20200####
+**Votes**
+Jann Arden,1,11432
+---------------------------
+**VoteCount**
+20200,200
+---------------------------
+####20300####
+**Votes**
+Jann Arden,1,11532
+---------------------------
+**VoteCount**
+20300,300
+---------------------------
+####20400####
+**Votes**
+Jann Arden,1,11632
+---------------------------
+**VoteCount**
+20400,400
+---------------------------
+####20500####
+**Votes**
+Jann Arden,1,11732
+---------------------------
+**VoteCount**
+20500,500
+---------------------------
+####20600####
+**Votes**
+Jann Arden,1,11832
+---------------------------
+**VoteCount**
+20600,600
+---------------------------
+####20700####
+**Votes**
+Jann Arden,1,11932
+---------------------------
+**VoteCount**
+20700,700
+---------------------------
+####20800####
+**Votes**
+Jann Arden,1,12032
+---------------------------
+**VoteCount**
+20800,800
+---------------------------
+####20900####
+**Votes**
+Jann Arden,1,12132
+---------------------------
+**VoteCount**
+20900,900
+---------------------------
+####21000####
+**Votes**
+Jann Arden,1,12232
+---------------------------
+**VoteCount**
+21000,0
+---------------------------
+####21100####
+**Votes**
+Jann Arden,1,12332
+---------------------------
+**VoteCount**
+21100,100
+---------------------------
+####21200####
+**Votes**
+Jann Arden,1,12432
+---------------------------
+**VoteCount**
+21200,200
+---------------------------
+####21300####
+**Votes**
+Jann Arden,1,12532
+---------------------------
+**VoteCount**
+21300,300
+---------------------------
+####21400####
+**Votes**
+Jann Arden,1,12632
+---------------------------
+**VoteCount**
+21400,400
+---------------------------
+####21500####
+**Votes**
+Jann Arden,1,12732
+---------------------------
+**VoteCount**
+21500,500
+---------------------------
+####21600####
+**Votes**
+Jann Arden,1,12832
+---------------------------
+**VoteCount**
+21600,600
+---------------------------
+####21700####
+**Votes**
+Jann Arden,1,12932
+---------------------------
+**VoteCount**
+21700,700
+---------------------------
+####21800####
+**Votes**
+Jann Arden,1,13032
+---------------------------
+**VoteCount**
+21800,800
+---------------------------
+####21900####
+**Votes**
+Jann Arden,1,13132
+---------------------------
+**VoteCount**
+21900,900
+---------------------------
+####22000####
+**Votes**
+Jann Arden,1,13232
+---------------------------
+**VoteCount**
+22000,0
+---------------------------
+####22100####
+**Votes**
+Jann Arden,1,13332
+---------------------------
+**VoteCount**
+22100,100
+---------------------------
+####22200####
+**Votes**
+Jann Arden,1,13432
+---------------------------
+**VoteCount**
+22200,200
+---------------------------
+####22300####
+**Votes**
+Jann Arden,1,13532
+---------------------------
+**VoteCount**
+22300,300
+---------------------------
+####22400####
+**Votes**
+Jann Arden,1,13632
+---------------------------
+**VoteCount**
+22400,400
+---------------------------
+####22500####
+**Votes**
+Jann Arden,1,13732
+---------------------------
+**VoteCount**
+22500,500
+---------------------------
+####22600####
+**Votes**
+Jann Arden,1,13832
+---------------------------
+**VoteCount**
+22600,600
+---------------------------
+####22700####
+**Votes**
+Jann Arden,1,13932
+---------------------------
+**VoteCount**
+22700,700
+---------------------------
+####22800####
+**Votes**
+Jann Arden,1,14032
+---------------------------
+**VoteCount**
+22800,800
+---------------------------
+####22900####
+**Votes**
+Jann Arden,1,14132
+---------------------------
+**VoteCount**
+22900,900
+---------------------------
+####23000####
+**Votes**
+Jann Arden,1,14232
+---------------------------
+**VoteCount**
+23000,0
+---------------------------
+####23100####
+**Votes**
+Jann Arden,1,14332
+---------------------------
+**VoteCount**
+23100,100
+---------------------------
+####23200####
+**Votes**
+Jann Arden,1,14432
+---------------------------
+**VoteCount**
+23200,200
+---------------------------
+####23300####
+**Votes**
+Jann Arden,1,14532
+---------------------------
+**VoteCount**
+23300,300
+---------------------------
+####23400####
+**Votes**
+Jann Arden,1,14632
+---------------------------
+**VoteCount**
+23400,400
+---------------------------
+####23500####
+**Votes**
+Jann Arden,1,14732
+---------------------------
+**VoteCount**
+23500,500
+---------------------------
+####23600####
+**Votes**
+Jann Arden,1,14832
+---------------------------
+**VoteCount**
+23600,600
+---------------------------
+####23700####
+**Votes**
+Jann Arden,1,14932
+---------------------------
+**VoteCount**
+23700,700
+---------------------------
+####23800####
+**Votes**
+Jann Arden,1,15032
+---------------------------
+**VoteCount**
+23800,800
+---------------------------
+####23900####
+**Votes**
+Jann Arden,1,15132
+---------------------------
+**VoteCount**
+23900,900
+---------------------------
+####24000####
+**Votes**
+Jann Arden,1,15232
+---------------------------
+**VoteCount**
+24000,0
+---------------------------
+####24100####
+**Votes**
+Jann Arden,1,15332
+---------------------------
+**VoteCount**
+24100,100
+---------------------------
+####24200####
+**Votes**
+Jann Arden,1,15432
+---------------------------
+**VoteCount**
+24200,200
+---------------------------
+####24300####
+**Votes**
+Jann Arden,1,15532
+---------------------------
+**VoteCount**
+24300,300
+---------------------------
+####24400####
+**Votes**
+Jann Arden,1,15632
+---------------------------
+**VoteCount**
+24400,400
+---------------------------
+####24500####
+**Votes**
+Jann Arden,1,15732
+---------------------------
+**VoteCount**
+24500,500
+---------------------------
+####24600####
+**Votes**
+Jann Arden,1,15832
+---------------------------
+**VoteCount**
+24600,600
+---------------------------
+####24700####
+**Votes**
+Jann Arden,1,15932
+---------------------------
+**VoteCount**
+24700,700
+---------------------------
+####24800####
+**Votes**
+Jann Arden,1,16032
+---------------------------
+**VoteCount**
+24800,800
+---------------------------
+####24900####
+**Votes**
+Jann Arden,1,16132
+---------------------------
+**VoteCount**
+24900,900
+---------------------------
+####25000####
+**Votes**
+Jann Arden,1,16232
+---------------------------
+**VoteCount**
+25000,0
+---------------------------
+####25100####
+**Votes**
+Jann Arden,1,16332
+---------------------------
+**VoteCount**
+25100,100
+---------------------------
+####25200####
+**Votes**
+Jann Arden,1,16432
+---------------------------
+**VoteCount**
+25200,200
+---------------------------
+####25300####
+**Votes**
+Jann Arden,1,16532
+---------------------------
+**VoteCount**
+25300,300
+---------------------------
+####25400####
+**Votes**
+Jann Arden,1,16632
+---------------------------
+**VoteCount**
+25400,400
+---------------------------
+####25500####
+**Votes**
+Jann Arden,1,16732
+---------------------------
+**VoteCount**
+25500,500
+---------------------------
+####25600####
+**Votes**
+Jann Arden,1,16832
+---------------------------
+**VoteCount**
+25600,600
+---------------------------
+####25700####
+**Votes**
+Jann Arden,1,16932
+---------------------------
+**VoteCount**
+25700,700
+---------------------------
+####25800####
+**Votes**
+Jann Arden,1,17032
+---------------------------
+**VoteCount**
+25800,800
+---------------------------
+####25900####
+**Votes**
+Jann Arden,1,17132
+---------------------------
+**VoteCount**
+25900,900
+---------------------------
+####26000####
+**Votes**
+Jann Arden,1,17232
+---------------------------
+**VoteCount**
+26000,0
+---------------------------
+####26100####
+**Votes**
+Jann Arden,1,17332
+---------------------------
+**VoteCount**
+26100,100
+---------------------------
+####26200####
+**Votes**
+Jann Arden,1,17432
+---------------------------
+**VoteCount**
+26200,200
+---------------------------
+####26300####
+**Votes**
+Jann Arden,1,17532
+---------------------------
+**VoteCount**
+26300,300
+---------------------------
+####26400####
+**Votes**
+Jann Arden,1,17632
+---------------------------
+**VoteCount**
+26400,400
+---------------------------
+####26500####
+**Votes**
+Jann Arden,1,17732
+---------------------------
+**VoteCount**
+26500,500
+---------------------------
+####26600####
+**Votes**
+Jann Arden,1,17832
+---------------------------
+**VoteCount**
+26600,600
+---------------------------
+####26700####
+**Votes**
+Jann Arden,1,17932
+---------------------------
+**VoteCount**
+26700,700
+---------------------------
+####26800####
+**Votes**
+Jann Arden,1,18032
+---------------------------
+**VoteCount**
+26800,800
+---------------------------
+####26900####
+**Votes**
+Jann Arden,1,18132
+---------------------------
+**VoteCount**
+26900,900
+---------------------------
+####27000####
+**Votes**
+Jann Arden,1,18232
+---------------------------
+**VoteCount**
+27000,0
+---------------------------
+####27100####
+**Votes**
+Jann Arden,1,18332
+---------------------------
+**VoteCount**
+27100,100
+---------------------------
+####27200####
+**Votes**
+Jann Arden,1,18432
+---------------------------
+**VoteCount**
+27200,200
+---------------------------
+####27300####
+**Votes**
+Jann Arden,1,18532
+---------------------------
+**VoteCount**
+27300,300
+---------------------------
+####27400####
+**Votes**
+Jann Arden,1,18632
+---------------------------
+**VoteCount**
+27400,400
+---------------------------
+####27500####
+**Votes**
+Jann Arden,1,18732
+---------------------------
+**VoteCount**
+27500,500
+---------------------------
+####27600####
+**Votes**
+Jann Arden,1,18832
+---------------------------
+**VoteCount**
+27600,600
+---------------------------
+####27700####
+**Votes**
+Jann Arden,1,18932
+---------------------------
+**VoteCount**
+27700,700
+---------------------------
+####27800####
+**Votes**
+Jann Arden,1,19032
+---------------------------
+**VoteCount**
+27800,800
+---------------------------
+####27900####
+**Votes**
+Jann Arden,1,19132
+---------------------------
+**VoteCount**
+27900,900
+---------------------------
+####28000####
+**Votes**
+Jann Arden,1,19232
+---------------------------
+**VoteCount**
+28000,0
+---------------------------
+####28100####
+**Votes**
+Jann Arden,1,19332
+---------------------------
+**VoteCount**
+28100,100
+---------------------------
+####28200####
+**Votes**
+Jann Arden,1,19432
+---------------------------
+**VoteCount**
+28200,200
+---------------------------
+####28300####
+**Votes**
+Jann Arden,1,19532
+---------------------------
+**VoteCount**
+28300,300
+---------------------------
+####28400####
+**Votes**
+Jann Arden,1,19632
+---------------------------
+**VoteCount**
+28400,400
+---------------------------
+####28500####
+**Votes**
+Jann Arden,1,19732
+---------------------------
+**VoteCount**
+28500,500
+---------------------------
+####28600####
+**Votes**
+Jann Arden,1,19832
+---------------------------
+**VoteCount**
+28600,600
+---------------------------
+####28700####
+**Votes**
+Jann Arden,1,19932
+---------------------------
+**VoteCount**
+28700,700
+---------------------------
+####28800####
+**Votes**
+Jann Arden,1,20032
+---------------------------
+**VoteCount**
+28800,800
+---------------------------
+####28900####
+**Votes**
+Jann Arden,1,20132
+---------------------------
+**VoteCount**
+28900,900
+---------------------------
+####29000####
+**Votes**
+Jann Arden,1,20232
+---------------------------
+**VoteCount**
+29000,0
+---------------------------
+####29100####
+**Votes**
+Jann Arden,1,20332
+---------------------------
+**VoteCount**
+29100,100
+---------------------------
+####29200####
+**Votes**
+Jann Arden,1,20432
+---------------------------
+**VoteCount**
+29200,200
+---------------------------
+####29300####
+**Votes**
+Jann Arden,1,20532
+---------------------------
+**VoteCount**
+29300,300
+---------------------------
+####29400####
+**Votes**
+Jann Arden,1,20632
+---------------------------
+**VoteCount**
+29400,400
+---------------------------
+####29500####
+**Votes**
+Jann Arden,1,20732
+---------------------------
+**VoteCount**
+29500,500
+---------------------------
+####29600####
+**Votes**
+Jann Arden,1,20832
+---------------------------
+**VoteCount**
+29600,600
+---------------------------
+####29700####
+**Votes**
+Jann Arden,1,20932
+---------------------------
+**VoteCount**
+29700,700
+---------------------------
+####29800####
+**Votes**
+Jann Arden,1,21032
+---------------------------
+**VoteCount**
+29800,800
+---------------------------
+####29900####
+**Votes**
+Jann Arden,1,21132
+---------------------------
+**VoteCount**
+29900,900
+---------------------------
+####30000####
+**Votes**
+Jann Arden,1,21232
+---------------------------
+**VoteCount**
+30000,0
+---------------------------
+####30100####
+**Votes**
+Jann Arden,1,21332
+---------------------------
+**VoteCount**
+30100,100
+---------------------------
+####30200####
+**Votes**
+Jann Arden,1,21432
+---------------------------
+**VoteCount**
+30200,200
+---------------------------
+####30300####
+**Votes**
+Jann Arden,1,21532
+---------------------------
+**VoteCount**
+30300,300
+---------------------------
+####30400####
+**Votes**
+Jann Arden,1,21632
+---------------------------
+**VoteCount**
+30400,400
+---------------------------
+####30500####
+**Votes**
+Jann Arden,1,21732
+---------------------------
+**VoteCount**
+30500,500
+---------------------------
+####30600####
+**Votes**
+Jann Arden,1,21832
+---------------------------
+**VoteCount**
+30600,600
+---------------------------
