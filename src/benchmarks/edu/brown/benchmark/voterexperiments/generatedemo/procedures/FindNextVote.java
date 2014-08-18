@@ -50,6 +50,10 @@ public class FindNextVote extends VoltProcedure {
     public final SQLStmt checkNumVotesStmt = new SQLStmt(
 	   "SELECT votes_cnt, reset_cnt FROM votes_count WHERE row_id = 1;"
     );
+    
+    public final SQLStmt getLastDeletedStmt = new SQLStmt(
+    	"SELECT contestant_number FROM last_deleted WHERE row_id = 1;"	
+    );
 	
     public VoltTable[] run() {
 		

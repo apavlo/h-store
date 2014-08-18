@@ -48,9 +48,12 @@ import edu.brown.api.BenchmarkComponent;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
+import java.util.concurrent.*;
+
 public class VoterWinSStoreClient extends BenchmarkComponent {
     private static final Logger LOG = Logger.getLogger(VoterWinSStoreClient.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final Semaphore lock = new Semaphore(1,true);
 
     // Phone number generator
     PhoneCallGenerator switchboard;
@@ -99,30 +102,43 @@ public class VoterWinSStoreClient extends BenchmarkComponent {
     protected boolean runOnce() throws IOException {
   	        
 	        try {
+	        	lock.acquire();
 	        	Client client = this.getClientHandle();
-				ClientResponse cr = client.callProcedure("FindNextVote");
-				VoltTable v[] = cr.getResults();
-				switchboard.updateInformation(v[0], (int)v[1].fetchRow(0).getLong("votes_cnt"), (int)v[1].fetchRow(0).getLong("reset_cnt"));
+				//ClientResponse cr = client.callProcedure("FindNextVote");
 				
 				PhoneCallGenerator.PhoneCall call = switchboard.receive();
 				
-				cr = client.callProcedure(
+				ClientResponse cr = client.callProcedure(
                         "Vote",
                         call.voteId,
                         call.phoneNumber,
                         call.contestantNumber,
                         VoterWinSStoreConstants.MAX_VOTES);
-				v = cr.getResults();
+				VoltTable v[] = cr.getResults();
 				
-				if(v != null && v.length > 1)
-					switchboard.releaseVotes(v[0], (int)v[1].fetchRow(0).getLong(0));
+				if(v == null || v.length < 1)
+				{
+					lock.release();
+					return true;
+				}
+				if(v.length > 2)
+					switchboard.releaseVotes(v[2], (int)v[3].fetchRow(0).getLong(0));
+				
+				switchboard.updateInformation(v[0], (int)v[1].fetchRow(0).getLong("votes_cnt"), (int)v[1].fetchRow(0).getLong("reset_cnt"));
 				
 				incrementTransactionCounter(cr, 0);
+				lock.release();
 				return true;
 				
 			} catch (ProcCallException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
+				lock.release();
+				return false;
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				//lock.release();
 				return false;
 			}
 	}      

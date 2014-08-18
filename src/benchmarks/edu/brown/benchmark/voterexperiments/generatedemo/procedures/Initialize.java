@@ -48,6 +48,8 @@ public class Initialize extends VoltProcedure
  // Inserts a contestant
     public final SQLStmt insertVotesCountStmt = new SQLStmt("INSERT INTO votes_count (row_id, votes_cnt, reset_cnt) VALUES (1,0,0);");
     
+    public final SQLStmt insertLastDeletedStmt = new SQLStmt("INSERT INTO last_deleted (row_id, contestant_number) VALUES (1, 0);");
+    
     // Domain data: matching lists of Area codes and States
     public static final short[] areaCodes = new short[]{
 	907,205,256,334,251,870,501,479,480,602,623,928,520,341,764,628,831,925,
@@ -97,6 +99,7 @@ public class Initialize extends VoltProcedure
         
         voltQueueSQL(checkStmt);
         voltQueueSQL(insertVotesCountStmt);
+        voltQueueSQL(insertLastDeletedStmt);
         long existingContestantCount = voltExecuteSQL()[0].asScalarLong();
         
         // if the data is initialized, return the contestant count

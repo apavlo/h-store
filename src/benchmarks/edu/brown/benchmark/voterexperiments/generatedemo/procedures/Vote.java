@@ -108,6 +108,18 @@ public class Vote extends VoltProcedure {
 		"DELETE FROM leaderboard WHERE contestant_number = ?;"
     );
     
+    public final SQLStmt updateLastDeletedStmt = new SQLStmt(
+		"UPDATE last_deleted SET contestant_number = ? WHERE row_id = 1;"
+    );
+    
+    public final SQLStmt checkContestantVotesStmt = new SQLStmt(
+	   "SELECT contestant_number, num_votes FROM v_votes_by_contestant ORDER BY num_votes ASC, contestant_number DESC;"
+    );
+    
+    public final SQLStmt findRemainingContestants = new SQLStmt(
+	   "SELECT count(*) FROM contestants;"
+    );
+    
 	/////////////////////////////
 	//BEGIN GET RESULTS
 	/////////////////////////////
@@ -160,42 +172,62 @@ public class Vote extends VoltProcedure {
         voltQueueSQL(updateResetVotesStmt, (reset_cnt % VoterWinSStoreConstants.VOTE_THRESHOLD));
         //voltQueueSQL(selectLeaderboardStmt);
         voltExecuteSQL();
-   
-        // Set the return value to 0: successful vote
-        if(reset_cnt == VoterWinSStoreConstants.VOTE_THRESHOLD)
+        
+        if(reset_cnt % VoterWinSStoreConstants.PRINT_THRESHOLD == 0)
         {
-        	voltQueueSQL(findLowestContestant);
-            validation = voltExecuteSQL();
+        	ArrayList<String> tableNames = new ArrayList<String>();
+            voltQueueSQL(getAllVotesStmt);
+            tableNames.add("Votes");
+    		voltQueueSQL(getVoteCountStmt);
+    		tableNames.add("VoteCount");
+    		VoltTable[] v = voltExecuteSQL();
+    		try {
+				VoterWinSStoreUtil.writeToFile(v, tableNames, votes_cnt);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        }
+        
+        voltQueueSQL(findLowestContestant);
+        voltQueueSQL(findRemainingContestants);
+        validation = voltExecuteSQL();
+        
+        int lowestContestant = (int)(validation[0].fetchRow(0).getLong(0));
+        int remainingContestants = (int)(validation[1].fetchRow(0).getLong(0));
+        // Set the return value to 0: successful vote
+        if(reset_cnt == VoterWinSStoreConstants.VOTE_THRESHOLD && remainingContestants > 1)
+        {
             
-            if(validation[0].getRowCount() < 1)
-            {
-            	return null;
-            }
-            if(VoterWinSStoreConstants.DEBUG)
-            {
-	            ArrayList<String> tableNames = new ArrayList<String>();
-	            voltQueueSQL(getAllVotesStmt);
-	            tableNames.add("Votes");
-	    		voltQueueSQL(getVoteCountStmt);
-	    		tableNames.add("VoteCount");
-	    		VoltTable[] v = voltExecuteSQL();
-	    		try {
-					VoterWinSStoreUtil.writeToFile(v, tableNames, VoterWinSStoreConstants.DELETE_CODE);
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-            }
+            ArrayList<String> tableNames = new ArrayList<String>();
+            voltQueueSQL(getAllVotesStmt);
+            tableNames.add("Votes");
+    		voltQueueSQL(getVoteCountStmt);
+    		tableNames.add("VoteCount");
+    		VoltTable[] v = voltExecuteSQL();
+    		try {
+				VoterWinSStoreUtil.writeToFile(v, tableNames, VoterWinSStoreConstants.DELETE_CODE);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
             
-            int lowestContestant = (int)(validation[0].fetchRow(0).getLong(0));
+            voltQueueSQL(checkContestantVotesStmt);
+        	voltQueueSQL(checkNumVotesStmt);
             voltQueueSQL(getVotesToDelete, lowestContestant);
             voltQueueSQL(findContestant, lowestContestant);
             voltQueueSQL(deleteLowestContestant, lowestContestant);
             voltQueueSQL(deleteLowestVotes, lowestContestant);
             voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);
-            return voltExecuteSQL();
+            voltQueueSQL(updateLastDeletedStmt, lowestContestant);
+            //voltExecuteSQL();
         }
-        return null;
+        else { 
+        	voltQueueSQL(checkContestantVotesStmt);
+        	voltQueueSQL(checkNumVotesStmt);
+        }
+        
+        return voltExecuteSQL();
     }
 
 }

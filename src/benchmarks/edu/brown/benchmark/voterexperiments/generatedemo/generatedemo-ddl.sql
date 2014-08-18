@@ -56,6 +56,12 @@ CREATE TABLE votes_count
   reset_cnt	     integer    NOT NULL
 );
 
+CREATE TABLE last_deleted
+(
+  row_id	     integer    NOT NULL,
+  contestant_number  integer    NOT NULL
+);
+
 -- rollup of votes by phone number, used to reject excessive voting
 CREATE VIEW v_votes_by_phone_number
 (

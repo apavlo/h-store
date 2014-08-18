@@ -253,7 +253,7 @@ public abstract class VoterDemoHStoreUtil {
 			else
 			{
 				//return;
-				hostname = "localhost";
+				hostname = VoterDemoHStoreConstants.LOCAL_HOST;
 			}
 
 			Socket socket = new Socket(hostname, VoterDemoHStoreConstants.SERVER_PORT_NUM);

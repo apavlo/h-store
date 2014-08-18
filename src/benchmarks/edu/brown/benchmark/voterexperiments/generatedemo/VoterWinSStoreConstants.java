@@ -36,6 +36,7 @@ public abstract class VoterWinSStoreConstants {
     public static final String TABLENAME_VOTES           = "votes";
     
     public static final int VOTE_THRESHOLD = 1000;
+    public static final int PRINT_THRESHOLD = 100;
 	public static final int MAX_VOTES = 1; 
 	public static final int NUM_CONTESTANTS = 25; 
 
@@ -45,6 +46,8 @@ public abstract class VoterWinSStoreConstants {
     													"Avril Lavigne,Ashley Leggat,Eileen McGann,Sarah McLachlan,Joni Mitchell," +
     													"Mae Moore,Alanis Morissette,Emilie Mover,Anne Murray,Sam Roberts," +
     													"Serena Ryder,Tamara Sandor,Nicholas Scribner,Shania Twain,Neil Young";
+    
+    public static final int[] TOP_THREE = {1, 6, 13};
     
     
     // potential return codes
@@ -59,8 +62,10 @@ public abstract class VoterWinSStoreConstants {
     
     public static final int REVOTE_LIKELIHOOD = 75;
     public static final int VOTES_FOR_DELETED = 5;
+    public static final int TOP_THREE_LIKELIHOOD = 30;
     
-    public static final String OUTPUT_FILE = "demo/demo-votes.txt";
+    public static final String OUTPUT_FILE = "demo/demo-votes-2.txt";
+    public static final String AUDIT_FILE = "demo/demo-answer-2.txt";
     public static final int DELETE_CODE = -1;
-    public static final boolean DEBUG = false;
+    public static final boolean DEBUG = true;
 }

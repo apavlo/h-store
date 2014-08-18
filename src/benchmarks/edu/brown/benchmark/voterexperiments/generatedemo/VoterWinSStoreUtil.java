@@ -150,6 +150,21 @@ public abstract class VoterWinSStoreUtil {
 		}
     }
     
+    public static void writeStringToFile(String toWrite, String filename)
+    {
+		try {
+			PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(filename, true)));
+			out.println(toWrite);
+			out.flush();
+	    	out.close();
+		} 
+    	
+    	catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    
     public static void writeVoteToFile(String toWrite)
     {
 		try {
@@ -192,7 +207,7 @@ public abstract class VoterWinSStoreUtil {
     public static void writeToFile(VoltTable[] v, ArrayList<String> tableNames, int numVotes) throws IOException
     {
     	ArrayList<PrintWriter> out = new ArrayList<PrintWriter>();
-    	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterWinSStoreConstants.OUTPUT_FILE, true))));
+    	out.add(new PrintWriter(new BufferedWriter(new FileWriter(VoterWinSStoreConstants.AUDIT_FILE, true))));
     	if(numVotes == VoterDemoSStoreConstants.DELETE_CODE)
     	{
     		writeToAllFiles(out,"####DELETECANDIDATE####\n");
