@@ -353,7 +353,7 @@ public abstract class VoterDemoHStoreUtil {
         	{
         		while(j < 3)
         		{
-        			writeToAllFiles(out,"-,-\n");
+        			writeToAllFiles(out,"-----,0\n");
         			j++;
         		}
         	}

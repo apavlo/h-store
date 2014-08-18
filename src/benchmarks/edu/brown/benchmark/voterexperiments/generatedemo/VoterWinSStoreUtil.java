@@ -238,7 +238,7 @@ public abstract class VoterWinSStoreUtil {
         	{
         		while(j < 3)
         		{
-        			writeToAllFiles(out,"-,-\n");
+        			writeToAllFiles(out,"-----,0\n");
         			j++;
         		}
         	}
