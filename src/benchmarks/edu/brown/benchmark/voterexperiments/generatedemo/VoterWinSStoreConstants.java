@@ -67,5 +67,5 @@ public abstract class VoterWinSStoreConstants {
     public static final String OUTPUT_FILE = "demo/demo-votes-2.txt";
     public static final String AUDIT_FILE = "demo/demo-answer-2.txt";
     public static final int DELETE_CODE = -1;
-    public static final boolean DEBUG = true;
+    public static final boolean DEBUG = false;
 }

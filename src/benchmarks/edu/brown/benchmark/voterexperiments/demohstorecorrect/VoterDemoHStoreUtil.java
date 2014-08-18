@@ -330,10 +330,12 @@ public abstract class VoterDemoHStoreUtil {
     	else
     		writeToAllFiles(out,"####" + numVotes + "####\n");
     	
-        for(int i = 0; i < v.length; i++)
+    	for(int i = 0; i < v.length; i++)
         {
-        	writeToAllFiles(out,"**" + tableNames.get(i) + "**\n");
-        	for(int j = 0; j < v[i].getRowCount(); j++)
+        	String tableName = tableNames.get(i);
+        	writeToAllFiles(out,"**" + tableName + "**\n");
+        	int j = 0;
+        	while(j < v[i].getRowCount())
         	{
         		for(int k = 0; k < v[i].getColumnCount(); k++)
         		{
@@ -345,6 +347,15 @@ public abstract class VoterDemoHStoreUtil {
         			writeToAllFiles(out, (v[i].fetchRow(j).get(k)).toString());
         		}
         		writeToAllFiles(out,"\n");
+        		j++;
+        	}
+        	if(tableName.endsWith("Three"))
+        	{
+        		while(j < 3)
+        		{
+        			writeToAllFiles(out,"-,-\n");
+        			j++;
+        		}
         	}
         	writeToAllFiles(out,"---------------------------\n");
         }
