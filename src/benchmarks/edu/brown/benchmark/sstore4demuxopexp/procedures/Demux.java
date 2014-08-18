@@ -35,6 +35,7 @@ import org.voltdb.StmtInfo;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
+import java.util.HashMap;
 
 import edu.brown.benchmark.sstore4demuxopexp.SStore4DemuxOpExpConstants;
 
@@ -55,7 +56,7 @@ public class Demux extends VoltProcedure {
     );
 
     public final SQLStmt ins11Stmt = new SQLStmt(
-	    "INSERT INTO s11 (vote_id, part_id) VALUES (?, ?);"
+	"INSERT INTO s11 (vote_id, part_id) VALUES (?, ?);"
     );
 
     public final SQLStmt ins12Stmt = new SQLStmt(
@@ -86,7 +87,7 @@ public class Demux extends VoltProcedure {
     	"DELETE FROM s1;"
     );
 
-    public long run(int part_id) {
+    public Demux() {
         procMap.put(0, ins11Stmt);
         procMap.put(1, ins12Stmt);
         procMap.put(2, ins13Stmt);
@@ -95,12 +96,16 @@ public class Demux extends VoltProcedure {
         procMap.put(5, ins16Stmt);
         procMap.put(6, ins17Stmt);
 
+    }
+
+    public long run(int part_id) {
 	voltQueueSQL(pullFromS1);
 	VoltTable s1Data[] = voltExecuteSQLForceSinglePartition();
 
 	for (int i=0; i < s1Data[0].getRowCount(); i++) {
 	    int vote_id = (int)(s1Data[0].fetchRow(i).getLong(0));
-	    voltQueueSQL(procMap.get(vote_id % 7), vote_id, part_id);
+//	    voltQueueSQL(procMap.get(vote_id % 1), vote_id, part_id);
+	    voltQueueSQL(ins11Stmt, vote_id, part_id);
 	}
 	voltExecuteSQLForceSinglePartition();
 
