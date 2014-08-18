@@ -78,7 +78,7 @@ public class SP2 extends VoltProcedure {
 		voltQueueSQL(pullFromS1Prime);
 		VoltTable s1primeData[] = voltExecuteSQL();
 		
-		compute();
+//		compute();
 		
 		for (int i=0; i < s1primeData[0].getRowCount(); i++) {
 			Long vote_id = s1primeData[0].fetchRow(i).getLong(0);

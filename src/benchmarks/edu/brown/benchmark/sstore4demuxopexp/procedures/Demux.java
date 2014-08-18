@@ -87,7 +87,6 @@ public class Demux extends VoltProcedure {
     );
 
     public long run(int part_id) {
-<<<<<<< HEAD
         procMap.put(0, ins11Stmt);
         procMap.put(1, ins12Stmt);
         procMap.put(2, ins13Stmt);
@@ -104,41 +103,7 @@ public class Demux extends VoltProcedure {
 	    voltQueueSQL(procMap.get(vote_id % 7), vote_id, part_id);
 	}
 	voltExecuteSQLForceSinglePartition();
-=======
-		voltQueueSQL(pullFromS1);
-		VoltTable s1Data[] = voltExecuteSQLForceSinglePartition();
-		
-		for (int i=0; i < s1Data[0].getRowCount(); i++) {
-			int vote_id = (int)(s1Data[0].fetchRow(i).getLong(0));
-			switch (vote_id % 1) {
-//			switch (vote_id % 3) {
-//			switch (vote_id % 7) {
-				case 0:
-					voltQueueSQL(ins11Stmt, vote_id, part_id);
-					break;
-				case 1:
-					voltQueueSQL(ins12Stmt, vote_id, part_id);
-					break;
-				case 2:
-					voltQueueSQL(ins13Stmt, vote_id, part_id);
-					break;
-				case 3:
-					voltQueueSQL(ins14Stmt, vote_id, part_id);
-					break;
-				case 4:
-					voltQueueSQL(ins15Stmt, vote_id, part_id);
-					break;
-				case 5:
-					voltQueueSQL(ins16Stmt, vote_id, part_id);
-					break;
-				case 6:
-					voltQueueSQL(ins17Stmt, vote_id, part_id);
-					break;
-			}
-		}
-		voltExecuteSQLForceSinglePartition();
->>>>>>> 51f23590a2d4b1401305f294de4e0c0c323e459c
-		
+
         voltQueueSQL(clearS1);
         voltExecuteSQLForceSinglePartition();
 				
