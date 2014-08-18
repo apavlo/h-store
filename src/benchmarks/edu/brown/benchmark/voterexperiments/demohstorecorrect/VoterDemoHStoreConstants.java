@@ -73,6 +73,7 @@ public abstract class VoterDemoHStoreConstants {
     public static final long WINDOW_SUCCESSFUL = 5;
     public static final long ERR_NOT_ENOUGH_CONTESTANTS = 6;
     public static final long DELETE_SUCCESSFUL = 7;
+    public static final long BM_FINISHED = 8;
     
     public static final long WINDOW_SIZE = 100;
     public static final long SLIDE_SIZE = 1;

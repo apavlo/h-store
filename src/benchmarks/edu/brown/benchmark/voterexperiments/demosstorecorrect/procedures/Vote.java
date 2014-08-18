@@ -36,9 +36,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.voter.VoterConstants;
-import edu.brown.benchmark.voterdemosstore.VoterDemoSStoreConstants;
-import edu.brown.benchmark.voterwintimesstore.VoterWinTimeSStoreConstants;
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
 
 @ProcInfo (
     partitionInfo = "votes.phone_number:1",
@@ -87,6 +85,10 @@ public class Vote extends VoltProcedure {
 		"UPDATE proc_one_count SET successcnt = ? WHERE row_id = 1;"
     );
     
+    public final SQLStmt getNumContestants = new SQLStmt(
+		"SELECT count(*) from contestants;"
+    );
+    
 	
 public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
 		
@@ -100,16 +102,17 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         voltQueueSQL(checkVoterStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
         voltQueueSQL(updateNumProcOneStmt, numProcOne + 1);
+        //voltQueueSQL(getNumContestants);
         validation = voltExecuteSQL();
 		
         // validate the maximum limit for votes number
         if (validation[0].getRowCount() == 0) {
-            return VoterConstants.ERR_INVALID_CONTESTANT;
+            return VoterDemoSStoreConstants.ERR_INVALID_CONTESTANT;
         }
         
         if ((validation[1].getRowCount() == 1) &&
 			(validation[1].fetchRow(0).getLong(0) >= maxVotesPerPhoneNumber)) {
-            return VoterConstants.ERR_VOTER_OVER_VOTE_LIMIT;
+            return VoterDemoSStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT;
         }
 		
         // Some sample client libraries use the legacy random phone generation that mostly
@@ -119,7 +122,10 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         // it wrong and see all their transactions rejected).
         final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
         
-        
+        //if((validation[4].fetchRow(0).getLong(0)) <= 1)
+        //{
+        //	return VoterDemoSStoreConstants.BM_FINISHED;
+        //}
 		 		
         // Post the vote
         TimestampType timestamp = new TimestampType();

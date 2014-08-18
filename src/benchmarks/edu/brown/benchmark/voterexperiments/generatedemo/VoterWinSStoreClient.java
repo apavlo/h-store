@@ -122,10 +122,16 @@ public class VoterWinSStoreClient extends BenchmarkComponent {
 					return true;
 				}
 				if(v.length > 2)
-					switchboard.releaseVotes(v[2], (int)v[3].fetchRow(0).getLong(0));
-				
-				switchboard.updateInformation(v[0], (int)v[1].fetchRow(0).getLong("votes_cnt"), (int)v[1].fetchRow(0).getLong("reset_cnt"));
-				
+				{
+					switchboard.releaseVotes(v[0], (int)v[1].fetchRow(0).getLong(0));
+					switchboard.updateInformation(v[6], (int)v[7].fetchRow(0).getLong("votes_cnt"), (int)v[7].fetchRow(0).getLong("reset_cnt"));
+
+				}
+				else
+				{
+					switchboard.updateInformation(v[0], (int)v[1].fetchRow(0).getLong("votes_cnt"), (int)v[1].fetchRow(0).getLong("reset_cnt"));
+				}
+					
 				incrementTransactionCounter(cr, 0);
 				lock.release();
 				return true;

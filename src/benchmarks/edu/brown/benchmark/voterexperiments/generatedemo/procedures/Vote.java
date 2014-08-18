@@ -124,6 +124,7 @@ public class Vote extends VoltProcedure {
 	//BEGIN GET RESULTS
 	/////////////////////////////
 	public final SQLStmt getAllVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+			+ "        , b.contestant_number         AS contestant_number"
 	+ "        , b.num_votes          AS num_votes"
 	+ "     FROM v_votes_by_contestant b"
 	+ "        , contestants AS a"
@@ -212,14 +213,14 @@ public class Vote extends VoltProcedure {
 				e.printStackTrace();
 			}
             
-            voltQueueSQL(checkContestantVotesStmt);
-        	voltQueueSQL(checkNumVotesStmt);
             voltQueueSQL(getVotesToDelete, lowestContestant);
             voltQueueSQL(findContestant, lowestContestant);
             voltQueueSQL(deleteLowestContestant, lowestContestant);
             voltQueueSQL(deleteLowestVotes, lowestContestant);
             voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);
             voltQueueSQL(updateLastDeletedStmt, lowestContestant);
+            voltQueueSQL(checkContestantVotesStmt);
+        	voltQueueSQL(checkNumVotesStmt);
             //voltExecuteSQL();
         }
         else { 

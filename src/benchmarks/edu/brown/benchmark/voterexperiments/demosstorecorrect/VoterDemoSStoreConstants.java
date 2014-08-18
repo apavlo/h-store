@@ -75,6 +75,7 @@ public abstract class VoterDemoSStoreConstants {
     public static final long WINDOW_SUCCESSFUL = 5;
     public static final long ERR_NOT_ENOUGH_CONTESTANTS = 6;
     public static final long DELETE_SUCCESSFUL = 7;
+    public static final long BM_FINISHED = 8;
     
     public static final boolean DEBUG = false;
     public static final int WAIT_TIME = 5000;

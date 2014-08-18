@@ -121,6 +121,11 @@ public class PhoneCallGenerator {
 	
 	public void releaseVotes(VoltTable v, int candidate)
 	{
+		if(candidate == VoterWinSStoreConstants.CHOSEN_ONE)
+		{
+			System.err.println("THIS CANDIDATE SHOULD NOT BE DELETED");
+			System.exit(0);
+		}
 		for(int i = 0; i < v.getRowCount(); i++)
 		{
 			releasedVotes.add(v.fetchRow(i).getLong("phone_number"));
@@ -174,7 +179,7 @@ public class PhoneCallGenerator {
 			if(VoterWinSStoreConstants.DEBUG) 
 				VoterWinSStoreUtil.writeVoteToFile("------------------FINISHED-------------------");
 		}
-		if(remainingCandidates.size() < 5)
+		if(remainingCandidates.size() < 3)
 		{
 			return currentNum;
 		}
@@ -185,7 +190,8 @@ public class PhoneCallGenerator {
 			if(totalVotes.get(lowestCandidate) < totalVotes.get(secondLowestCandidate))
 			{
 				if(VoterWinSStoreConstants.DEBUG) 
-					VoterWinSStoreUtil.writeVoteToFile("lowestCandidate catching up: " + lowestCandidate);
+					VoterWinSStoreUtil.writeVoteToFile("lowestCandidate catching up: " + lowestCandidate + " to " + secondLowestCandidate);
+					VoterWinSStoreUtil.writeVoteToFile("lowestCandidate: " + totalVotes.get(lowestCandidate) + "  second: " + totalVotes.get(secondLowestCandidate));
 				return lowestCandidate;
 			}
 			else
@@ -219,6 +225,23 @@ public class PhoneCallGenerator {
 		return currentNum;
 	}
 	
+	public int randomRemainingContestant()
+	{
+		if(remainingCandidates.size() <= 1)
+			return rand.nextInt(VoterWinSStoreConstants.NUM_CONTESTANTS) + 1;
+		int size = remainingCandidates.size();
+    	int item = rand.nextInt(size);
+    	int i = 0;
+    	for(Integer val : remainingCandidates)
+    	{
+    		if(i == item){
+    			return val;
+    		}
+    		i++;
+    	}
+    	return -1;
+	}
+	
 	/**
      * Receives/generates a simulated voting call
      * @return Call details (calling number and contestant to whom the vote is given)
@@ -230,80 +253,65 @@ public class PhoneCallGenerator {
 		
         // Pick a random area code for the originating phone call
         int areaCodeIndex = rand.nextInt(AREA_CODES.length);
-		
-        // Pick a contestant number
-        int contestantNumber = 0;
-        if(rand.nextInt(100) < VoterWinSStoreConstants.TOP_THREE_LIKELIHOOD && remainingCandidates.size() >= 3)
+        	
+        long phoneNumber;
+        
+        int contestantNumber = 1;
+        if(remainingCandidates.size() > 1)
         {
-        	contestantNumber = VoterWinSStoreConstants.TOP_THREE[rand.nextInt(3)];
-        }
-        else {
-        	int size = remainingCandidates.size();
-        	int item = rand.nextInt(size);
-        	int i = 0;
-        	for(Integer val : remainingCandidates)
-        	{
-        		if(i == item){
-        			contestantNumber = val;
-        			break;
-        		}
-        		i++;
-        	}
-        }
-		
-        //  introduce an invalid contestant every 100 call or so to simulate fraud
-        //  and invalid entries (something the transaction validates against)
-        if (rand.nextInt(100) == 0) {
-        	int size = releasedCandidates.size();
-        	int item = rand.nextInt(size);
-        	int i = 0;
-        	for(Integer val : releasedCandidates)
-        	{
-        		if(i == item){
-        			contestantNumber = val;
-        			break;
-        		}
-        		i++;
-        	}
+	        contestantNumber = VoterWinSStoreConstants.CHOSEN_ONE;
+	        if(VoterWinSStoreConstants.CHOSEN_ONE != lowestCandidate)
+	        {
+	        	while(contestantNumber == VoterWinSStoreConstants.CHOSEN_ONE)
+	        	{
+	        		contestantNumber = randomRemainingContestant();
+	        	}
+	        }
+	        if (rand.nextInt(100) == 0) {
+	        	int size = releasedCandidates.size();
+	        	int item = rand.nextInt(size);
+	        	int i = 0;
+	        	for(Integer val : releasedCandidates)
+	        	{
+	        		if(i == item){
+	        			contestantNumber = val;
+	        			break;
+	        		}
+	        		i++;
+	        	}
+	        }
+	        if(validVotes < 500)
+	        {
+	        	contestantNumber = randomRemainingContestant();
+	        }
+	        
+	        if(remainingCandidates.size() <= 5 && remainingCandidates.size() > 1)
+	        {
+	        	if(rand.nextInt(100) < 2)
+	        	{
+	        		contestantNumber = VoterWinSStoreConstants.CHOSEN_ONE;
+	        	}
+	        	else {
+	        		contestantNumber = randomRemainingContestant();
+	        	}
+	        }
+	        contestantNumber = checkVoteControl(contestantNumber);
         }
         
-        long phoneNumber;
-		
-        if(!releasedVotes.isEmpty() && rand.nextInt(100) < VoterWinSStoreConstants.REVOTE_LIKELIHOOD && !controlVote())
+        else
+    	{
+        	contestantNumber = rand.nextInt(VoterWinSStoreConstants.NUM_CONTESTANTS);
+    	}
+        if(!releasedVotes.isEmpty() && !controlVote())
         {
         	phoneNumber = releasedVotes.pop();
-        	int size = remainingCandidates.size();
-        	int item = rand.nextInt(size);
-        	int i = 0;
-        	if(rand.nextInt(100) < VoterWinSStoreConstants.TOP_THREE_LIKELIHOOD && remainingCandidates.size() >= 3)
-        	{
-        		contestantNumber = VoterWinSStoreConstants.TOP_THREE[lastDeleted % 3];
-        	}
         	
-        	
-        	for(Integer val : remainingCandidates)
-        	{
-        		if(i == item){
-        			contestantNumber = val;
-        			break;
-        		}
-        		i++;
-        	}
         }
         else {
         	// Build the phone number
         	phoneNumber = AREA_CODES[areaCodeIndex] * 10000000L + rand.nextInt(10000000);
         }
         
-        if(remainingCandidates.size() == 1)
-    	{
-        	if(rand.nextBoolean())
-        		contestantNumber = VoterWinSStoreConstants.TOP_THREE[rand.nextInt(3)];
-        	else
-        		contestantNumber = rand.nextInt(VoterWinSStoreConstants.NUM_CONTESTANTS);
-    	}
-        
-        contestantNumber = checkVoteControl(contestantNumber);
         PhoneCall toSend = new PhoneCall(this.nextVoteId++, contestantNumber, phoneNumber);
         
         VoterWinSStoreUtil.writeVoteToFile(toSend);

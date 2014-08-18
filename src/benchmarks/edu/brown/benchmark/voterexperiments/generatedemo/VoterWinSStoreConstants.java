@@ -48,6 +48,7 @@ public abstract class VoterWinSStoreConstants {
     													"Serena Ryder,Tamara Sandor,Nicholas Scribner,Shania Twain,Neil Young";
     
     public static final int[] TOP_THREE = {1, 6, 13};
+    public static final int   CHOSEN_ONE = 1;
     
     
     // potential return codes
