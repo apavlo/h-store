@@ -152,7 +152,8 @@ public class PhoneCallGenerator {
 		    }
 			else
 			{
-				hostname = "localhost";
+				hostname = VoterDemoSStoreConstants.LOCAL_HOST;
+				//hostname = "localhost";
 			}
 
 			socket = new Socket(hostname, VoterDemoSStoreConstants.VOTE_PORT_NUM);

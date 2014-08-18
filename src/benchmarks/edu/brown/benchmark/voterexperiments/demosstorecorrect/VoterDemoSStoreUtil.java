@@ -250,7 +250,8 @@ public abstract class VoterDemoSStoreUtil {
 		    }
 			else
 			{
-				hostname = "localhost";
+				hostname = VoterDemoSStoreConstants.LOCAL_HOST;
+				//hostname = "localhost";
 				//return;
 			}
 
