@@ -68,7 +68,7 @@ public final class TPCCConfig {
         for (Entry<String, String> e : params.entrySet()) {
             String key = e.getKey();
             String val = e.getValue();
-            
+
             // FIRST WAREHOUSE ID
             if (key.equalsIgnoreCase("first_warehouse") && !val.isEmpty()) {
                 first_warehouse = Integer.parseInt(val);

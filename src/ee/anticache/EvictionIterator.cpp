@@ -88,15 +88,16 @@ void EvictionIterator::reserve(int64_t amount) {
 
     srand((unsigned int)time(0));
 
-    candidates.clear();
-
     //VOLT_ERROR("evict pick num: %d %d\n", evict_num, pick_num);
     //VOLT_ERROR("active_tuple: %d\n", active_tuple);
     //VOLT_ERROR("block number: %d\n", block_num);
 
     int activeN = 0, evictedN = 0;
+    m_size = 0;
+    current_tuple_id = 0;
 
     if (evict_num < active_tuple) {
+        candidates = new EvictionTuple[pick_num];
         for (int i = 0; i < pick_num; i++) {
             // should we use a faster random generator?
             block_location = rand() % block_num;
@@ -119,10 +120,11 @@ void EvictionIterator::reserve(int64_t amount) {
 
             //printf("here!!\n");
 
-            candidates.insert(make_pair(current_tuple->getTimeStamp(), addr));
-            if (candidates.size() > evict_num) candidates.erase(--candidates.end());
+            candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
+            m_size++;
         }
     } else {
+        candidates = new EvictionTuple[active_tuple];
         for (int i = 0; i < block_num; ++i) { 
             addr = ptable->m_data[i];
             if ((i + 1) * block_size > ptable->usedTupleCount())
@@ -142,8 +144,8 @@ void EvictionIterator::reserve(int64_t amount) {
 
                 VOLT_DEBUG("Flip addr: %p\n", addr);
 
-                candidates.insert(make_pair(current_tuple->getTimeStamp(), addr));
-                addr += tuple_size;
+                candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
+                m_size++;
             }
         }
     }
@@ -155,7 +157,7 @@ void EvictionIterator::reserve(int64_t amount) {
 EvictionIterator::~EvictionIterator()
 {
 #ifdef ANTICACHE_TIMESTAMPS
-    candidates.clear();
+    delete[] candidates;
 #endif
     delete current_tuple;
 }
@@ -178,7 +180,7 @@ bool EvictionIterator::hasNext()
         return false; 
     }
 #else
-    if (candidates.empty())
+    if (current_tuple_id == m_size)
         return false;
 #endif
 
@@ -219,8 +221,10 @@ bool EvictionIterator::next(TableTuple &tuple)
 
     VOLT_DEBUG("current_tuple_id = %d", current_tuple_id);
 #else
-    tuple.move(candidates.begin()->second);
-    candidates.erase(candidates.begin());
+    tuple.move(candidates[current_tuple_id].m_addr);
+    current_tuple_id++;
+    while (current_tuple_id < m_size && candidates[current_tuple_id].m_addr == candidates[current_tuple_id - 1].m_addr)
+        current_tuple_id++;
 #endif
 
     return true; 

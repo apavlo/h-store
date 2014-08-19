@@ -75,6 +75,23 @@ public:
 #ifdef ANTICACHE_TIMESTAMPS
     void reserve(int64_t amount);
 #endif
+
+    class EvictionTuple {
+    public:
+        uint32_t m_timestamp;
+        char *m_addr;
+
+        bool operator < (const EvictionTuple &b) const {
+            if (b.m_timestamp == m_timestamp)
+                return (long)m_addr < (long)b.m_addr;
+            return m_timestamp < b.m_timestamp;
+        }
+
+        void setTuple(uint32_t timestamp, char* addr) {
+            m_timestamp = timestamp;
+            m_addr = addr;
+        }
+    };
     
 private: 
     
@@ -83,7 +100,8 @@ private:
     TableTuple* current_tuple;
     bool is_first; 
 #ifdef ANTICACHE_TIMESTAMPS
-    set <pair <uint32_t, char*> > candidates;
+    EvictionTuple *candidates;
+    int32_t m_size;
 #endif
 }; 
 

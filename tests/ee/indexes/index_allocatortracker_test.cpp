@@ -45,8 +45,6 @@
 #include <time.h>
 #include "boost/scoped_ptr.hpp"
 
-#include "anticache/AntiCacheDB.h"
-
 using namespace std;
 using namespace voltdb;
 using stupidunit::ChTempDir;
