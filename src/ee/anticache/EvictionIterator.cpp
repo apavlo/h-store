@@ -146,10 +146,13 @@ void EvictionIterator::reserve(int64_t amount) {
 
                 candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
                 m_size++;
+               
+                addr += tuple_size;
             }
         }
     }
-    //VOLT_ERROR("Size of eviction candidates: %lu %d %d\n", candidates.size(), activeN, evictedN);
+    sort(candidates, candidates + m_size, less <EvictionTuple>());
+    VOLT_INFO("Size of eviction candidates: %lu %d %d\n", m_size, activeN, evictedN);
 }
 #endif
 
@@ -223,8 +226,10 @@ bool EvictionIterator::next(TableTuple &tuple)
 #else
     tuple.move(candidates[current_tuple_id].m_addr);
     current_tuple_id++;
-    while (current_tuple_id < m_size && candidates[current_tuple_id].m_addr == candidates[current_tuple_id - 1].m_addr)
+    while (candidates[current_tuple_id].m_addr == candidates[current_tuple_id - 1].m_addr) {
         current_tuple_id++;
+        if (current_tuple_id == m_size) break;
+    }
 #endif
 
     return true; 
