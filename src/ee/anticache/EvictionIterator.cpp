@@ -101,7 +101,8 @@ void EvictionIterator::reserve(int64_t amount) {
         bool flag[block_num];
         memset(flag, 0, sizeof(flag));
         int evict_block = pick_num / tuples_per_block;
-        candidates = new EvictionTuple[pick_num];
+        evict_block++;
+        candidates = new EvictionTuple[evict_block * tuples_per_block];
         for (int i = 0; i < evict_block; i++) {
             // should we use a faster random generator?
             block_location = rand() % block_num;
@@ -162,6 +163,8 @@ void EvictionIterator::reserve(int64_t amount) {
         }
     }
     sort(candidates, candidates + m_size, less <EvictionTuple>());
+    //for (int i = 0; i < m_size; ++i)
+        //printf("%u %p | ", candidates[i].m_timestamp, candidates[i].m_addr);
     VOLT_INFO("Size of eviction candidates: %lu %d %d\n", m_size, activeN, evictedN);
 }
 #endif
