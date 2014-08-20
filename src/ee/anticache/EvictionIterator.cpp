@@ -68,6 +68,7 @@ void EvictionIterator::reserve(int64_t amount) {
     int tuple_size = ptable->m_schema->tupleLength() + TUPLE_HEADER_SIZE;
     int active_tuple = (int)ptable->activeTupleCount(); // should be more careful here. what's the typical size? Answer: 256K
     int evict_num = 0;
+    uint32_t tuples_per_block = ptable->m_tuplesPerBlock;
 
     if (active_tuple)	
         evict_num = (int)(amount / (tuple_size + ptable->nonInlinedMemorySize() / active_tuple));
@@ -97,31 +98,40 @@ void EvictionIterator::reserve(int64_t amount) {
     current_tuple_id = 0;
 
     if (evict_num < active_tuple) {
+        bool flag[block_num];
+        memset(flag, 0, sizeof(flag));
+        int evict_block = pick_num / tuples_per_block;
         candidates = new EvictionTuple[pick_num];
-        for (int i = 0; i < pick_num; i++) {
+        for (int i = 0; i < evict_block; i++) {
             // should we use a faster random generator?
             block_location = rand() % block_num;
+            if (flag[block_location])
+                continue;
+
+            flag[block_location] = true;
+
             addr = ptable->m_data[block_location];
             if ((block_location + 1) * block_size > ptable->usedTupleCount())
                 location_size = (int)(ptable->usedTupleCount() - block_location * block_size);
             else
                 location_size = block_size;
-            addr += (rand() % location_size) * tuple_size;
+            for (int j = 0; j < location_size; j++) {
+                current_tuple->move(addr);
+                if (current_tuple->isActive()) activeN++;
+                if (current_tuple->isEvicted()) evictedN++;
 
-            current_tuple->move(addr);
+                if (!current_tuple->isActive() || current_tuple->isEvicted()) {
+                    addr += tuple_size;
+                    continue;
+                }
 
-            VOLT_DEBUG("Flip addr: %p\n", addr);
+                VOLT_DEBUG("Flip addr: %p\n", addr);
 
-            if (current_tuple->isActive()) activeN++;
-            if (current_tuple->isEvicted()) evictedN++;
-
-            if (!current_tuple->isActive() || current_tuple->isEvicted())
-                continue;
-
-            //printf("here!!\n");
-
-            candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
-            m_size++;
+                candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
+                m_size++;
+               
+                addr += tuple_size;
+            }
         }
     } else {
         candidates = new EvictionTuple[active_tuple];
