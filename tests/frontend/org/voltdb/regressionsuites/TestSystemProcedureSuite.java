@@ -66,12 +66,21 @@ public class TestSystemProcedureSuite extends RegressionSuite {
         int num_tables = getCatalogContext().getDataTables().size();
         int num_partitions = getCatalogContext().numberOfPartitions;
         
-        // System.err.println("Row Count: " + results[0].getRowCount());
-        // System.err.println("# of Tables: " + num_tables);
-        // System.err.println("# of Partitions: " + num_partitions);
+        //System.err.println("Row Count: " + results[0].getRowCount());
+        //System.err.println("# of Tables: " + num_tables);
+        //System.err.println("# of Partitions: " + num_partitions);
         
         assertEquals(results[0].getRowCount(), num_partitions * num_tables);
-        // System.out.println("Test statistics table: " + results[0].toString());
+        //System.out.println("Test statistics table: " + results[0].toString());
+    }
+
+    public void testStatistics_IndexStats() throws Exception {
+        Client client = getClient();
+        System.err.println("Status name: " + SysProcSelector.INDEX.name());
+        final VoltTable results[] = client.callProcedure("@Statistics", "index", 0).getResults();
+        assertEquals( 1, results.length);
+        assertTrue( results[0] != null);
+        System.err.println(VoltTableUtil.format(results[0]));
     }
 
 //    public void testStatistics_Procedure() throws Exception {

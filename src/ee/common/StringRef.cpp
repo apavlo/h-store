@@ -49,6 +49,7 @@ StringRef::StringRef(size_t size)
     m_size = size + sizeof(StringRef*);
     m_tempPool = false;
     m_stringPtr = new char[m_size];
+    //printf("m_stringPtr: %p\n", m_stringPtr);
     setBackPtr();
 }
 

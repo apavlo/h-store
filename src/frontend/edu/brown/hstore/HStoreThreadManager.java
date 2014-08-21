@@ -290,8 +290,9 @@ public class HStoreThreadManager {
      * @param work
      * @return
      */
-    public ScheduledFuture<?> scheduleWork(Runnable work) {
-        return this.periodicWorkExecutor.schedule(work, 0, TimeUnit.MILLISECONDS);
+    public void scheduleWork(Runnable work) {
+        //LOG.info("We've scheduled that!");
+        this.periodicWorkExecutor.execute(work);
     }
     
     /**

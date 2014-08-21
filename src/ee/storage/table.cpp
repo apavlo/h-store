@@ -20,7 +20,7 @@
  */
 /* Copyright (C) 2008 by H-Store Project
  * Brown University
- * Massachusetts Institute of Technology
+ * Massachusetts In/stitute of Technology
  * Yale University
  *
  * Permission is hereby granted, free of charge, to any person obtaining

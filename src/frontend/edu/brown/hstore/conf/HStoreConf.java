@@ -710,6 +710,14 @@ public final class HStoreConf {
         	    experimental=false
         )
         public boolean anticache_batching;
+
+        @ConfigProperty(
+            description="Enable the anti-cache timestamps feature. This requires that the system " +
+            		    "is compiled with ${site.anticache_timestamps} set to true.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean anticache_timestamps;
         
         // ----------------------------------------------------------------------------
         // Storage MMAP Options

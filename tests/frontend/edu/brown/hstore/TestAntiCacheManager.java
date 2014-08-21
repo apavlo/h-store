@@ -40,6 +40,8 @@ public class TestAntiCacheManager extends BaseTestCase {
     private static final int NUM_PARTITIONS = 1;
     private static final int NUM_TUPLES = 10;
     private static final String TARGET_TABLE = YCSBConstants.TABLE_NAME;
+
+    private String readBackTracker;
     
     private static final String statsFields[] = {
         "ANTICACHE_TUPLES_EVICTED",
@@ -113,6 +115,7 @@ public class TestAntiCacheManager extends BaseTestCase {
             Object row[] = VoltTableUtil.getRandomRow(catalog_tbl);
             row[0] = i;
             vt.addRow(row);
+            if (i == 1) readBackTracker = row[1].toString();
         } // FOR
         this.executor.loadTable(1000l, catalog_tbl, vt, false);
         
@@ -255,12 +258,15 @@ public class TestAntiCacheManager extends BaseTestCase {
         boolean adv = results[0].advanceRow();
         assertTrue(adv);
         assertEquals(expected, results[0].getLong(0));
+
+        // try to read a content back
+        assertEquals(readBackTracker, results[0].getString(1));
         
         AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
         assertNotNull(profiler);
         assertEquals(1, profiler.evictedaccess_history.size());
 
-	evicted = evictResult.getLong("ANTICACHE_TUPLES_EVICTED");
+        evicted = evictResult.getLong("ANTICACHE_TUPLES_EVICTED");
         assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
     }
         

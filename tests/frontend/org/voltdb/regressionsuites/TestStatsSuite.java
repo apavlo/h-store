@@ -17,6 +17,8 @@ import org.voltdb.benchmark.tpcc.procedures.neworder;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.utils.VoltTableUtil;
+import org.voltdb.catalog.Index;
+import org.voltdb.catalog.Table;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.utils.StringUtil;
@@ -40,7 +42,7 @@ public class TestStatsSuite extends RegressionSuite {
     
     private void checkTupleAccessCount(String tableName, VoltTable result, int expected) {
         int total = 0;
-//        System.err.println(VoltTableUtil.format(result));
+        //System.err.println(VoltTableUtil.format(result));
         while (result.advanceRow()) {
             if (result.getString("TABLE_NAME").equalsIgnoreCase(tableName)) {
                 total += result.getLong("TUPLE_ACCESSES");
@@ -48,7 +50,8 @@ public class TestStatsSuite extends RegressionSuite {
         } // WHILE
         assertEquals(expected, total);
     }
-    
+
+
     /**
      * testTupleAccessCountIndex
      */
@@ -153,7 +156,43 @@ public class TestStatsSuite extends RegressionSuite {
         } // FOR
         System.out.println(StringUtil.formatMaps(profilerStats));
     }
-    
+
+    /**
+     * testIndexStats
+     */
+    public void testIndexStats() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
+
+        ClientResponse cresponse = RegressionSuiteUtil.getStats(client, SysProcSelector.INDEX);
+        assertNotNull(cresponse);
+        assertEquals(Status.OK, cresponse.getStatus());
+
+        // Loop through each table and make sure that each index reports back at least
+        // some amount of data.
+        VoltTable result = cresponse.getResults()[0];
+        for (Table tbl : catalogContext.getDataTables()) {
+            if (tbl.getIndexes().isEmpty()) continue;
+
+            for (Index idx : tbl.getIndexes()) {
+                result.resetRowPosition();
+                while (result.advanceRow()) {
+                    String idxName = result.getString("INDEX_NAME");
+                    String tblName = result.getString("TABLE_NAME");
+                    String idxType = result.getString("INDEX_TYPE");
+                    long entryCount= result.getLong("ENTRY_COUNT");
+                    if (tbl.getName().equalsIgnoreCase(tblName) && idx.getName().equalsIgnoreCase(idxName)) {
+                        long memoryEstimate = result.getLong("MEMORY_ESTIMATE");
+                        //System.err.println(tblName + "------" + entryCount + "-------" + idxName + "------" + idxType + "---------" + memoryEstimate);
+                        assert(memoryEstimate > 0) :
+                            String.format("Unexpected zero memory estimate for index %s.%s", tblName, idxName);
+                    }
+                } // WHILE
+            } // FOR
+        } // FOR
+    }
+
 
     public static Test suite() {
         // the suite made here will all be using the tests from this class
@@ -168,10 +207,10 @@ public class TestStatsSuite extends RegressionSuite {
         project.addAllDefaults();
         project.addStmtProcedure("GetItemIndex", "SELECT * FROM " + TPCCConstants.TABLENAME_ITEM + " WHERE I_ID = ?");
         project.addStmtProcedure("GetItemNoIndex", "SELECT * FROM " + TPCCConstants.TABLENAME_ITEM + " LIMIT 1");
-        
+
         VoltServerConfig config;
         boolean success;
-        
+
         /////////////////////////////////////////////////////////////
         // CONFIG #1: 1 Local Site/Partition running on JNI backend
         /////////////////////////////////////////////////////////////
@@ -179,7 +218,7 @@ public class TestStatsSuite extends RegressionSuite {
         success = config.compile(project);
         assert(success);
         builder.addServerConfig(config);
-        
+
         /////////////////////////////////////////////////////////////
         // CONFIG #2: 1 Local Site with 2 Partitions running on JNI backend
         /////////////////////////////////////////////////////////////

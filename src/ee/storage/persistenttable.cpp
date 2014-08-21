@@ -103,7 +103,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_COWContext(NULL)
 {
 
-    #ifdef ANTICACHE
+#ifdef ANTICACHE
     m_evictedTable = NULL;
     m_unevictedTuples = NULL; 
     m_numUnevictedTuples = 0;
@@ -112,12 +112,12 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_numTuplesInEvictionChain = 0;
     m_blockMerge = true;
     m_batchEvicted = false;
-    #endif
+#endif
 
     if (exportEnabled) {
         m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,
-                                           m_executorContext->m_siteId,
-                                           m_executorContext->m_lastTickTime);
+                m_executorContext->m_siteId,
+                m_executorContext->m_lastTickTime);
     }
 
     m_pool = new Pool();
@@ -130,7 +130,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, const std::string name, b
     m_COWContext(NULL)
 {
 
-    #ifdef ANTICACHE
+#ifdef ANTICACHE
     m_evictedTable = NULL;
     m_unevictedTuples = NULL;
     m_numUnevictedTuples = 0;
@@ -139,23 +139,23 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, const std::string name, b
     m_numTuplesInEvictionChain = 0;
     m_blockMerge = true;
     m_batchEvicted = false;
-    #endif
+#endif
 
     if (exportEnabled) {
         m_wrapper = new TupleStreamWrapper(m_executorContext->m_partitionId,
-                                           m_executorContext->m_siteId,
-                                           m_executorContext->m_lastTickTime);
+                m_executorContext->m_siteId,
+                m_executorContext->m_lastTickTime);
     }
 
-     /**
-      *  Choosing whether to use malloc Pool or MMAP Pool
-      */
+    /**
+     *  Choosing whether to use malloc Pool or MMAP Pool
+     */
     const size_t DEFAULT_MMAP_SIZE = 256 * 1024 * 1024;
 
     if(m_executorContext->isMMAPEnabled() == false)
-      m_pool = new Pool();
+        m_pool = new Pool();
     else
-      m_pool = new Pool(DEFAULT_MMAP_SIZE, 1024, m_executorContext->getDBDir()+"/"+name, true); // Need a name - backed by a file
+        m_pool = new Pool(DEFAULT_MMAP_SIZE, 1024, m_executorContext->getDBDir()+"/"+name, true); // Need a name - backed by a file
 }
 
 PersistentTable::~PersistentTable() {
@@ -168,7 +168,7 @@ PersistentTable::~PersistentTable() {
         tuple.freeObjectColumns();
         tuple.setDeletedTrue();
     }
-    
+
     for (int i = 0; i < m_indexCount; ++i) {
         TableIndex *index = m_indexes[i];
         if (index != m_pkeyIndex) {
@@ -192,7 +192,7 @@ PersistentTable::~PersistentTable() {
 
     delete m_wrapper;
 }
-    
+
 // ------------------------------------------------------------------
 // ANTI-CACHE
 // ------------------------------------------------------------------ 
@@ -203,7 +203,7 @@ void PersistentTable::setEvictedTable(voltdb::Table *evictedTable) {
     VOLT_INFO("Initialized EvictedTable for table '%s'", this->name().c_str());
     m_evictedTable = evictedTable;
 }
-    
+
 voltdb::Table* PersistentTable::getEvictedTable() {
     return m_evictedTable; 
 }
@@ -221,12 +221,12 @@ void PersistentTable::setNumTuplesInEvictionChain(int num_tuples)
 {
     m_numTuplesInEvictionChain = num_tuples; 
 }
-    
+
 int PersistentTable::getNumTuplesInEvictionChain()
 {
     return m_numTuplesInEvictionChain;  
 }
-    
+
 void PersistentTable::setNewestTupleID(uint32_t id)
 {
     m_newestTupleID = id; 
@@ -388,8 +388,9 @@ void PersistentTable::clearMergeTupleOffsets()
 {
     m_mergeTupleOffset.clear();
 }
+
 int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset){
-TableTuple evicted_tuple = m_evictedTable->tempTuple();
+    TableTuple evicted_tuple = m_evictedTable->tempTuple();
     // get a free tuple and increment the count of tuples current used
     nextFreeTuple(&m_tmpTarget1);
     m_tupleCount++;
@@ -409,6 +410,7 @@ TableTuple evicted_tuple = m_evictedTable->tempTuple();
     // update the indexes to point to this newly unevicted tuple
     VOLT_TRACE("BEFORE: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
     setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
+    updateStringMemory((int)m_tmpTarget1.getNonInlinedMemorySize());
 
     //deleteFromAllIndexes(&m_tmpTarget1);
     //insertTuple(m_tmpTarget1);
@@ -417,7 +419,7 @@ TableTuple evicted_tuple = m_evictedTable->tempTuple();
     VOLT_TRACE("AFTER: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
     VOLT_DEBUG("Merged Tuple: %s", m_tmpTarget1.debug(name()).c_str());
     //VOLT_INFO("tuple size: %d, non-inlined memory size: %d", m_tmpTarget1.tupleLength(), m_tmpTarget1.getNonInlinedMemorySize());
-AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+    AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
     // re-insert the tuple back into the eviction chain
     if(j == merge_tuple_offset)  // put it at the back of the chain
         eviction_manager->updateTuple(this, &m_tmpTarget1, true);
@@ -458,7 +460,7 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     // not null checks at first
     FAIL_IF(!checkNulls(source)) {
         throw ConstraintFailureException(this, source, TableTuple(),
-                                         voltdb::CONSTRAINT_TYPE_NOT_NULL);
+                voltdb::CONSTRAINT_TYPE_NOT_NULL);
     }
 
     //
@@ -496,14 +498,14 @@ bool PersistentTable::insertTuple(TableTuple &source) {
         m_tmpTarget1.freeObjectColumns();
         deleteTupleStorage(m_tmpTarget1);
         throw ConstraintFailureException(this, source, TableTuple(),
-                                         voltdb::CONSTRAINT_TYPE_UNIQUE);
+                voltdb::CONSTRAINT_TYPE_UNIQUE);
     }
 
     // if EL is enabled, append the tuple to the buffer
     // exportxxx: memoizing this more cache friendly?
     if (m_exportEnabled) {
         elMark =
-          appendToELBuffer(m_tmpTarget1, m_tsSeqNo++, TupleStreamWrapper::INSERT);
+            appendToELBuffer(m_tmpTarget1, m_tsSeqNo++, TupleStreamWrapper::INSERT);
     }
 
     if (m_schema->getUninlinedObjectColumnCount() != 0)
@@ -518,15 +520,15 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     voltdb::Pool *pool = undoQuantum->getDataPool();
     assert(pool);
     voltdb::PersistentTableUndoInsertAction *ptuia =
-      new (pool->allocate(sizeof(voltdb::PersistentTableUndoInsertAction)))
-      voltdb::PersistentTableUndoInsertAction(m_tmpTarget1, this, pool, elMark);
+        new (pool->allocate(sizeof(voltdb::PersistentTableUndoInsertAction)))
+        voltdb::PersistentTableUndoInsertAction(m_tmpTarget1, this, pool, elMark);
     undoQuantum->registerUndoAction(ptuia);
     VOLT_DEBUG("Registered UndoAction for new tuple in table '%s'", name().c_str());
 
     // handle any materialized views
     for (int i = 0; i < m_views.size(); i++) {
         VOLT_DEBUG("Inserting tuple from %s into materialized view %s [%d]",
-                   m_name.c_str(), m_views[i]->name().c_str(), i);
+                m_name.c_str(), m_views[i]->name().c_str(), i);
         m_views[i]->processTupleInsert(source);
     }
 
@@ -549,8 +551,8 @@ void PersistentTable::insertTupleForUndo(TableTuple &source, size_t wrapperOffse
     // not null checks at first
     if (!checkNulls(source)) {
         throwFatalException("Failed to insert tuple into table %s for undo:"
-                            " null constraint violation\n%s\n", m_name.c_str(),
-                            source.debugNoHeader().c_str());
+                " null constraint violation\n%s\n", m_name.c_str(),
+                source.debugNoHeader().c_str());
     }
 
     // rollback Export
@@ -586,8 +588,8 @@ void PersistentTable::insertTupleForUndo(TableTuple &source, size_t wrapperOffse
     if (!tryInsertOnAllIndexes(&m_tmpTarget1)) {
         deleteTupleStorage(m_tmpTarget1);
         throwFatalException("Failed to insert tuple into table %s for undo:"
-                            " unique constraint violation\n%s\n", m_name.c_str(),
-                            m_tmpTarget1.debugNoHeader().c_str());
+                " unique constraint violation\n%s\n", m_name.c_str(),
+                m_tmpTarget1.debugNoHeader().c_str());
     }
 
     if (m_exportEnabled) {
@@ -611,17 +613,17 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
      * Create and register an undo action and then use the copy of
      * the target (old value with no updates)
      */
-     voltdb::UndoQuantum *undoQuantum = m_executorContext->getCurrentUndoQuantum();
-     assert(undoQuantum);
-     voltdb::Pool *pool = undoQuantum->getDataPool();
-     assert(pool);
-     voltdb::PersistentTableUndoUpdateAction *ptuua =
-       new (pool->allocate(sizeof(voltdb::PersistentTableUndoUpdateAction)))
-       voltdb::PersistentTableUndoUpdateAction(target, this, pool);
+    voltdb::UndoQuantum *undoQuantum = m_executorContext->getCurrentUndoQuantum();
+    assert(undoQuantum);
+    voltdb::Pool *pool = undoQuantum->getDataPool();
+    assert(pool);
+    voltdb::PersistentTableUndoUpdateAction *ptuua =
+        new (pool->allocate(sizeof(voltdb::PersistentTableUndoUpdateAction)))
+        voltdb::PersistentTableUndoUpdateAction(target, this, pool);
 
-     if (m_COWContext.get() != NULL) {
-         m_COWContext->markTupleDirty(target, false);
-     }
+    if (m_COWContext.get() != NULL) {
+        m_COWContext->markTupleDirty(target, false);
+    }
 
     if (m_schema->getUninlinedObjectColumnCount() != 0)
     {
@@ -629,31 +631,31 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
         m_nonInlinedMemorySize += source.getNonInlinedMemorySize();
     }
 
-     source.setDeletedFalse();
-     //Copy the dirty status that was set by markTupleDirty.
-     if (target.isDirty()) {
-         source.setDirtyTrue();
-     } else {
-         source.setDirtyFalse();
-     }
+    source.setDeletedFalse();
+    //Copy the dirty status that was set by markTupleDirty.
+    if (target.isDirty()) {
+        source.setDirtyTrue();
+    } else {
+        source.setDirtyFalse();
+    }
 
-     /** TODO : Not Using MMAP pool **/
-     target.copyForPersistentUpdate(source, NULL);
+    /** TODO : Not Using MMAP pool **/
+    target.copyForPersistentUpdate(source, NULL);
 
-     ptuua->setNewTuple(target, pool);
+    ptuua->setNewTuple(target, pool);
 
-     if (!undoQuantum->isDummy()) {
-         //DummyUndoQuantum calls destructor upon register.
-         undoQuantum->registerUndoAction(ptuua);
-     }
+    if (!undoQuantum->isDummy()) {
+        //DummyUndoQuantum calls destructor upon register.
+        undoQuantum->registerUndoAction(ptuua);
+    }
 
     // the planner should determine if this update can affect indexes.
     // if so, update the indexes here
     if (updatesIndexes) {
         if (!tryUpdateOnAllIndexes(ptuua->getOldTuple(), target)) {
             throw ConstraintFailureException(this, ptuua->getOldTuple(),
-                                             target,
-                                             voltdb::CONSTRAINT_TYPE_UNIQUE);
+                    target,
+                    voltdb::CONSTRAINT_TYPE_UNIQUE);
         }
 
         //If the CFE is thrown the Undo action should not attempt to revert the
@@ -681,8 +683,8 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
      */
     FAIL_IF(!checkNulls(target)) {
         throw ConstraintFailureException(this, ptuua->getOldTuple(),
-                                         target,
-                                         voltdb::CONSTRAINT_TYPE_NOT_NULL);
+                target,
+                voltdb::CONSTRAINT_TYPE_NOT_NULL);
     }
 
     if (undoQuantum->isDummy()) {
@@ -690,7 +692,7 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
         //earlier
         undoQuantum->registerUndoAction(ptuua);
     }
-    
+
 #ifdef ANTICACHE
     if(m_evictedTable != NULL)
     {
@@ -713,7 +715,7 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
  * data ptr that will be used as the value in the index.
  */
 void PersistentTable::updateTupleForUndo(TableTuple &source, TableTuple &target,
-                                         bool revertIndexes, size_t wrapperOffset) {
+        bool revertIndexes, size_t wrapperOffset) {
     if (m_schema->getUninlinedObjectColumnCount() != 0)
     {
         m_nonInlinedMemorySize -= target.getNonInlinedMemorySize();
@@ -745,9 +747,9 @@ void PersistentTable::updateTupleForUndo(TableTuple &source, TableTuple &target,
         if (!tryUpdateOnAllIndexes(targetBackup, target)) {
             // TODO: this might be too strict. see insertTuple()
             throwFatalException("Failed to update tuple in table %s for undo:"
-                                " unique constraint violation\n%s\n%s\n", m_name.c_str(),
-                                targetBackup.debugNoHeader().c_str(),
-                                target.debugNoHeader().c_str());
+                    " unique constraint violation\n%s\n%s\n", m_name.c_str(),
+                    targetBackup.debugNoHeader().c_str(),
+                    target.debugNoHeader().c_str());
         }
         updateFromAllIndexes(targetBackup, target);
     }
@@ -763,10 +765,12 @@ bool PersistentTable::deleteTuple(TableTuple &target, bool deleteAllocatedString
 
     // The tempTuple is forever!
     assert(&target != &m_tempTuple);
-    
+
 #ifdef ANTICACHE
+#ifndef ANTICACHE_TIMESTAMPS
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
     eviction_manager->removeTuple(this, &target); 
+#endif
 #endif
 
     // Just like insert, we want to remove this tuple from all of our indexes
@@ -817,8 +821,8 @@ void PersistentTable::deleteTupleForUndo(voltdb::TableTuple &tupleCopy, size_t w
     TableTuple target = lookupTuple(tupleCopy);
     if (target.isNullTuple()) {
         throwFatalException("Failed to delete tuple from table %s:"
-                            " tuple does not exist\n%s\n", m_name.c_str(),
-                            tupleCopy.debugNoHeader().c_str());
+                " tuple does not exist\n%s\n", m_name.c_str(),
+                tupleCopy.debugNoHeader().c_str());
     }
     else {
         // Make sure that they are not trying to delete the same tuple twice
@@ -851,14 +855,14 @@ voltdb::TableTuple PersistentTable::lookupTuple(TableTuple tuple) {
 
     voltdb::TableIndex *pkeyIndex = primaryKeyIndex();
     if (pkeyIndex == NULL) {
-        
+
         // try secondary indexes
         for (int i = m_indexCount - 1; i >= 0;--i) {
             if (m_indexes[i]->moveToTuple(&tuple)) {
                 return m_indexes[i]->nextValueAtKey();
             }
         }
-        
+
         /*
          * Do a table scan.
          */
@@ -899,8 +903,8 @@ void PersistentTable::deleteFromAllIndexes(TableTuple *tuple) {
     for (int i = m_indexCount - 1; i >= 0;--i) {
         if (!m_indexes[i]->deleteEntry(tuple)) {
             throwFatalException("Failed to delete tuple from index %s.%s [%s]",
-                                name().c_str(), m_indexes[i]->getName().c_str(),
-                                m_indexes[i]->getTypeName().c_str());
+                    name().c_str(), m_indexes[i]->getName().c_str(),
+                    m_indexes[i]->getTypeName().c_str());
         }
     }
 }
@@ -913,7 +917,7 @@ void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableT
         }
     }
 }
-    
+
 void PersistentTable::setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
         VOLT_DEBUG("Updating tuple address in index %s.%s [%s]",
@@ -922,8 +926,8 @@ void PersistentTable::setEntryToNewAddressForAllIndexes(const TableTuple *tuple,
         if (!m_indexes[i]->setEntryToNewAddress(tuple, address)) {
             VOLT_ERROR("ERROR: Failed to update tuple to new address!");
             throwFatalException("Failed to update tuple to new address in index %s.%s [%s]",
-                                name().c_str(), m_indexes[i]->getName().c_str(),
-                                m_indexes[i]->getTypeName().c_str());
+                    name().c_str(), m_indexes[i]->getName().c_str(),
+                    m_indexes[i]->getTypeName().c_str());
         }
     }
 }
@@ -951,7 +955,7 @@ bool PersistentTable::tryUpdateOnAllIndexes(TableTuple &targetTuple, const Table
         // if there is a change, the new_key has to be checked
         FAIL_IF (m_uniqueIndexes[i]->exists(&sourceTuple)) {
             VOLT_WARN("Unique Index '%s' complained to the update",
-                      m_uniqueIndexes[i]->debug().c_str());
+                    m_uniqueIndexes[i]->debug().c_str());
             return false; // cannot insert the new value
         }
     }
@@ -975,6 +979,11 @@ bool PersistentTable::checkNulls(TableTuple &tuple) const {
 void PersistentTable::addMaterializedView(MaterializedViewMetadata *view) {
     m_views.push_back(view);
 }
+
+void PersistentTable::updateStringMemory(int tupleStringMemorySize) {
+    m_nonInlinedMemorySize += tupleStringMemorySize;
+}
+
 
 // ------------------------------------------------------------------
 // UTILITY
@@ -1047,14 +1056,14 @@ void PersistentTable::onSetColumns() {
  * to do additional processing for views and Export
  */
 void PersistentTable::processLoadedTuple(bool allowExport, TableTuple &tuple) {
-    
+
     //VOLT_INFO("in processLoadedTuple()."); 
-    
+
 #ifdef ANTICACHE
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
     eviction_manager->updateTuple(this, &m_tmpTarget1, true); 
 #endif
-    
+
     // handle any materialized views
     for (int i = 0; i < m_views.size(); i++) {
         m_views[i]->processTupleInsert(m_tmpTarget1);
@@ -1063,9 +1072,9 @@ void PersistentTable::processLoadedTuple(bool allowExport, TableTuple &tuple) {
     // if EL is enabled, append the tuple to the buffer
     if (allowExport && m_exportEnabled) {
         appendToELBuffer(m_tmpTarget1, m_tsSeqNo++,
-                         TupleStreamWrapper::INSERT);
+                TupleStreamWrapper::INSERT);
     }
-    
+
     // Account for non-inlined memory allocated via bulk load or recovery
     if (m_schema->getUninlinedObjectColumnCount() != 0)
     {
@@ -1090,13 +1099,13 @@ void PersistentTable::populateIndexes(int tupleCount)
 }
 
 size_t PersistentTable::appendToELBuffer(TableTuple &tuple, int64_t seqNo,
-                                         TupleStreamWrapper::Type type) {
+        TupleStreamWrapper::Type type) {
 
     return m_wrapper->appendTuple(m_executorContext->m_lastCommittedTxnId,
-                                  m_executorContext->currentTxnId(),
-                                  seqNo,
-                                  m_executorContext->currentTxnTimestamp(),
-                                  tuple, type);
+            m_executorContext->currentTxnId(),
+            seqNo,
+            m_executorContext->currentTxnTimestamp(),
+            tuple, type);
 }
 
 /**
@@ -1107,13 +1116,13 @@ void PersistentTable::flushOldTuples(int64_t timeInMillis)
 {
     if (m_exportEnabled && m_wrapper) {
         m_wrapper->periodicFlush(timeInMillis,
-                                 m_executorContext->m_lastTickTime,
-                                 m_executorContext->m_lastCommittedTxnId,
-                                 m_executorContext->currentTxnId());
+                m_executorContext->m_lastTickTime,
+                m_executorContext->m_lastCommittedTxnId,
+                m_executorContext->currentTxnId());
     }
 }
 
-StreamBlock*
+    StreamBlock*
 PersistentTable::getCommittedExportBytes()
 {
     if (m_exportEnabled && m_wrapper)
@@ -1123,7 +1132,7 @@ PersistentTable::getCommittedExportBytes()
     return NULL;
 }
 
-bool
+    bool
 PersistentTable::releaseExportBytes(int64_t releaseOffset)
 {
     if (m_exportEnabled && m_wrapper)
@@ -1133,7 +1142,7 @@ PersistentTable::releaseExportBytes(int64_t releaseOffset)
     return false;
 }
 
-void
+    void
 PersistentTable::resetPollMarker()
 {
     if (m_exportEnabled && m_wrapper)
@@ -1209,18 +1218,18 @@ void PersistentTable::nextRecoveryMessage(ReferenceSerializeOutput *out) {
  */
 void PersistentTable::processRecoveryMessage(RecoveryProtoMsg* message, Pool *pool, bool allowExport) {
     switch (message->msgType()) {
-    case voltdb::RECOVERY_MSG_TYPE_SCAN_TUPLES: {
-        if (activeTupleCount() == 0) {
-            uint32_t tupleCount = message->totalTupleCount();
-            for (int i = 0; i < m_indexCount; i++) {
-                m_indexes[i]->ensureCapacity(tupleCount);
-            }
-        }
-        loadTuplesFromNoHeader( allowExport, *message->stream(), pool);
-        break;
-    }
-    default:
-        throwFatalException("Attempted to process a recovery message of unknown type %d", message->msgType());
+        case voltdb::RECOVERY_MSG_TYPE_SCAN_TUPLES: {
+                                                        if (activeTupleCount() == 0) {
+                                                            uint32_t tupleCount = message->totalTupleCount();
+                                                            for (int i = 0; i < m_indexCount; i++) {
+                                                                m_indexes[i]->ensureCapacity(tupleCount);
+                                                            }
+                                                        }
+                                                        loadTuplesFromNoHeader( allowExport, *message->stream(), pool);
+                                                        break;
+                                                    }
+        default:
+                                                    throwFatalException("Attempted to process a recovery message of unknown type %d", message->msgType());
     }
 }
 
@@ -1242,11 +1251,11 @@ size_t PersistentTable::hashCode() {
 
     size_t hashCode = 0;
     while (true) {
-         tuple = pkeyIndex->nextValue();
-         if (tuple.isNullTuple()) {
-             break;
-         }
-         tuple.hashCode(hashCode);
+        tuple = pkeyIndex->nextValue();
+        if (tuple.isNullTuple()) {
+            break;
+        }
+        tuple.hashCode(hashCode);
     }
     return hashCode;
 }

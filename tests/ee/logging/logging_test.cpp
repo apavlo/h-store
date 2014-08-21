@@ -131,6 +131,7 @@ TEST_F(LoggingTest, TestLoggerUsesProxyLevels) {
         }
     }
 }
+
 int main() {
     return TestSuite::globalInstance()->runAll();
 }
