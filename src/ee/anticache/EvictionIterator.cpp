@@ -61,26 +61,32 @@ EvictionIterator::EvictionIterator(Table *t)
 }
 
 #ifdef ANTICACHE_TIMESTAMPS
+/**
+ * Reserve some tuples when an eviction requested.
+ */
 void EvictionIterator::reserve(int64_t amount) {
-    //printf("amount: %ld\n", amount);
+    VOLT_DEBUG("amount: %ld\n", amount);
+
     char* addr = NULL;
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
     int tuple_size = ptable->m_schema->tupleLength() + TUPLE_HEADER_SIZE;
-    int active_tuple = (int)ptable->activeTupleCount(); // should be more careful here. what's the typical size? Answer: 256K
+    int active_tuple = (int)ptable->activeTupleCount();
     int evict_num = 0;
-    uint32_t tuples_per_block = ptable->m_tuplesPerBlock;
+    //uint32_t tuples_per_block = ptable->m_tuplesPerBlock;
 
     if (active_tuple)	
         evict_num = (int)(amount / (tuple_size + ptable->nonInlinedMemorySize() / active_tuple));
     else 
         evict_num = (int)(amount / tuple_size);
-    //printf("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
+
+    VOLT_DEBUG("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
 
     if (evict_num > active_tuple)
         evict_num = active_tuple;
 
-    //int pick_num = evict_num * RANDOM_SCALE;
-    // TODO: If pick_num is too big or evict_num is too small, should we use scanning instead?
+    // TODO: there's another block-sample strategy, but it does not get good accuracy of selecting cold data.
+    // If we use that, the throughput of VOTER can increases from 55,000 to 59,000, but IO of other experiments increases a lot
+    int pick_num = evict_num * RANDOM_SCALE;
 
     int block_num = (int)ptable->m_data.size();
     int block_size = ptable->m_tuplesPerBlock;
@@ -89,51 +95,42 @@ void EvictionIterator::reserve(int64_t amount) {
 
     srand((unsigned int)time(0));
 
-    //VOLT_ERROR("evict pick num: %d %d\n", evict_num, pick_num);
-    //VOLT_ERROR("active_tuple: %d\n", active_tuple);
-    //VOLT_ERROR("block number: %d\n", block_num);
+    VOLT_INFO("evict pick num: %d %d\n", evict_num, pick_num);
+    VOLT_INFO("active_tuple: %d\n", active_tuple);
+    VOLT_INFO("block number: %d\n", block_num);
 
     int activeN = 0, evictedN = 0;
     m_size = 0;
     current_tuple_id = 0;
 
+    // If we'll evict the entire table, we should do a scan instead of sampling.
+    // The main reason we should do that is to past the test...
     if (evict_num < active_tuple) {
-        bool flag[block_num];
-        memset(flag, 0, sizeof(flag));
-        int evict_block = evict_num / tuples_per_block;
-        evict_block++;
-        evict_block *= RANDOM_SCALE;
-        candidates = new EvictionTuple[evict_block * tuples_per_block];
-        for (int i = 0; i < evict_block; i++) {
+        candidates = new EvictionTuple[pick_num];
+        for (int i = 0; i < pick_num; i++) {
             // should we use a faster random generator?
             block_location = rand() % block_num;
-            if (flag[block_location])
-                continue;
-
-            flag[block_location] = true;
-
             addr = ptable->m_data[block_location];
             if ((block_location + 1) * block_size > ptable->usedTupleCount())
                 location_size = (int)(ptable->usedTupleCount() - block_location * block_size);
             else
                 location_size = block_size;
-            for (int j = 0; j < location_size; j++) {
-                current_tuple->move(addr);
-                if (current_tuple->isActive()) activeN++;
-                if (current_tuple->isEvicted()) evictedN++;
+            addr += (rand() % location_size) * tuple_size;
 
-                if (!current_tuple->isActive() || current_tuple->isEvicted()) {
-                    addr += tuple_size;
-                    continue;
-                }
+            current_tuple->move(addr);
 
-                VOLT_DEBUG("Flip addr: %p\n", addr);
+            VOLT_DEBUG("Flip addr: %p\n", addr);
 
-                candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
-                m_size++;
-               
-                addr += tuple_size;
-            }
+            if (current_tuple->isActive()) activeN++;
+            if (current_tuple->isEvicted()) evictedN++;
+
+            if (!current_tuple->isActive() || current_tuple->isEvicted())
+                continue;
+
+            //printf("here!!\n");
+
+            candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
+            m_size++;
         }
     } else {
         candidates = new EvictionTuple[active_tuple];
@@ -154,18 +151,17 @@ void EvictionIterator::reserve(int64_t amount) {
                     continue;
                 }
 
-                VOLT_DEBUG("Flip addr: %p\n", addr);
+                VOLT_TRACE("Flip addr: %p\n", addr);
 
                 candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
                 m_size++;
-               
+
                 addr += tuple_size;
             }
         }
     }
     sort(candidates, candidates + m_size, less <EvictionTuple>());
-    //for (int i = 0; i < m_size; ++i)
-        //printf("%u %p | ", candidates[i].m_timestamp, candidates[i].m_addr);
+
     VOLT_INFO("Size of eviction candidates: %lu %d %d\n", m_size, activeN, evictedN);
 }
 #endif
@@ -181,10 +177,10 @@ EvictionIterator::~EvictionIterator()
 
 bool EvictionIterator::hasNext()
 {        
-    //printf("Size: %lu\n", candidates.size());
+    VOLT_DEBUG("Size: %lu\n", m_size);
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
 
-    //printf("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
+    VOLT_DEBUG("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
 
     if(ptable->usedTupleCount() == 0)
         return false; 

@@ -91,7 +91,7 @@ public:
     bool replaceEntry(const TableTuple* oldTupleValue,
                       const TableTuple* newTupleValue)
     {
-        //printf("Do they ever replace Entry?\n");
+        VOLT_TRACE("Do they ever replace Entry?\n");
         // this can probably be optimized
         m_tmp1.setFromTuple(oldTupleValue, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(newTupleValue, column_indices_, m_keySchema);

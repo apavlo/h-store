@@ -70,12 +70,14 @@ TableIndex::TableIndex(const TableIndexScheme &scheme) : m_scheme(scheme), m_sta
 
     // initialize memory size to zero
     m_memoryEstimate = 0;
-    //printf("Index created2: %s %d\n", getName().c_str(), m_id);
+
+    VOLT_TRACE("Index created2: %s %d\n", getName().c_str(), m_id);
 }
 
 TableIndex::~TableIndex()
 {
-    //printf("Index destructed: %s %d\n", getName().c_str(), m_id);
+    VOLT_TRACE("Index destructed: %s %d\n", getName().c_str(), m_id);
+
     delete[] column_indices_;
     delete[] column_types_;
     voltdb::TupleSchema::freeTupleSchema(m_keySchema);

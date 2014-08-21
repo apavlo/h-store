@@ -71,7 +71,8 @@ public:
     };
 
     bool addEntry(const TableTuple *tuple) {
-        //printf("Do they ever add Entry?\n");
+        VOLT_TRACE("Do they ever add Entry?\n");
+
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return addEntryPrivate(tuple, m_tmp1);
     }
@@ -82,7 +83,8 @@ public:
     }
 
     bool replaceEntry(const TableTuple *oldTupleValue, const TableTuple* newTupleValue) {
-        //printf("Do they ever replace Entry?\n");
+        VOLT_TRACE("Do they ever replace Entry?\n");
+
         // this can probably be optimized
         m_tmp1.setFromTuple(oldTupleValue, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(newTupleValue, column_indices_, m_keySchema);

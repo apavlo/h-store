@@ -165,6 +165,7 @@ bool AntiCacheEvictionManager::updateUnevictedTuple(PersistentTable* table, Tabl
     ++tuples_in_chain; 
     table->setNumTuplesInEvictionChain(tuples_in_chain); 
 #else
+    // set timestamp to the coldest
     tuple->setColdTimeStamp();
 #endif
     
@@ -249,6 +250,7 @@ bool AntiCacheEvictionManager::updateTuple(PersistentTable* table, TableTuple* t
 
     table->setNumTuplesInEvictionChain(tuples_in_chain);
 #else
+    // set timestamp to the hotest
     TableTuple update_tuple(tuple->address(), table->m_schema);
     update_tuple.setTimeStamp();
 #endif
