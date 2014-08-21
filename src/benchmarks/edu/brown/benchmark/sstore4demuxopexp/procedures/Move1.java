@@ -39,7 +39,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.benchmark.sstore4demuxopexp.SStore4DemuxOpExpConstants;
 
 @ProcInfo (
-	partitionInfo = "s11.part_id:0",
+	partitionInfo = "s101.part_id:0",
 	partitionNum = 1,
 	singlePartition = true
 )
@@ -48,19 +48,19 @@ public class Move1 extends VoltProcedure {
 	
 	protected void toSetTriggerTableName()
 	{
-		addTriggerTable("s11");
+		addTriggerTable("s101");
 	}
 	
 	public final SQLStmt pullFromS1 = new SQLStmt(
-		"SELECT vote_id, part_id FROM s11 WHERE part_id=0;"
+		"SELECT vote_id, part_id FROM s101 WHERE part_id=0;"
 	);
 	
     public final SQLStmt ins1primeStmt = new SQLStmt(
-	   "INSERT INTO s21 (vote_id, part_id) VALUES (?, ?);"
+	   "INSERT INTO s201 (vote_id, part_id) VALUES (?, ?);"
     );
     
     public final SQLStmt clearS1 = new SQLStmt(
-    	"DELETE FROM s11 WHERE part_id=0;"
+    	"DELETE FROM s101 WHERE part_id=0;"
     );
     
     public long run(int part_id) {
