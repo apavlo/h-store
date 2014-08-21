@@ -79,7 +79,7 @@ void EvictionIterator::reserve(int64_t amount) {
     if (evict_num > active_tuple)
         evict_num = active_tuple;
 
-    int pick_num = evict_num * RANDOM_SCALE;
+    //int pick_num = evict_num * RANDOM_SCALE;
     // TODO: If pick_num is too big or evict_num is too small, should we use scanning instead?
 
     int block_num = (int)ptable->m_data.size();
@@ -100,8 +100,9 @@ void EvictionIterator::reserve(int64_t amount) {
     if (evict_num < active_tuple) {
         bool flag[block_num];
         memset(flag, 0, sizeof(flag));
-        int evict_block = pick_num / tuples_per_block;
+        int evict_block = evict_num / tuples_per_block;
         evict_block++;
+        evict_block *= RANDOM_SCALE;
         candidates = new EvictionTuple[evict_block * tuples_per_block];
         for (int i = 0; i < evict_block; i++) {
             // should we use a faster random generator?
