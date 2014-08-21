@@ -47,6 +47,7 @@
 #include "anticache/EvictionIterator.h"
 #include "storage/persistenttable.h"
 
+// that's the factor indicate how many times the number of the tuple we'll sample comparing to we request
 #define RANDOM_SCALE 4
 
 namespace voltdb {
@@ -86,6 +87,9 @@ void EvictionIterator::reserve(int64_t amount) {
 
     // TODO: there's another block-sample strategy, but it does not get good accuracy of selecting cold data.
     // If we use that, the throughput of VOTER can increases from 55,000 to 59,000, but IO of other experiments increases a lot
+    // The reason why this is slow? I guess is the rand() and % operation
+    //
+    // Lin Ma
     int pick_num = evict_num * RANDOM_SCALE;
 
     int block_num = (int)ptable->m_data.size();
@@ -126,8 +130,6 @@ void EvictionIterator::reserve(int64_t amount) {
 
             if (!current_tuple->isActive() || current_tuple->isEvicted())
                 continue;
-
-            //printf("here!!\n");
 
             candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
             m_size++;
