@@ -51,15 +51,6 @@
 #include "storage/table.h"
 #include <set>
 
-/*class QueueElement{
-public:
-    uint32_t first;
-    char* second;
-    QueueElement(uint32_t f, char* s): first(f), second(s) {};
-};
-
-bool operator <(const QueueElement &e1, const QueueElement &e2);*/
-
 namespace voltdb {
  
 class EvictionIterator : public TupleIterator
