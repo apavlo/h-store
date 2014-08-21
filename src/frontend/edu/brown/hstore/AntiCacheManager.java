@@ -444,14 +444,19 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         long totalBlocksEvicted = 0;
         long totalBlocksFetched = 0;
         long totalEvictableSizeKb = 0;
-	long totalIndexKb = 0;
+        long totalIndexKb = 0;
+
+        /**
+         * TODO: What commented in the loop below will make the eviction manager ignore index memory while calculating eviction threshold
+         *       In some cases, we may do want exclude index memory. Then uncomment them.
+         */
         for (PartitionStats stats : this.partitionStats) {
-            totalSizeKb += stats.sizeKb - stats.indexes;
+            totalSizeKb += stats.sizeKb;// - stats.indexes;
             totalIndexKb += stats.indexes;
             totalBlocksEvicted += stats.blocksEvicted;
             totalBlocksFetched += stats.blocksFetched;
             for (Stats tstats : stats.getTableStats()) {
-                totalEvictableSizeKb += tstats.sizeKb - tstats.indexes;
+                totalEvictableSizeKb += tstats.sizeKb;// - tstats.indexes;
             }
         }
 
