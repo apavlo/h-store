@@ -118,28 +118,11 @@ public:
                                                          (0, m_engine->getExecutorContext(), "Foo",
                                                           m_tableSchema, &m_columnNames[0], indexScheme, indexes, 0,
                                                           false, false));
-                
-        TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema();
-                
-        // Get the column names for the EvictedTable
-        std::string evictedColumnNames[2];
-        evictedColumnNames[0] = std::string("BLOCK_ID");
-        evictedColumnNames[1] = std::string("TUPLE_OFFSET");
-        
-        voltdb::Table *evicted_table = TableFactory::getEvictedTable(
-                                                                     0,
-                                                                     m_engine->getExecutorContext(),
-                                                                     "Foo_EVICTED",
-                                                                     evictedSchema,
-                                                                     &evictedColumnNames[0]);
-        
-        m_table->setEvictedTable(evicted_table);
     }
     
     void cleanupTable()
     {
         //printf("delete from cleanupTable(): %p\n", m_table->getEvictedTable());
-        delete m_table->getEvictedTable();
         delete m_table;
     
     }
