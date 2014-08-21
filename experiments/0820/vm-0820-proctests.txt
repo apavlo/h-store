@@ -1,0 +1,72 @@
+microexpftriggerstrig1 - callproc params (0.95 threshold)
+--------------------------------------------------
+threads: 1  |  warmup: 10000  |  threshold: 0.95
+logging: false  |  log timeout: 10  |  group commit: -1
+blocking: false  |  aries: false  |  scheduler: false
+S-Store: true  |  S-Store frontend trigger: true  |  weak recovery: true
+THROUGHPUT STATS
+   1: 7062.33
+    MIN: 7062.33 (7100.00 submitted)
+    MAX: 7062.33 (7100.00 submitted)
+    AVG: 7062.33
+   ---   
+AVGLATENCY(ms)(avg): 10.91
+TotalTXN(avg): 423740.00
+Distributed(avg): 0.00
+SpecExec(avg): 97889.00
+THMIN(avg): 7032.80
+THMAX(avg): 7108.00
+THSTDDEV(avg): 25.86
+LAMIN(avg): 1.00
+LAMAX(avg): 178.00
+LASTDDEV(avg): 13.79
+-----RUNTIME: 0:29:59.017130 -----
+
+microexpftriggerstrig2 - callproc no params (0.95 threshold)
+--------------------------------------------------
+threads: 1  |  warmup: 10000  |  threshold: 0.95
+logging: false  |  log timeout: 10  |  group commit: -1
+blocking: false  |  aries: false  |  scheduler: false
+S-Store: true  |  S-Store frontend trigger: true  |  weak recovery: true
+THROUGHPUT STATS
+   1: 10985.13
+    MIN: 10985.13 (11000.00 submitted)
+    MAX: 10985.13 (11000.00 submitted)
+    AVG: 10985.13
+   ---   
+AVGLATENCY(ms)(avg): 208.75
+TotalTXN(avg): 659108.00
+Distributed(avg): 0.00
+SpecExec(avg): 68125.00
+THMIN(avg): 7887.60
+THMAX(avg): 14133.90
+THSTDDEV(avg): 1975.75
+LAMIN(avg): 1.00
+LAMAX(avg): 1450.00
+LASTDDEV(avg): 339.85
+-----RUNTIME: 0:10:10.992782 -----
+
+microexpftriggerstrig3 - callstreamproc params (0.95 threshold)
+--------------------------------------------------
+threads: 1  |  warmup: 10000  |  threshold: 0.95
+logging: false  |  log timeout: 10  |  group commit: -1
+blocking: false  |  aries: false  |  scheduler: false
+S-Store: true  |  S-Store frontend trigger: true  |  weak recovery: true
+THROUGHPUT STATS
+   1: 14481.07
+    MIN: 14481.07 (14800.00 submitted)
+    MAX: 14481.07 (14800.00 submitted)
+    AVG: 14481.07
+   ---   
+AVGLATENCY(ms)(avg): 377.82
+TotalTXN(avg): 868864.00
+Distributed(avg): 0.00
+SpecExec(avg): 4371.00
+THMIN(avg): 14012.80
+THMAX(avg): 15041.80
+THSTDDEV(avg): 411.20
+LAMIN(avg): 1.00
+LAMAX(avg): 760.00
+LASTDDEV(avg): 199.15
+-----RUNTIME: 0:25:49.047585 -----
+

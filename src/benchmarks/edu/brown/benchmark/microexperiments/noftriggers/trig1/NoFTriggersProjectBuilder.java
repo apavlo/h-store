@@ -47,7 +47,7 @@ public class NoFTriggersProjectBuilder extends AbstractProjectBuilder {
 	// a list of procedures implemented in this benchmark
     @SuppressWarnings("unchecked")
     public static final Class<? extends VoltProcedure> PROCEDURES[] = (Class<? extends VoltProcedure>[])new Class<?>[] {
-        ProcOne.class, //ProcTwo.class, ProcThree.class, ProcFour.class, ProcFive.class, ProcSix.class, 
+        ProcOne.class, ProcTwo.class, //ProcThree.class, ProcFour.class, ProcFive.class, ProcSix.class, 
         //ProcSeven.class, ProcEight.class, ProcNine.class, ProcTen.class
         };
 	

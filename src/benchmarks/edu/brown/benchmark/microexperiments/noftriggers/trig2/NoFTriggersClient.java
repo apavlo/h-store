@@ -98,16 +98,9 @@ public class NoFTriggersClient extends BenchmarkComponent {
         Client client = this.getClientHandle();
         long id = batchid.getAndIncrement();
         boolean response = client.callProcedure(callback,
-                                                "ProcOne",
-                                                //id,
-                                                (int)id,
-                                                rand.nextInt(10));
+                                                "ProcOne");
         if(NoFTriggersConstants.NUM_TRIGGERS > 1)
-	        response = client.callProcedure(otherProcCallback,
-	                "ProcTwo",
-	                //id,
-	                (int)id,
-	                rand.nextInt(10));
+	        response = client.callProcedure(otherProcCallback, "ProcTwo");
 //        if(FTriggersConstants.NUM_TRIGGERS > 2)
 //        	response = client.callProcedure(otherProcCallback, "ProcThree");
 //        if(FTriggersConstants.NUM_TRIGGERS > 3)

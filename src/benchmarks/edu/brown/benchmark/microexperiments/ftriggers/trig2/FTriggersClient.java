@@ -98,13 +98,7 @@ public class FTriggersClient extends BenchmarkComponent {
         Client client = this.getClientHandle();
         long id = batchid.getAndIncrement();
         boolean response = client.callProcedure(callback,
-                                                "ProcOne",
-                                                //id,
-                                                (int)id,
-                                                rand.nextInt(10));
-        if(FTriggersConstants.NUM_TRIGGERS > 1)
-	        response = client.callProcedure(otherProcCallback,
-	                "ProcTwo");//,
+                                                "ProcOne");
 	                //id,
 	                //(int)id,
 	                //rand.nextInt(10));

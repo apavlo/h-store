@@ -98,9 +98,7 @@ public class FTriggersClient extends BenchmarkComponent {
         long id = batchid.getAndIncrement();
         boolean response = client.callStreamProcedure(callback,
                                                 "ProcOne",
-                                                id,
-                                                (int)id,
-                                                rand.nextInt(10));
+                                                id);
         return response;
     }
 

@@ -36,5 +36,5 @@ public abstract class NoFTriggersConstants {
     public static final long PROC_TWO_SUCCESSFUL = 1;
     public static final long PROC_THREE_SUCCESSFUL = 2;
     
-    public static final long NUM_TRIGGERS = 4;
+    public static final long NUM_TRIGGERS = 1;
 }

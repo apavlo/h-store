@@ -44,7 +44,7 @@ import edu.brown.benchmark.microexperiments.noftriggers.trig1.NoFTriggersConstan
 public class ProcOne extends VoltProcedure {
 	
 	public final SQLStmt insertATableStmt = new SQLStmt(
-		"INSERT INTO a_tbl (a_id, a_val) SELECT * FROM proc_one_out;"
+		"INSERT INTO a_tbl (a_id, a_val) VALUES (?,?);"
 	);
 	
     // Checks if the voter has exceeded their allowed number of votes
@@ -58,7 +58,7 @@ public class ProcOne extends VoltProcedure {
     	if(NoFTriggersConstants.NUM_TRIGGERS > 1)
     		voltQueueSQL(insertProcOneOutStmt, row_id, row_val);
     	else
-    		voltQueueSQL(insertATableStmt);
+    		voltQueueSQL(insertATableStmt, row_id, row_val);
     		
         voltExecuteSQL(true);
 				

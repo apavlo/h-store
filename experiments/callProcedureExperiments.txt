@@ -1,0 +1,11 @@
+noftriggers, 1 trigger (20000 txn/sec)
+trig1: callprocedure (parameters):
+trig2: callprocedure (no parameters):
+trig3: callstreamprocedure (parameters):
+trig4: callstreamprocedure (no parameters):
+
+ftriggers, 1 trigger
+trig1: callprocedure (parameters):
+trig2: callprocedure (no parameters):
+trig3: callstreamprocedure (parameters):
+trig4: callstreamprocedure (no parameters):

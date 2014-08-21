@@ -98,25 +98,25 @@ public class NoFTriggersClient extends BenchmarkComponent {
 
         Client client = this.getClientHandle();
         long id = batchid.getAndIncrement();
-        boolean resp = client.callProcedure(procOneCallback, "ProcOne",(int)id,rand.nextInt(10));
+        boolean resp = client.callStreamProcedure(procOneCallback, "ProcOne",id);
         if(NoFTriggersConstants.NUM_TRIGGERS > 1)
         	client.callProcedure(otherProcCallback, "ProcTwo");
-        if(NoFTriggersConstants.NUM_TRIGGERS > 2)
-        	client.callProcedure(otherProcCallback, "ProcThree");
-        if(NoFTriggersConstants.NUM_TRIGGERS > 3)
-        	client.callProcedure(otherProcCallback, "ProcFour");
-        if(NoFTriggersConstants.NUM_TRIGGERS > 4)
-        	client.callProcedure(otherProcCallback, "ProcFive");
-        if(NoFTriggersConstants.NUM_TRIGGERS > 5)
-        	client.callProcedure(otherProcCallback, "ProcSix");
-        if(NoFTriggersConstants.NUM_TRIGGERS > 6)
-        	client.callProcedure(otherProcCallback, "ProcSeven");
-        if(NoFTriggersConstants.NUM_TRIGGERS > 7)
-        	client.callProcedure(otherProcCallback, "ProcEight");
-        if(NoFTriggersConstants.NUM_TRIGGERS > 8)
-        	client.callProcedure(otherProcCallback, "ProcNine");
-        if(NoFTriggersConstants.NUM_TRIGGERS > 9)
-        	client.callProcedure(otherProcCallback, "ProcTen");        	
+//        if(NoFTriggersConstants.NUM_TRIGGERS > 2)
+//        	client.callProcedure(otherProcCallback, "ProcThree");
+//        if(NoFTriggersConstants.NUM_TRIGGERS > 3)
+//        	client.callProcedure(otherProcCallback, "ProcFour");
+//        if(NoFTriggersConstants.NUM_TRIGGERS > 4)
+//        	client.callProcedure(otherProcCallback, "ProcFive");
+//        if(NoFTriggersConstants.NUM_TRIGGERS > 5)
+//        	client.callProcedure(otherProcCallback, "ProcSix");
+//        if(NoFTriggersConstants.NUM_TRIGGERS > 6)
+//        	client.callProcedure(otherProcCallback, "ProcSeven");
+//        if(NoFTriggersConstants.NUM_TRIGGERS > 7)
+//        	client.callProcedure(otherProcCallback, "ProcEight");
+//        if(NoFTriggersConstants.NUM_TRIGGERS > 8)
+//        	client.callProcedure(otherProcCallback, "ProcNine");
+//        if(NoFTriggersConstants.NUM_TRIGGERS > 9)
+//        	client.callProcedure(otherProcCallback, "ProcTen");        	
         	
         return resp;
     }

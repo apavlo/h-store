@@ -29,6 +29,8 @@
 
 package edu.brown.benchmark.microexperiments.noftriggers.trig4.procedures;
 
+import java.util.Random;
+
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
@@ -42,9 +44,11 @@ import edu.brown.benchmark.microexperiments.noftriggers.trig4.NoFTriggersConstan
     singlePartition = true
 )
 public class ProcOne extends VoltProcedure {
+	int row_id = 0;
+	Random rand = new Random();
 	
 	public final SQLStmt insertATableStmt = new SQLStmt(
-		"INSERT INTO a_tbl (a_id, a_val) SELECT * FROM proc_one_out;"
+		"INSERT INTO a_tbl (a_id, a_val) VALUES (?,?);"
 	);
 	
     // Checks if the voter has exceeded their allowed number of votes
@@ -52,13 +56,15 @@ public class ProcOne extends VoltProcedure {
 		"INSERT INTO proc_one_out VALUES (?,?);"
     );
 	
-    public long run(int row_id, int row_val) {
-		
+    public long run() {
+		row_id++;
+		int row_val = rand.nextInt(10);
+    	
         // Queue up validation statements
     	if(NoFTriggersConstants.NUM_TRIGGERS > 1)
     		voltQueueSQL(insertProcOneOutStmt, row_id, row_val);
     	else
-    		voltQueueSQL(insertATableStmt);
+    		voltQueueSQL(insertATableStmt, row_id, row_val);
     		
         voltExecuteSQL(true);
 				
