@@ -94,6 +94,12 @@ private:
     EvictionTuple *candidates;
     int32_t m_size;
 #endif
+
+#ifdef ANTICACHE_TIMESTAMPS_PRIME
+    enum { prime_size = 25 };
+    static const int prime_list[prime_size];
+#endif
+
 }; 
 
 }
