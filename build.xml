@@ -886,14 +886,15 @@ NATIVE EE STUFF
         <arg value="ANTICACHE_ENABLE=${site.anticache_enable}" />
         <arg value="ANTICACHE_BUILD=${site.anticache_build}" />
         <arg value="ANTICACHE_REVERSIBLE_LRU=${site.anticache_reversible_lru}" />
-	<arg value="ANTICACHE_NVM=${site.anticache_nvm}" />
-	<arg value="ANTICACHE_TIMESTAMPS=${site.anticache_timestamps}" />
+        <arg value="ANTICACHE_NVM=${site.anticache_nvm}" />
+        <arg value="ANTICACHE_TIMESTAMPS=${site.anticache_timestamps}" />
+        <arg value="ANTICACHE_TIMESTAMPS_PRIME=${site.anticache_timestamps_prime}" />
         <arg value="${build}" />
     </exec>
 </target>
 
 <target name='execplanfrag' depends="ee"
-        description="Create test program that loads catalog and tables and executes a plan fragment.">
+    description="Create test program that loads catalog and tables and executes a plan fragment.">
     <exec dir='.' executable='python' failonerror='true'>
         <arg line="build.py EXECPLANFRAG ${build}" />
     </exec>
@@ -909,9 +910,9 @@ TEST CASES
     <property name="build.dir.suffix" value="" /> <!-- Default -->
     <property name='classpath' refid='project.classpath' />
     <property name='echoserver.command' value="java
-    -Djava.library.path=${build.dir}${build.dir.suffix}/nativelibs -classpath
-    ${classpath} -server -Xmx64m -XX:+AggressiveOpts -ea
-    org.voltdb.messaging.EchoServer" />
+        -Djava.library.path=${build.dir}${build.dir.suffix}/nativelibs -classpath
+        ${classpath} -server -Xmx64m -XX:+AggressiveOpts -ea
+        org.voltdb.messaging.EchoServer" />
     <exec dir='tests/scripts/' executable='python' failonerror='true'>
         <arg line="Testfastserializer.py"/>
         <arg line='"${echoserver.command}"'/>
@@ -937,7 +938,7 @@ TEST CASES
             destdir="${build.instr.dir}/org/voltdb"
             metadatafile="${emma.dir}/metadata.emma"
             merge="true"
-        />
+            />
     </emma>
 </target>
 
@@ -962,7 +963,7 @@ TEST CASES
             timeout="@{timeout}"
             maxmemory='2600M'
             showoutput="@{showoutput}"
-        >
+            >
             <classpath refid='project.classpath' />
             <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
             <jvmarg value="-server" />
@@ -1020,9 +1021,9 @@ TEST CASES
 
 <!-- Fetch the files that we need to run the full tests -->
 <target name="junit-getfiles"
-        description="Fetch the files that we need to run junit-full"
-        depends="junit-getfiles.check"
-        unless="junit-getfiles.exists">
+    description="Fetch the files that we need to run junit-full"
+    depends="junit-getfiles.check"
+    unless="junit-getfiles.exists">
     <exec dir="${tools.dir}" executable="./getfiles.py">
         <arg line="--copy=${localcopy}" />
         <arg line="--symlink=${symlink}" />
@@ -1030,7 +1031,7 @@ TEST CASES
     </exec>
 </target>
 <target name="junit-getfiles-update"
-        description="Update the files repository">
+    description="Update the files repository">
     <exec dir="${tools.dir}" executable="./getfiles.py">
         <arg line="--update" />
         <arg line="${files.dir}" />
@@ -1039,8 +1040,8 @@ TEST CASES
 
 <!-- Junit tests that run quickly -->
 <target name="junit"
-        description="Tests and suites that run in under 3 minutes under memcheck"
-            depends="junit-getfiles">
+    description="Tests and suites that run in under 3 minutes under memcheck"
+    depends="junit-getfiles">
     <run_junit>
         <formatters>
             <formatter type="plain" unless="hudson"/>
@@ -1049,7 +1050,7 @@ TEST CASES
                 classname="org.voltdb.VoltJUnitFormatter"
                 usefile='false'
                 extension="none"
-            />
+                />
             <formatter type="xml" />
         </formatters>
         <tests>
@@ -1063,7 +1064,7 @@ TEST CASES
                 <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
-                
+
                 <!-- Busted tests because of hacking -->
                 <exclude name='edu/brown/benchmark/airline/Test*'/>
                 <exclude name='edu/brown/benchmark/airline/util/TestHistogramUtil*'/>
@@ -1078,7 +1079,7 @@ TEST CASES
                 <exclude name="**/TestWikipediaSuite.class" />
                 <exclude name="**/TestWikipediaLoader.class" />
                 <exclude name="**/Test*PhysicalRecovery.class" />
-                
+
                 <!-- Misc VoltDB stuff -->
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
                 <exclude name="**/*$*.class"/>
@@ -1098,7 +1099,7 @@ TEST CASES
             styledir="tools"
             format="noframes"
             todir="${build.testoutput.dir}"
-        />
+            />
     </junitreport>
 
     <!-- Fail the build if there were any problems.
@@ -1107,7 +1108,7 @@ TEST CASES
         if="junit.failures"
         unless="emma.enabled"
         message="JUnit had failures"
-    />
+        />
 </target>
 
 <target name="junit-full" description="Run testcases for Java classes.">
@@ -1124,13 +1125,13 @@ TEST CASES
                 classname="org.voltdb.VoltJUnitFormatter"
                 usefile='false'
                 extension="none"
-            />
+                />
             <formatter type="xml" />
         </formatters>
         <tests>
             <fileset dir='${build.test.dir}'>
                 <exclude name="**/*$*.class"/>
-                
+
                 <!-- Brown Tests -->
                 <include name='edu/brown/**/Test*.class'/>
                 <include name='edu/brown/**/*Test.class'/>
@@ -1147,9 +1148,9 @@ TEST CASES
                 <include name='org/voltdb/network/**/*Test.class'/>
                 <include name='org/voltdb/messaging/**/*Test.class'/>
                 <include name='org/voltdb/utils/**/*Test.class'/>
-                
+
                 <exclude name='org/voltdb/TestHSQLBackend*'/>
-                
+
                 <!-- VoltDB Regression Suite -->
                 <exclude name="**/TestCatalogUpdateSuite.class" />
                 <exclude name="**/TestFailureDetectSuite.class" />
@@ -1179,7 +1180,7 @@ TEST CASES
             styledir="tools"
             format="noframes"
             todir="${build.testoutput.dir}"
-        />
+            />
     </junitreport>
 
     <exec dir="${build.testoutput.dir}" executable='cat'>
@@ -1189,14 +1190,14 @@ TEST CASES
         dir='${build.testoutput.dir}'
         includes='*.xml'
         excludes='TESTS-TestSuites.xml'
-    />
+        />
     <!-- Fail the build if there were any problems.
         This runs all the tests before failing. -->
     <fail
         if="junit.failures"
         unless="emma.enabled"
         message="JUnit had failures"
-    />
+        />
 
     <!-- Regenerate milestoneOneCatalog/ -->
 <!--    <delete dir='${build.dir}/expanded/milestoneOneCatalog' />
@@ -1208,90 +1209,90 @@ TEST CASES
 </target>
 
 <target name="junit-regression" description="Run only regression testcases for Java classes.">
-       <!-- Run the unit tests -->
-       <condition property="timeoutLength" value="${timeoutLength}" else='300000'>
-           <isset property="timeoutLength"/>
-       </condition>
-       
-       <run_junit timeout="${timeoutLength}" printsummary="no">
-           <formatters>
-               <formatter type="plain" unless="hudson"/>
-               <formatter
-               type='xml'
-               classname="org.voltdb.VoltJUnitFormatter"
-               usefile='false'
-               extension="none"
-                   />
-                <formatter type="xml" />
-            </formatters>
-            <tests>
-                <fileset dir='${build.test.dir}'>
-                    <exclude name="**/*$*.class"/>
-                    <include name='org/voltdb/regressionsuites/Test*.class'/>
-                    <exclude name="**/TestCatalogUpdateSuite.class" />
-                    <exclude name="**/TestFailureDetectSuite.class" />
-                    <exclude name="**/TestSneakyExecutionOrderSuite.class" />
-                    <exclude name="**/TestMaliciousClientSuite.class" /> 
-                    <exclude name="**/TestMapReduceTransactionSuite.class" />
-                    <exclude name="**/TestWikipediaSuite.class" />
-                    <exclude name="**/TestWikipediaLoader.class" /> 
-                    <exclude name="**/Test*PhysicalRecovery.class" />
-                </fileset>
-            </tests>
-        </run_junit>
-               
-        <!-- Generate unit test reports. -->
-        <mkdir dir='${build.testoutput.dir}/report' />
-        <junitreport todir="${build.testoutput.dir}">
-            <fileset dir='${build.testoutput.dir}'>
-                <include name="*.xml" />
-                <exclude name='TESTS-TestSuites.xml' />
-            </fileset>
-            <report format="noframes" todir="${build.testoutput.dir}/report"/>
-            <report
-                styledir="tools"
-                format="noframes"
-                todir="${build.testoutput.dir}"
+    <!-- Run the unit tests -->
+    <condition property="timeoutLength" value="${timeoutLength}" else='300000'>
+        <isset property="timeoutLength"/>
+    </condition>
+
+    <run_junit timeout="${timeoutLength}" printsummary="no">
+        <formatters>
+            <formatter type="plain" unless="hudson"/>
+            <formatter
+                type='xml'
+                classname="org.voltdb.VoltJUnitFormatter"
+                usefile='false'
+                extension="none"
                 />
-        </junitreport>
-            
-        <exec dir="${build.testoutput.dir}" executable='cat'>
-            <arg line="junit-noframes.html"/>
-        </exec>
-        <delete
-            dir='${build.testoutput.dir}'
-            includes='*.xml'
-            excludes='TESTS-TestSuites.xml'
+            <formatter type="xml" />
+        </formatters>
+        <tests>
+            <fileset dir='${build.test.dir}'>
+                <exclude name="**/*$*.class"/>
+                <include name='org/voltdb/regressionsuites/Test*.class'/>
+                <exclude name="**/TestCatalogUpdateSuite.class" />
+                <exclude name="**/TestFailureDetectSuite.class" />
+                <exclude name="**/TestSneakyExecutionOrderSuite.class" />
+                <exclude name="**/TestMaliciousClientSuite.class" /> 
+                <exclude name="**/TestMapReduceTransactionSuite.class" />
+                <exclude name="**/TestWikipediaSuite.class" />
+                <exclude name="**/TestWikipediaLoader.class" /> 
+                <exclude name="**/Test*PhysicalRecovery.class" />
+            </fileset>
+        </tests>
+    </run_junit>
+
+    <!-- Generate unit test reports. -->
+    <mkdir dir='${build.testoutput.dir}/report' />
+    <junitreport todir="${build.testoutput.dir}">
+        <fileset dir='${build.testoutput.dir}'>
+            <include name="*.xml" />
+            <exclude name='TESTS-TestSuites.xml' />
+        </fileset>
+        <report format="noframes" todir="${build.testoutput.dir}/report"/>
+        <report
+            styledir="tools"
+            format="noframes"
+            todir="${build.testoutput.dir}"
+            />
+    </junitreport>
+
+    <exec dir="${build.testoutput.dir}" executable='cat'>
+        <arg line="junit-noframes.html"/>
+    </exec>
+    <delete
+        dir='${build.testoutput.dir}'
+        includes='*.xml'
+        excludes='TESTS-TestSuites.xml'
         />
-        <!-- Fail the build if there were any problems.
+    <!-- Fail the build if there were any problems.
         This runs all the tests before failing. -->
         <fail
             if="junit.failures"
             unless="emma.enabled"
             message="JUnit had failures"
             />
-</target>
+    </target>
 
-<target
-    name='emma-report'
-    depends='with.emma, junit'
-    description="Generate code coverage reports, if appropriate.">
-    <emma>
-        <report
-            sourcepath="${src.frontend.dir}"
-            sort="+name"
-            metrics="method:70,block:80,line:80,class:100">
-            <fileset dir="${emma.dir}"><include name="*.emma"/></fileset>
-            <xml outfile="${emma.dir}/coverage.xml" depth="method" />
-            <html
-                outfile="${emma.dir}/coverage.html"
-                depth="method"
-                columns="name,class,method,block,line"
-                encoding="UTF-8"
-            />
-        </report>
-    </emma>
-</target>
+    <target
+        name='emma-report'
+        depends='with.emma, junit'
+        description="Generate code coverage reports, if appropriate.">
+        <emma>
+            <report
+                sourcepath="${src.frontend.dir}"
+                sort="+name"
+                metrics="method:70,block:80,line:80,class:100">
+                <fileset dir="${emma.dir}"><include name="*.emma"/></fileset>
+                <xml outfile="${emma.dir}/coverage.xml" depth="method" />
+                <html
+                    outfile="${emma.dir}/coverage.html"
+                    depth="method"
+                    columns="name,class,method,block,line"
+                    encoding="UTF-8"
+                    />
+            </report>
+        </emma>
+    </target>
 
 <!--
     this target is intended to be called only with antcall!
@@ -1300,55 +1301,55 @@ TEST CASES
     lcov.target is the ant target to run under coverage
 -->
 <target name='with.lcov' description="Generate C++ code coverage reports.">
-  <property name="lcov.base.tracefile" value="lcov_base.info" />
-  <property name="lcov.test.tracefile" value="lcov_test.info" />
-  <property name="lcov.tracefile" value="lcov.info" />
-  <!-- Generate instrumented objects -->
-  <!-- Whether any work needs doing is left to the C++ makefile -->
-  <exec dir='.' executable='python' failonerror='true'>
-    <arg line="build.py ${build} coverage" />
-  </exec>
-  <mkdir dir="${lcov.dir}" />
-  <!-- Reset all counters -->
-  <exec dir="${lcov.dir}" executable='lcov' failonerror="true">
-    <arg line="--directory ${build.dir}-coverage/objects"/>
-    <arg line="--zerocounters"/>
-  </exec>
-  <!-- Get baseline coverage (zero coverage) -->
-  <exec dir="${lcov.dir}" executable='lcov' failonerror="true">
-    <arg line="--directory ${build.dir}-coverage/objects"/>
-    <arg line="-i --capture"/>
-    <arg line="--output-file ${lcov.base.tracefile}"/>
-    <arg line="-b ${src.ee.parent.dir}"/>
-  </exec>
-  <!-- Run the tests -->
-  <antcall target="${lcov.target}">
-    <param name="build.dir.suffix" value="-coverage" />
-  </antcall>
-  <!-- Get test coverage -->
-  <exec dir="${lcov.dir}" executable='lcov' failonerror="true">
-    <arg line="--directory ${build.dir}-coverage/objects"/>
-    <arg line="--capture"/>
-    <arg line="--output-file ${lcov.test.tracefile}"/>
-    <arg line="-b ${src.ee.parent.dir}"/>
-  </exec>
-  <!-- Combine the baseline coverage and the test coverage -->
-  <exec dir="${lcov.dir}" executable='lcov' failonerror="true">
-    <arg line="-a ${lcov.base.tracefile}"/>
-    <arg line="-a ${lcov.test.tracefile}"/>
-    <arg line="-o ${lcov.tracefile}"/>
-  </exec>
-  <!-- Remove standard library and third party coverages -->
-  <exec dir="${lcov.dir}" executable='lcov' failonerror="true">
-    <arg line="-r ${lcov.tracefile}"/>
-    <arg line='"/usr/include/*"'/>
-    <arg line='"*third_party*"'/>
-    <arg line="-o ${lcov.tracefile}"/>
-  </exec>
-  <!-- Generate HTML report -->
-  <exec dir="${lcov.dir}" executable='genhtml' failonerror="true">
-    <arg line="${lcov.tracefile}"/>
-  </exec>
+    <property name="lcov.base.tracefile" value="lcov_base.info" />
+    <property name="lcov.test.tracefile" value="lcov_test.info" />
+    <property name="lcov.tracefile" value="lcov.info" />
+    <!-- Generate instrumented objects -->
+    <!-- Whether any work needs doing is left to the C++ makefile -->
+    <exec dir='.' executable='python' failonerror='true'>
+        <arg line="build.py ${build} coverage" />
+    </exec>
+    <mkdir dir="${lcov.dir}" />
+    <!-- Reset all counters -->
+    <exec dir="${lcov.dir}" executable='lcov' failonerror="true">
+        <arg line="--directory ${build.dir}-coverage/objects"/>
+        <arg line="--zerocounters"/>
+    </exec>
+    <!-- Get baseline coverage (zero coverage) -->
+    <exec dir="${lcov.dir}" executable='lcov' failonerror="true">
+        <arg line="--directory ${build.dir}-coverage/objects"/>
+        <arg line="-i --capture"/>
+        <arg line="--output-file ${lcov.base.tracefile}"/>
+        <arg line="-b ${src.ee.parent.dir}"/>
+    </exec>
+    <!-- Run the tests -->
+    <antcall target="${lcov.target}">
+        <param name="build.dir.suffix" value="-coverage" />
+    </antcall>
+    <!-- Get test coverage -->
+    <exec dir="${lcov.dir}" executable='lcov' failonerror="true">
+        <arg line="--directory ${build.dir}-coverage/objects"/>
+        <arg line="--capture"/>
+        <arg line="--output-file ${lcov.test.tracefile}"/>
+        <arg line="-b ${src.ee.parent.dir}"/>
+    </exec>
+    <!-- Combine the baseline coverage and the test coverage -->
+    <exec dir="${lcov.dir}" executable='lcov' failonerror="true">
+        <arg line="-a ${lcov.base.tracefile}"/>
+        <arg line="-a ${lcov.test.tracefile}"/>
+        <arg line="-o ${lcov.tracefile}"/>
+    </exec>
+    <!-- Remove standard library and third party coverages -->
+    <exec dir="${lcov.dir}" executable='lcov' failonerror="true">
+        <arg line="-r ${lcov.tracefile}"/>
+        <arg line='"/usr/include/*"'/>
+        <arg line='"*third_party*"'/>
+        <arg line="-o ${lcov.tracefile}"/>
+    </exec>
+    <!-- Generate HTML report -->
+    <exec dir="${lcov.dir}" executable='genhtml' failonerror="true">
+        <arg line="${lcov.tracefile}"/>
+    </exec>
 </target>
 
 <target name='lcov-report' description=''>
@@ -1373,7 +1374,7 @@ TEST CASES
     <property
         name="lcov.dir"
         location="${build.dir}-coverage/lcov-unit-tests"
-    />
+        />
     <property name="lcov.target" value="lcov-unit-tests" />
     <antcall target="with.lcov" />
 </target>
@@ -1384,16 +1385,16 @@ TEST CASES
     <path id="testability.lib">
         <pathelement
             location="${thirdpartylib.dir}/ant-testability-explorer.jar"
-        />
+            />
         <pathelement
             location="${thirdpartylib.dir}/testability-explorer.jar"
-        />
+            />
     </path>
     <taskdef
         name="testability"
         classname="com.google.ant.TestabilityTask"
         classpathref="testability.lib"
-    />
+        />
     <testability
         resultfile="${build.dir}/testability.result.html" print="html"
         errorfile="${build.dir}/testability.err.txt">
@@ -1410,7 +1411,7 @@ TEST CASES
         name="cpdtask"
         classname="net.sourceforge.pmd.cpd.CPDTask"
         classpath="${thirdpartylib.dir}/pmd-4.2.5.jar"
-    />
+        />
     <macrodef name="cpd">
         <attribute name="language"/>
         <attribute name="srcdir"/>
@@ -1449,7 +1450,7 @@ TEST CASES
         </formatters>
         <tests>
             <fileset dir='${build.test.dir}'>
-              <include name="**/${junitclass}.class"/>
+                <include name="**/${junitclass}.class"/>
             </fileset>
         </tests>
     </run_junit>
@@ -1478,29 +1479,29 @@ TEST CASES
     <unjar
         src='${build.testobjects.dir}/milestoneOneCatalog.jar'
         dest='${build.dir}/expanded/milestoneOneCatalog'
-    />
+        />
     <copy
         file='${build.dir}/expanded/milestoneOneCatalog/catalog.txt'
         todir='${build.test.dir}/org/voltdb/catalog'
-    />
+        />
     <copy
-          file='${build.dir}/expanded/milestoneOneCatalog/catalog.txt'
-          todir='${build.test.dir}/org/voltdb/catalog'
-    />
+        file='${build.dir}/expanded/milestoneOneCatalog/catalog.txt'
+        todir='${build.test.dir}/org/voltdb/catalog'
+        />
     <copy
-          file='${build.dir}/expanded/milestoneOneCatalog/catalog.txt'
-          todir='${src.test.dir}/org/voltdb/catalog/'
-    />
+        file='${build.dir}/expanded/milestoneOneCatalog/catalog.txt'
+        todir='${src.test.dir}/org/voltdb/catalog/'
+        />
 </target>
 
 <target name='sqlcoverage' depends="ee,compile"
     description="Run the SQL coverage tests.">
     <property name="build.dir.suffix" value="" /> <!-- Default -->
     <property name="test.example.dir"
-    location="tests/scripts/examples/sql_coverage" />
+        location="tests/scripts/examples/sql_coverage" />
     <property name="default_config" location="${test.example.dir}/config.py" />
     <property name="regression_config"
-              location="${test.example.dir}/regression-config.py" />
+        location="${test.example.dir}/regression-config.py" />
     <property name="sqlcov.dir" location="${build.dir}/sqlcoverage" />
     <exec dir='.' executable='/bin/sh'>
         <arg line="-c 'rm -rf ${sqlcov.dir}'"/>
@@ -1513,7 +1514,7 @@ TEST CASES
         <isset property="sql_coverage_seed"/>
     </condition>
     <condition property="meta_config" value="${default_config}"
-               else="${regression_config}">
+        else="${regression_config}">
         <isset property="sql_coverage_default"/>
     </condition>
     <condition property="failonerror" value="true" else="false">
@@ -1539,21 +1540,21 @@ TEST CASES
     </condition>
     <property name='classpath' refid='project.classpath' />
     <property name='simpleserver.command' value='java
-    -Djava.library.path=${build.dir}${build.dir.suffix}/nativelibs -classpath
-    ${classpath} -server -Xmx512m -XX:+AggressiveOpts -ea
-    org.voltdb.sqlgenerator.SimpleServer hosts=${hosts}
-    sitesperhost=${sitesperhost} replicas=${replicas}
-    ${debug_output}' />
+        -Djava.library.path=${build.dir}${build.dir.suffix}/nativelibs -classpath
+        ${classpath} -server -Xmx512m -XX:+AggressiveOpts -ea
+        org.voltdb.sqlgenerator.SimpleServer hosts=${hosts}
+        sitesperhost=${sitesperhost} replicas=${replicas}
+        ${debug_output}' />
     <copy todir="${build.test.dir}/org/voltdb/sqlgenerator">
-      <fileset dir="${test.example.dir}">
-        <include name="**/*.sql"/>
-      </fileset>
+        <fileset dir="${test.example.dir}">
+            <include name="**/*.sql"/>
+        </fileset>
     </copy>
     <copy todir="tests/scripts">
-      <fileset dir=".">
-        <include name="buildstring.txt"/>
-        <include name="version.txt"/>
-      </fileset>
+        <fileset dir=".">
+            <include name="buildstring.txt"/>
+            <include name="version.txt"/>
+        </fileset>
     </copy>
     <exec dir='tests/scripts' executable='python' failonerror="${failonerror}">
         <env key="TEST_DIR" value="${build.testobjects.dir}" />
@@ -1644,8 +1645,8 @@ TEST CASES
 </target>
 
 <target name="protobuf.compile" description="Builds the protocol buffer compiler"
-                                depends="protobuf.protoc.check, getcpus, getjava"
-                                unless="protobuf.protoc.built">
+    depends="protobuf.protoc.check, getcpus, getjava"
+    unless="protobuf.protoc.built">
     <mkdir dir="${build.protobuf.dir}" />
     <exec executable="${src.protobuf.dir}/configure" dir="${build.protobuf.dir}" failonerror="true"  resolveexecutable="true">
         <arg value="--disable-shared" />
@@ -1657,14 +1658,14 @@ TEST CASES
 
 <target name="protobuf.java.check">
     <uptodate property="protobuf.java.built"
-              targetfile="${src.protorpc.dir}/protorpc/com/google/protobuf/DescriptorProtos.java">
+        targetfile="${src.protorpc.dir}/protorpc/com/google/protobuf/DescriptorProtos.java">
         <srcfiles dir="${src.protobuf.dir}/java/src/main/java" includes="**/*.proto" />
     </uptodate>
 </target>
 
 <target name="protobuf.java" description="Generates require protocol buffer for Java"
-                             depends="getjava, protobuf.compile, protobuf.java.check"
-                             unless="protobuf.java.built" >
+    depends="getjava, protobuf.compile, protobuf.java.check"
+    unless="protobuf.java.built" >
     <!-- Generate the required protocol buffers for the Java build -->
     <ProtobufGenerateJava srcdir="${src.protobuf.dir}/src" destdir="${src.protorpc.dir}">
         <fileset file="${src.protobuf.dir}/src/google/protobuf/descriptor.proto" />
@@ -1673,14 +1674,14 @@ TEST CASES
 
 <target name="protorpc.java.check">
     <uptodate property="protorpc.built"
-              targetfile="${src.protorpc.dir}/edu/brown/hstore/Hstore.java">
+        targetfile="${src.protorpc.dir}/edu/brown/hstore/Hstore.java">
         <srcfiles dir="${src.protorpc.dir}" includes="**/*.proto" />
     </uptodate>
 </target>
 
 <target name="protorpc.java" description="Generates ProtoRPC files"
-                        depends="getjava, protobuf.java, protorpc.java.check"
-                        unless="protorpc.built">
+    depends="getjava, protobuf.java, protorpc.java.check"
+    unless="protorpc.built">
     <ProtobufGenerateJava srcdir="${src.protorpc.dir}" destdir="${src.protorpc.dir}">
         <fileset dir="${src.protorpc.dir}">
             <patternset><include name="**/*.proto" /></patternset>
@@ -1721,7 +1722,7 @@ TEST CASES
         <jvmarg value="-Xcheck:jni"/>
         <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        
+
         <assertions refid="site.assertions"/>
 
         <arg value="CONF=${conf}" />
@@ -1736,7 +1737,7 @@ TEST CASES
         <arg value="CATALOG=${catalog}" />
         <arg value="DEFERRABLE=${deferrable}" />
         <arg value="EVICTABLE=${evictable}" />
-       <arg value="BATCHEVICTABLE=${batchevictable}" /> 
+        <arg value="BATCHEVICTABLE=${batchevictable}" /> 
         <arg value="partitionplan=${partitionplan}" />
         <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
         <arg value="partitionplan.ignore_missing=${partitionplan.ignore_missing}" />
@@ -1760,9 +1761,9 @@ TEST CASES
         <arg value="benchmark.builder=${benchmark.builder}" />
         <arg value="benchmark.initial_polling_delay=${benchmark.initial_polling_delay}" />
         <arg value="benchmark.datadir=${benchmark.datadir}"/>
-    	
+
         <!-- TPC-E Parameters -->
-    	<arg value="benchmark.tpce_loader_files=${benchmark.tpce_loader_files}"/>
+        <arg value="benchmark.tpce_loader_files=${benchmark.tpce_loader_files}"/>
         <arg value="benchmark.tpce_total_customers=${benchmark.tpce_total_customers}"/>
         <arg value="benchmark.tpce_scale_factor=${benchmark.tpce_scale_factor}"/>
         <arg value="benchmark.tpce_initial_days=${benchmark.tpce_initial_days}"/>
@@ -1884,7 +1885,7 @@ UTILITIES
         <assertions>
             <enable />
         </assertions>
-   </java>
+    </java>
 </target>
 
 <!--
@@ -1894,7 +1895,7 @@ UTILITIES
 -->
 
 <target name='catalog-fix'
-        description="Updates the catalog in a JAR to include foreign keys and parameter mappings">
+    description="Updates the catalog in a JAR to include foreign keys and parameter mappings">
     <basename property="jar.filename" file="${jar}"/>
     <property name="jar.backup" location="${global.temp_dir}/backup/${jar.filename}" />
     <copy file="${jar}" tofile="${jar.backup}" />
@@ -1917,12 +1918,12 @@ UTILITIES
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
-   <jar destfile="${jar}" basedir="${global.temp_dir}/fixcatalog/"/>
-   <delete includeemptydirs="true" dir="${global.temp_dir}/fixcatalog" failonerror='false'/>
+    <jar destfile="${jar}" basedir="${global.temp_dir}/fixcatalog/"/>
+    <delete includeemptydirs="true" dir="${global.temp_dir}/fixcatalog" failonerror='false'/>
 </target>
 
 <target name='catalog-info'
-        description="Print catalog host/partition information">
+    description="Print catalog host/partition information">
     <java fork="yes" failonerror="true" classname="edu.brown.catalog.CatalogInfo">
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
@@ -2023,15 +2024,15 @@ UTILITIES
 -->
 
 <target name='workload-fix'>
-   <java fork="yes" failonerror="true" classname="edu.brown.workload.FixWorkload">
-      <arg value="catalog.jar=${jar}" />
-      <arg value="workload=${workload}" />
-      <arg value="workload.xactlimit=${limit}" />
-      <arg value="workload.output=${output}" />
-      <arg value="${sigma}" />
-      <classpath refid='project.classpath' />
-      <assertions><enable /></assertions>
-   </java>
+    <java fork="yes" failonerror="true" classname="edu.brown.workload.FixWorkload">
+        <arg value="catalog.jar=${jar}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.output=${output}" />
+        <arg value="${sigma}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
 </target>
 
 <target name='workload-combine'>
@@ -2071,7 +2072,7 @@ UTILITIES
 </target>
 
 <target name='workload-stats'
-        description="Generate workload statistics">
+    description="Generate workload statistics">
     <java fork="yes" classname="edu.brown.statistics.WorkloadStatistics" failonerror='true'>
         <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
@@ -2089,23 +2090,23 @@ UTILITIES
     </java>
 </target>
 
-	<target name='workload-analyzer'
-	        description="analyze workload">
-	    <java fork="yes" classname="edu.brown.workload.WorkloadAnalyzer" failonerror='true'>
-	        <jvmarg value="-Xmx${global.memory}m" />
-	        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-	        <arg value="catalog.jar=${jar}" />
-	        <arg value="workload=${workload}" />
-			<arg value="workload.output=${output}" />
-	        <arg value="workload.xactlimit=${limit}" />
-	        <arg value="workload.xactoffset=${offset}" />
-	        <arg value="workload.procexclude=${exclude}" />
-	        <arg value="workload.procinclude=${include}" />
-	        <arg value="workload.procinclude.multiplier=${multiplier}" />
-	        <classpath refid='project.classpath' />
-	        <assertions><enable /></assertions>
-	    </java>
-	</target>
+<target name='workload-analyzer'
+    description="analyze workload">
+    <java fork="yes" classname="edu.brown.workload.WorkloadAnalyzer" failonerror='true'>
+        <jvmarg value="-Xmx${global.memory}m" />
+        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+        <arg value="catalog.jar=${jar}" />
+        <arg value="workload=${workload}" />
+        <arg value="workload.output=${output}" />
+        <arg value="workload.xactlimit=${limit}" />
+        <arg value="workload.xactoffset=${offset}" />
+        <arg value="workload.procexclude=${exclude}" />
+        <arg value="workload.procinclude=${include}" />
+        <arg value="workload.procinclude.multiplier=${multiplier}" />
+        <classpath refid='project.classpath' />
+        <assertions><enable /></assertions>
+    </java>
+</target>
 
 <!--
 ******************************************************************************
@@ -2121,11 +2122,11 @@ UTILITIES
         </not>
     </condition>
     <property file="${benchmark.conf}" prefix="benchmark" />
-    
+
     <condition property="exclude" value="${benchmark.workload.ignore}">
         <not><isset property="exclude"/></not>
     </condition>
-    
+
     <java fork="yes" classname="edu.brown.markov.MarkovGraph" failonerror='true'>
         <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dhstore.max_threads=${numcpus}" />
@@ -2239,7 +2240,7 @@ UTILITIES
 -->
 
 <target name='mappings-generate'
-        description="Generate Parameter Mappings">
+    description="Generate Parameter Mappings">
     <java fork="yes" classname="edu.brown.mappings.MappingCalculator" failonerror='true'>
         <jvmarg value="-Xmx${global.memory}m" />
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
@@ -2264,7 +2265,7 @@ UTILITIES
 -->
 
 <target name='designer-prepare'
-        description="Prepare various files needed by designer components">
+    description="Prepare various files needed by designer components">
 
     <condition property="target.workload" value="${project}">
         <not><isset property="target.workload"/></not>
@@ -2300,7 +2301,7 @@ UTILITIES
 
 
 <target name='designer-jar'
-        description="Prepare a jar file for the designer!">
+    description="Prepare a jar file for the designer!">
     <copy tofile="${project}-designer-benchmark.jar" file="${jar}"/>
     <antcall target="catalog-fix">
         <param name="jar" value="${project}-designer-benchmark.jar" />
@@ -2317,8 +2318,8 @@ UTILITIES
 </target>
 
 <target name='designer-benchmark'
-        description="Creates a new database designer for a catalog jar file">
-   <java fork="yes" failonerror="true" classname="edu.brown.designer.Designer">
+    description="Creates a new database designer for a catalog jar file">
+    <java fork="yes" failonerror="true" classname="edu.brown.designer.Designer">
         <jvmarg value="-server" />
         <jvmarg value="-Xms256m" />
         <jvmarg value="-Xmx${global.memory}m" />
@@ -2353,7 +2354,7 @@ UTILITIES
 </target>
 
 <target name='designer-estimate'
-        description="Estimate the cost of executing the workload for a given PartitionPlan">
+    description="Estimate the cost of executing the workload for a given PartitionPlan">
     <condition property="costmodel" value="edu.brown.costmodel.SingleSitedCostModel">
         <not>
             <isset property="costmodel"/>
@@ -2388,8 +2389,8 @@ UTILITIES
 </target>
 
 <target name='designer-lowerbounds'
-        description="Calculate lower bounds">
-   <java fork="yes" failonerror="true" classname="edu.brown.designer.LowerBoundsCalculator">
+    description="Calculate lower bounds">
+    <java fork="yes" failonerror="true" classname="edu.brown.designer.LowerBoundsCalculator">
         <jvmarg value="-client" />
         <jvmarg value="-Xms256m" />
         <jvmarg value="-Xmx${global.memory}m" />
@@ -2425,34 +2426,34 @@ UTILITIES
 -->
 
 <target name="oltpgen.clean">
-        <delete includeemptydirs="true" dir="${build.test.dir}/edu/brown/oltpgenerator" />
+    <delete includeemptydirs="true" dir="${build.test.dir}/edu/brown/oltpgenerator" />
 </target>
 
 <target name="oltpgen.compile" depends="getjava, oltpgen.clean, compile">
-        <javac includeantruntime="false"
-                source="${global.jvm_version}"
-                target="${global.jvm_version}"
-                srcdir="${src.test.dir}"
-                destdir="${build.test.dir}"
-                debug='true'>
-                <classpath refid="project.classpath" />
-        </javac>
+    <javac includeantruntime="false"
+        source="${global.jvm_version}"
+        target="${global.jvm_version}"
+        srcdir="${src.test.dir}"
+        destdir="${build.test.dir}"
+        debug='true'>
+        <classpath refid="project.classpath" />
+    </javac>
 </target>
 
 <target name="oltpgen.main" description="OLTP Generator Main Gui">
-        <java fork="yes" classname="edu.brown.oltpgenerator.gui.GuiMain">
-                <arg value="catalog.jar=${src.test.dir}/edu/brown/oltpgenerator/tmp/tm1.jar" />
-                <arg value="markov=${src.test.dir}/edu/brown/oltpgenerator/tmp/tm1.markov" />
-                <classpath refid='project.classpath' />
-        </java>
+    <java fork="yes" classname="edu.brown.oltpgenerator.gui.GuiMain">
+        <arg value="catalog.jar=${src.test.dir}/edu/brown/oltpgenerator/tmp/tm1.jar" />
+        <arg value="markov=${src.test.dir}/edu/brown/oltpgenerator/tmp/tm1.markov" />
+        <classpath refid='project.classpath' />
+    </java>
 </target>
 
 <target name="oltpgen.helloworld" description="Generate HelloWorld benchmark">
-        <java fork="yes" classname="edu.brown.oltpgenerator.test.GenHelloWorldBenchmark">
-                <arg value="catalog.jar=${src.test.dir}/edu/brown/oltpgenerator/tmp/tm1.jar" />
-                <arg value="markov=${src.test.dir}/edu/brown/oltpgenerator/tmp/tm1.markov" />
-                <classpath refid='project.classpath' />
-        </java>
+    <java fork="yes" classname="edu.brown.oltpgenerator.test.GenHelloWorldBenchmark">
+        <arg value="catalog.jar=${src.test.dir}/edu/brown/oltpgenerator/tmp/tm1.jar" />
+        <arg value="markov=${src.test.dir}/edu/brown/oltpgenerator/tmp/tm1.markov" />
+        <classpath refid='project.classpath' />
+    </java>
 </target>
 
 <!--
@@ -2477,140 +2478,140 @@ UTILITIES
     <antcall target="catalog-fix">
         <param name="jar" value="${benchmark.jar}" />
         <param name="mappings" value="${files.mappings.dir}/${project}.mappings" />
-        
+
         <!-- FORMAT: <hostname>:<site#>:<partition#> -->
-        <!-- Default is two sites, each with one partition -->
-        <param name="hosts" value="${global.defaulthost}:0:0;${global.defaulthost}:1:1" />
-    </antcall>
-</target>
+                    <!-- Default is two sites, each with one partition -->
+                    <param name="hosts" value="${global.defaulthost}:0:0;${global.defaulthost}:1:1" />
+                </antcall>
+            </target>
 
-<target name='hstore-dist' description="Prepare Repository for New Release">
-    <java fork="yes" failonerror="true" classname="edu.brown.hstore.conf.HStoreConfUtil">
-        <jvmarg value="-Xmx${client.memory}m" />
-        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="${basedir}/build-common.xml" />
-        <classpath refid='project.classpath' />
-        <assertions>
-            <enable/>
-        </assertions>
-    </java>
-</target>
+            <target name='hstore-dist' description="Prepare Repository for New Release">
+                <java fork="yes" failonerror="true" classname="edu.brown.hstore.conf.HStoreConfUtil">
+                    <jvmarg value="-Xmx${client.memory}m" />
+                    <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+                    <arg value="${basedir}/build-common.xml" />
+                    <classpath refid='project.classpath' />
+                    <assertions>
+                        <enable/>
+                    </assertions>
+                </java>
+            </target>
 
-<target name="hstore-site" description="H-Store Execution Site">
-    <condition property="markov" value="${files.markovs.dir}/${project}.markovs">
-        <not><isset property="markov"/></not>
-    </condition>
+            <target name="hstore-site" description="H-Store Execution Site">
+                <condition property="markov" value="${files.markovs.dir}/${project}.markovs">
+                    <not><isset property="markov"/></not>
+                </condition>
 
-    <java fork="yes" classname="edu.brown.hstore.HStore">
-        <!-- Use to identify what process this for killing -->
-        <jvmarg value="-Dhstore.tag=site" />
-        
-        <!-- Initial Heap Size -->
-        <jvmarg value="-Xms100m" />
-        <!-- Maximum Heap Size -->
-        <jvmarg value="-Xmx${site.memory}m" />
+                <java fork="yes" classname="edu.brown.hstore.HStore">
+                    <!-- Use to identify what process this for killing -->
+                    <jvmarg value="-Dhstore.tag=site" />
 
-        <!-- JProfiler -->
-        <!-- <jvmarg value="-agentpath:${jprofiler.dir}/bin/linux-x64/libjprofilerti.so=port=${jprofiler.port}" /> -->
+                    <!-- Initial Heap Size -->
+                    <jvmarg value="-Xms100m" />
+                    <!-- Maximum Heap Size -->
+                    <jvmarg value="-Xmx${site.memory}m" />
 
-        <!-- Parallel Garbage Collector (Slower) -->
-        <!-- <jvmarg value="-XX:+UseParNewGC" /> -->
-        <!-- <jvmarg value="-XX:+UseConcMarkSweepGC" /> -->
-        <!-- <jvmarg value="-XX:+CMSIncrementalMode" /> -->
+                    <!-- JProfiler -->
+                    <!-- <jvmarg value="-agentpath:${jprofiler.dir}/bin/linux-x64/libjprofilerti.so=port=${jprofiler.port}" /> -->
 
-        <!-- Java 1.7 G1 Garbage Collector -->
-        <jvmarg value="-XX:+UseG1GC" />
-        <jvmarg value="-XX:+UseCompressedOops" />
+                    <!-- Parallel Garbage Collector (Slower) -->
+                    <!-- <jvmarg value="-XX:+UseParNewGC" /> -->
+                    <!-- <jvmarg value="-XX:+UseConcMarkSweepGC" /> -->
+                    <!-- <jvmarg value="-XX:+CMSIncrementalMode" /> -->
 
-        <!-- Garbage Collector Debug Output -->
-        <!-- <jvmarg value="-verbose:gc" /> -->
-        <!-- <jvmarg value="-XX:+PrintGCDetails" /> -->
-        <!-- <jvmarg value="-XX:+PrintGCTimeStamps" /> -->
-        <!-- <jvmarg value="-XX:-TraceClassUnloading" /> -->
+                    <!-- Java 1.7 G1 Garbage Collector -->
+                    <jvmarg value="-XX:+UseG1GC" />
+                    <jvmarg value="-XX:+UseCompressedOops" />
 
-        <!-- Other JVM Options -->
-        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <jvmarg value="-server" />
-        <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
+                    <!-- Garbage Collector Debug Output -->
+                    <!-- <jvmarg value="-verbose:gc" /> -->
+                    <!-- <jvmarg value="-XX:+PrintGCDetails" /> -->
+                    <!-- <jvmarg value="-XX:+PrintGCTimeStamps" /> -->
+                    <!-- <jvmarg value="-XX:-TraceClassUnloading" /> -->
 
-        <arg value="catalog.jar=${jar}" />
-        <arg value="conf=${conf}" />
-        <arg value="site.id=${site.id}" />
-        <arg value="hasher.class=${hasher}" />
-        <arg value="markov=${markov}" />
-        <arg value="markov.thresholds=${markov.thresholds}" />
-        <arg value="markov.thresholds.value=${markov.thresholds.value}" />
-        <arg value="mappings=${mappings}" />
-        <arg value="partitionplan=${partitionplan}" />
-        <arg value="partitionplan.apply=true" />
-        <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
-        <arg value="partitionplan.ignore_missing=${partitionplan.ignore_missing}" />
-        <arg value="workload.output=${workload.output}" />
-        <arg value="workload.procexclude=${benchmark.workload.ignore}" />
+                    <!-- Other JVM Options -->
+                    <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+                    <jvmarg value="-server" />
+                    <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
 
-        &common;
+                    <arg value="catalog.jar=${jar}" />
+                    <arg value="conf=${conf}" />
+                    <arg value="site.id=${site.id}" />
+                    <arg value="hasher.class=${hasher}" />
+                    <arg value="markov=${markov}" />
+                    <arg value="markov.thresholds=${markov.thresholds}" />
+                    <arg value="markov.thresholds.value=${markov.thresholds.value}" />
+                    <arg value="mappings=${mappings}" />
+                    <arg value="partitionplan=${partitionplan}" />
+                    <arg value="partitionplan.apply=true" />
+                    <arg value="partitionplan.nosecondary=${partitionplan.nosecondary}" />
+                    <arg value="partitionplan.ignore_missing=${partitionplan.ignore_missing}" />
+                    <arg value="workload.output=${workload.output}" />
+                    <arg value="workload.procexclude=${benchmark.workload.ignore}" />
 
-        <classpath refid='project.classpath' />
-        <assertions refid="site.assertions"/>
-    </java>
-</target>
+                    &common;
 
-<target name='hstore-benchmark' description="H-Store Benchmark">
-    <antcall target="benchmark">
-        <param name="catalog" value="${jar}" />
-        <param name="compile" value="false" />
-        <param name="cataloghosts" value="true" />
-    </antcall>
-</target>
+                    <classpath refid='project.classpath' />
+                    <assertions refid="site.assertions"/>
+                </java>
+            </target>
 
-<target name='hstore-start' description="Start the H-Store cluster">
-    <condition property="noloader" value="true">
-        <not><isset property="noloader"/></not>
-    </condition>
-    <antcall target="hstore-benchmark">
-        <param name="noloader" value="${noloader}" />
-        <param name="noexecute" value="true" />
-        <param name="noshutdown" value="true" />
-    </antcall>
-</target>
+            <target name='hstore-benchmark' description="H-Store Benchmark">
+                <antcall target="benchmark">
+                    <param name="catalog" value="${jar}" />
+                    <param name="compile" value="false" />
+                    <param name="cataloghosts" value="true" />
+                </antcall>
+            </target>
 
-<target name='hstore-invoke'
-        description="Execute on transaction on an already running H-Store cluster">
-    <java fork="yes" failonerror="true" classname="edu.brown.hstore.VoltProcedureInvoker">
-        <jvmarg value="-client" />
-        <jvmarg value="-Xms256m" />
-        <jvmarg value="-Xmx${client.memory}m" />
-        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="catalog.jar=${benchmark.jar}" />
-        <arg value="${proc}" />
-        <arg value="${params}" />
-        <arg value="${param0}" />
-        <arg value="${param1}" />
-        <arg value="${param2}" />
-        <arg value="${param3}" />
-        <arg value="${param4}" />
-        <arg value="${param5}" />
-        <arg value="${param6}" />
-        <arg value="${param7}" />
-        <arg value="${param8}" />
-        <arg value="${param9}" />
-        <classpath refid='project.classpath' />
-        <assertions><enable/></assertions>
-    </java>
-</target>
+            <target name='hstore-start' description="Start the H-Store cluster">
+                <condition property="noloader" value="true">
+                    <not><isset property="noloader"/></not>
+                </condition>
+                <antcall target="hstore-benchmark">
+                    <param name="noloader" value="${noloader}" />
+                    <param name="noexecute" value="true" />
+                    <param name="noshutdown" value="true" />
+                </antcall>
+            </target>
 
-<target name='hstore-term'
-        description="H-Store Commandline Terminal">
-    <java fork="yes" failonerror="true" classname="edu.brown.hstore.HStoreTerminal">
-        <jvmarg value="-client" />
-        <jvmarg value="-Xms256m" />
-        <jvmarg value="-Xmx${client.memory}m" />
-        <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
-        <arg value="catalog.jar=${benchmark.jar}" />
-        <classpath refid='project.classpath' />
-        <assertions><enable/></assertions>
-    </java>
-</target>
+            <target name='hstore-invoke'
+                description="Execute on transaction on an already running H-Store cluster">
+                <java fork="yes" failonerror="true" classname="edu.brown.hstore.VoltProcedureInvoker">
+                    <jvmarg value="-client" />
+                    <jvmarg value="-Xms256m" />
+                    <jvmarg value="-Xmx${client.memory}m" />
+                    <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+                    <arg value="catalog.jar=${benchmark.jar}" />
+                    <arg value="${proc}" />
+                    <arg value="${params}" />
+                    <arg value="${param0}" />
+                    <arg value="${param1}" />
+                    <arg value="${param2}" />
+                    <arg value="${param3}" />
+                    <arg value="${param4}" />
+                    <arg value="${param5}" />
+                    <arg value="${param6}" />
+                    <arg value="${param7}" />
+                    <arg value="${param8}" />
+                    <arg value="${param9}" />
+                    <classpath refid='project.classpath' />
+                    <assertions><enable/></assertions>
+                </java>
+            </target>
+
+            <target name='hstore-term'
+                description="H-Store Commandline Terminal">
+                <java fork="yes" failonerror="true" classname="edu.brown.hstore.HStoreTerminal">
+                    <jvmarg value="-client" />
+                    <jvmarg value="-Xms256m" />
+                    <jvmarg value="-Xmx${client.memory}m" />
+                    <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
+                    <arg value="catalog.jar=${benchmark.jar}" />
+                    <classpath refid='project.classpath' />
+                    <assertions><enable/></assertions>
+                </java>
+            </target>
 
 <!-- END PROJECT -->
 </project>
