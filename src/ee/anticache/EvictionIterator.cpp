@@ -130,10 +130,11 @@ void EvictionIterator::reserve(int64_t amount) {
 #ifdef ANTICACHE_TIMESTAMPS_PRIME
         for (int i = 0; i < last_full_block; ++i) {
             // if this is the first time a block become full, find a proper step to let it sample tuples from almost the whole block
-            if (ptable->m_stepPrime[i] < 0) {
+            if (ptable->m_evictPosition[i] == 0) {
                 int ideal_step = tuples_per_block / pick_num_block;
+                int old_prime = ptable->m_stepPrime[i];
                 for (int j = prime_size - 1; j >= 0; --j) {
-                    if (tuples_per_block % prime_list[j]) {
+                    if (prime_list[j] != old_prime && (tuples_per_block % prime_list[j])) {
                         ptable->m_stepPrime[i] = prime_list[j];
                         VOLT_TRACE("DEBUG: %d %d\n", tuples_per_block, ptable->m_stepPrime[i]);
                     }
@@ -150,26 +151,28 @@ void EvictionIterator::reserve(int64_t amount) {
             int block_size_bytes = block_size * tuple_size;
             addr = ptable->m_data[i] + ptable->m_evictPosition[i];
             uint64_t end_of_block = (uint64_t)ptable->m_data[i] + block_size_bytes;
+            bool flag_new = false;
             for (int j = 0; j < pick_num_block; ++j) {
                 //printf("Flip addr: %p %p %lu\n", addr, ptable->m_data[i], ((uint64_t)addr - (uint64_t)ptable->m_data[i]) / 1024);
 
                 current_tuple->move(addr);
 
-                if (!current_tuple->isActive() || current_tuple->isEvicted()) {
-                    addr += step_offset;
-                    if ((uint64_t)addr >= end_of_block)
-                        addr -= block_size_bytes;
-                    continue;
+                if (current_tuple->isActive()) {
+                    candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
+                    m_size++;
                 }
-
-                candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
-                m_size++;
 
                 addr += step_offset;
                 if ((uint64_t)addr >= end_of_block)
                     addr -= block_size_bytes;
+                if (addr == ptable->m_data[i])
+                    flag_new = true;
             }
-            ptable->m_evictPosition[i] = (int)((uint64_t)addr - (uint64_t)ptable->m_data[i]);
+            int new_position = (int)((uint64_t)addr - (uint64_t)ptable->m_data[i]);
+            if (!flag_new)
+                ptable->m_evictPosition[i] = new_position;
+            else 
+                ptable->m_evictPosition[i] = 0;
         }
         if (last_full_block < block_num) {
             addr = ptable->m_data[last_full_block];
