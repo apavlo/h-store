@@ -81,37 +81,37 @@ public class SStore4DemuxOpExpProjectBuilder extends AbstractProjectBuilder {
         ,Move29.class
         ,Move30.class
         ,Move31.class
-        ,SP201.class
-        ,SP202.class
-        ,SP203.class
-        ,SP204.class
-        ,SP205.class
-        ,SP206.class
-        ,SP207.class
-        ,SP208.class
-        ,SP209.class
-        ,SP210.class
-        ,SP211.class
-        ,SP212.class
-        ,SP213.class
-        ,SP214.class
-        ,SP215.class
-        ,SP216.class
-        ,SP217.class
-        ,SP218.class
-        ,SP219.class
-        ,SP220.class
-        ,SP221.class
-        ,SP222.class
-        ,SP223.class
-        ,SP224.class
-        ,SP225.class
-        ,SP226.class
-        ,SP227.class
-        ,SP228.class
-        ,SP229.class
-        ,SP230.class
-        ,SP231.class
+        ,SP2_1.class
+        ,SP2_2.class
+        ,SP2_3.class
+        ,SP2_4.class
+        ,SP2_5.class
+        ,SP2_6.class
+        ,SP2_7.class
+        ,SP2_8.class
+        ,SP2_9.class
+        ,SP2_10.class
+        ,SP2_11.class
+        ,SP2_12.class
+        ,SP2_13.class
+        ,SP2_14.class
+        ,SP2_15.class
+        ,SP2_16.class
+        ,SP2_17.class
+        ,SP2_18.class
+        ,SP2_19.class
+        ,SP2_20.class
+        ,SP2_21.class
+        ,SP2_22.class
+        ,SP2_23.class
+        ,SP2_24.class
+        ,SP2_25.class
+        ,SP2_26.class
+        ,SP2_27.class
+        ,SP2_28.class
+        ,SP2_29.class
+        ,SP2_30.class
+        ,SP2_31.class
         };
 	
 	{
