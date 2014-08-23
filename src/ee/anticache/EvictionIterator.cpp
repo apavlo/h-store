@@ -140,7 +140,7 @@ void EvictionIterator::reserve(int64_t amount) {
                     if (prime_list[j] < ideal_step)
                         break;
                 }
-                VOLT_DEBUG("DEBUG: %d %d\n", tuples_per_block, ptable->m_stepPrime[i]);
+                printf("Prime of block %d: %d %d\n", i, tuples_per_block, ptable->m_stepPrime[i]);
             }
 
             // now scan the block with a step of we select.
@@ -155,7 +155,7 @@ void EvictionIterator::reserve(int64_t amount) {
 
                 if (!current_tuple->isActive() || current_tuple->isEvicted()) {
                     addr += step_offset;
-                    if ((long)addr > end_of_block)
+                    if ((long)addr >= end_of_block)
                         addr -= block_size_bytes;
                     continue;
                 }
@@ -166,7 +166,7 @@ void EvictionIterator::reserve(int64_t amount) {
                 m_size++;
 
                 addr += step_offset;
-                if ((long)addr > end_of_block)
+                if ((long)addr >= end_of_block)
                     addr -= block_size_bytes;
             }
             ptable->m_evictPosition[i] = (int)((long)addr - (long)ptable->m_data[i]);
