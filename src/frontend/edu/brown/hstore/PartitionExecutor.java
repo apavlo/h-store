@@ -1205,6 +1205,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     if (this.utilityWork()) {
                         nextWork = UTIL_WORK_MSG;
                     }
+                } else {
+                    ThreadUtil.sleep(5);
                 }
             } // WHILE
         } catch (final Throwable ex) {
