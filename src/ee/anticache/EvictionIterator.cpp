@@ -117,8 +117,8 @@ void EvictionIterator::reserve(int64_t amount) {
 
 #ifdef ANTICACHE_TIMESTAMPS_PRIME
     int pick_num_block = (int)(((int64_t)pick_num * tuples_per_block) / used_tuple);
-    VOLT_DEBUG("LOG: %d %d %ld\n", pick_num, tuples_per_block, used_tuple);
     int last_full_block = (int)(used_tuple / block_size);
+    VOLT_INFO("LOG: %d %d %ld\n", last_full_block, tuples_per_block, used_tuple);
     int last_block_size = (int)(used_tuple % block_size);
     int pick_num_last_block = pick_num - pick_num_block * last_full_block;
 #endif
@@ -140,45 +140,47 @@ void EvictionIterator::reserve(int64_t amount) {
                     if (prime_list[j] < ideal_step)
                         break;
                 }
-                printf("Prime of block %d: %d %d\n", i, tuples_per_block, ptable->m_stepPrime[i]);
+                VOLT_DEBUG("Prime of block %d: %d %d\n", i, tuples_per_block, ptable->m_stepPrime[i]);
             }
 
             // now scan the block with a step of we select.
-            // if we go across the boundry, minus it back
+            // if we go across the boundry, minus it back to the beginning (like a mod operation)
             int step_prime = ptable->m_stepPrime[i];
             int step_offset = step_prime * tuple_size;
             int block_size_bytes = block_size * tuple_size;
             addr = ptable->m_data[i] + ptable->m_evictPosition[i];
-            long end_of_block = (long)ptable->m_data[i] + block_size_bytes;
+            uint64_t end_of_block = (uint64_t)ptable->m_data[i] + block_size_bytes;
             for (int j = 0; j < pick_num_block; ++j) {
+                //printf("Flip addr: %p %p %lu\n", addr, ptable->m_data[i], ((uint64_t)addr - (uint64_t)ptable->m_data[i]) / 1024);
+
                 current_tuple->move(addr);
 
                 if (!current_tuple->isActive() || current_tuple->isEvicted()) {
                     addr += step_offset;
-                    if ((long)addr >= end_of_block)
+                    if ((uint64_t)addr >= end_of_block)
                         addr -= block_size_bytes;
                     continue;
                 }
-
-                VOLT_TRACE("Flip addr: %p\n", addr);
 
                 candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
                 m_size++;
 
                 addr += step_offset;
-                if ((long)addr >= end_of_block)
+                if ((uint64_t)addr >= end_of_block)
                     addr -= block_size_bytes;
             }
-            ptable->m_evictPosition[i] = (int)((long)addr - (long)ptable->m_data[i]);
+            ptable->m_evictPosition[i] = (int)((uint64_t)addr - (uint64_t)ptable->m_data[i]);
         }
         if (last_full_block < block_num) {
-            addr = ptable->m_data[last_full_block] + ptable->m_evictPosition[last_full_block];
+            addr = ptable->m_data[last_full_block];
+            char* current_addr;
             for (int j = 0; j < pick_num_last_block; ++j) {
-                current_tuple->move(addr + (rand() % last_block_size) * tuple_size);
+                current_addr = addr + (rand() % last_block_size) * tuple_size;
+                current_tuple->move(current_addr);
                 if (!current_tuple->isActive() || current_tuple->isEvicted())
                     continue;
 
-                candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
+                candidates[m_size].setTuple(current_tuple->getTimeStamp(), current_addr);
                 m_size++;
             }
         }
