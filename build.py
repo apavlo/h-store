@@ -349,6 +349,7 @@ CTX.TESTS['expressions'] = """
 """
 
 CTX.TESTS['indexes'] = """
+ index_allocatortracker_test
  index_key_test
  index_multikey_test
  index_scripted_test
@@ -401,6 +402,9 @@ if CTX.ANTICACHE_BUILD:
         
     if CTX.ANTICACHE_DRAM:
         CTX.CPPFLAGS += " -DANTICACHE_DRAM"
+
+    if CTX.ANTICACHE_TIMESTAMPS:
+        CTX.CPPFLAGS += " -DANTICACHE_TIMESTAMPS"
 
     # Bring in berkeleydb library
     CTX.SYSTEM_DIRS.append(os.path.join(CTX.OUTPUT_PREFIX, 'berkeleydb'))

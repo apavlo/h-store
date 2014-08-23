@@ -20,6 +20,7 @@ package org.voltdb.sysprocs;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -35,6 +36,7 @@ import org.voltdb.VoltTable.ColumnInfo;
 import org.voltdb.VoltType;
 import org.voltdb.catalog.CatalogMap;
 import org.voltdb.catalog.Table;
+import org.voltdb.catalog.Index;
 import org.voltdb.exceptions.ServerFaultException;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
@@ -84,6 +86,10 @@ public class Statistics extends VoltSystemProcedure {
     static final int DEP_partitionCount = (int)
         SysProcFragmentId.PF_partitionCount;
 
+    static final int DEP_indexData = (int)
+        SysProcFragmentId.PF_indexData | HStoreConstants.MULTIPARTITION_DEPENDENCY;
+    static final int DEP_indexAggregator = (int) SysProcFragmentId.PF_indexAggregator;
+
     /**
      * DataSysProcFragmentId -> <SysProcSelector, AggSysProcFragmentId>
      */
@@ -117,6 +123,9 @@ public class Statistics extends VoltSystemProcedure {
         registerPlanFragment(SysProcFragmentId.PF_ioData);
         registerPlanFragment(SysProcFragmentId.PF_ioDataAggregator);
         
+        registerPlanFragment(SysProcFragmentId.PF_indexData);
+        registerPlanFragment(SysProcFragmentId.PF_indexAggregator);
+
         // Automatically register our STATS_DATA entries
         for (Integer id : STATS_DATA.keySet()) {
             registerPlanFragment(id.intValue());
@@ -220,6 +229,7 @@ public class Statistics extends VoltSystemProcedure {
                 int ii = 0;
                 for (Table table : tables) {
                     tableGuids[ii++] = table.getRelativeIndex();
+                    //System.err.println("TABLE ID: " + table.getRelativeIndex());
                 }
                 VoltTable result = executor.getExecutionEngine().getStats(
                             SysProcSelector.TABLE,
@@ -231,6 +241,73 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_tableAggregator: {
                 VoltTable result = VoltTableUtil.union(dependencies.get(DEP_tableData));
                 return new DependencySet(DEP_tableAggregator, result);
+            }
+            
+            // ----------------------------------------------------------------------------
+            //  INDEX statistics
+            // ----------------------------------------------------------------------------
+            case SysProcFragmentId.PF_indexData: {
+                assert(params.toArray().length == 2);
+                final boolean interval =
+                    ((Byte)params.toArray()[0]).byteValue() == 0 ? false : true;
+                final Long now = (Long)params.toArray()[1];
+
+                // create an array of the table ids for which statistics are required.
+                // pass this to EE owned by the execution site running this plan fragment.
+                CatalogMap<Table> tables = context.getDatabase().getTables();
+                int[] tableGuids = new int[tables.size()];
+                int ii = 0;
+                for (Table table : tables) {
+                    tableGuids[ii++] = table.getRelativeIndex();
+                    System.err.println("TABLE ID: " + table.getRelativeIndex());
+                }
+
+                /* This part is a test version for add every index's m_relativeIndex to ids.
+                // create an array of the tables for which statistics are required.
+                // pass this to EE owned by the execution site running this plan fragment.
+                CatalogMap<Table> tables = context.getDatabase().getTables();
+                CatalogMap<Index> indexes;
+                ArrayList<Integer> catalogIds = new ArrayList<Integer>();
+
+                //HashSet<Integer> tableIds = new HashSet<Integer>();
+                //Integer tableId;
+
+                for (Table table : tables) {
+                    indexes = table.getIndexes();
+                    //tableId = table.getRelativeIndex();
+                    //if (tableIds.contains(tableId)) continue;
+                    //tableIds.add(tableId);
+                    for (Index index: indexes) {
+                        catalogIds.add(index.getRelativeIndex());
+                        //System.err.println("INDEX ID: " + index.getRelativeIndex());
+                    }
+                }
+
+                int[] indexIds = new int[catalogIds.size()];
+                int ii = 0;
+                for (Integer n : catalogIds) {
+                    //indexIds[ii] = ii + 1;
+                    //ii++;
+                    //System.err.println("INDEX ID: " + ii);
+                    indexIds[ii++] = n; 
+                }
+                VoltTable result = executor.getExecutionEngine().getStats(
+                            SysProcSelector.INDEX,
+                            indexIds, 
+                            interval,
+                            now)[0];
+                }*/
+
+                VoltTable result = executor.getExecutionEngine().getStats(
+                            SysProcSelector.INDEX,
+                            tableGuids,
+                            interval,
+                            now)[0];
+                return new DependencySet(DEP_indexData, result);
+            }
+            case SysProcFragmentId.PF_indexAggregator: {
+                VoltTable result = VoltTableUtil.union(dependencies.get(DEP_indexData));
+                return new DependencySet(DEP_indexAggregator, result);
             }
     
             // ----------------------------------------------------------------------------
@@ -359,6 +436,9 @@ public class Statistics extends VoltSystemProcedure {
         }
         else if (selector.toUpperCase().startsWith(SysProcSelector.TABLE.name())) {
             results = getTableData(interval, now);
+        }
+        else if (selector.toUpperCase().startsWith(SysProcSelector.INDEX.name())) {
+            results = getIndexData(interval, now);
         }
         else if (selector.toUpperCase().startsWith(SysProcSelector.PROCEDURE.name())) {
             results = getProcedureData(interval, now);
@@ -539,6 +619,33 @@ public class Statistics extends VoltSystemProcedure {
         // distribute and execute these fragments providing pfs and id of the
         // aggregator's output dependency table.
         results = executeSysProcPlanFragments(pfs, DEP_tableAggregator);
+        return results;
+    }
+
+    private VoltTable[] getIndexData(long interval, final long now) {
+        VoltTable[] results;
+        SynthesizedPlanFragment pfs[] = new SynthesizedPlanFragment[2];
+        // create a work fragment to gather table data from each of the sites.
+        pfs[1] = new SynthesizedPlanFragment();
+        pfs[1].fragmentId = SysProcFragmentId.PF_indexData;
+        pfs[1].outputDependencyIds = new int[]{ DEP_indexData };
+        pfs[1].inputDependencyIds = new int[]{};
+        pfs[1].multipartition = true;
+        pfs[1].parameters = new ParameterSet();
+        pfs[1].parameters.setParameters((byte)interval, now);
+
+        // create a work fragment to aggregate the results.
+        // Set the MULTIPARTITION_DEPENDENCY bit to require a dependency from every site.
+        pfs[0] = new SynthesizedPlanFragment();
+        pfs[0].fragmentId = SysProcFragmentId.PF_indexAggregator;
+        pfs[0].outputDependencyIds = new int[]{ DEP_indexAggregator };
+        pfs[0].inputDependencyIds = new int[]{DEP_indexData};
+        pfs[0].multipartition = false;
+        pfs[0].parameters = new ParameterSet();
+
+        // distribute and execute these fragments providing pfs and id of the
+        // aggregator's output dependency table.
+        results = executeSysProcPlanFragments(pfs, DEP_indexAggregator);
         return results;
     }
 }

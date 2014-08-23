@@ -79,14 +79,23 @@ namespace voltdb {
  |  flags (1 byte)  |  "previous" tuple id  (4 bytes)  |  "next" tuple id (4 bytes)  | tuple data  |
  ---------------------------------------------------------------------------------------------------
  
+ (d). Anti-Caching with time stamps
+ ----------------------------------------------------------
+ |  flags (1 byte)  |  time stamp (4 bytes) | tuple data  |
+ ----------------------------------------------------------
+
  */
 
 #ifdef ANTICACHE
-    #ifdef ANTICACHE_REVERSIBLE_LRU
-        #define TUPLE_HEADER_SIZE 9
-    #else
-        #define TUPLE_HEADER_SIZE 5
-    #endif
+    #ifdef ANTICACHE_TIMESTAMPS
+    	#define TUPLE_HEADER_SIZE 5
+	#else
+    	#ifdef ANTICACHE_REVERSIBLE_LRU
+        	#define TUPLE_HEADER_SIZE 9
+    	#else
+        	#define TUPLE_HEADER_SIZE 5
+    	#endif
+	#endif
 #else
     #define TUPLE_HEADER_SIZE 1
 #endif
@@ -282,93 +291,119 @@ public:
     }
     
 #ifdef ANTICACHE
-    inline uint32_t getNextTupleInChain() {
-        uint32_t tuple_id = 0;
-        memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);
-        
-        return tuple_id; 
-    }
+	#ifndef ANTICACHE_TIMESTAMPS
+    	inline uint32_t getNextTupleInChain() {
+        	uint32_t tuple_id = 0;
+	        memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);
+   	     
+    	    return tuple_id; 
+    	}
     
-    inline void setNextTupleInChain(uint32_t next) {
-        memcpy(m_data+TUPLE_HEADER_SIZE-4, &next, 4);
+	    inline void setNextTupleInChain(uint32_t next) {
+    	    memcpy(m_data+TUPLE_HEADER_SIZE-4, &next, 4);
 
-    }
+    	}
     
-    inline uint32_t getPreviousTupleInChain() {
-        uint32_t tuple_id = 0;
-        memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-8, 4);
-        return tuple_id;
-    }
+    	inline uint32_t getPreviousTupleInChain() {
+        	uint32_t tuple_id = 0;
+        	memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-8, 4);
+        	return tuple_id;
+    	}
     
-    inline void setPreviousTupleInChain(uint32_t prev) {
-        memcpy(m_data+TUPLE_HEADER_SIZE-8, &prev, 4);
-    }
+    	inline void setPreviousTupleInChain(uint32_t prev) {
+        	memcpy(m_data+TUPLE_HEADER_SIZE-8, &prev, 4);
+    	}
+
+	#else
+    	inline uint32_t getTimeStamp() {
+        	uint32_t time_stamp = 0;
+	        memcpy(&time_stamp, m_data+TUPLE_HEADER_SIZE-4, 4);
+   	     
+    	    return time_stamp; 
+    	}
+
+        static uint64_t rdtsc() {
+            uint32_t lo, hi;
+            __asm__ __volatile__ ("rdtsc": "=a" (lo), "=d" (hi));
+            return (((uint64_t)hi << 32) | lo);
+        }
+    
+        inline void setTimeStamp() {
+            uint32_t current_time = (uint32_t)(rdtsc() >> 32);
+            memcpy(m_data+TUPLE_HEADER_SIZE-4, &current_time, 4);
+        }
+
+        inline void setColdTimeStamp() {
+            uint32_t cold_time = 0;
+            memcpy(m_data+TUPLE_HEADER_SIZE-4, &cold_time, 4);
+        }
+#endif
 #endif
 
-    inline uint32_t getTupleID()
-    {
-        uint32_t tuple_id; 
-        memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);  
+        inline uint32_t getTupleID()
+        {
+            uint32_t tuple_id; 
+            memcpy(&tuple_id, m_data+TUPLE_HEADER_SIZE-4, 4);  
 
-        return tuple_id; 
-    }
+            return tuple_id; 
+        }
 
-    inline void setTupleID(uint32_t tuple_id)
-    {
-        memcpy(m_data+TUPLE_HEADER_SIZE-4, &tuple_id, 4); 
-    }
+        inline void setTupleID(uint32_t tuple_id)
+        {
+            memcpy(m_data+TUPLE_HEADER_SIZE-4, &tuple_id, 4); 
+        }
 
-    /** Get the value of a specified column (const) */
-    //not performant because it has to check the schema to see how to
-    //return the SlimValue.
-    inline const NValue getNValue(const int idx) const {
-        assert(m_schema);
-        assert(m_data);
-        assert(idx < m_schema->columnCount());
+        /** Get the value of a specified column (const) */
+        //not performant because it has to check the schema to see how to
+        //return the SlimValue.
+        inline const NValue getNValue(const int idx) const {
+            assert(m_schema);
+            assert(m_data);
+            assert(idx < m_schema->columnCount());
 
-        //assert(isActive());
-        const voltdb::ValueType columnType = m_schema->columnType(idx);
-        const char* dataPtr = getDataPtr(idx);
-        const bool isInlined = m_schema->columnIsInlined(idx);
-        return NValue::deserializeFromTupleStorage( dataPtr, columnType, isInlined);
-    }
+            //assert(isActive());
+            const voltdb::ValueType columnType = m_schema->columnType(idx);
+            const char* dataPtr = getDataPtr(idx);
+            const bool isInlined = m_schema->columnIsInlined(idx);
+            return NValue::deserializeFromTupleStorage( dataPtr, columnType, isInlined);
+        }
 
-    inline const voltdb::TupleSchema* getSchema() const {
-        return m_schema;
-    }
+        inline const voltdb::TupleSchema* getSchema() const {
+            return m_schema;
+        }
 
-    /** Print out a human readable description of this tuple */
-    std::string debug(const std::string& tableName) const;
-    std::string debugNoHeader() const;
+        /** Print out a human readable description of this tuple */
+        std::string debug(const std::string& tableName) const;
+        std::string debugNoHeader() const;
 
-    /** Copy values from one tuple into another (uses memcpy) */
-    // verify assumptions for copy. do not use at runtime (expensive)
-    bool compatibleForCopy(const TableTuple &source);
-    void copyForPersistentInsert(const TableTuple &source, Pool *pool = NULL);
-    void copyForPersistentUpdate(const TableTuple &source, Pool *pool = NULL);
-    void copy(const TableTuple &source);
+        /** Copy values from one tuple into another (uses memcpy) */
+        // verify assumptions for copy. do not use at runtime (expensive)
+        bool compatibleForCopy(const TableTuple &source);
+        void copyForPersistentInsert(const TableTuple &source, Pool *pool = NULL);
+        void copyForPersistentUpdate(const TableTuple &source, Pool *pool = NULL);
+        void copy(const TableTuple &source);
 
-    /** this does set NULL in addition to clear string count.*/
-    void setAllNulls();
+        /** this does set NULL in addition to clear string count.*/
+        void setAllNulls();
 
-    bool equals(const TableTuple &other) const;
-    bool equalsNoSchemaCheck(const TableTuple &other) const;
+        bool equals(const TableTuple &other) const;
+        bool equalsNoSchemaCheck(const TableTuple &other) const;
 
-    int compare(const TableTuple &other) const;
+        int compare(const TableTuple &other) const;
 
-    void deserializeFrom(voltdb::SerializeInput &tupleIn, Pool *stringPool);
-    void serializeTo(voltdb::SerializeOutput &output);
-    void serializeToExport(voltdb::ExportSerializeOutput &io,
-            int colOffset, uint8_t *nullArray);
+        void deserializeFrom(voltdb::SerializeInput &tupleIn, Pool *stringPool);
+        void serializeTo(voltdb::SerializeOutput &output);
+        void serializeToExport(voltdb::ExportSerializeOutput &io,
+                int colOffset, uint8_t *nullArray);
 
-    void serializeWithHeaderTo(voltdb::SerializeOutput &output);
-    int64_t deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn);
+        void serializeWithHeaderTo(voltdb::SerializeOutput &output);
+        int64_t deserializeWithHeaderFrom(voltdb::SerializeInput &tupleIn);
 
-    void freeObjectColumns();
+        void freeObjectColumns();
 
-//#ifdef ARIES
-    void freeObjectColumnsOfLogTuple();
-//#endif
+        //#ifdef ARIES
+        void freeObjectColumnsOfLogTuple();
+        //#endif
 
     size_t hashCode(size_t seed) const;
     size_t hashCode() const;
@@ -384,40 +419,40 @@ public:
     }
 
 protected:
-    inline void setDeletedTrue() {
-        // treat the first "value" as a boolean flag
-        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(DELETED_MASK);
-    }
-    inline void setDirtyTrue() {
-        // treat the first "value" as a boolean flag
-        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(DIRTY_MASK);
-    }
-    inline void setDirtyFalse() {
-        // treat the first "value" as a boolean flag
-        *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~DIRTY_MASK);
-    }
+        inline void setDeletedTrue() {
+            // treat the first "value" as a boolean flag
+            *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(DELETED_MASK);
+        }
+        inline void setDirtyTrue() {
+            // treat the first "value" as a boolean flag
+            *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(DIRTY_MASK);
+        }
+        inline void setDirtyFalse() {
+            // treat the first "value" as a boolean flag
+            *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~DIRTY_MASK);
+        }
 
 
-    /** The types of the columns in the tuple */
-    const TupleSchema *m_schema;
+        /** The types of the columns in the tuple */
+        const TupleSchema *m_schema;
 
-    /**
-     * The column data, padded at the front by 8 bytes
-     * representing whether the tuple is active or deleted
-     */
-    char *m_data;
+        /**
+         * The column data, padded at the front by 8 bytes
+         * representing whether the tuple is active or deleted
+         */
+        char *m_data;
 private:
-    inline char* getDataPtr(const int idx) {
-        assert(m_schema);
-        assert(m_data);
-        return &m_data[m_schema->columnOffset(idx) + TUPLE_HEADER_SIZE];
-    }
+        inline char* getDataPtr(const int idx) {
+            assert(m_schema);
+            assert(m_data);
+            return &m_data[m_schema->columnOffset(idx) + TUPLE_HEADER_SIZE];
+        }
 
-    inline const char* getDataPtr(const int idx) const {
-        assert(m_schema);
-        assert(m_data);
-        return &m_data[m_schema->columnOffset(idx) + TUPLE_HEADER_SIZE];
-    }
+        inline const char* getDataPtr(const int idx) const {
+            assert(m_schema);
+            assert(m_data);
+            return &m_data[m_schema->columnOffset(idx) + TUPLE_HEADER_SIZE];
+        }
 };
 
 inline TableTuple::TableTuple() :
@@ -683,75 +718,75 @@ inline int64_t TableTuple::deserializeWithHeaderFrom(voltdb::SerializeInput &tup
         total_bytes_deserialized+= NValue::deserializeFrom(tupleIn, type, dataPtr, isInlined, columnLength, NULL);
     }
     return total_bytes_deserialized;
-//    for (int j = 0; j < m_schema->columnCount(); ++j) {
-//        ValueType type = m_schema->columnType(j);
-//        
-//        switch (type) {
-//            case VALUE_TYPE_BIGINT:
-//            case VALUE_TYPE_TIMESTAMP:
-//                
-//                *reinterpret_cast<int64_t*>(m_data+total_bytes_deserialized) = tupleIn.readLong();
-//                total_bytes_deserialized += 8;
-//                break;
-//                
-//            case VALUE_TYPE_TINYINT:
-//                
-//                *reinterpret_cast<int8_t*>(m_data+total_bytes_deserialized) = tupleIn.readByte();
-//                total_bytes_deserialized += 1;
-//                break;
-//                
-//            case VALUE_TYPE_SMALLINT:
-//                
-//                *reinterpret_cast<int16_t*>(m_data+total_bytes_deserialized) = tupleIn.readShort();
-//                total_bytes_deserialized += 2;
-//                break;
-//                
-//            case VALUE_TYPE_INTEGER:
-//                
-//                *reinterpret_cast<int32_t*>(m_data+total_bytes_deserialized) = tupleIn.readInt();
-//                total_bytes_deserialized += 4;
-//                break;
-//                
-//            case VALUE_TYPE_DOUBLE:
-//                
-//                *reinterpret_cast<double* >(m_data+total_bytes_deserialized) = tupleIn.readDouble();
-//                total_bytes_deserialized += sizeof(double);
-//                break;
-//                
-//            case VALUE_TYPE_VARCHAR: {
-//                int32_t length = tupleIn.readInt();  // read in the length of this serialized string
-//                
-//                memcpy(m_data+total_bytes_deserialized, &length, 4);
-//                total_bytes_deserialized += 4;
-//
-//                if(!m_schema->columnIsInlined(j))
-//                {
-//                    VOLT_INFO("Dserializing an non in-line string of length %d.", length);
-//                }
-//                
-//                memcpy(m_data+total_bytes_deserialized, tupleIn.getRawPointer(length), length);
-//                total_bytes_deserialized += length;
-//
-//                break;
-//            }
-//            case VALUE_TYPE_DECIMAL: {
-//                int64_t *longStorage = reinterpret_cast<int64_t*>(m_data+total_bytes_deserialized);
-//                
-//                total_bytes_deserialized += 8;
-//
-//                //Reverse order for Java BigDecimal BigEndian
-//                longStorage[1] = tupleIn.readLong();
-//                longStorage[0] = tupleIn.readLong();
-//                break;
-//            }
-//            default:
-//                char message[128];
-//                snprintf(message, 128, "NValue::deserializeFrom() unrecognized type '%d'",
-//                         type);
-//                throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
-//                                              message);
-//        }
-//    }
+    //    for (int j = 0; j < m_schema->columnCount(); ++j) {
+    //        ValueType type = m_schema->columnType(j);
+    //        
+    //        switch (type) {
+    //            case VALUE_TYPE_BIGINT:
+    //            case VALUE_TYPE_TIMESTAMP:
+    //                
+    //                *reinterpret_cast<int64_t*>(m_data+total_bytes_deserialized) = tupleIn.readLong();
+    //                total_bytes_deserialized += 8;
+    //                break;
+    //                
+    //            case VALUE_TYPE_TINYINT:
+    //                
+    //                *reinterpret_cast<int8_t*>(m_data+total_bytes_deserialized) = tupleIn.readByte();
+    //                total_bytes_deserialized += 1;
+    //                break;
+    //                
+    //            case VALUE_TYPE_SMALLINT:
+    //                
+    //                *reinterpret_cast<int16_t*>(m_data+total_bytes_deserialized) = tupleIn.readShort();
+    //                total_bytes_deserialized += 2;
+    //                break;
+    //                
+    //            case VALUE_TYPE_INTEGER:
+    //                
+    //                *reinterpret_cast<int32_t*>(m_data+total_bytes_deserialized) = tupleIn.readInt();
+    //                total_bytes_deserialized += 4;
+    //                break;
+    //                
+    //            case VALUE_TYPE_DOUBLE:
+    //                
+    //                *reinterpret_cast<double* >(m_data+total_bytes_deserialized) = tupleIn.readDouble();
+    //                total_bytes_deserialized += sizeof(double);
+    //                break;
+    //                
+    //            case VALUE_TYPE_VARCHAR: {
+    //                int32_t length = tupleIn.readInt();  // read in the length of this serialized string
+    //                
+    //                memcpy(m_data+total_bytes_deserialized, &length, 4);
+    //                total_bytes_deserialized += 4;
+    //
+    //                if(!m_schema->columnIsInlined(j))
+    //                {
+    //                    VOLT_INFO("Dserializing an non in-line string of length %d.", length);
+    //                }
+    //                
+    //                memcpy(m_data+total_bytes_deserialized, tupleIn.getRawPointer(length), length);
+    //                total_bytes_deserialized += length;
+    //
+    //                break;
+    //            }
+    //            case VALUE_TYPE_DECIMAL: {
+    //                int64_t *longStorage = reinterpret_cast<int64_t*>(m_data+total_bytes_deserialized);
+    //                
+    //                total_bytes_deserialized += 8;
+    //
+    //                //Reverse order for Java BigDecimal BigEndian
+    //                longStorage[1] = tupleIn.readLong();
+    //                longStorage[0] = tupleIn.readLong();
+    //                break;
+    //            }
+    //            default:
+    //                char message[128];
+    //                snprintf(message, 128, "NValue::deserializeFrom() unrecognized type '%d'",
+    //                         type);
+    //                throw SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION,
+    //                                              message);
+    //        }
+    //    }
 }
 
 inline void TableTuple::serializeWithHeaderTo(voltdb::SerializeOutput &output) {

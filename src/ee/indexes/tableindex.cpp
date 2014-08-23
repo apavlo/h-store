@@ -67,9 +67,17 @@ TableIndex::TableIndex(const TableIndexScheme &scheme) : m_scheme(scheme), m_sta
     m_keySchema = scheme.keySchema;
     // initialize all the counters to zero
     m_lookups = m_inserts = m_deletes = m_updates = 0;
+
+    // initialize memory size to zero
+    m_memoryEstimate = 0;
+
+    VOLT_TRACE("Index created2: %s %d\n", getName().c_str(), m_id);
 }
+
 TableIndex::~TableIndex()
 {
+    VOLT_TRACE("Index destructed: %s %d\n", getName().c_str(), m_id);
+
     delete[] column_indices_;
     delete[] column_types_;
     voltdb::TupleSchema::freeTupleSchema(m_keySchema);
@@ -91,8 +99,8 @@ std::string TableIndex::debug() const
     std::string add = "";
     for (int ctr = 0; ctr < this->colCount_; ctr++) {
         buffer << add << ctr << "th entry=" << this->column_indices_[ctr]
-               << "th (" << voltdb::valueToString(column_types_[ctr])
-               << ") column in parent table";
+            << "th (" << voltdb::valueToString(column_types_[ctr])
+            << ") column in parent table";
         add = ", ";
     }
     buffer << "] --- size: " << this->getSize();

@@ -161,8 +161,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private final ExceptionHandlingRunnable evictionExecutor = new ExceptionHandlingRunnable() {
         @Override
         public void runImpl() {
+            //LOG.warn("We ran!!");
             synchronized(AntiCacheManager.this) {
                 try {
+                    //LOG.warn("We got the lock@!@!");
                     // check to see if we should start eviction
                     if (debug.val)
                         LOG.warn("Checking and evicting");
@@ -442,12 +444,19 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         long totalBlocksEvicted = 0;
         long totalBlocksFetched = 0;
         long totalEvictableSizeKb = 0;
+        long totalIndexKb = 0;
+
+        /**
+         * TODO: What commented in the loop below will make the eviction manager ignore index memory while calculating eviction threshold
+         *       In some cases, we may do want exclude index memory. Then uncomment them.
+         */
         for (PartitionStats stats : this.partitionStats) {
-            totalSizeKb += stats.sizeKb;
+            totalSizeKb += stats.sizeKb;// - stats.indexes;
+            totalIndexKb += stats.indexes;
             totalBlocksEvicted += stats.blocksEvicted;
             totalBlocksFetched += stats.blocksFetched;
             for (Stats tstats : stats.getTableStats()) {
-                totalEvictableSizeKb += tstats.sizeKb;
+                totalEvictableSizeKb += tstats.sizeKb;// - tstats.indexes;
             }
         }
 
@@ -457,8 +466,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
         LOG.info("Current Memory Usage: " + totalDataSize + " / " +
                 hstore_conf.site.anticache_threshold_mb + " MB");
-//        LOG.info("Current Active Memory Usage: " + totalActiveDataSize + " / " +
-//                hstore_conf.site.anticache_threshold_mb + " MB");
+        LOG.info("Current Active Memory Usage: " + totalActiveDataSize + " / " +
+                hstore_conf.site.anticache_threshold_mb + " MB");
+        LOG.info("Index memory: " + totalIndexKb);
         LOG.info("Blocks Currently Evicted: " + totalBlocksEvicted);
         LOG.info("Total Blocks Fetched: " + totalBlocksFetched);
         LOG.info("Total Evictable Kb: " + totalEvictableSizeKb);
@@ -767,7 +777,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // Queue up a utility work operation at the PartitionExecutor so
         // that we can get the total size of the partition
         hstore_site.getPartitionExecutor(partition).queueUtilityWork(this.statsMessage);
-	//LOG.info(String.format("setting partition %d to true", partition));
+	    LOG.debug(String.format("setting partition %d to true", partition));
         pendingStatsUpdates[partition] = true;
     }
 
@@ -780,12 +790,13 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         }
 
         public void update(String table, long sizeKb, long blocksEvicted,
-                long blocksFetched, long blocksWritten, long accesses){
+                long blocksFetched, long blocksWritten, long accesses, long indexes){
             this.sizeKb += sizeKb;
             this.blocksEvicted += blocksEvicted;
             this.blocksFetched += blocksFetched;
             this.blocksWritten += blocksWritten;
             this.accesses += accesses;
+            this.indexes += indexes;
             if (this.tables.containsKey(table)) {
                 Stats tableStats = this.tables.get(table);
                 tableStats.sizeKb = sizeKb;
@@ -793,6 +804,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 tableStats.blocksFetched = blocksFetched;
                 tableStats.blocksWritten = blocksWritten;
                 tableStats.accesses = accesses;
+                tableStats.indexes = indexes;
             }
         }
         
@@ -841,6 +853,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         public long evictionBlocksWritten = 0;
         public long evictionAccesses = 0;
         public double unevictionRatio = 0;
+        public long indexes = 0;
         
         public void reset() {
             sizeKb = 0;
@@ -848,6 +861,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             blocksFetched = 0;
             blocksWritten = 0;
             accesses = 0;
+            indexes = 0;
         }
     }
 
@@ -867,15 +881,26 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             // long oldSizeKb = stats.sizeKb;
             stats.reset();
 
+            //int tupleMem = 0;
+            //int stringMem = 0;
+            //int indexMem = 0;
+
             do {
                 String table = vt.getString("TABLE_NAME");
-                long sizeKb = vt.getLong("TUPLE_DATA_MEMORY") + vt.getLong("STRING_DATA_MEMORY");
+                long sizeKb = vt.getLong("TUPLE_DATA_MEMORY") + vt.getLong("STRING_DATA_MEMORY") + vt.getLong("INDEX_MEMORY");
+                long indexes = vt.getLong("INDEX_MEMORY");
+                //tupleMem += vt.getLong("TUPLE_DATA_MEMORY");
+                //stringMem += vt.getLong("STRING_DATA_MEMORY");
+                //indexMem += vt.getLong("INDEX_MEMORY");
                 long blocksEvicted = vt.getLong("ANTICACHE_BLOCKS_EVICTED");
                 long blocksFetched = vt.getLong("ANTICACHE_BLOCKS_READ");
                 long blocksWritten = vt.getLong("ANTICACHE_BLOCKS_WRITTEN");
                 long accesses = vt.getLong("TUPLE_ACCESSES");
-                stats.update(table, sizeKb, blocksEvicted, blocksFetched, blocksWritten, accesses);
+                stats.update(table, sizeKb, blocksEvicted, blocksFetched, blocksWritten, accesses, indexes);
             } while(vt.advanceRow());
+
+            //LOG.info(String.format("Tuple Mem: %d; String Mem: %d\n", tupleMem, stringMem));
+            //LOG.info(String.format("Index Mem: %d\n", indexMem));
 
 //            LOG.warn(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
 //                    partition, stats.sizeKb, oldSizeKb));
@@ -885,14 +910,18 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             for (int i = 0; i < pendingStatsUpdates.length; i++) {
                 if(pendingStatsUpdates[i]) {
                     allBack = false;
+                    //for (int j = 0; j < pendingStatsUpdates.length; j++) 
+                      //  LOG.info(String.format("%d:%b", j, pendingStatsUpdates[j]));
                 }
             }
 
+
             // All partitions have reported back, schedule an eviction check
             if (allBack) {
+                //LOG.info("All back!!");
                 hstore_site.getThreadManager().scheduleWork(evictionExecutor);
             }
-        }
+         }
     }
 
     // ----------------------------------------------------------------------------

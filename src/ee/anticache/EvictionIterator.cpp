@@ -47,9 +47,11 @@
 #include "anticache/EvictionIterator.h"
 #include "storage/persistenttable.h"
 
+// that's the factor indicate how many times the number of the tuple we'll sample comparing to we request
+#define RANDOM_SCALE 4
+
 namespace voltdb {
     
-
 EvictionIterator::EvictionIterator(Table *t)
 {
     //ptable = static_cast<PersistentTable*>(table); 
@@ -59,28 +61,150 @@ EvictionIterator::EvictionIterator(Table *t)
     is_first = true; 
 }
 
+#ifdef ANTICACHE_TIMESTAMPS
+/**
+ * Reserve some tuples when an eviction requested.
+ */
+void EvictionIterator::reserve(int64_t amount) {
+    VOLT_DEBUG("amount: %ld\n", amount);
+
+    char* addr = NULL;
+    PersistentTable* ptable = static_cast<PersistentTable*>(table);
+    int tuple_size = ptable->m_schema->tupleLength() + TUPLE_HEADER_SIZE;
+    int active_tuple = (int)ptable->activeTupleCount();
+    int evict_num = 0;
+    //uint32_t tuples_per_block = ptable->m_tuplesPerBlock;
+
+    if (active_tuple)	
+        evict_num = (int)(amount / (tuple_size + ptable->nonInlinedMemorySize() / active_tuple));
+    else 
+        evict_num = (int)(amount / tuple_size);
+
+    VOLT_DEBUG("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
+
+    if (evict_num > active_tuple)
+        evict_num = active_tuple;
+
+    // TODO: there's another block-sample strategy, but it does not get good accuracy of selecting cold data.
+    // If we use that, the throughput of VOTER can increases from 55,000 to 59,000, but IO of other experiments increases a lot
+    // The reason why this is slow? I guess is the rand() and % operation
+    //
+    // Lin Ma
+    int pick_num = evict_num * RANDOM_SCALE;
+
+    int block_num = (int)ptable->m_data.size();
+    int block_size = ptable->m_tuplesPerBlock;
+    int location_size;
+    int block_location;
+
+    srand((unsigned int)time(0));
+
+    VOLT_INFO("evict pick num: %d %d\n", evict_num, pick_num);
+    VOLT_INFO("active_tuple: %d\n", active_tuple);
+    VOLT_INFO("block number: %d\n", block_num);
+
+    int activeN = 0, evictedN = 0;
+    m_size = 0;
+    current_tuple_id = 0;
+
+    // If we'll evict the entire table, we should do a scan instead of sampling.
+    // The main reason we should do that is to past the test...
+    if (evict_num < active_tuple) {
+        candidates = new EvictionTuple[pick_num];
+        for (int i = 0; i < pick_num; i++) {
+            // should we use a faster random generator?
+            block_location = rand() % block_num;
+            addr = ptable->m_data[block_location];
+            if ((block_location + 1) * block_size > ptable->usedTupleCount())
+                location_size = (int)(ptable->usedTupleCount() - block_location * block_size);
+            else
+                location_size = block_size;
+            addr += (rand() % location_size) * tuple_size;
+
+            current_tuple->move(addr);
+
+            VOLT_DEBUG("Flip addr: %p\n", addr);
+
+            if (current_tuple->isActive()) activeN++;
+            if (current_tuple->isEvicted()) evictedN++;
+
+            if (!current_tuple->isActive() || current_tuple->isEvicted())
+                continue;
+
+            candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
+            m_size++;
+        }
+    } else {
+        candidates = new EvictionTuple[active_tuple];
+        for (int i = 0; i < block_num; ++i) { 
+            addr = ptable->m_data[i];
+            if ((i + 1) * block_size > ptable->usedTupleCount())
+                location_size = (int)(ptable->usedTupleCount() - i * block_size);
+            else
+                location_size = block_size;
+            for (int j = 0; j < location_size; j++) {
+                current_tuple->move(addr);
+
+                if (current_tuple->isActive()) activeN++;
+                if (current_tuple->isEvicted()) evictedN++;
+
+                if (!current_tuple->isActive() || current_tuple->isEvicted()) {
+                    addr += tuple_size;
+                    continue;
+                }
+
+                VOLT_TRACE("Flip addr: %p\n", addr);
+
+                candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
+                m_size++;
+
+                addr += tuple_size;
+            }
+        }
+    }
+    sort(candidates, candidates + m_size, less <EvictionTuple>());
+
+    VOLT_INFO("Size of eviction candidates: %lu %d %d\n", m_size, activeN, evictedN);
+}
+#endif
+
+
 EvictionIterator::~EvictionIterator()
 {
+#ifdef ANTICACHE_TIMESTAMPS
+    delete[] candidates;
+#endif
+    delete current_tuple;
 }
-    
+
 bool EvictionIterator::hasNext()
 {        
+    VOLT_DEBUG("Size: %lu\n", m_size);
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
-    
-    if(current_tuple_id == ptable->getNewestTupleID())
-        return false;
+
+    VOLT_DEBUG("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
+
     if(ptable->usedTupleCount() == 0)
         return false; 
+
+#ifndef ANTICACHE_TIMESTAMPS
+    if(current_tuple_id == ptable->getNewestTupleID())
+        return false;
     if(ptable->getNumTuplesInEvictionChain() == 0) { // there are no tuples in the chain
         VOLT_DEBUG("There are no tuples in the eviction chain.");
         return false; 
     }
-    
+#else
+    if (current_tuple_id == m_size)
+        return false;
+#endif
+
     return true; 
 }
 
 bool EvictionIterator::next(TableTuple &tuple)
 {    
+#ifndef ANTICACHE_TIMESTAMPS
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
 
     if(current_tuple_id == ptable->getNewestTupleID()) // we've already returned the last tuple in the chain
@@ -99,7 +223,7 @@ bool EvictionIterator::next(TableTuple &tuple)
             VOLT_DEBUG("There are no tuples in the eviction chain.");
             return false; 
         }
-        
+
         current_tuple_id = ptable->getOldestTupleID(); 
     }
     else  // advance the iterator to the next tuple in the chain
@@ -109,10 +233,18 @@ bool EvictionIterator::next(TableTuple &tuple)
 
     current_tuple->move(ptable->dataPtrForTuple(current_tuple_id)); 
     tuple.move(current_tuple->address()); 
-    
+
     VOLT_DEBUG("current_tuple_id = %d", current_tuple_id);
-    
+#else
+    tuple.move(candidates[current_tuple_id].m_addr);
+    current_tuple_id++;
+    while (candidates[current_tuple_id].m_addr == candidates[current_tuple_id - 1].m_addr) {
+        current_tuple_id++;
+        if (current_tuple_id == m_size) break;
+    }
+#endif
+
     return true; 
 }
-    
+
 }

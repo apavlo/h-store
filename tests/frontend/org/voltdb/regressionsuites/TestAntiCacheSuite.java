@@ -38,6 +38,8 @@ public class TestAntiCacheSuite extends RegressionSuite {
     private static final String PREFIX = "anticache";
     private static final int NOTIFY_TIMEOUT = 2000; // ms
     private static final int NUM_VOTES = 100;
+
+    private int readBackTracker;
     
     /**
      * Constructor needed for JUnit. Should just pass on parameters to superclass.

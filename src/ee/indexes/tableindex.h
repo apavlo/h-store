@@ -56,6 +56,7 @@
 #include "common/tabletuple.h"
 #include "common/TupleSchema.h"
 #include "indexes/IndexStats.h"
+#include "indexes/allocatortracker.h"
 
 namespace voltdb {
 
@@ -344,6 +345,9 @@ protected:
     
     // stats
     IndexStats m_stats;
+
+    // index memory size
+    int64_t m_memoryEstimate;
 };
 
 }

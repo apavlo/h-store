@@ -718,6 +718,13 @@ public final class HStoreConf {
                 enumOptions="org.voltdb.types.AntiCacheDBType"
         )
         public String anticache_dbtype;
+        @ConfigProperty(
+            description="Enable the anti-cache timestamps feature. This requires that the system " +
+            		    "is compiled with ${site.anticache_timestamps} set to true.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean anticache_timestamps;
         
         // ----------------------------------------------------------------------------
         // Storage MMAP Options

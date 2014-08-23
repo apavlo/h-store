@@ -42,10 +42,11 @@ class BuildContext:
         self.VOLT_LOG_LEVEL = None
         self.STORAGE_MMAP = False
         self.ANTICACHE_BUILD = True
-        self.ANTICACHE_REVERSIBLE_LRU = True
+        self.ANTICACHE_REVERSIBLE_LRU = True 
         self.ANTICACHE_NVM = False
         self.ANTICACHE_DRAM = False
-        self.ARIES = False
+        self.ARIES= False
+        self.ANTICACHE_TIMESTAMPS = True
 
         for arg in [x.strip().upper() for x in args]:
             if arg in ["DEBUG", "RELEASE", "MEMCHECK", "MEMCHECK_NOFREELIST"]:
@@ -85,6 +86,10 @@ class BuildContext:
                 parts = arg.split("=")
                 if len(parts) > 1 and not parts[1].startswith("${"):
                     self.ANTICACHE_NVM = bool(parts[1])
+            if arg.startswith("ANTICACHE_TIMESTAMPS="):
+                parts = arg.split("=")
+                if len(parts) > 1 and not parts[1].startswith("${"):
+                    self.ANTICACHE_TIMESTAMPS = bool(parts[1])
                 
             if arg.startswith("LOG_LEVEL="):
                 parts = arg.split("=")

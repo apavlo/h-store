@@ -182,7 +182,7 @@ public class MemoryStats extends StatsSource {
         super.updateStatsRow(rowKey, rowValues);
     }
 
-    public synchronized void eeUpdateMemStats(long siteId,
+    public synchronized void eeUpdateMemStats(long partitionId,
                                               long tupleCount,
                                               int tupleDataMem,
                                               int tupleAllocatedMem,
@@ -221,6 +221,6 @@ public class MemoryStats extends StatsSource {
         pmr.bytesRead = bytesRead;
         
         
-        m_memoryStats.put(siteId, pmr);
+        m_memoryStats.put(partitionId, pmr);
     }
 }

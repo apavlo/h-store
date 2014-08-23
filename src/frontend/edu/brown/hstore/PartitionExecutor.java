@@ -109,6 +109,7 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
+import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
@@ -181,6 +182,7 @@ import edu.brown.utils.PartitionEstimator;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
+import edu.brown.utils.ThreadUtil;
 
 /**
  * The main executor of transactional work in the system for a single partition.
@@ -1084,7 +1086,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             LOG.warn("Enabled Distributed Transaction Validation Checker");
         }
         // *********************************** DEBUG ***********************************
-        
+
         // Things that we will need in the loop below
         InternalMessage nextWork = null;
         AbstractTransaction nextTxn = null;
@@ -1142,8 +1144,20 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         // to wait to see if anything will show up in our work queue.
                         if (hstore_conf.site.specexec_enable && this.lockQueue.approximateIsEmpty() == false) {
                             nextWork = this.work_queue.poll();
+                            /*if (nextWork != null) {
+                                        System.out.println(String.format("Polled a work %s from partition %d",
+                                                                          nextWork.getClass().getSimpleName(), this.work_queue.size()));
+                            } else {
+                                System.out.println("Null work!");
+                            }*/
                         } else {
                             nextWork = this.work_queue.poll(WORK_QUEUE_POLL_TIME, WORK_QUEUE_POLL_TIMEUNIT);    
+                            /*if (nextWork != null) {
+                                        LOG.info(String.format("Polled a work %s from partition %d",
+                                                                          nextWork.getClass().getSimpleName(), this.work_queue.size()));
+                            } else {
+                                LOG.info("Null work!");
+                            }*/
                         }
                     } catch (InterruptedException ex) {
                         continue;
@@ -1330,6 +1344,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (work instanceof UtilityWorkMessage) {
             // UPDATE MEMORY STATS
             if (work instanceof UpdateMemoryMessage) {
+                //LOG.info("Update mem stats");
                 this.updateMemoryStats(EstTime.currentTimeMillis());
             }
             // TABLE STATS REQUEST
@@ -1340,6 +1355,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                        false,
                                                        EstTime.currentTimeMillis());
                 assert(results.length == 1);
+                //results[0].advanceRow();
+                //LOG.info(String.format("Notified ovserver at partition %d", results[0].getLong("PARTITION_ID")));
                 stats_work.getObservable().notifyObservers(results[0]);
             }
             else {
@@ -1389,6 +1406,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param work
      */
     private void processInternalTxnMessage(InternalTxnMessage work) {
+        //LOG.info("process a txn msg");
         AbstractTransaction ts = work.getTransaction();
         this.currentTxn = ts;
         this.currentTxnId = ts.getTransactionId();
@@ -1694,51 +1712,36 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             // rollup the table memory stats for this site
             while (stats.advanceRow()) {
                 int idx = 7;
-                tupleCount += stats.getLong(idx++);
-                tupleAccessCount += stats.getLong(idx++);
-                tupleAllocatedMem += (int) stats.getLong(idx++);
-                tupleDataMem += (int) stats.getLong(idx++);
-                stringMem += (int) stats.getLong(idx++);
+                tupleCount += stats.getLong("TUPLE_COUNT");
+                tupleAccessCount += stats.getLong("TUPLE_ACCESSES");
+                tupleAllocatedMem += (int) stats.getLong("TUPLE_ALLOCATED_MEMORY");
+                tupleDataMem += (int) stats.getLong("TUPLE_DATA_MEMORY");
+                stringMem += (int) stats.getLong("STRING_DATA_MEMORY");
+                indexMem += (int) stats.getLong("INDEX_MEMORY");
                 
                 // ACTIVE
                 if (hstore_conf.site.anticache_enable) {
-                    tuplesEvicted += (long) stats.getLong(idx++);
-                    blocksEvicted += (long) stats.getLong(idx++);
-                    bytesEvicted += (long) stats.getLong(idx++);
+                    tuplesEvicted += (long) stats.getLong("ANTICACHE_TUPLES_EVICTED");
+                    blocksEvicted += (long) stats.getLong("ANTICACHE_BLOCKS_EVICTED");
+                    bytesEvicted += (long) stats.getLong("ANTICACHE_BYTES_EVICTED");
                 
                     // GLOBAL WRITTEN
-                    tuplesWritten += (long) stats.getLong(idx++);
-                    blocksWritten += (long) stats.getLong(idx++);
-                    bytesWritten += (long) stats.getLong(idx++);
+                    tuplesWritten += (long) stats.getLong("ANTICACHE_TUPLES_WRITTEN");
+                    blocksWritten += (long) stats.getLong("ANTICACHE_BLOCKS_WRITTEN");
+                    bytesWritten += (long) stats.getLong("ANTICACHE_BYTES_WRITTEN");
                     
                     // GLOBAL READ
-                    tuplesRead += (long) stats.getLong(idx++);
-                    blocksRead += (long) stats.getLong(idx++);
-                    bytesRead += (long) stats.getLong(idx++);
+                    tuplesRead += (long) stats.getLong("ANTICACHE_TUPLES_READ");
+                    blocksRead += (long) stats.getLong("ANTICACHE_BLOCKS_READ");
+                    bytesRead += (long) stats.getLong("ANTICACHE_BYTES_READ");
                 }
             }
             stats.resetRowPosition();
         }
 
-        // update index stats
-//        final VoltTable[] s2 = ee.getStats(SysProcSelector.INDEX, tableIds, false, time);
-//        if ((s2 != null) && (s2.length > 0)) {
-//            VoltTable stats = s2[0];
-//            assert(stats != null);
-//            LOG.info("INDEX:\n" + VoltTableUtil.format(stats));
-//
-//            // rollup the index memory stats for this site
-////            while (stats.advanceRow()) {
-////                indexMem += stats.getLong(10);
-////            }
-//            stats.resetRowPosition();
-//
-//            // m_indexStats.setStatsTable(stats);
-//        }
-
         // update the rolled up memory statistics
         MemoryStats memoryStats = hstore_site.getMemoryStatsSource();
-        memoryStats.eeUpdateMemStats(this.siteId,
+        memoryStats.eeUpdateMemStats(this.partitionId,
                                      tupleCount,
                                      tupleDataMem,
                                      tupleAllocatedMem,
@@ -2177,10 +2180,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
      * @param work
      */
     public void queueUtilityWork(InternalMessage work) {
+        this.work_queue.add(work);
         if (debug.val)
-            LOG.debug(String.format("Added utility work %s to partition %d",
-                      work.getClass().getSimpleName(), this.partitionId));
-        this.work_queue.offer(work);
+            LOG.warn(String.format("Added utility work %s to partition %d with size %d",
+                      work.getClass().getSimpleName(), this.partitionId, this.work_queue.size()));
     }
 
     
