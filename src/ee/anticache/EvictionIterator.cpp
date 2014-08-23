@@ -129,19 +129,19 @@ void EvictionIterator::reserve(int64_t amount) {
         candidates = new EvictionTuple[pick_num];
 #ifdef ANTICACHE_TIMESTAMPS_PRIME
         for (int i = 0; i < last_full_block; ++i) {
-            // if this is the first time a block become full, find a proper step to let it sample tuples from almost the whole block
-            if (ptable->m_evictPosition[i] == 0) {
-                int ideal_step = tuples_per_block / pick_num_block;
-                int old_prime = ptable->m_stepPrime[i];
+            // if this is a beginning of a loop of scan, find a proper step to let it sample tuples from almost the whole block
+            if (ptable->m_stepPrime[i] < 0) {
+                int ideal_step = (rand() % 10) * tuples_per_block / pick_num_block;
+                int old_prime = - ptable->m_stepPrime[i];
                 for (int j = prime_size - 1; j >= 0; --j) {
-                    if (prime_list[j] != old_prime && (tuples_per_block % prime_list[j])) {
+                    if (prime_list[j] != old_prime && (tuples_per_block % prime_list[j]) > 0) {
                         ptable->m_stepPrime[i] = prime_list[j];
                         VOLT_TRACE("DEBUG: %d %d\n", tuples_per_block, ptable->m_stepPrime[i]);
                     }
-                    if (prime_list[j] < ideal_step)
+                    if (prime_list[j] <= ideal_step)
                         break;
                 }
-                VOLT_DEBUG("Prime of block %d: %d %d\n", i, tuples_per_block, ptable->m_stepPrime[i]);
+                //printf("Prime of block %d: %d %d\n", i, tuples_per_block, ptable->m_stepPrime[i]);
             }
 
             // now scan the block with a step of we select.
@@ -169,10 +169,9 @@ void EvictionIterator::reserve(int64_t amount) {
                     flag_new = true;
             }
             int new_position = (int)((uint64_t)addr - (uint64_t)ptable->m_data[i]);
-            if (!flag_new)
-                ptable->m_evictPosition[i] = new_position;
-            else 
-                ptable->m_evictPosition[i] = 0;
+            ptable->m_evictPosition[i] = new_position;
+            if (flag_new)
+                ptable->m_stepPrime[i] = - ptable->m_stepPrime[i];
         }
         if (last_full_block < block_num) {
             addr = ptable->m_data[last_full_block];
