@@ -53,7 +53,7 @@ public abstract class VoterDemoHStoreConstants {
 	public static final String JIANG_HOST = "istc7";
 	public static final String ISTC1_HOST = "istc1";
 	public static final String ISTC1_CLIENT = "istc2";
-	public static final String LOCAL_HOST = "localhost"; //CHANGE ME
+	public static final String LOCAL_HOST = "demo"; //CHANGE ME
 	
 	public static final int SERVER_PORT_NUM = 9510;
 	public static final int VOTE_PORT_NUM = 9511;
