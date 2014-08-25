@@ -167,9 +167,10 @@ public class DeleteContestant extends VoltProcedure {
     public long run() {
 		
         voltQueueSQL(findLowestContestant);
+        voltQueueSQL(getRemainingContestants);
         VoltTable validation[] = voltExecuteSQL();
         
-        if(validation[0].getRowCount() < 1)
+        if(validation[1].getRowCount() < 1)
         {
         	return VoterDemoHStoreConstants.ERR_NOT_ENOUGH_CONTESTANTS;
         }
@@ -177,10 +178,15 @@ public class DeleteContestant extends VoltProcedure {
         int lowestContestant = (int)(validation[0].fetchRow(0).getLong(0));
         String lowestConName = validation[0].fetchRow(0).getString("contestant_name");
         int lowestConVotes = (int)(validation[0].fetchRow(0).getLong("num_votes"));
+        long remainingContestants = validation[1].fetchRow(0).getLong(0);
         
         if(VoterDemoHStoreConstants.SOCKET_CONTROL)
         	VoterDemoHStoreUtil.waitForSignal();
         
+        if(remainingContestants <= 1)
+        {
+        	return VoterDemoHStoreConstants.BM_FINISHED;
+        }
         voltQueueSQL(updateRemovedContestant, lowestConName, lowestConVotes);
         voltQueueSQL(deleteLowestContestant, lowestContestant);
         voltQueueSQL(deleteLowestVotes, lowestContestant);

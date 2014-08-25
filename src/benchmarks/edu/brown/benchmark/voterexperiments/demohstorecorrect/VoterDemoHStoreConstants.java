@@ -49,8 +49,8 @@ public abstract class VoterDemoHStoreConstants {
 	public static final String HOST_PREFIX = "istc7";
 	public static final String HOST_PREFIX_2 = "istc9";
 	public static final String SERVER_HOST_NAME = "istc7.csail.mit.edu";
-	public static final String JIANG_SERVER_HOST_NAME = "istc3";
-	public static final String JIANG_HOST = "istc7";
+	public static final String JIANG_SERVER_HOST_NAME = "tutu";
+	public static final String JIANG_HOST = "tutu";
 	public static final String ISTC1_HOST = "istc1";
 	public static final String ISTC1_CLIENT = "istc2";
 	public static final String LOCAL_HOST = "demo";

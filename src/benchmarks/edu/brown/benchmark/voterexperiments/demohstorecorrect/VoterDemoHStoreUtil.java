@@ -239,20 +239,21 @@ public abstract class VoterDemoHStoreUtil {
 			
 			
 			if(host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX) || 
-					host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX_2) ||
-					host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME))
+					host.getHostName().startsWith(VoterDemoHStoreConstants.HOST_PREFIX_2))
 			{
 				hostname = VoterDemoHStoreConstants.SERVER_HOST_NAME;
+			}
+			else if (host.getHostName().startsWith(VoterDemoHStoreConstants.JIANG_HOST))
+			{
+				hostname = VoterDemoHStoreConstants.JIANG_SERVER_HOST_NAME;
 			}
 			else if (host.getHostName().startsWith(VoterDemoHStoreConstants.ISTC1_CLIENT) || 
 				    host.getHostName().startsWith(VoterDemoHStoreConstants.ISTC1_HOST))
 		    {
 		    	hostname = VoterDemoHStoreConstants.ISTC1_HOST;
 		    }
-
 			else
 			{
-				//return;
 				hostname = VoterDemoHStoreConstants.LOCAL_HOST;
 			}
 

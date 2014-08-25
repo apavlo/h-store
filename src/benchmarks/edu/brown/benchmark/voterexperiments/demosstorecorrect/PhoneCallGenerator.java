@@ -140,10 +140,13 @@ public class PhoneCallGenerator {
 			
 			
 			if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX) || 
-					host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2) ||
-					host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME))
+					host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2))
 			{
 				hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
+			}
+			else if (host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_HOST))
+			{
+				hostname = VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME;
 			}
 			else if (host.getHostName().startsWith(VoterDemoSStoreConstants.ISTC1_CLIENT) || 
 				    host.getHostName().startsWith(VoterDemoSStoreConstants.ISTC1_HOST))
@@ -153,7 +156,6 @@ public class PhoneCallGenerator {
 			else
 			{
 				hostname = VoterDemoSStoreConstants.LOCAL_HOST;
-				//hostname = "localhost";
 			}
 
 			socket = new Socket(hostname, VoterDemoSStoreConstants.VOTE_PORT_NUM);

@@ -238,10 +238,13 @@ public abstract class VoterDemoSStoreUtil {
 			
 			
 			if(host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX) || 
-					host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2) ||
-					host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME))
+					host.getHostName().startsWith(VoterDemoSStoreConstants.HOST_PREFIX_2))
 			{
 				hostname = VoterDemoSStoreConstants.SERVER_HOST_NAME;
+			}
+			else if (host.getHostName().startsWith(VoterDemoSStoreConstants.JIANG_HOST))
+			{
+				hostname = VoterDemoSStoreConstants.JIANG_SERVER_HOST_NAME;
 			}
 			else if (host.getHostName().startsWith(VoterDemoSStoreConstants.ISTC1_CLIENT) || 
 				    host.getHostName().startsWith(VoterDemoSStoreConstants.ISTC1_HOST))
@@ -251,8 +254,6 @@ public abstract class VoterDemoSStoreUtil {
 			else
 			{
 				hostname = VoterDemoSStoreConstants.LOCAL_HOST;
-				//hostname = "localhost";
-				//return;
 			}
 
 			Socket socket = new Socket(hostname, VoterDemoSStoreConstants.SERVER_PORT_NUM);
