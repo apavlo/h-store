@@ -49,6 +49,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreUtil;
 
@@ -193,6 +194,11 @@ public class DeleteContestant extends VoltProcedure {
         
         if(VoterDemoSStoreConstants.SOCKET_CONTROL)
         	VoterDemoSStoreUtil.waitForSignal();
+        
+        if(remainingContestants <= 1)
+        {
+        	return VoterDemoHStoreConstants.BM_FINISHED;
+        }
         
         voltQueueSQL(insertRemovedContestant, remainingContestants, lowestConName, lowestConVotes);
         voltQueueSQL(deleteLowestContestant, lowestContestant);
