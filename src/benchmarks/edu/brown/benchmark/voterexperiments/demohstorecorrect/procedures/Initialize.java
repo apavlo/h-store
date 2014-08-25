@@ -56,7 +56,7 @@ public class Initialize extends VoltProcedure
     
     public final SQLStmt insertProcOneCountStmt = new SQLStmt("INSERT INTO proc_one_count (row_id, totalcnt, successcnt) VALUES (1, 0, 0);");
     
-    public final SQLStmt insertRemovedContestant = new SQLStmt("INSERT INTO removed_contestant (row_id, contestant_name, num_votes) VALUES (1,'',0);");
+    //public final SQLStmt insertRemovedContestant = new SQLStmt("INSERT INTO removed_contestant (row_id, contestant_name, num_votes) VALUES (1,'',0);");
     
     public final SQLStmt insertVotesTilDeleteStmt = new SQLStmt("INSERT INTO votes_next_delete (row_id, cnt) VALUES (1, ?);");
 	
@@ -112,7 +112,7 @@ public class Initialize extends VoltProcedure
         voltQueueSQL(insertTotalVoteCountStmt);
         voltQueueSQL(insertCurWindowStmt);
         voltQueueSQL(insertProcOneCountStmt);
-        voltQueueSQL(insertRemovedContestant);
+        //voltQueueSQL(insertRemovedContestant);
         voltQueueSQL(insertVotesTilDeleteStmt, VoterDemoHStoreConstants.VOTE_THRESHOLD);
         long existingContestantCount = voltExecuteSQL()[0].asScalarLong();
 		

@@ -75,8 +75,8 @@ public class DeleteContestant extends VoltProcedure {
 		"DELETE FROM leaderboard WHERE contestant_number = ?;"
     );
     
-    public final SQLStmt updateRemovedContestant = new SQLStmt(
-    	"UPDATE removed_contestant SET contestant_name = ?, num_votes = ? WHERE row_id = 1;"	
+    public final SQLStmt insertRemovedContestant = new SQLStmt(
+    	"INSERT INTO removed_contestant VALUES (?,?,?);"	
     );
     
 	/////////////////////////////
@@ -150,8 +150,8 @@ public class DeleteContestant extends VoltProcedure {
 	        tableNames.add("RemainingContestants");
 	        voltQueueSQL(getVotesTilNextDeleteStmt);
 	        tableNames.add("VotesTilNextDelete");
-	        voltQueueSQL(getRemovedContestant);
-	        tableNames.add("RemovedContestant");
+	        //voltQueueSQL(getRemovedContestant);
+	        //tableNames.add("RemovedContestant");
 		}
 		else {
 			voltQueueSQL(getAllVotesStmt);
@@ -187,7 +187,7 @@ public class DeleteContestant extends VoltProcedure {
         {
         	return VoterDemoHStoreConstants.BM_FINISHED;
         }
-        voltQueueSQL(updateRemovedContestant, lowestConName, lowestConVotes);
+        voltQueueSQL(insertRemovedContestant, remainingContestants, lowestConName, lowestConVotes);
         voltQueueSQL(deleteLowestContestant, lowestContestant);
         voltQueueSQL(deleteLowestVotes, lowestContestant);
         voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);

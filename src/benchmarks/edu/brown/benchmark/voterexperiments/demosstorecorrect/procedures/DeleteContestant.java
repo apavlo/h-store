@@ -86,8 +86,8 @@ public class DeleteContestant extends VoltProcedure {
 		"DELETE FROM leaderboard WHERE contestant_number = ?;"
     );
     
-    public final SQLStmt updateRemovedContestant = new SQLStmt(
-    	"UPDATE removed_contestant SET contestant_name = ?, num_votes = ? WHERE row_id = 1;"	
+    public final SQLStmt insertRemovedContestant = new SQLStmt(
+    	"INSERT INTO removed_contestant VALUES (?,?,?);"	
     );
     
 	/////////////////////////////
@@ -161,8 +161,8 @@ public class DeleteContestant extends VoltProcedure {
 	        tableNames.add("RemainingContestants");
 	        voltQueueSQL(getVotesTilNextDeleteStmt);
 	        tableNames.add("VotesTilNextDelete");
-	        voltQueueSQL(getRemovedContestant);
-	        tableNames.add("RemovedContestant");
+	        //voltQueueSQL(getRemovedContestant);
+	        //tableNames.add("RemovedContestant");
 		}
 		else {
 	        voltQueueSQL(getAllVotesStmt);
@@ -178,6 +178,7 @@ public class DeleteContestant extends VoltProcedure {
     public long run() {
 		
         voltQueueSQL(findLowestContestant);
+        voltQueueSQL(getRemainingContestants);
         VoltTable validation[] = voltExecuteSQL();
         
         if(validation[0].getRowCount() < 1)
@@ -188,11 +189,12 @@ public class DeleteContestant extends VoltProcedure {
         int lowestContestant = (int)(validation[0].fetchRow(0).getLong(0));
         String lowestConName = validation[0].fetchRow(0).getString("contestant_name");
         int lowestConVotes = (int)(validation[0].fetchRow(0).getLong("num_votes"));
+        long remainingContestants = validation[1].fetchRow(0).getLong(0);
         
         if(VoterDemoSStoreConstants.SOCKET_CONTROL)
         	VoterDemoSStoreUtil.waitForSignal();
         
-        voltQueueSQL(updateRemovedContestant, lowestConName, lowestConVotes);
+        voltQueueSQL(insertRemovedContestant, remainingContestants, lowestConName, lowestConVotes);
         voltQueueSQL(deleteLowestContestant, lowestContestant);
         voltQueueSQL(deleteLowestVotes, lowestContestant);
         voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);

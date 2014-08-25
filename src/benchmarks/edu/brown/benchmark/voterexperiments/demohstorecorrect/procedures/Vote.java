@@ -169,8 +169,8 @@ public class Vote extends VoltProcedure {
 	        tableNames.add("RemainingContestants");
 	        voltQueueSQL(getVotesTilNextDeleteStmt);
 	        tableNames.add("VotesTilNextDelete");
-	        voltQueueSQL(getRemovedContestant);
-	        tableNames.add("RemovedContestant");
+	        //voltQueueSQL(getRemovedContestant);
+	        //tableNames.add("RemovedContestant");
         }
         else
         {
