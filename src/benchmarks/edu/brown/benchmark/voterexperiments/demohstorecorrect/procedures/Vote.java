@@ -167,10 +167,10 @@ public class Vote extends VoltProcedure {
             tableNames.add("TrendingCount");
             voltQueueSQL(getRemainingContestants);
 	        tableNames.add("RemainingContestants");
-	        voltQueueSQL(getRemovedContestant);
-	        tableNames.add("RemovedContestant");
 	        voltQueueSQL(getVotesTilNextDeleteStmt);
 	        tableNames.add("VotesTilNextDelete");
+	        voltQueueSQL(getRemovedContestant);
+	        tableNames.add("RemovedContestant");
         }
         else
         {
@@ -190,10 +190,12 @@ public class Vote extends VoltProcedure {
 		
     	long procOutput = VoterDemoHStoreConstants.STATUS_NOT_DETERMINED;
 		voltQueueSQL(getNumProcOneStmt);
+		voltQueueSQL(getRemainingContestants);
 		VoltTable validation[] = voltExecuteSQL();
 		
 		long numProcOne = validation[0].fetchRow(0).getLong(0) + 1;
 		long numSuccess = validation[0].fetchRow(0).getLong(1);
+		long remainingContestants = validation[1].fetchRow(0).getLong(0);
 	    // Queue up validation statements
 		voltQueueSQL(checkContestantStmt, contestantNumber);
 	    voltQueueSQL(checkVoterStmt, phoneNumber);
@@ -238,7 +240,8 @@ public class Vote extends VoltProcedure {
         	if(VoterDemoHStoreConstants.SOCKET_CONTROL)
         		VoterDemoHStoreUtil.waitForSignal();
         	try {
-				printResults((int)numProcOne);
+        		if(remainingContestants > 1)
+					printResults((int)numProcOne);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

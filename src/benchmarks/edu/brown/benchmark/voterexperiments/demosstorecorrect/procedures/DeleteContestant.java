@@ -159,10 +159,10 @@ public class DeleteContestant extends VoltProcedure {
 			tableNames.add("TrendingCount");
 			voltQueueSQL(getRemainingContestants);
 	        tableNames.add("RemainingContestants");
-	        voltQueueSQL(getRemovedContestant);
-	        tableNames.add("RemovedContestant");
 	        voltQueueSQL(getVotesTilNextDeleteStmt);
 	        tableNames.add("VotesTilNextDelete");
+	        voltQueueSQL(getRemovedContestant);
+	        tableNames.add("RemovedContestant");
 		}
 		else {
 	        voltQueueSQL(getAllVotesStmt);

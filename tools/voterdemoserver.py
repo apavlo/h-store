@@ -22,7 +22,7 @@ s_lock = Semaphore(1)
 h_votes = Queue.Queue()
 s_votes = Queue.Queue()
 waittime = 0.001
-first_stop = True
+#first_stop = True
 print 'Socket created'
 
 try:
@@ -81,19 +81,19 @@ def sthread():
 def bothConnected(conn, conn2):
 	global h_lock
 	global s_lock
-	global b_socket
-	global first_stop
+	#global b_socket
+	#global first_stop
 	data = conn.recv(1024)
-	if data == "h-store ready":
-		h_lock.acquire()
-	elif data == "s-store ready":
-		s_lock.acquire()
+	#if data == "h-store ready":
+	#	h_lock.acquire()
+	#elif data == "s-store ready":
+	#	s_lock.acquire()
 
 	data2 = conn2.recv(1024)
-	if data2 == "h-store ready":
-		h_lock.acquire()
-	elif data2 == "s-store ready":
-		s_lock.acquire()
+	#if data2 == "h-store ready":
+	#	h_lock.acquire()
+	#elif data2 == "s-store ready":
+	#	s_lock.acquire()
 
 	if (data == "h-store ready" and data2 == "s-store ready") or (data2 == "h-store ready" and data == "s-store ready"):
 		print "READY"
@@ -102,8 +102,8 @@ def bothConnected(conn, conn2):
 	else:
 		print "ERROR: Unexpected message."
 
-	h_lock.release()
-	s_lock.release()
+	#h_lock.release()
+	#s_lock.release()
 	
 	conn.close()
 	conn2.close()
@@ -124,6 +124,7 @@ start_new_thread(sthread, ())
 while True:
 	conn, addr = s.accept()
 	print 'Connected with ' + addr[0] + ':' + str(addr[1])
+	#conn.sendall("READY\n")
 	conn2, addr = s.accept()
 	print 'Connected with ' + addr[0] + ':' + str(addr[1])
 	bothConnected(conn, conn2)
