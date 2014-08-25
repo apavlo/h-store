@@ -189,7 +189,7 @@ public class Vote extends VoltProcedure {
         voltQueueSQL(getRemovedContestants);
         tableNames.add("RemovedContestants");
         v = voltExecuteSQL();
-		VoterDemoSStoreUtil.writeToContestantsFile(v, tableNames, VoterDemoSStoreConstants.DELETE_CODE);
+		VoterDemoSStoreUtil.writeToContestantsFile(v, tableNames, numVotes);
     }
     
 	
