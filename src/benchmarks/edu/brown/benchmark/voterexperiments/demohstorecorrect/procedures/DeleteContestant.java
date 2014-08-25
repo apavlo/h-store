@@ -164,6 +164,7 @@ public class DeleteContestant extends VoltProcedure {
 		VoltTable[] v = voltExecuteSQL();
 		VoterDemoHStoreUtil.writeToFile(v, tableNames, VoterDemoHStoreConstants.DELETE_CODE);
 		
+		tableNames = new ArrayList<String>();
 		voltQueueSQL(getAllRemainingContestants);
         tableNames.add("RemainingContestants");
         voltQueueSQL(getRemovedContestants);

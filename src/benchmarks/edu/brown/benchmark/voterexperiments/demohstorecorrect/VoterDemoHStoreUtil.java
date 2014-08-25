@@ -385,6 +385,10 @@ public abstract class VoterDemoHStoreUtil {
         	int j = 0;
         	while(j < v[i].getRowCount())
         	{
+        		if(tableName.equals("RemainingContestants"))
+        		{
+        			p.print((j+1) + ",");
+        		}
         		for(int k = 0; k < v[i].getColumnCount(); k++)
         		{
         			if(k > 0)
