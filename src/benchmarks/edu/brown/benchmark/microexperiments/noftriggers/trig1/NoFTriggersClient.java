@@ -92,13 +92,32 @@ public class NoFTriggersClient extends BenchmarkComponent {
             e.printStackTrace();
         }
     }
+    
+    private boolean asynchronize_way = true;
 
     @Override
     protected boolean runOnce() throws IOException {
 
         Client client = this.getClientHandle();
         long id = batchid.getAndIncrement();
-        boolean resp = client.callProcedure(procOneCallback, "ProcOne",(int)id,rand.nextInt(10));
+
+        boolean resp = false;
+        
+        if(asynchronize_way == true)
+            resp = client.callProcedure(procOneCallback, "ProcOne",(int)id,rand.nextInt(10));
+        else
+        {
+            try {
+                ClientResponse response = client.callProcedure("ProcOne",(int)id,rand.nextInt(10));
+                if (response.getStatus() == Status.OK) {
+                    resp = true;
+                    incrementTransactionCounter(response, 0);
+                }
+            } catch (ProcCallException e) {
+                e.printStackTrace();
+            }
+        }
+        
         if(NoFTriggersConstants.NUM_TRIGGERS > 1)
         	client.callProcedure(otherProcCallback, "ProcTwo");
 //        if(NoFTriggersConstants.NUM_TRIGGERS > 2)
