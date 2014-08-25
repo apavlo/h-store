@@ -66,6 +66,7 @@ public class VoterDemoHStoreProjectBuilder extends AbstractProjectBuilder {
         { "w_rows", "phone_number" },
         { "leaderboard", "contestant_number"},
         { "votes_count", "row_id" },
+        { "proc_one_count", "row_id" },
         { "staging_count", "row_id" },
         { "current_win_id", "row_id" },
         { "proc_one_out", "phone_number" },

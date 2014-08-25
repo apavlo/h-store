@@ -53,7 +53,7 @@ public abstract class VoterDemoHStoreConstants {
 	public static final String JIANG_HOST = "istc7";
 	public static final String ISTC1_HOST = "istc1";
 	public static final String ISTC1_CLIENT = "istc2";
-	public static final String LOCAL_HOST = "demo"; //CHANGE ME
+	public static final String LOCAL_HOST = "demo";
 	
 	public static final int SERVER_PORT_NUM = 9510;
 	public static final int VOTE_PORT_NUM = 9511;
@@ -65,6 +65,7 @@ public abstract class VoterDemoHStoreConstants {
     													"Mae Moore,Alanis Morissette,Emilie Mover,Anne Murray,Sam Roberts," +
     													"Serena Ryder,Tamara Sandor,Nicholas Scribner,Shania Twain,Neil Young";
     // potential return codes
+    public static final long STATUS_NOT_DETERMINED = -1;
     public static final long VOTE_SUCCESSFUL = 0;
     public static final long ERR_INVALID_CONTESTANT = 1;
     public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;

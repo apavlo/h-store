@@ -67,6 +67,7 @@ public abstract class VoterDemoSStoreConstants {
     
     
     // potential return codes
+    public static final long STATUS_NOT_DETERMINED = -1;
     public static final long VOTE_SUCCESSFUL = 0;
     public static final long ERR_INVALID_CONTESTANT = 1;
     public static final long ERR_VOTER_OVER_VOTE_LIMIT = 2;

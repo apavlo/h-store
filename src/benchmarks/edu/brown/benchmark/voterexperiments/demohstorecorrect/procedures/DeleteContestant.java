@@ -117,7 +117,7 @@ public class DeleteContestant extends VoltProcedure {
 			  + " ORDER BY num_votes DESC"
 			  + "        , contestant_number ASC");
 	
-	public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT cnt FROM votes_count WHERE row_id=1;");
+	public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT totalcnt FROM proc_one_count WHERE row_id=1;");
 	public final SQLStmt getActualVoteCountStmt = new SQLStmt( "SELECT totalcnt, successcnt FROM proc_one_count WHERE row_id = 1;");
 	public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM w_rows;");
 	public final SQLStmt getRemainingContestants = new SQLStmt("SELECT count(*) FROM contestants;");
@@ -186,16 +186,7 @@ public class DeleteContestant extends VoltProcedure {
         voltQueueSQL(deleteLowestVotes, lowestContestant);
         voltQueueSQL(deleteLeaderBoardStmt, lowestContestant);
         voltQueueSQL(updateVotesTilNextDeleteStmt, VoterDemoHStoreConstants.VOTE_THRESHOLD);
-        /**
-        voltQueueSQL(deleteDemoTopBoard);
-    	voltQueueSQL(deleteDemoTrendingBoard);
-    	voltQueueSQL(deleteDemoVoteCount);
-    	voltQueueSQL(deleteDemoWindowCount);
-    	voltQueueSQL(updateDemoTopBoard);
-    	voltQueueSQL(updateDemoTrendingBoard);
-    	voltQueueSQL(updateDemoVoteCount);
-    	voltQueueSQL(updateDemoWindowCount);
-    	*/
+
         voltExecuteSQL(true);
         try {
 			printResults();

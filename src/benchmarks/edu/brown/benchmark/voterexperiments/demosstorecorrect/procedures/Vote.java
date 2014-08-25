@@ -29,6 +29,9 @@
 
 package edu.brown.benchmark.voterexperiments.demosstorecorrect.procedures;
 
+import java.io.IOException;
+import java.util.ArrayList;
+
 import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.StmtInfo;
@@ -36,6 +39,7 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
+import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreUtil;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
 
 @ProcInfo (
@@ -89,30 +93,122 @@ public class Vote extends VoltProcedure {
 		"SELECT count(*) from contestants;"
     );
     
+    public final SQLStmt updateVotesTilNextDeleteStmt = new SQLStmt(
+		"UPDATE votes_next_delete SET cnt = ? WHERE row_id = 1;"
+    );
+    
+	/////////////////////////////
+	//BEGIN GET RESULTS
+	/////////////////////////////
+	// Gets the results
+	public final SQLStmt getTopThreeVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+							  + "        , b.num_votes          AS num_votes"
+							  + "     FROM v_votes_by_contestant b"
+							  + "        , contestants AS a"
+							  + "    WHERE a.contestant_number = b.contestant_number"
+							  + " ORDER BY num_votes DESC"
+							  + "        , contestant_number ASC"
+							  + " LIMIT 3");
 	
-public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
+	public final SQLStmt getBottomThreeVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+							  + "        , b.num_votes          AS num_votes"
+							  + "     FROM v_votes_by_contestant b"
+							  + "        , contestants AS a"
+							  + "    WHERE a.contestant_number = b.contestant_number"
+							  + " ORDER BY num_votes ASC"
+							  + "        , contestant_number DESC"
+							  + " LIMIT 3");
+	
+	public final SQLStmt getTrendingStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+							  + "        , b.num_votes          AS num_votes"
+							  + "     FROM leaderboard b"
+							  + "        , contestants AS a"
+							  + "    WHERE a.contestant_number = b.contestant_number"
+							  + " ORDER BY num_votes DESC"
+							  + "        , contestant_number ASC"
+							  + " LIMIT 3");
+	
+	public final SQLStmt getAllVotesStmt = new SQLStmt( "   SELECT a.contestant_name   AS contestant_name"
+	+ "        , b.num_votes          AS num_votes"
+	+ "     FROM v_votes_by_contestant b"
+	+ "        , contestants AS a"
+	+ "    WHERE a.contestant_number = b.contestant_number"
+	+ " ORDER BY num_votes DESC"
+	+ "        , contestant_number ASC");
+	
+	public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT totalcnt FROM proc_one_count WHERE row_id=1;");
+	public final SQLStmt getActualVoteCountStmt = new SQLStmt( "SELECT totalcnt, successcnt FROM proc_one_count WHERE row_id = 1;");
+	public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM trending_leaderboard;");
+	public final SQLStmt getRemainingContestants = new SQLStmt("SELECT count(*) FROM contestants;");
+	public final SQLStmt getRemovedContestant = new SQLStmt("SELECT contestant_name, num_votes FROM removed_contestant WHERE row_id = 1;");
+	public final SQLStmt getVotesTilNextDeleteStmt = new SQLStmt( "SELECT cnt FROM votes_next_delete WHERE row_id=1;");
+	/////////////////////////////
+	//END GET RESULTS
+	/////////////////////////////
+    
+    
+    private void printResults(int numVotes) throws IOException
+    {
+    	//System.out.println(stat_filename + " : " + content );
+        
+        ArrayList<String> tableNames = new ArrayList<String>();
+        if(!VoterDemoSStoreConstants.DEBUG)
+        {
+        	voltQueueSQL(getTopThreeVotesStmt);
+        	tableNames.add("TopThree");
+        	voltQueueSQL(getBottomThreeVotesStmt);
+        	tableNames.add("BottomThree");
+        	voltQueueSQL(getTrendingStmt);
+        	tableNames.add("TrendingThree");
+        	voltQueueSQL(getVoteCountStmt);
+    		tableNames.add("VoteCount");
+            voltQueueSQL(getTrendingCountStmt);
+            tableNames.add("TrendingCount");
+            voltQueueSQL(getRemainingContestants);
+	        tableNames.add("RemainingContestants");
+	        voltQueueSQL(getRemovedContestant);
+	        tableNames.add("RemovedContestant");
+	        voltQueueSQL(getVotesTilNextDeleteStmt);
+	        tableNames.add("VotesTilNextDelete");
+        }
+        else
+        {
+	        voltQueueSQL(getAllVotesStmt);
+	    	tableNames.add("Votes");
+	        voltQueueSQL(getActualVoteCountStmt);
+			tableNames.add("ProcOneCounts");
+        }
+        
+        VoltTable[] v = voltExecuteSQL();
+        VoterDemoSStoreUtil.writeToFile(v, tableNames, numVotes);
+        
+    }
+    
+	
+    public long run(long voteId, long phoneNumber, int contestantNumber, long maxVotesPerPhoneNumber) {
 		
+		long procOutput = VoterDemoSStoreConstants.STATUS_NOT_DETERMINED;
 		voltQueueSQL(getNumProcOneStmt);
 		VoltTable validation[] = voltExecuteSQL();
 		
-		long numProcOne = validation[0].fetchRow(0).getLong(0);
+		long numProcOne = validation[0].fetchRow(0).getLong(0) + 1;
 		long numSuccess = validation[0].fetchRow(0).getLong(1);
         // Queue up validation statements
 		voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterStmt, phoneNumber);
         voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
-        voltQueueSQL(updateNumProcOneStmt, numProcOne + 1);
+        voltQueueSQL(updateNumProcOneStmt, numProcOne);
         //voltQueueSQL(getNumContestants);
         validation = voltExecuteSQL();
 		
         // validate the maximum limit for votes number
         if (validation[0].getRowCount() == 0) {
-            return VoterDemoSStoreConstants.ERR_INVALID_CONTESTANT;
+        	procOutput = VoterDemoSStoreConstants.ERR_INVALID_CONTESTANT;
         }
         
         if ((validation[1].getRowCount() == 1) &&
 			(validation[1].fetchRow(0).getLong(0) >= maxVotesPerPhoneNumber)) {
-            return VoterDemoSStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT;
+        	procOutput = VoterDemoSStoreConstants.ERR_VOTER_OVER_VOTE_LIMIT;
         }
 		
         // Some sample client libraries use the legacy random phone generation that mostly
@@ -122,19 +218,34 @@ public long run(long voteId, long phoneNumber, int contestantNumber, long maxVot
         // it wrong and see all their transactions rejected).
         final String state = (validation[2].getRowCount() > 0) ? validation[2].fetchRow(0).getString(0) : "XX";
         
-        //if((validation[4].fetchRow(0).getLong(0)) <= 1)
-        //{
-        //	return VoterDemoSStoreConstants.BM_FINISHED;
-        //}
-		 		
-        // Post the vote
-        TimestampType timestamp = new TimestampType();
-        voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
-        voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
-        voltQueueSQL(updateNumSuccessStmt, numSuccess + 1);
-        voltExecuteSQL(true);
+		 	
+        if(procOutput == VoterDemoSStoreConstants.STATUS_NOT_DETERMINED)
+        {
+        	// Post the vote
+		    TimestampType timestamp = new TimestampType();
+		    voltQueueSQL(insertVoteStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
+		    voltQueueSQL(insertProcEndStmt, voteId, phoneNumber, state, contestantNumber, timestamp);
+		    voltQueueSQL(updateNumSuccessStmt, numSuccess + 1);
+	        int votesSinceLastDelete = (((int)numSuccess) % VoterDemoSStoreConstants.VOTE_THRESHOLD) + 1;
+	        voltQueueSQL(updateVotesTilNextDeleteStmt, VoterDemoSStoreConstants.VOTE_THRESHOLD - votesSinceLastDelete);
+		    voltExecuteSQL(true);
+		    procOutput = VoterDemoSStoreConstants.VOTE_SUCCESSFUL;
+        }
+        
+        // Set the return value to 0: successful vote
+        if(((int)numProcOne % (int)VoterDemoSStoreConstants.BOARD_REFRESH) == 0)
+        {
+        	if(VoterDemoSStoreConstants.SOCKET_CONTROL)
+        		VoterDemoSStoreUtil.waitForSignal();
+        	try {
+				printResults((int)numProcOne);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        }
 		
         // Set the return value to 0: successful vote
-        return VoterDemoSStoreConstants.VOTE_SUCCESSFUL;
+        return procOutput;
     }
 }

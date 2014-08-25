@@ -49,7 +49,6 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreUtil;
 
@@ -129,7 +128,7 @@ public class DeleteContestant extends VoltProcedure {
 			  + " ORDER BY num_votes DESC"
 			  + "        , contestant_number ASC");
 	
-	public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT cnt FROM votes_count WHERE row_id=1;");
+	public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT totalcnt FROM proc_one_count WHERE row_id=1;");
 	public final SQLStmt getActualVoteCountStmt = new SQLStmt( "SELECT totalcnt, successcnt FROM proc_one_count WHERE row_id = 1;");
 	public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM trending_leaderboard;");
 	public final SQLStmt getRemainingContestants = new SQLStmt("SELECT count(*) FROM contestants;");
