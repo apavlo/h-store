@@ -39,7 +39,6 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.voter.VoterConstants;
 import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
 import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreUtil;
 
@@ -141,7 +140,8 @@ public class Vote extends VoltProcedure {
 	public final SQLStmt getActualVoteCountStmt = new SQLStmt( "SELECT totalcnt, successcnt FROM proc_one_count WHERE row_id = 1;");
 	public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM w_rows;");
 	public final SQLStmt getRemainingContestants = new SQLStmt("SELECT count(*) FROM contestants;");
-	public final SQLStmt getRemovedContestant = new SQLStmt("SELECT contestant_name, num_votes FROM removed_contestant WHERE row_id = 1;");
+	public final SQLStmt getRemovedContestants = new SQLStmt("SELECT row_id, contestant_name, num_votes FROM removed_contestant ORDER BY row_id DESC;");
+	public final SQLStmt getAllRemainingContestants = new SQLStmt("SELECT c.contestant_name, v.num_votes FROM v_votes_by_contestant v JOIN contestants c ON v.contestant_number = c.contestant_number ORDER BY num_votes DESC;");
 	public final SQLStmt getVotesTilNextDeleteStmt = new SQLStmt( "SELECT cnt FROM votes_next_delete WHERE row_id=1;");
 	/////////////////////////////
 	//END GET RESULTS
@@ -183,6 +183,12 @@ public class Vote extends VoltProcedure {
         VoltTable[] v = voltExecuteSQL();
         VoterDemoHStoreUtil.writeToFile(v, tableNames, numVotes);
         
+        voltQueueSQL(getAllRemainingContestants);
+        tableNames.add("RemainingContestants");
+        voltQueueSQL(getRemovedContestants);
+        tableNames.add("RemovedContestants");
+        v = voltExecuteSQL();
+		VoterDemoHStoreUtil.writeToContestantsFile(v, tableNames, VoterDemoHStoreConstants.DELETE_CODE);
     }
     
 	

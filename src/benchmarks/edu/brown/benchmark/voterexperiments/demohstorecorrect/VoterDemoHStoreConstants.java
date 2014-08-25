@@ -42,6 +42,7 @@ public abstract class VoterDemoHStoreConstants {
 	
 	public static final String OUTPUT_FILE = "logs/demohstoreout.txt";
 	public static final String OVERWRITE_FILE = "logs/demohstorecurrent.txt";
+	public static final String CONTESTANTS_FILE = "logs/hstorecontestants.txt";
 	public static final String VOTE_FILE = "demo/demo-votes.txt";
 	public static final int DELETE_CODE = -1;
 	public static final boolean SOCKET_CONTROL = true;

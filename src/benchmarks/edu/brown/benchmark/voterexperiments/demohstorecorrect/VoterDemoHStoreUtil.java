@@ -41,7 +41,7 @@ import java.util.Random;
 
 import org.voltdb.VoltTable;
 
-import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
+import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
 import edu.brown.rand.RandomDistribution.Zipf;
 
 public abstract class VoterDemoHStoreUtil {
@@ -319,6 +319,11 @@ public abstract class VoterDemoHStoreUtil {
     	}
     }
     
+    public static void writeToContestantsFile(VoltTable[] v, ArrayList<String> tableNames, int numVotes) throws IOException
+    {
+    	writeToFile(v,tableNames,numVotes,VoterDemoHStoreConstants.CONTESTANTS_FILE);
+    }
+    
     public static void writeToFile(VoltTable[] v, ArrayList<String> tableNames, int numVotes) throws IOException
     {
     	ArrayList<PrintWriter> out = new ArrayList<PrintWriter>();
@@ -361,6 +366,48 @@ public abstract class VoterDemoHStoreUtil {
         	writeToAllFiles(out,"---------------------------\n");
         }
         closeAllFiles(out);
+    }
+    
+    public static void writeToFile(VoltTable[] v, ArrayList<String> tableNames, int numVotes, String filename) throws IOException
+    {
+    	PrintWriter p = new PrintWriter(new BufferedWriter(new FileWriter(filename, false)));
+    	if(numVotes == VoterDemoHStoreConstants.DELETE_CODE)
+    	{
+    		p.print("####DELETECANDIDATE####\n");
+    	}
+    	else
+    		p.print("####" + numVotes + "####\n");
+    	
+        for(int i = 0; i < v.length; i++)
+        {
+        	String tableName = tableNames.get(i);
+        	p.print("**" + tableName + "**\n");
+        	int j = 0;
+        	while(j < v[i].getRowCount())
+        	{
+        		for(int k = 0; k < v[i].getColumnCount(); k++)
+        		{
+        			if(k > 0)
+	        		{
+        				p.print(",");
+	        		}
+        			
+        			p.print((v[i].fetchRow(j).get(k)).toString());
+        		}
+        		p.print("\n");
+        		j++;
+        	}
+        	if(tableName.endsWith("Three"))
+        	{
+        		while(j < 3)
+        		{
+        			p.print("-----,0\n");
+        			j++;
+        		}
+        	}
+        	p.print("---------------------------\n");
+        }
+        p.close();
     }
 
 }

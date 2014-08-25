@@ -49,7 +49,6 @@ import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.types.TimestampType;
 
-import edu.brown.benchmark.voterexperiments.demohstorecorrect.VoterDemoHStoreConstants;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreConstants;
 import edu.brown.benchmark.voterexperiments.demosstorecorrect.VoterDemoSStoreUtil;
 
@@ -133,7 +132,8 @@ public class DeleteContestant extends VoltProcedure {
 	public final SQLStmt getActualVoteCountStmt = new SQLStmt( "SELECT totalcnt, successcnt FROM proc_one_count WHERE row_id = 1;");
 	public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM trending_leaderboard;");
 	public final SQLStmt getRemainingContestants = new SQLStmt("SELECT count(*) FROM contestants;");
-	public final SQLStmt getRemovedContestant = new SQLStmt("SELECT contestant_name, num_votes FROM removed_contestant WHERE row_id = 1;");
+	public final SQLStmt getRemovedContestants = new SQLStmt("SELECT row_id, contestant_name, num_votes FROM removed_contestant ORDER BY row_id DESC;");
+	public final SQLStmt getAllRemainingContestants = new SQLStmt("SELECT c.contestant_name, v.num_votes FROM v_votes_by_contestant v JOIN contestants c ON v.contestant_number = c.contestant_number ORDER BY num_votes DESC;");
 	public final SQLStmt getVotesTilNextDeleteStmt = new SQLStmt( "SELECT cnt FROM votes_next_delete WHERE row_id=1;");
 	/////////////////////////////
 	//END GET RESULTS
@@ -174,6 +174,13 @@ public class DeleteContestant extends VoltProcedure {
 		
 		VoltTable[] v = voltExecuteSQL();
 		VoterDemoSStoreUtil.writeToFile(v, tableNames, VoterDemoSStoreConstants.DELETE_CODE);
+		
+		voltQueueSQL(getAllRemainingContestants);
+        tableNames.add("RemainingContestants");
+        voltQueueSQL(getRemovedContestants);
+        tableNames.add("RemovedContestants");
+        v = voltExecuteSQL();
+		VoterDemoSStoreUtil.writeToContestantsFile(v, tableNames, VoterDemoSStoreConstants.DELETE_CODE);
 	}
 	
     public long run() {
@@ -197,7 +204,7 @@ public class DeleteContestant extends VoltProcedure {
         
         if(remainingContestants <= 1)
         {
-        	return VoterDemoHStoreConstants.BM_FINISHED;
+        	return VoterDemoSStoreConstants.BM_FINISHED;
         }
         
         voltQueueSQL(insertRemovedContestant, remainingContestants, lowestConName, lowestConVotes);
