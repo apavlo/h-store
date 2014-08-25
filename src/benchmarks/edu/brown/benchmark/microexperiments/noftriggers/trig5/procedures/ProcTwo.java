@@ -58,9 +58,9 @@ public class ProcTwo extends VoltProcedure {
     public long run() {
 		
     	// Queue up validation statements
-    	if(NoFTriggersConstants.NUM_TRIGGERS > 2)
-    		voltQueueSQL(insertProcOutStmt);
-    	else
+    	//if(NoFTriggersConstants.NUM_TRIGGERS > 2)
+    	//	voltQueueSQL(insertProcOutStmt);
+    	//else
     		voltQueueSQL(insertATableStmt);
     	
     	voltQueueSQL(deleteProcOutStmt);

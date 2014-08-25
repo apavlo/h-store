@@ -44,12 +44,16 @@ import edu.brown.benchmark.microexperiments.noftriggers.trig5.NoFTriggersConstan
 public class ProcOne extends VoltProcedure {
 	
 	public final SQLStmt insertATableStmt = new SQLStmt(
-		"INSERT INTO a_tbl (a_id, a_val) SELECT * FROM proc_one_out;"
+		"INSERT INTO a_tbl (a_id, a_val) VALUES (?, ?);"
 	);
 	
     // Checks if the voter has exceeded their allowed number of votes
     public final SQLStmt insertProcOneOutStmt = new SQLStmt(
 		"INSERT INTO proc_one_out VALUES (?,?);"
+    );
+    
+    public final SQLStmt insertProcTwoOutStmt = new SQLStmt(
+		"INSERT INTO proc_two_out VALUES (?,?);"
     );
 	
     public long run(int row_id, int row_val) {
@@ -58,7 +62,10 @@ public class ProcOne extends VoltProcedure {
     	if(NoFTriggersConstants.NUM_TRIGGERS > 1)
     		voltQueueSQL(insertProcOneOutStmt, row_id, row_val);
     	else
-    		voltQueueSQL(insertATableStmt);
+    		voltQueueSQL(insertATableStmt, row_id, row_val);
+    	
+    	if(NoFTriggersConstants.NUM_TRIGGERS > 2)
+    		voltQueueSQL(insertProcTwoOutStmt, row_id, row_val);
     		
         voltExecuteSQL(true);
 				
