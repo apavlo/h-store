@@ -1,0 +1,5797 @@
+####100####
+**RemainingContestants**
+1,Michael Buble,10
+2,Ashley Leggat,10
+3,Avril Lavigne,10
+4,Nelly Furtado,9
+5,Jann Arden,8
+6,Jim Bryson,8
+7,Leonard Cohen,8
+8,Emily Haines,8
+9,Justin Bieber,7
+10,Adam Gontier,7
+11,Micah Barnes,6
+12,Celine Dion,6
+---------------------------
+**RemovedContestants**
+---------------------------
+####200####
+**RemainingContestants**
+1,Avril Lavigne,22
+2,Leonard Cohen,20
+3,Nelly Furtado,18
+4,Michael Buble,18
+5,Jim Bryson,18
+6,Justin Bieber,18
+7,Emily Haines,18
+8,Micah Barnes,17
+9,Ashley Leggat,12
+10,Jann Arden,11
+11,Adam Gontier,11
+12,Celine Dion,11
+---------------------------
+**RemovedContestants**
+---------------------------
+####300####
+**RemainingContestants**
+1,Jim Bryson,30
+2,Micah Barnes,29
+3,Leonard Cohen,28
+4,Avril Lavigne,28
+5,Michael Buble,26
+6,Nelly Furtado,24
+7,Jann Arden,24
+8,Justin Bieber,24
+9,Emily Haines,23
+10,Adam Gontier,22
+11,Celine Dion,18
+12,Ashley Leggat,17
+---------------------------
+**RemovedContestants**
+---------------------------
+####400####
+**RemainingContestants**
+1,Leonard Cohen,39
+2,Jim Bryson,38
+3,Jann Arden,35
+4,Avril Lavigne,35
+5,Nelly Furtado,34
+6,Emily Haines,34
+7,Micah Barnes,33
+8,Michael Buble,32
+9,Justin Bieber,32
+10,Adam Gontier,32
+11,Celine Dion,24
+12,Ashley Leggat,22
+---------------------------
+**RemovedContestants**
+---------------------------
+####500####
+**RemainingContestants**
+1,Jim Bryson,50
+2,Nelly Furtado,45
+3,Leonard Cohen,45
+4,Michael Buble,44
+5,Jann Arden,44
+6,Avril Lavigne,42
+7,Emily Haines,40
+8,Adam Gontier,39
+9,Micah Barnes,38
+10,Justin Bieber,36
+11,Celine Dion,34
+12,Ashley Leggat,32
+---------------------------
+**RemovedContestants**
+---------------------------
+####600####
+**RemainingContestants**
+1,Jim Bryson,65
+2,Avril Lavigne,55
+3,Nelly Furtado,51
+4,Adam Gontier,51
+5,Emily Haines,51
+6,Michael Buble,50
+7,Leonard Cohen,49
+8,Micah Barnes,47
+9,Jann Arden,46
+10,Ashley Leggat,41
+11,Justin Bieber,40
+12,Celine Dion,40
+---------------------------
+**RemovedContestants**
+---------------------------
+####700####
+**RemainingContestants**
+1,Jim Bryson,68
+2,Emily Haines,66
+3,Avril Lavigne,64
+4,Adam Gontier,64
+5,Nelly Furtado,61
+6,Micah Barnes,58
+7,Leonard Cohen,58
+8,Michael Buble,52
+9,Ashley Leggat,52
+10,Justin Bieber,50
+11,Jann Arden,46
+12,Celine Dion,45
+---------------------------
+**RemovedContestants**
+---------------------------
+####800####
+**RemainingContestants**
+1,Avril Lavigne,79
+2,Emily Haines,77
+3,Jim Bryson,75
+4,Nelly Furtado,68
+5,Leonard Cohen,68
+6,Ashley Leggat,67
+7,Adam Gontier,67
+8,Micah Barnes,63
+9,Michael Buble,58
+10,Justin Bieber,57
+11,Jann Arden,52
+12,Celine Dion,52
+---------------------------
+**RemovedContestants**
+---------------------------
+####900####
+**RemainingContestants**
+1,Avril Lavigne,88
+2,Emily Haines,88
+3,Jim Bryson,81
+4,Ashley Leggat,79
+5,Nelly Furtado,75
+6,Micah Barnes,74
+7,Leonard Cohen,74
+8,Justin Bieber,72
+9,Adam Gontier,71
+10,Michael Buble,63
+11,Jann Arden,57
+12,Celine Dion,57
+---------------------------
+**RemovedContestants**
+---------------------------
+####1000####
+**RemainingContestants**
+1,Emily Haines,101
+2,Avril Lavigne,95
+3,Jim Bryson,89
+4,Ashley Leggat,89
+5,Micah Barnes,85
+6,Adam Gontier,85
+7,Nelly Furtado,84
+8,Leonard Cohen,77
+9,Justin Bieber,77
+10,Michael Buble,69
+11,Jann Arden,63
+12,Celine Dion,63
+---------------------------
+**RemovedContestants**
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Emily Haines,105
+2,Avril Lavigne,99
+3,Jim Bryson,90
+4,Ashley Leggat,90
+5,Micah Barnes,88
+6,Adam Gontier,86
+7,Nelly Furtado,85
+8,Leonard Cohen,80
+9,Justin Bieber,78
+10,Michael Buble,71
+11,Celine Dion,66
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####1100####
+**RemainingContestants**
+1,Emily Haines,105
+2,Avril Lavigne,101
+3,Jim Bryson,92
+4,Ashley Leggat,91
+5,Micah Barnes,88
+6,Adam Gontier,86
+7,Nelly Furtado,85
+8,Leonard Cohen,81
+9,Justin Bieber,78
+10,Michael Buble,71
+11,Celine Dion,71
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####1200####
+**RemainingContestants**
+1,Emily Haines,121
+2,Avril Lavigne,110
+3,Jim Bryson,100
+4,Ashley Leggat,98
+5,Micah Barnes,97
+6,Leonard Cohen,92
+7,Adam Gontier,92
+8,Nelly Furtado,89
+9,Justin Bieber,88
+10,Michael Buble,80
+11,Celine Dion,73
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####1300####
+**RemainingContestants**
+1,Emily Haines,130
+2,Avril Lavigne,117
+3,Micah Barnes,109
+4,Jim Bryson,108
+5,Ashley Leggat,105
+6,Nelly Furtado,102
+7,Leonard Cohen,99
+8,Adam Gontier,99
+9,Justin Bieber,97
+10,Michael Buble,88
+11,Celine Dion,76
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####1400####
+**RemainingContestants**
+1,Emily Haines,141
+2,Avril Lavigne,127
+3,Jim Bryson,119
+4,Micah Barnes,118
+5,Ashley Leggat,116
+6,Nelly Furtado,110
+7,Adam Gontier,110
+8,Leonard Cohen,106
+9,Justin Bieber,103
+10,Michael Buble,95
+11,Celine Dion,78
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####1500####
+**RemainingContestants**
+1,Emily Haines,146
+2,Avril Lavigne,137
+3,Micah Barnes,129
+4,Jim Bryson,126
+5,Ashley Leggat,122
+6,Leonard Cohen,119
+7,Adam Gontier,118
+8,Nelly Furtado,114
+9,Justin Bieber,109
+10,Michael Buble,108
+11,Celine Dion,79
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####1600####
+**RemainingContestants**
+1,Emily Haines,156
+2,Avril Lavigne,145
+3,Micah Barnes,134
+4,Jim Bryson,132
+5,Ashley Leggat,130
+6,Leonard Cohen,126
+7,Nelly Furtado,123
+8,Michael Buble,123
+9,Adam Gontier,123
+10,Justin Bieber,119
+11,Celine Dion,81
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####1700####
+**RemainingContestants**
+1,Emily Haines,161
+2,Avril Lavigne,154
+3,Jim Bryson,143
+4,Ashley Leggat,142
+5,Micah Barnes,140
+6,Leonard Cohen,138
+7,Justin Bieber,136
+8,Michael Buble,135
+9,Adam Gontier,128
+10,Nelly Furtado,125
+11,Celine Dion,83
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####1800####
+**RemainingContestants**
+1,Emily Haines,172
+2,Avril Lavigne,159
+3,Micah Barnes,152
+4,Leonard Cohen,150
+5,Ashley Leggat,149
+6,Jim Bryson,147
+7,Justin Bieber,145
+8,Michael Buble,141
+9,Nelly Furtado,138
+10,Adam Gontier,136
+11,Celine Dion,83
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####1900####
+**RemainingContestants**
+1,Emily Haines,177
+2,Avril Lavigne,170
+3,Micah Barnes,161
+4,Leonard Cohen,160
+5,Ashley Leggat,160
+6,Jim Bryson,156
+7,Justin Bieber,154
+8,Michael Buble,151
+9,Adam Gontier,146
+10,Nelly Furtado,145
+11,Celine Dion,84
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####2000####
+**RemainingContestants**
+1,Emily Haines,188
+2,Avril Lavigne,183
+3,Jim Bryson,169
+4,Leonard Cohen,168
+5,Micah Barnes,167
+6,Ashley Leggat,166
+7,Justin Bieber,160
+8,Michael Buble,157
+9,Adam Gontier,155
+10,Nelly Furtado,154
+11,Celine Dion,86
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####2100####
+**RemainingContestants**
+1,Emily Haines,191
+2,Avril Lavigne,188
+3,Justin Bieber,178
+4,Jim Bryson,174
+5,Ashley Leggat,174
+6,Micah Barnes,171
+7,Leonard Cohen,171
+8,Michael Buble,166
+9,Adam Gontier,163
+10,Nelly Furtado,161
+11,Celine Dion,86
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####2200####
+**RemainingContestants**
+1,Emily Haines,191
+2,Avril Lavigne,188
+3,Justin Bieber,178
+4,Jim Bryson,174
+5,Ashley Leggat,174
+6,Micah Barnes,171
+7,Leonard Cohen,171
+8,Michael Buble,166
+9,Adam Gontier,163
+10,Nelly Furtado,161
+11,Celine Dion,86
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####2300####
+**RemainingContestants**
+1,Emily Haines,196
+2,Avril Lavigne,195
+3,Justin Bieber,186
+4,Jim Bryson,180
+5,Leonard Cohen,179
+6,Ashley Leggat,179
+7,Micah Barnes,174
+8,Michael Buble,173
+9,Adam Gontier,170
+10,Nelly Furtado,163
+11,Celine Dion,87
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Emily Haines,207
+2,Avril Lavigne,203
+3,Justin Bieber,191
+4,Ashley Leggat,183
+5,Jim Bryson,182
+6,Micah Barnes,181
+7,Leonard Cohen,181
+8,Michael Buble,178
+9,Adam Gontier,175
+10,Nelly Furtado,163
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####2400####
+**RemainingContestants**
+1,Emily Haines,211
+2,Avril Lavigne,208
+3,Justin Bieber,195
+4,Ashley Leggat,190
+5,Jim Bryson,188
+6,Micah Barnes,183
+7,Leonard Cohen,183
+8,Michael Buble,182
+9,Adam Gontier,177
+10,Nelly Furtado,163
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####2500####
+**RemainingContestants**
+1,Emily Haines,223
+2,Avril Lavigne,219
+3,Justin Bieber,206
+4,Ashley Leggat,203
+5,Michael Buble,194
+6,Jim Bryson,194
+7,Micah Barnes,190
+8,Leonard Cohen,190
+9,Adam Gontier,185
+10,Nelly Furtado,165
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####2600####
+**RemainingContestants**
+1,Emily Haines,237
+2,Avril Lavigne,231
+3,Justin Bieber,215
+4,Ashley Leggat,212
+5,Michael Buble,200
+6,Micah Barnes,199
+7,Leonard Cohen,199
+8,Jim Bryson,198
+9,Adam Gontier,197
+10,Nelly Furtado,168
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####2700####
+**RemainingContestants**
+1,Avril Lavigne,242
+2,Emily Haines,242
+3,Ashley Leggat,225
+4,Justin Bieber,225
+5,Jim Bryson,210
+6,Leonard Cohen,210
+7,Micah Barnes,206
+8,Adam Gontier,206
+9,Michael Buble,204
+10,Nelly Furtado,173
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####2800####
+**RemainingContestants**
+1,Emily Haines,251
+2,Avril Lavigne,248
+3,Ashley Leggat,235
+4,Justin Bieber,234
+5,Leonard Cohen,224
+6,Micah Barnes,218
+7,Michael Buble,215
+8,Jim Bryson,214
+9,Adam Gontier,214
+10,Nelly Furtado,174
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####2900####
+**RemainingContestants**
+1,Emily Haines,258
+2,Avril Lavigne,255
+3,Justin Bieber,248
+4,Ashley Leggat,247
+5,Leonard Cohen,233
+6,Micah Barnes,228
+7,Adam Gontier,228
+8,Jim Bryson,224
+9,Michael Buble,222
+10,Nelly Furtado,175
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####3000####
+**RemainingContestants**
+1,Emily Haines,268
+2,Avril Lavigne,265
+3,Ashley Leggat,255
+4,Justin Bieber,255
+5,Leonard Cohen,245
+6,Adam Gontier,239
+7,Micah Barnes,235
+8,Michael Buble,234
+9,Jim Bryson,230
+10,Nelly Furtado,177
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####3100####
+**RemainingContestants**
+1,Avril Lavigne,278
+2,Emily Haines,278
+3,Justin Bieber,263
+4,Ashley Leggat,261
+5,Leonard Cohen,254
+6,Adam Gontier,250
+7,Micah Barnes,245
+8,Michael Buble,242
+9,Jim Bryson,242
+10,Nelly Furtado,179
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####3200####
+**RemainingContestants**
+1,Avril Lavigne,281
+2,Emily Haines,279
+3,Justin Bieber,272
+4,Ashley Leggat,264
+5,Leonard Cohen,260
+6,Adam Gontier,254
+7,Michael Buble,249
+8,Micah Barnes,247
+9,Jim Bryson,247
+10,Nelly Furtado,179
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####3300####
+**RemainingContestants**
+1,Avril Lavigne,282
+2,Emily Haines,279
+3,Justin Bieber,272
+4,Ashley Leggat,265
+5,Leonard Cohen,261
+6,Adam Gontier,254
+7,Michael Buble,249
+8,Micah Barnes,247
+9,Jim Bryson,247
+10,Nelly Furtado,179
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####3400####
+**RemainingContestants**
+1,Avril Lavigne,282
+2,Emily Haines,280
+3,Justin Bieber,272
+4,Ashley Leggat,265
+5,Leonard Cohen,261
+6,Adam Gontier,254
+7,Michael Buble,249
+8,Micah Barnes,248
+9,Jim Bryson,248
+10,Nelly Furtado,179
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####3500####
+**RemainingContestants**
+1,Emily Haines,296
+2,Avril Lavigne,295
+3,Justin Bieber,282
+4,Ashley Leggat,278
+5,Leonard Cohen,268
+6,Adam Gontier,263
+7,Micah Barnes,259
+8,Jim Bryson,253
+9,Michael Buble,252
+10,Nelly Furtado,182
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####3600####
+**RemainingContestants**
+1,Emily Haines,306
+2,Avril Lavigne,303
+3,Justin Bieber,296
+4,Ashley Leggat,293
+5,Leonard Cohen,277
+6,Micah Barnes,273
+7,Adam Gontier,271
+8,Jim Bryson,262
+9,Michael Buble,253
+10,Nelly Furtado,182
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####3700####
+**RemainingContestants**
+1,Emily Haines,324
+2,Avril Lavigne,318
+3,Justin Bieber,305
+4,Ashley Leggat,299
+5,Leonard Cohen,290
+6,Micah Barnes,281
+7,Adam Gontier,278
+8,Jim Bryson,271
+9,Michael Buble,254
+10,Nelly Furtado,185
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Emily Haines,327
+2,Avril Lavigne,324
+3,Justin Bieber,306
+4,Ashley Leggat,303
+5,Leonard Cohen,295
+6,Micah Barnes,286
+7,Adam Gontier,283
+8,Jim Bryson,278
+9,Michael Buble,256
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####3800####
+**RemainingContestants**
+1,Emily Haines,332
+2,Avril Lavigne,328
+3,Ashley Leggat,310
+4,Justin Bieber,308
+5,Leonard Cohen,297
+6,Micah Barnes,293
+7,Adam Gontier,290
+8,Jim Bryson,287
+9,Michael Buble,256
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####3900####
+**RemainingContestants**
+1,Emily Haines,341
+2,Avril Lavigne,339
+3,Ashley Leggat,322
+4,Justin Bieber,322
+5,Leonard Cohen,308
+6,Micah Barnes,306
+7,Adam Gontier,296
+8,Jim Bryson,295
+9,Michael Buble,257
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####4000####
+**RemainingContestants**
+1,Avril Lavigne,351
+2,Emily Haines,349
+3,Ashley Leggat,334
+4,Justin Bieber,331
+5,Leonard Cohen,322
+6,Micah Barnes,317
+7,Adam Gontier,309
+8,Jim Bryson,302
+9,Michael Buble,258
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####4100####
+**RemainingContestants**
+1,Avril Lavigne,361
+2,Emily Haines,355
+3,Ashley Leggat,346
+4,Justin Bieber,338
+5,Leonard Cohen,333
+6,Micah Barnes,324
+7,Adam Gontier,322
+8,Jim Bryson,315
+9,Michael Buble,258
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####4200####
+**RemainingContestants**
+1,Avril Lavigne,368
+2,Emily Haines,361
+3,Ashley Leggat,355
+4,Justin Bieber,355
+5,Leonard Cohen,341
+6,Micah Barnes,334
+7,Adam Gontier,331
+8,Jim Bryson,326
+9,Michael Buble,262
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####4300####
+**RemainingContestants**
+1,Avril Lavigne,370
+2,Emily Haines,365
+3,Ashley Leggat,360
+4,Justin Bieber,360
+5,Leonard Cohen,343
+6,Micah Barnes,336
+7,Adam Gontier,334
+8,Jim Bryson,331
+9,Michael Buble,263
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####4400####
+**RemainingContestants**
+1,Avril Lavigne,370
+2,Emily Haines,366
+3,Justin Bieber,361
+4,Ashley Leggat,360
+5,Leonard Cohen,344
+6,Micah Barnes,337
+7,Adam Gontier,334
+8,Jim Bryson,331
+9,Michael Buble,263
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####4500####
+**RemainingContestants**
+1,Avril Lavigne,370
+2,Emily Haines,366
+3,Justin Bieber,364
+4,Ashley Leggat,360
+5,Leonard Cohen,344
+6,Micah Barnes,338
+7,Adam Gontier,334
+8,Jim Bryson,331
+9,Michael Buble,263
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####4600####
+**RemainingContestants**
+1,Avril Lavigne,373
+2,Emily Haines,368
+3,Ashley Leggat,365
+4,Justin Bieber,364
+5,Leonard Cohen,345
+6,Micah Barnes,340
+7,Adam Gontier,335
+8,Jim Bryson,332
+9,Michael Buble,263
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####4700####
+**RemainingContestants**
+1,Avril Lavigne,386
+2,Ashley Leggat,380
+3,Emily Haines,377
+4,Justin Bieber,375
+5,Leonard Cohen,356
+6,Micah Barnes,349
+7,Adam Gontier,348
+8,Jim Bryson,333
+9,Michael Buble,263
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####4800####
+**RemainingContestants**
+1,Avril Lavigne,396
+2,Emily Haines,393
+3,Ashley Leggat,390
+4,Justin Bieber,387
+5,Leonard Cohen,368
+6,Micah Barnes,360
+7,Adam Gontier,360
+8,Jim Bryson,334
+9,Michael Buble,265
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####4900####
+**RemainingContestants**
+1,Avril Lavigne,411
+2,Ashley Leggat,403
+3,Justin Bieber,402
+4,Emily Haines,402
+5,Leonard Cohen,378
+6,Adam Gontier,377
+7,Micah Barnes,367
+8,Jim Bryson,335
+9,Michael Buble,265
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####5000####
+**RemainingContestants**
+1,Avril Lavigne,422
+2,Ashley Leggat,415
+3,Justin Bieber,414
+4,Emily Haines,409
+5,Leonard Cohen,395
+6,Adam Gontier,389
+7,Micah Barnes,376
+8,Jim Bryson,337
+9,Michael Buble,267
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####5100####
+**RemainingContestants**
+1,Ashley Leggat,429
+2,Justin Bieber,427
+3,Avril Lavigne,427
+4,Emily Haines,420
+5,Leonard Cohen,410
+6,Adam Gontier,401
+7,Micah Barnes,387
+8,Jim Bryson,339
+9,Michael Buble,268
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####5200####
+**RemainingContestants**
+1,Justin Bieber,445
+2,Ashley Leggat,440
+3,Avril Lavigne,437
+4,Emily Haines,427
+5,Leonard Cohen,420
+6,Adam Gontier,416
+7,Micah Barnes,398
+8,Jim Bryson,340
+9,Michael Buble,270
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,455
+2,Ashley Leggat,450
+3,Avril Lavigne,440
+4,Emily Haines,439
+5,Leonard Cohen,432
+6,Adam Gontier,423
+7,Micah Barnes,406
+8,Jim Bryson,342
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####5300####
+**RemainingContestants**
+1,Justin Bieber,455
+2,Ashley Leggat,452
+3,Avril Lavigne,443
+4,Emily Haines,440
+5,Leonard Cohen,434
+6,Adam Gontier,429
+7,Micah Barnes,408
+8,Jim Bryson,342
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####5400####
+**RemainingContestants**
+1,Justin Bieber,458
+2,Ashley Leggat,455
+3,Avril Lavigne,443
+4,Emily Haines,440
+5,Leonard Cohen,438
+6,Adam Gontier,432
+7,Micah Barnes,413
+8,Jim Bryson,342
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####5500####
+**RemainingContestants**
+1,Justin Bieber,460
+2,Ashley Leggat,458
+3,Avril Lavigne,443
+4,Leonard Cohen,442
+5,Emily Haines,440
+6,Adam Gontier,434
+7,Micah Barnes,413
+8,Jim Bryson,342
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####5600####
+**RemainingContestants**
+1,Justin Bieber,460
+2,Ashley Leggat,459
+3,Avril Lavigne,445
+4,Leonard Cohen,444
+5,Emily Haines,440
+6,Adam Gontier,435
+7,Micah Barnes,413
+8,Jim Bryson,342
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####5700####
+**RemainingContestants**
+1,Justin Bieber,463
+2,Ashley Leggat,459
+3,Leonard Cohen,448
+4,Avril Lavigne,447
+5,Emily Haines,440
+6,Adam Gontier,438
+7,Micah Barnes,413
+8,Jim Bryson,343
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####5800####
+**RemainingContestants**
+1,Justin Bieber,466
+2,Ashley Leggat,459
+3,Leonard Cohen,450
+4,Avril Lavigne,448
+5,Emily Haines,441
+6,Adam Gontier,440
+7,Micah Barnes,413
+8,Jim Bryson,343
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####5900####
+**RemainingContestants**
+1,Justin Bieber,475
+2,Ashley Leggat,471
+3,Avril Lavigne,469
+4,Leonard Cohen,461
+5,Adam Gontier,452
+6,Emily Haines,452
+7,Micah Barnes,413
+8,Jim Bryson,343
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####6000####
+**RemainingContestants**
+1,Justin Bieber,488
+2,Avril Lavigne,485
+3,Ashley Leggat,483
+4,Leonard Cohen,473
+5,Adam Gontier,466
+6,Emily Haines,466
+7,Micah Barnes,414
+8,Jim Bryson,344
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####6100####
+**RemainingContestants**
+1,Justin Bieber,507
+2,Avril Lavigne,501
+3,Ashley Leggat,492
+4,Leonard Cohen,483
+5,Adam Gontier,477
+6,Emily Haines,477
+7,Micah Barnes,418
+8,Jim Bryson,347
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####6200####
+**RemainingContestants**
+1,Avril Lavigne,519
+2,Justin Bieber,518
+3,Ashley Leggat,503
+4,Leonard Cohen,497
+5,Emily Haines,492
+6,Adam Gontier,488
+7,Micah Barnes,419
+8,Jim Bryson,347
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####6300####
+**RemainingContestants**
+1,Justin Bieber,536
+2,Avril Lavigne,528
+3,Leonard Cohen,513
+4,Ashley Leggat,511
+5,Emily Haines,507
+6,Adam Gontier,501
+7,Micah Barnes,422
+8,Jim Bryson,349
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####6400####
+**RemainingContestants**
+1,Justin Bieber,548
+2,Avril Lavigne,538
+3,Leonard Cohen,530
+4,Ashley Leggat,525
+5,Emily Haines,517
+6,Adam Gontier,512
+7,Micah Barnes,425
+8,Jim Bryson,351
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####6500####
+**RemainingContestants**
+1,Justin Bieber,556
+2,Avril Lavigne,547
+3,Leonard Cohen,537
+4,Ashley Leggat,532
+5,Emily Haines,520
+6,Adam Gontier,514
+7,Micah Barnes,425
+8,Jim Bryson,352
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####6600####
+**RemainingContestants**
+1,Justin Bieber,556
+2,Avril Lavigne,549
+3,Leonard Cohen,538
+4,Ashley Leggat,532
+5,Emily Haines,522
+6,Adam Gontier,515
+7,Micah Barnes,425
+8,Jim Bryson,352
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####6700####
+**RemainingContestants**
+1,Justin Bieber,558
+2,Avril Lavigne,549
+3,Leonard Cohen,540
+4,Ashley Leggat,532
+5,Emily Haines,522
+6,Adam Gontier,516
+7,Micah Barnes,425
+8,Jim Bryson,352
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####6800####
+**RemainingContestants**
+1,Justin Bieber,558
+2,Avril Lavigne,549
+3,Leonard Cohen,540
+4,Ashley Leggat,532
+5,Emily Haines,522
+6,Adam Gontier,516
+7,Micah Barnes,425
+8,Jim Bryson,352
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####6900####
+**RemainingContestants**
+1,Justin Bieber,559
+2,Avril Lavigne,552
+3,Leonard Cohen,541
+4,Ashley Leggat,532
+5,Emily Haines,524
+6,Adam Gontier,517
+7,Micah Barnes,425
+8,Jim Bryson,352
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####7000####
+**RemainingContestants**
+1,Justin Bieber,560
+2,Avril Lavigne,553
+3,Leonard Cohen,544
+4,Ashley Leggat,532
+5,Emily Haines,524
+6,Adam Gontier,518
+7,Micah Barnes,425
+8,Jim Bryson,352
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####7100####
+**RemainingContestants**
+1,Justin Bieber,562
+2,Avril Lavigne,558
+3,Leonard Cohen,548
+4,Ashley Leggat,533
+5,Emily Haines,529
+6,Adam Gontier,525
+7,Micah Barnes,426
+8,Jim Bryson,355
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####7200####
+**RemainingContestants**
+1,Justin Bieber,578
+2,Avril Lavigne,568
+3,Leonard Cohen,567
+4,Emily Haines,543
+5,Adam Gontier,540
+6,Ashley Leggat,534
+7,Micah Barnes,428
+8,Jim Bryson,357
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####7300####
+**RemainingContestants**
+1,Justin Bieber,597
+2,Avril Lavigne,582
+3,Leonard Cohen,579
+4,Emily Haines,560
+5,Adam Gontier,551
+6,Ashley Leggat,535
+7,Micah Barnes,430
+8,Jim Bryson,360
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####7400####
+**RemainingContestants**
+1,Justin Bieber,612
+2,Avril Lavigne,592
+3,Leonard Cohen,589
+4,Emily Haines,576
+5,Adam Gontier,568
+6,Ashley Leggat,536
+7,Micah Barnes,431
+8,Jim Bryson,362
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####7500####
+**RemainingContestants**
+1,Justin Bieber,624
+2,Leonard Cohen,605
+3,Avril Lavigne,604
+4,Emily Haines,597
+5,Adam Gontier,576
+6,Ashley Leggat,538
+7,Micah Barnes,433
+8,Jim Bryson,364
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,633
+2,Leonard Cohen,614
+3,Avril Lavigne,614
+4,Emily Haines,606
+5,Adam Gontier,584
+6,Ashley Leggat,538
+7,Micah Barnes,433
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####7600####
+**RemainingContestants**
+1,Justin Bieber,635
+2,Leonard Cohen,619
+3,Avril Lavigne,619
+4,Emily Haines,612
+5,Adam Gontier,590
+6,Ashley Leggat,538
+7,Micah Barnes,433
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####7700####
+**RemainingContestants**
+1,Justin Bieber,638
+2,Leonard Cohen,624
+3,Avril Lavigne,620
+4,Emily Haines,612
+5,Adam Gontier,590
+6,Ashley Leggat,538
+7,Micah Barnes,433
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####7800####
+**RemainingContestants**
+1,Justin Bieber,639
+2,Leonard Cohen,628
+3,Avril Lavigne,623
+4,Emily Haines,612
+5,Adam Gontier,592
+6,Ashley Leggat,538
+7,Micah Barnes,433
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####7900####
+**RemainingContestants**
+1,Justin Bieber,641
+2,Leonard Cohen,631
+3,Avril Lavigne,625
+4,Emily Haines,612
+5,Adam Gontier,593
+6,Ashley Leggat,538
+7,Micah Barnes,433
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####8000####
+**RemainingContestants**
+1,Justin Bieber,643
+2,Leonard Cohen,633
+3,Avril Lavigne,629
+4,Emily Haines,612
+5,Adam Gontier,596
+6,Ashley Leggat,539
+7,Micah Barnes,433
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####8100####
+**RemainingContestants**
+1,Justin Bieber,645
+2,Leonard Cohen,635
+3,Avril Lavigne,629
+4,Emily Haines,612
+5,Adam Gontier,597
+6,Ashley Leggat,539
+7,Micah Barnes,434
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####8200####
+**RemainingContestants**
+1,Justin Bieber,646
+2,Leonard Cohen,636
+3,Avril Lavigne,629
+4,Emily Haines,612
+5,Adam Gontier,600
+6,Ashley Leggat,539
+7,Micah Barnes,436
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####8300####
+**RemainingContestants**
+1,Justin Bieber,649
+2,Leonard Cohen,636
+3,Avril Lavigne,632
+4,Emily Haines,612
+5,Adam Gontier,602
+6,Ashley Leggat,539
+7,Micah Barnes,436
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####8400####
+**RemainingContestants**
+1,Justin Bieber,651
+2,Leonard Cohen,638
+3,Avril Lavigne,633
+4,Emily Haines,612
+5,Adam Gontier,603
+6,Ashley Leggat,539
+7,Micah Barnes,436
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####8500####
+**RemainingContestants**
+1,Justin Bieber,669
+2,Leonard Cohen,653
+3,Avril Lavigne,643
+4,Adam Gontier,623
+5,Emily Haines,616
+6,Ashley Leggat,540
+7,Micah Barnes,439
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####8600####
+**RemainingContestants**
+1,Justin Bieber,681
+2,Leonard Cohen,672
+3,Avril Lavigne,654
+4,Adam Gontier,649
+5,Emily Haines,617
+6,Ashley Leggat,543
+7,Micah Barnes,442
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####8700####
+**RemainingContestants**
+1,Justin Bieber,698
+2,Leonard Cohen,683
+3,Adam Gontier,669
+4,Avril Lavigne,667
+5,Emily Haines,620
+6,Ashley Leggat,544
+7,Micah Barnes,444
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####8800####
+**RemainingContestants**
+1,Justin Bieber,707
+2,Leonard Cohen,690
+3,Adam Gontier,687
+4,Avril Lavigne,670
+5,Emily Haines,621
+6,Ashley Leggat,545
+7,Micah Barnes,444
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####8900####
+**RemainingContestants**
+1,Justin Bieber,708
+2,Leonard Cohen,692
+3,Adam Gontier,687
+4,Avril Lavigne,672
+5,Emily Haines,621
+6,Ashley Leggat,545
+7,Micah Barnes,445
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####9000####
+**RemainingContestants**
+1,Justin Bieber,711
+2,Leonard Cohen,693
+3,Adam Gontier,687
+4,Avril Lavigne,673
+5,Emily Haines,623
+6,Ashley Leggat,545
+7,Micah Barnes,445
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####9100####
+**RemainingContestants**
+1,Justin Bieber,712
+2,Leonard Cohen,694
+3,Adam Gontier,687
+4,Avril Lavigne,673
+5,Emily Haines,623
+6,Ashley Leggat,545
+7,Micah Barnes,445
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####9200####
+**RemainingContestants**
+1,Justin Bieber,713
+2,Leonard Cohen,697
+3,Adam Gontier,688
+4,Avril Lavigne,675
+5,Emily Haines,624
+6,Ashley Leggat,545
+7,Micah Barnes,445
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####9300####
+**RemainingContestants**
+1,Justin Bieber,717
+2,Leonard Cohen,699
+3,Adam Gontier,688
+4,Avril Lavigne,679
+5,Emily Haines,624
+6,Ashley Leggat,545
+7,Micah Barnes,445
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####9400####
+**RemainingContestants**
+1,Justin Bieber,720
+2,Leonard Cohen,700
+3,Adam Gontier,688
+4,Avril Lavigne,679
+5,Emily Haines,624
+6,Ashley Leggat,545
+7,Micah Barnes,445
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####9500####
+**RemainingContestants**
+1,Justin Bieber,721
+2,Leonard Cohen,708
+3,Adam Gontier,688
+4,Avril Lavigne,683
+5,Emily Haines,624
+6,Ashley Leggat,545
+7,Micah Barnes,447
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####9600####
+**RemainingContestants**
+1,Justin Bieber,724
+2,Leonard Cohen,711
+3,Adam Gontier,688
+4,Avril Lavigne,683
+5,Emily Haines,624
+6,Ashley Leggat,545
+7,Micah Barnes,447
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####9700####
+**RemainingContestants**
+1,Justin Bieber,727
+2,Leonard Cohen,712
+3,Adam Gontier,690
+4,Avril Lavigne,684
+5,Emily Haines,624
+6,Ashley Leggat,547
+7,Micah Barnes,447
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####9800####
+**RemainingContestants**
+1,Justin Bieber,739
+2,Leonard Cohen,719
+3,Avril Lavigne,691
+4,Adam Gontier,691
+5,Emily Haines,624
+6,Ashley Leggat,548
+7,Micah Barnes,447
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####9900####
+**RemainingContestants**
+1,Justin Bieber,760
+2,Leonard Cohen,748
+3,Avril Lavigne,708
+4,Adam Gontier,695
+5,Emily Haines,628
+6,Ashley Leggat,550
+7,Micah Barnes,449
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####10000####
+**RemainingContestants**
+1,Justin Bieber,778
+2,Leonard Cohen,758
+3,Avril Lavigne,718
+4,Adam Gontier,695
+5,Emily Haines,631
+6,Ashley Leggat,553
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####10100####
+**RemainingContestants**
+1,Justin Bieber,779
+2,Leonard Cohen,760
+3,Avril Lavigne,718
+4,Adam Gontier,696
+5,Emily Haines,631
+6,Ashley Leggat,553
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####10200####
+**RemainingContestants**
+1,Justin Bieber,784
+2,Leonard Cohen,760
+3,Avril Lavigne,718
+4,Adam Gontier,696
+5,Emily Haines,632
+6,Ashley Leggat,553
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####10300####
+**RemainingContestants**
+1,Justin Bieber,787
+2,Leonard Cohen,761
+3,Avril Lavigne,719
+4,Adam Gontier,696
+5,Emily Haines,632
+6,Ashley Leggat,553
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####10400####
+**RemainingContestants**
+1,Justin Bieber,788
+2,Leonard Cohen,766
+3,Avril Lavigne,719
+4,Adam Gontier,696
+5,Emily Haines,632
+6,Ashley Leggat,553
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####10500####
+**RemainingContestants**
+1,Justin Bieber,790
+2,Leonard Cohen,767
+3,Avril Lavigne,719
+4,Adam Gontier,696
+5,Emily Haines,633
+6,Ashley Leggat,553
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####10600####
+**RemainingContestants**
+1,Justin Bieber,791
+2,Leonard Cohen,770
+3,Avril Lavigne,720
+4,Adam Gontier,696
+5,Emily Haines,633
+6,Ashley Leggat,553
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####10700####
+**RemainingContestants**
+1,Justin Bieber,793
+2,Leonard Cohen,770
+3,Avril Lavigne,720
+4,Adam Gontier,696
+5,Emily Haines,633
+6,Ashley Leggat,553
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####10800####
+**RemainingContestants**
+1,Justin Bieber,797
+2,Leonard Cohen,770
+3,Avril Lavigne,720
+4,Adam Gontier,696
+5,Emily Haines,633
+6,Ashley Leggat,553
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####10900####
+**RemainingContestants**
+1,Justin Bieber,797
+2,Leonard Cohen,772
+3,Avril Lavigne,720
+4,Adam Gontier,696
+5,Emily Haines,633
+6,Ashley Leggat,554
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####11000####
+**RemainingContestants**
+1,Justin Bieber,797
+2,Leonard Cohen,773
+3,Avril Lavigne,720
+4,Adam Gontier,696
+5,Emily Haines,634
+6,Ashley Leggat,554
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####11100####
+**RemainingContestants**
+1,Justin Bieber,800
+2,Leonard Cohen,774
+3,Avril Lavigne,721
+4,Adam Gontier,696
+5,Emily Haines,634
+6,Ashley Leggat,555
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####11200####
+**RemainingContestants**
+1,Justin Bieber,801
+2,Leonard Cohen,775
+3,Avril Lavigne,721
+4,Adam Gontier,696
+5,Emily Haines,634
+6,Ashley Leggat,556
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####11300####
+**RemainingContestants**
+1,Justin Bieber,806
+2,Leonard Cohen,789
+3,Avril Lavigne,721
+4,Adam Gontier,696
+5,Emily Haines,634
+6,Ashley Leggat,557
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####11400####
+**RemainingContestants**
+1,Justin Bieber,809
+2,Leonard Cohen,791
+3,Avril Lavigne,721
+4,Adam Gontier,696
+5,Emily Haines,634
+6,Ashley Leggat,557
+7,Micah Barnes,450
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####11500####
+**RemainingContestants**
+1,Justin Bieber,809
+2,Leonard Cohen,791
+3,Avril Lavigne,721
+4,Adam Gontier,696
+5,Emily Haines,634
+6,Ashley Leggat,557
+7,Micah Barnes,451
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####11600####
+**RemainingContestants**
+1,Justin Bieber,810
+2,Leonard Cohen,791
+3,Avril Lavigne,721
+4,Adam Gontier,696
+5,Emily Haines,634
+6,Ashley Leggat,557
+7,Micah Barnes,452
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####11700####
+**RemainingContestants**
+1,Justin Bieber,812
+2,Leonard Cohen,791
+3,Avril Lavigne,721
+4,Adam Gontier,696
+5,Emily Haines,634
+6,Ashley Leggat,557
+7,Micah Barnes,452
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####11800####
+**RemainingContestants**
+1,Justin Bieber,814
+2,Leonard Cohen,791
+3,Avril Lavigne,722
+4,Adam Gontier,696
+5,Emily Haines,634
+6,Ashley Leggat,557
+7,Micah Barnes,452
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####11900####
+**RemainingContestants**
+1,Justin Bieber,814
+2,Leonard Cohen,792
+3,Avril Lavigne,722
+4,Adam Gontier,696
+5,Emily Haines,634
+6,Ashley Leggat,557
+7,Micah Barnes,452
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####12000####
+**RemainingContestants**
+1,Justin Bieber,815
+2,Leonard Cohen,792
+3,Avril Lavigne,722
+4,Adam Gontier,697
+5,Emily Haines,635
+6,Ashley Leggat,558
+7,Micah Barnes,452
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####12100####
+**RemainingContestants**
+1,Justin Bieber,817
+2,Leonard Cohen,792
+3,Avril Lavigne,722
+4,Adam Gontier,697
+5,Emily Haines,635
+6,Ashley Leggat,558
+7,Micah Barnes,452
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####12200####
+**RemainingContestants**
+1,Justin Bieber,822
+2,Leonard Cohen,792
+3,Avril Lavigne,722
+4,Adam Gontier,697
+5,Emily Haines,635
+6,Ashley Leggat,558
+7,Micah Barnes,452
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####12300####
+**RemainingContestants**
+1,Justin Bieber,823
+2,Leonard Cohen,792
+3,Avril Lavigne,722
+4,Adam Gontier,697
+5,Emily Haines,635
+6,Ashley Leggat,558
+7,Micah Barnes,452
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####12400####
+**RemainingContestants**
+1,Justin Bieber,826
+2,Leonard Cohen,792
+3,Avril Lavigne,722
+4,Adam Gontier,697
+5,Emily Haines,635
+6,Ashley Leggat,558
+7,Micah Barnes,452
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####12500####
+**RemainingContestants**
+1,Justin Bieber,830
+2,Leonard Cohen,792
+3,Avril Lavigne,722
+4,Adam Gontier,697
+5,Emily Haines,635
+6,Ashley Leggat,558
+7,Micah Barnes,452
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####12600####
+**RemainingContestants**
+1,Justin Bieber,833
+2,Leonard Cohen,797
+3,Avril Lavigne,729
+4,Adam Gontier,702
+5,Emily Haines,639
+6,Ashley Leggat,558
+7,Micah Barnes,459
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####12700####
+**RemainingContestants**
+1,Justin Bieber,835
+2,Leonard Cohen,798
+3,Avril Lavigne,730
+4,Adam Gontier,705
+5,Emily Haines,641
+6,Ashley Leggat,558
+7,Micah Barnes,460
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####12800####
+**RemainingContestants**
+1,Justin Bieber,836
+2,Leonard Cohen,798
+3,Avril Lavigne,732
+4,Adam Gontier,706
+5,Emily Haines,641
+6,Ashley Leggat,558
+7,Micah Barnes,460
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####12900####
+**RemainingContestants**
+1,Justin Bieber,837
+2,Leonard Cohen,798
+3,Avril Lavigne,732
+4,Adam Gontier,706
+5,Emily Haines,641
+6,Ashley Leggat,558
+7,Micah Barnes,460
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####13000####
+**RemainingContestants**
+1,Justin Bieber,837
+2,Leonard Cohen,798
+3,Avril Lavigne,732
+4,Adam Gontier,706
+5,Emily Haines,641
+6,Ashley Leggat,558
+7,Micah Barnes,460
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####13100####
+**RemainingContestants**
+1,Justin Bieber,838
+2,Leonard Cohen,798
+3,Avril Lavigne,733
+4,Adam Gontier,706
+5,Emily Haines,641
+6,Ashley Leggat,558
+7,Micah Barnes,460
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####13200####
+**RemainingContestants**
+1,Justin Bieber,838
+2,Leonard Cohen,798
+3,Avril Lavigne,733
+4,Adam Gontier,707
+5,Emily Haines,641
+6,Ashley Leggat,558
+7,Micah Barnes,460
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####13300####
+**RemainingContestants**
+1,Justin Bieber,838
+2,Leonard Cohen,798
+3,Avril Lavigne,733
+4,Adam Gontier,707
+5,Emily Haines,641
+6,Ashley Leggat,558
+7,Micah Barnes,460
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####13400####
+**RemainingContestants**
+1,Justin Bieber,838
+2,Leonard Cohen,798
+3,Avril Lavigne,734
+4,Adam Gontier,707
+5,Emily Haines,643
+6,Ashley Leggat,558
+7,Micah Barnes,460
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####13500####
+**RemainingContestants**
+1,Justin Bieber,838
+2,Leonard Cohen,798
+3,Avril Lavigne,736
+4,Adam Gontier,708
+5,Emily Haines,643
+6,Ashley Leggat,558
+7,Micah Barnes,460
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####13600####
+**RemainingContestants**
+1,Justin Bieber,839
+2,Leonard Cohen,798
+3,Avril Lavigne,737
+4,Adam Gontier,709
+5,Emily Haines,643
+6,Ashley Leggat,558
+7,Micah Barnes,460
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####13700####
+**RemainingContestants**
+1,Justin Bieber,839
+2,Leonard Cohen,798
+3,Avril Lavigne,738
+4,Adam Gontier,710
+5,Emily Haines,643
+6,Ashley Leggat,558
+7,Micah Barnes,460
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####13800####
+**RemainingContestants**
+1,Justin Bieber,840
+2,Leonard Cohen,798
+3,Avril Lavigne,738
+4,Adam Gontier,710
+5,Emily Haines,644
+6,Ashley Leggat,558
+7,Micah Barnes,460
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####13900####
+**RemainingContestants**
+1,Justin Bieber,840
+2,Leonard Cohen,799
+3,Avril Lavigne,738
+4,Adam Gontier,710
+5,Emily Haines,646
+6,Ashley Leggat,558
+7,Micah Barnes,461
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####14000####
+**RemainingContestants**
+1,Justin Bieber,840
+2,Leonard Cohen,799
+3,Avril Lavigne,738
+4,Adam Gontier,710
+5,Emily Haines,646
+6,Ashley Leggat,558
+7,Micah Barnes,461
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####14100####
+**RemainingContestants**
+1,Justin Bieber,841
+2,Leonard Cohen,799
+3,Avril Lavigne,738
+4,Adam Gontier,711
+5,Emily Haines,647
+6,Ashley Leggat,558
+7,Micah Barnes,461
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####14200####
+**RemainingContestants**
+1,Justin Bieber,841
+2,Leonard Cohen,799
+3,Avril Lavigne,738
+4,Adam Gontier,712
+5,Emily Haines,648
+6,Ashley Leggat,558
+7,Micah Barnes,461
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####14300####
+**RemainingContestants**
+1,Justin Bieber,842
+2,Leonard Cohen,799
+3,Avril Lavigne,739
+4,Adam Gontier,712
+5,Emily Haines,649
+6,Ashley Leggat,558
+7,Micah Barnes,461
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####14400####
+**RemainingContestants**
+1,Justin Bieber,842
+2,Leonard Cohen,800
+3,Avril Lavigne,740
+4,Adam Gontier,714
+5,Emily Haines,649
+6,Ashley Leggat,558
+7,Micah Barnes,461
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####14500####
+**RemainingContestants**
+1,Justin Bieber,842
+2,Leonard Cohen,800
+3,Avril Lavigne,740
+4,Adam Gontier,715
+5,Emily Haines,651
+6,Ashley Leggat,558
+7,Micah Barnes,461
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####14600####
+**RemainingContestants**
+1,Justin Bieber,842
+2,Leonard Cohen,801
+3,Avril Lavigne,742
+4,Adam Gontier,717
+5,Emily Haines,652
+6,Ashley Leggat,558
+7,Micah Barnes,461
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####14700####
+**RemainingContestants**
+1,Justin Bieber,843
+2,Leonard Cohen,801
+3,Avril Lavigne,743
+4,Adam Gontier,718
+5,Emily Haines,652
+6,Ashley Leggat,558
+7,Micah Barnes,461
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####14800####
+**RemainingContestants**
+1,Justin Bieber,843
+2,Leonard Cohen,802
+3,Avril Lavigne,743
+4,Adam Gontier,718
+5,Emily Haines,652
+6,Ashley Leggat,558
+7,Micah Barnes,462
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####14900####
+**RemainingContestants**
+1,Justin Bieber,843
+2,Leonard Cohen,802
+3,Avril Lavigne,743
+4,Adam Gontier,718
+5,Emily Haines,652
+6,Ashley Leggat,558
+7,Micah Barnes,462
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####15000####
+**RemainingContestants**
+1,Justin Bieber,843
+2,Leonard Cohen,802
+3,Avril Lavigne,744
+4,Adam Gontier,718
+5,Emily Haines,654
+6,Ashley Leggat,558
+7,Micah Barnes,463
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####15100####
+**RemainingContestants**
+1,Justin Bieber,853
+2,Leonard Cohen,808
+3,Avril Lavigne,750
+4,Adam Gontier,723
+5,Emily Haines,662
+6,Ashley Leggat,558
+7,Micah Barnes,470
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####15200####
+**RemainingContestants**
+1,Justin Bieber,858
+2,Leonard Cohen,823
+3,Avril Lavigne,756
+4,Adam Gontier,732
+5,Emily Haines,670
+6,Ashley Leggat,558
+7,Micah Barnes,476
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####15300####
+**RemainingContestants**
+1,Justin Bieber,866
+2,Leonard Cohen,824
+3,Avril Lavigne,765
+4,Adam Gontier,739
+5,Emily Haines,677
+6,Ashley Leggat,558
+7,Micah Barnes,488
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####15400####
+**RemainingContestants**
+1,Justin Bieber,871
+2,Leonard Cohen,837
+3,Avril Lavigne,767
+4,Adam Gontier,752
+5,Emily Haines,685
+6,Ashley Leggat,558
+7,Micah Barnes,502
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,882
+2,Leonard Cohen,848
+3,Avril Lavigne,775
+4,Adam Gontier,755
+5,Emily Haines,693
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####15500####
+**RemainingContestants**
+1,Justin Bieber,884
+2,Leonard Cohen,848
+3,Avril Lavigne,775
+4,Adam Gontier,758
+5,Emily Haines,693
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####15600####
+**RemainingContestants**
+1,Justin Bieber,896
+2,Leonard Cohen,849
+3,Avril Lavigne,778
+4,Adam Gontier,763
+5,Emily Haines,704
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####15700####
+**RemainingContestants**
+1,Justin Bieber,904
+2,Leonard Cohen,858
+3,Avril Lavigne,787
+4,Adam Gontier,769
+5,Emily Haines,714
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####15800####
+**RemainingContestants**
+1,Justin Bieber,910
+2,Leonard Cohen,867
+3,Avril Lavigne,796
+4,Adam Gontier,778
+5,Emily Haines,722
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####15900####
+**RemainingContestants**
+1,Justin Bieber,926
+2,Leonard Cohen,873
+3,Avril Lavigne,803
+4,Adam Gontier,786
+5,Emily Haines,727
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####16000####
+**RemainingContestants**
+1,Justin Bieber,937
+2,Leonard Cohen,883
+3,Avril Lavigne,813
+4,Adam Gontier,790
+5,Emily Haines,733
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####16100####
+**RemainingContestants**
+1,Justin Bieber,944
+2,Leonard Cohen,891
+3,Avril Lavigne,825
+4,Adam Gontier,798
+5,Emily Haines,740
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####16200####
+**RemainingContestants**
+1,Justin Bieber,952
+2,Leonard Cohen,898
+3,Avril Lavigne,835
+4,Adam Gontier,805
+5,Emily Haines,745
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####16300####
+**RemainingContestants**
+1,Justin Bieber,961
+2,Leonard Cohen,902
+3,Avril Lavigne,850
+4,Adam Gontier,809
+5,Emily Haines,752
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####16400####
+**RemainingContestants**
+1,Justin Bieber,968
+2,Leonard Cohen,910
+3,Avril Lavigne,856
+4,Adam Gontier,820
+5,Emily Haines,762
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####16500####
+**RemainingContestants**
+1,Justin Bieber,977
+2,Leonard Cohen,917
+3,Avril Lavigne,865
+4,Adam Gontier,830
+5,Emily Haines,770
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####16600####
+**RemainingContestants**
+1,Justin Bieber,984
+2,Leonard Cohen,925
+3,Avril Lavigne,879
+4,Adam Gontier,835
+5,Emily Haines,783
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####16700####
+**RemainingContestants**
+1,Justin Bieber,986
+2,Leonard Cohen,933
+3,Avril Lavigne,885
+4,Adam Gontier,844
+5,Emily Haines,797
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####16800####
+**RemainingContestants**
+1,Justin Bieber,997
+2,Leonard Cohen,941
+3,Avril Lavigne,893
+4,Adam Gontier,851
+5,Emily Haines,806
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####16900####
+**RemainingContestants**
+1,Justin Bieber,1004
+2,Leonard Cohen,949
+3,Avril Lavigne,899
+4,Adam Gontier,859
+5,Emily Haines,812
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####17000####
+**RemainingContestants**
+1,Justin Bieber,1013
+2,Leonard Cohen,961
+3,Avril Lavigne,907
+4,Adam Gontier,867
+5,Emily Haines,820
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####17100####
+**RemainingContestants**
+1,Justin Bieber,1015
+2,Leonard Cohen,970
+3,Avril Lavigne,915
+4,Adam Gontier,880
+5,Emily Haines,829
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####17200####
+**RemainingContestants**
+1,Justin Bieber,1020
+2,Leonard Cohen,976
+3,Avril Lavigne,927
+4,Adam Gontier,892
+5,Emily Haines,835
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####17300####
+**RemainingContestants**
+1,Justin Bieber,1029
+2,Leonard Cohen,981
+3,Avril Lavigne,933
+4,Adam Gontier,903
+5,Emily Haines,841
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####17400####
+**RemainingContestants**
+1,Justin Bieber,1037
+2,Leonard Cohen,987
+3,Avril Lavigne,941
+4,Adam Gontier,909
+5,Emily Haines,846
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####17500####
+**RemainingContestants**
+1,Justin Bieber,1044
+2,Leonard Cohen,994
+3,Avril Lavigne,946
+4,Adam Gontier,917
+5,Emily Haines,857
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####17600####
+**RemainingContestants**
+1,Justin Bieber,1058
+2,Leonard Cohen,1002
+3,Avril Lavigne,954
+4,Adam Gontier,924
+5,Emily Haines,864
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####17700####
+**RemainingContestants**
+1,Justin Bieber,1062
+2,Leonard Cohen,1007
+3,Avril Lavigne,963
+4,Adam Gontier,929
+5,Emily Haines,869
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####17800####
+**RemainingContestants**
+1,Justin Bieber,1065
+2,Leonard Cohen,1014
+3,Avril Lavigne,974
+4,Adam Gontier,934
+5,Emily Haines,876
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####17900####
+**RemainingContestants**
+1,Justin Bieber,1078
+2,Leonard Cohen,1025
+3,Avril Lavigne,981
+4,Adam Gontier,943
+5,Emily Haines,884
+6,Ashley Leggat,558
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,1083
+2,Leonard Cohen,1037
+3,Avril Lavigne,991
+4,Adam Gontier,950
+5,Emily Haines,892
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####18000####
+**RemainingContestants**
+1,Justin Bieber,1083
+2,Leonard Cohen,1037
+3,Avril Lavigne,991
+4,Adam Gontier,951
+5,Emily Haines,892
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####18100####
+**RemainingContestants**
+1,Justin Bieber,1092
+2,Leonard Cohen,1049
+3,Avril Lavigne,1004
+4,Adam Gontier,957
+5,Emily Haines,901
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####18200####
+**RemainingContestants**
+1,Justin Bieber,1101
+2,Leonard Cohen,1055
+3,Avril Lavigne,1008
+4,Adam Gontier,961
+5,Emily Haines,913
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####18300####
+**RemainingContestants**
+1,Justin Bieber,1109
+2,Leonard Cohen,1061
+3,Avril Lavigne,1022
+4,Adam Gontier,968
+5,Emily Haines,921
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####18400####
+**RemainingContestants**
+1,Justin Bieber,1116
+2,Leonard Cohen,1067
+3,Avril Lavigne,1029
+4,Adam Gontier,973
+5,Emily Haines,936
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####18500####
+**RemainingContestants**
+1,Justin Bieber,1124
+2,Leonard Cohen,1079
+3,Avril Lavigne,1033
+4,Adam Gontier,981
+5,Emily Haines,943
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####18600####
+**RemainingContestants**
+1,Justin Bieber,1132
+2,Leonard Cohen,1088
+3,Avril Lavigne,1045
+4,Adam Gontier,988
+5,Emily Haines,950
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####18700####
+**RemainingContestants**
+1,Justin Bieber,1144
+2,Leonard Cohen,1097
+3,Avril Lavigne,1055
+4,Adam Gontier,996
+5,Emily Haines,955
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####18800####
+**RemainingContestants**
+1,Justin Bieber,1148
+2,Leonard Cohen,1104
+3,Avril Lavigne,1065
+4,Adam Gontier,1007
+5,Emily Haines,961
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####18900####
+**RemainingContestants**
+1,Justin Bieber,1153
+2,Leonard Cohen,1112
+3,Avril Lavigne,1075
+4,Adam Gontier,1013
+5,Emily Haines,968
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####19000####
+**RemainingContestants**
+1,Justin Bieber,1160
+2,Leonard Cohen,1118
+3,Avril Lavigne,1082
+4,Adam Gontier,1025
+5,Emily Haines,977
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####19100####
+**RemainingContestants**
+1,Justin Bieber,1169
+2,Leonard Cohen,1133
+3,Avril Lavigne,1091
+4,Adam Gontier,1031
+5,Emily Haines,982
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####19200####
+**RemainingContestants**
+1,Justin Bieber,1178
+2,Leonard Cohen,1138
+3,Avril Lavigne,1101
+4,Adam Gontier,1041
+5,Emily Haines,989
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####19300####
+**RemainingContestants**
+1,Justin Bieber,1187
+2,Leonard Cohen,1149
+3,Avril Lavigne,1108
+4,Adam Gontier,1053
+5,Emily Haines,995
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####19400####
+**RemainingContestants**
+1,Justin Bieber,1202
+2,Leonard Cohen,1157
+3,Avril Lavigne,1118
+4,Adam Gontier,1058
+5,Emily Haines,1007
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####19500####
+**RemainingContestants**
+1,Justin Bieber,1210
+2,Leonard Cohen,1166
+3,Avril Lavigne,1120
+4,Adam Gontier,1070
+5,Emily Haines,1012
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####19600####
+**RemainingContestants**
+1,Justin Bieber,1219
+2,Leonard Cohen,1173
+3,Avril Lavigne,1126
+4,Adam Gontier,1078
+5,Emily Haines,1022
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####19700####
+**RemainingContestants**
+1,Justin Bieber,1232
+2,Leonard Cohen,1176
+3,Avril Lavigne,1133
+4,Adam Gontier,1088
+5,Emily Haines,1033
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####19800####
+**RemainingContestants**
+1,Justin Bieber,1242
+2,Leonard Cohen,1185
+3,Avril Lavigne,1142
+4,Adam Gontier,1097
+5,Emily Haines,1040
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####19900####
+**RemainingContestants**
+1,Justin Bieber,1249
+2,Leonard Cohen,1192
+3,Avril Lavigne,1149
+4,Adam Gontier,1104
+5,Emily Haines,1050
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####20000####
+**RemainingContestants**
+1,Justin Bieber,1258
+2,Leonard Cohen,1198
+3,Avril Lavigne,1160
+4,Adam Gontier,1114
+5,Emily Haines,1062
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####20100####
+**RemainingContestants**
+1,Justin Bieber,1267
+2,Leonard Cohen,1205
+3,Avril Lavigne,1172
+4,Adam Gontier,1122
+5,Emily Haines,1071
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####20200####
+**RemainingContestants**
+1,Justin Bieber,1276
+2,Leonard Cohen,1214
+3,Avril Lavigne,1183
+4,Adam Gontier,1129
+5,Emily Haines,1082
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####20300####
+**RemainingContestants**
+1,Justin Bieber,1287
+2,Leonard Cohen,1223
+3,Avril Lavigne,1194
+4,Adam Gontier,1136
+5,Emily Haines,1090
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,1292
+2,Leonard Cohen,1227
+3,Avril Lavigne,1197
+4,Adam Gontier,1143
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####20400####
+**RemainingContestants**
+1,Justin Bieber,1297
+2,Leonard Cohen,1233
+3,Avril Lavigne,1200
+4,Adam Gontier,1148
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####20500####
+**RemainingContestants**
+1,Justin Bieber,1306
+2,Leonard Cohen,1242
+3,Avril Lavigne,1210
+4,Adam Gontier,1159
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####20600####
+**RemainingContestants**
+1,Justin Bieber,1317
+2,Leonard Cohen,1251
+3,Avril Lavigne,1218
+4,Adam Gontier,1166
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####20700####
+**RemainingContestants**
+1,Justin Bieber,1323
+2,Leonard Cohen,1258
+3,Avril Lavigne,1228
+4,Adam Gontier,1176
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####20800####
+**RemainingContestants**
+1,Justin Bieber,1330
+2,Leonard Cohen,1265
+3,Avril Lavigne,1236
+4,Adam Gontier,1187
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####20900####
+**RemainingContestants**
+1,Justin Bieber,1340
+2,Leonard Cohen,1271
+3,Avril Lavigne,1244
+4,Adam Gontier,1193
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####21000####
+**RemainingContestants**
+1,Justin Bieber,1345
+2,Leonard Cohen,1275
+3,Avril Lavigne,1254
+4,Adam Gontier,1200
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####21100####
+**RemainingContestants**
+1,Justin Bieber,1353
+2,Leonard Cohen,1283
+3,Avril Lavigne,1267
+4,Adam Gontier,1207
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####21200####
+**RemainingContestants**
+1,Justin Bieber,1361
+2,Leonard Cohen,1291
+3,Avril Lavigne,1273
+4,Adam Gontier,1218
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####21300####
+**RemainingContestants**
+1,Justin Bieber,1372
+2,Leonard Cohen,1302
+3,Avril Lavigne,1282
+4,Adam Gontier,1226
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####21400####
+**RemainingContestants**
+1,Justin Bieber,1377
+2,Leonard Cohen,1312
+3,Avril Lavigne,1291
+4,Adam Gontier,1229
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####21500####
+**RemainingContestants**
+1,Justin Bieber,1381
+2,Leonard Cohen,1321
+3,Avril Lavigne,1297
+4,Adam Gontier,1241
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####21600####
+**RemainingContestants**
+1,Justin Bieber,1389
+2,Leonard Cohen,1326
+3,Avril Lavigne,1305
+4,Adam Gontier,1256
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####21700####
+**RemainingContestants**
+1,Justin Bieber,1401
+2,Leonard Cohen,1334
+3,Avril Lavigne,1315
+4,Adam Gontier,1269
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####21800####
+**RemainingContestants**
+1,Justin Bieber,1408
+2,Leonard Cohen,1338
+3,Avril Lavigne,1326
+4,Adam Gontier,1280
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####21900####
+**RemainingContestants**
+1,Justin Bieber,1413
+2,Leonard Cohen,1342
+3,Avril Lavigne,1334
+4,Adam Gontier,1284
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####22000####
+**RemainingContestants**
+1,Justin Bieber,1422
+2,Leonard Cohen,1349
+3,Avril Lavigne,1338
+4,Adam Gontier,1291
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####22100####
+**RemainingContestants**
+1,Justin Bieber,1430
+2,Leonard Cohen,1363
+3,Avril Lavigne,1353
+4,Adam Gontier,1300
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####22200####
+**RemainingContestants**
+1,Justin Bieber,1440
+2,Leonard Cohen,1368
+3,Avril Lavigne,1360
+4,Adam Gontier,1305
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####22300####
+**RemainingContestants**
+1,Justin Bieber,1451
+2,Leonard Cohen,1378
+3,Avril Lavigne,1366
+4,Adam Gontier,1315
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####22400####
+**RemainingContestants**
+1,Justin Bieber,1464
+2,Leonard Cohen,1390
+3,Avril Lavigne,1374
+4,Adam Gontier,1325
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####22500####
+**RemainingContestants**
+1,Justin Bieber,1475
+2,Leonard Cohen,1399
+3,Avril Lavigne,1380
+4,Adam Gontier,1333
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####22600####
+**RemainingContestants**
+1,Justin Bieber,1483
+2,Leonard Cohen,1406
+3,Avril Lavigne,1388
+4,Adam Gontier,1343
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####22700####
+**RemainingContestants**
+1,Justin Bieber,1495
+2,Leonard Cohen,1414
+3,Avril Lavigne,1395
+4,Adam Gontier,1348
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####22800####
+**RemainingContestants**
+1,Justin Bieber,1506
+2,Leonard Cohen,1421
+3,Avril Lavigne,1406
+4,Adam Gontier,1361
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####22900####
+**RemainingContestants**
+1,Justin Bieber,1512
+2,Leonard Cohen,1431
+3,Avril Lavigne,1414
+4,Adam Gontier,1367
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####23000####
+**RemainingContestants**
+1,Justin Bieber,1519
+2,Leonard Cohen,1438
+3,Avril Lavigne,1419
+4,Adam Gontier,1382
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####23100####
+**RemainingContestants**
+1,Justin Bieber,1525
+2,Leonard Cohen,1445
+3,Avril Lavigne,1429
+4,Adam Gontier,1388
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####23200####
+**RemainingContestants**
+1,Justin Bieber,1534
+2,Leonard Cohen,1457
+3,Avril Lavigne,1438
+4,Adam Gontier,1394
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####23300####
+**RemainingContestants**
+1,Justin Bieber,1540
+2,Leonard Cohen,1462
+3,Avril Lavigne,1443
+4,Adam Gontier,1405
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,1544
+2,Leonard Cohen,1464
+3,Avril Lavigne,1445
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####23400####
+**RemainingContestants**
+1,Justin Bieber,1555
+2,Leonard Cohen,1472
+3,Avril Lavigne,1451
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####23500####
+**RemainingContestants**
+1,Justin Bieber,1564
+2,Leonard Cohen,1482
+3,Avril Lavigne,1456
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####23600####
+**RemainingContestants**
+1,Justin Bieber,1573
+2,Leonard Cohen,1491
+3,Avril Lavigne,1470
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####23700####
+**RemainingContestants**
+1,Justin Bieber,1580
+2,Leonard Cohen,1498
+3,Avril Lavigne,1487
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####23800####
+**RemainingContestants**
+1,Justin Bieber,1588
+2,Leonard Cohen,1505
+3,Avril Lavigne,1497
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####23900####
+**RemainingContestants**
+1,Justin Bieber,1599
+2,Leonard Cohen,1512
+3,Avril Lavigne,1504
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####24000####
+**RemainingContestants**
+1,Justin Bieber,1607
+2,Leonard Cohen,1522
+3,Avril Lavigne,1512
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####24100####
+**RemainingContestants**
+1,Justin Bieber,1619
+2,Leonard Cohen,1529
+3,Avril Lavigne,1516
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####24200####
+**RemainingContestants**
+1,Justin Bieber,1625
+2,Leonard Cohen,1544
+3,Avril Lavigne,1522
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####24300####
+**RemainingContestants**
+1,Justin Bieber,1631
+2,Leonard Cohen,1554
+3,Avril Lavigne,1532
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####24400####
+**RemainingContestants**
+1,Justin Bieber,1642
+2,Leonard Cohen,1562
+3,Avril Lavigne,1542
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####24500####
+**RemainingContestants**
+1,Justin Bieber,1651
+2,Leonard Cohen,1568
+3,Avril Lavigne,1553
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####24600####
+**RemainingContestants**
+1,Justin Bieber,1659
+2,Leonard Cohen,1577
+3,Avril Lavigne,1566
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####24700####
+**RemainingContestants**
+1,Justin Bieber,1665
+2,Leonard Cohen,1588
+3,Avril Lavigne,1573
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####24800####
+**RemainingContestants**
+1,Justin Bieber,1675
+2,Leonard Cohen,1595
+3,Avril Lavigne,1578
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####24900####
+**RemainingContestants**
+1,Justin Bieber,1687
+2,Leonard Cohen,1601
+3,Avril Lavigne,1587
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####25000####
+**RemainingContestants**
+1,Justin Bieber,1692
+2,Leonard Cohen,1608
+3,Avril Lavigne,1592
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####25100####
+**RemainingContestants**
+1,Justin Bieber,1700
+2,Leonard Cohen,1615
+3,Avril Lavigne,1599
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####25200####
+**RemainingContestants**
+1,Justin Bieber,1706
+2,Leonard Cohen,1623
+3,Avril Lavigne,1611
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####25300####
+**RemainingContestants**
+1,Justin Bieber,1714
+2,Leonard Cohen,1633
+3,Avril Lavigne,1618
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####25400####
+**RemainingContestants**
+1,Justin Bieber,1726
+2,Leonard Cohen,1638
+3,Avril Lavigne,1628
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####25500####
+**RemainingContestants**
+1,Justin Bieber,1733
+2,Leonard Cohen,1645
+3,Avril Lavigne,1637
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####25600####
+**RemainingContestants**
+1,Justin Bieber,1739
+2,Leonard Cohen,1660
+3,Avril Lavigne,1646
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####25700####
+**RemainingContestants**
+1,Justin Bieber,1748
+2,Leonard Cohen,1666
+3,Avril Lavigne,1655
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####25800####
+**RemainingContestants**
+1,Justin Bieber,1758
+2,Avril Lavigne,1673
+3,Leonard Cohen,1671
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####25900####
+**RemainingContestants**
+1,Justin Bieber,1771
+2,Leonard Cohen,1680
+3,Avril Lavigne,1678
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####26000####
+**RemainingContestants**
+1,Justin Bieber,1778
+2,Leonard Cohen,1688
+3,Avril Lavigne,1688
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####26100####
+**RemainingContestants**
+1,Justin Bieber,1783
+2,Avril Lavigne,1697
+3,Leonard Cohen,1696
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####26200####
+**RemainingContestants**
+1,Justin Bieber,1788
+2,Leonard Cohen,1707
+3,Avril Lavigne,1702
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####26300####
+**RemainingContestants**
+1,Justin Bieber,1797
+2,Leonard Cohen,1716
+3,Avril Lavigne,1710
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####26400####
+**RemainingContestants**
+1,Justin Bieber,1807
+2,Leonard Cohen,1727
+3,Avril Lavigne,1719
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####26500####
+**RemainingContestants**
+1,Justin Bieber,1815
+2,Leonard Cohen,1735
+3,Avril Lavigne,1727
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####26600####
+**RemainingContestants**
+1,Justin Bieber,1829
+2,Leonard Cohen,1745
+3,Avril Lavigne,1731
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####26700####
+**RemainingContestants**
+1,Justin Bieber,1834
+2,Leonard Cohen,1750
+3,Avril Lavigne,1743
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####26800####
+**RemainingContestants**
+1,Justin Bieber,1844
+2,Leonard Cohen,1757
+3,Avril Lavigne,1745
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####26900####
+**RemainingContestants**
+1,Justin Bieber,1850
+2,Leonard Cohen,1764
+3,Avril Lavigne,1756
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####27000####
+**RemainingContestants**
+1,Justin Bieber,1857
+2,Leonard Cohen,1767
+3,Avril Lavigne,1762
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####27100####
+**RemainingContestants**
+1,Justin Bieber,1866
+2,Leonard Cohen,1786
+3,Avril Lavigne,1766
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####27200####
+**RemainingContestants**
+1,Justin Bieber,1874
+2,Leonard Cohen,1798
+3,Avril Lavigne,1776
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,1876
+2,Leonard Cohen,1799
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####27300####
+**RemainingContestants**
+1,Justin Bieber,1886
+2,Leonard Cohen,1805
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####27400####
+**RemainingContestants**
+1,Justin Bieber,1895
+2,Leonard Cohen,1819
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####27500####
+**RemainingContestants**
+1,Justin Bieber,1905
+2,Leonard Cohen,1825
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####27600####
+**RemainingContestants**
+1,Justin Bieber,1914
+2,Leonard Cohen,1840
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####27700####
+**RemainingContestants**
+1,Justin Bieber,1924
+2,Leonard Cohen,1855
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####27800####
+**RemainingContestants**
+1,Justin Bieber,1934
+2,Leonard Cohen,1866
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####27900####
+**RemainingContestants**
+1,Justin Bieber,1942
+2,Leonard Cohen,1873
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####28000####
+**RemainingContestants**
+1,Justin Bieber,1957
+2,Leonard Cohen,1880
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####28100####
+**RemainingContestants**
+1,Justin Bieber,1959
+2,Leonard Cohen,1887
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####28200####
+**RemainingContestants**
+1,Justin Bieber,1965
+2,Leonard Cohen,1891
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####28300####
+**RemainingContestants**
+1,Justin Bieber,1973
+2,Leonard Cohen,1903
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####28400####
+**RemainingContestants**
+1,Justin Bieber,1979
+2,Leonard Cohen,1916
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####28500####
+**RemainingContestants**
+1,Justin Bieber,1984
+2,Leonard Cohen,1927
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####28600####
+**RemainingContestants**
+1,Justin Bieber,1993
+2,Leonard Cohen,1939
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####28700####
+**RemainingContestants**
+1,Justin Bieber,2005
+2,Leonard Cohen,1950
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####28800####
+**RemainingContestants**
+1,Justin Bieber,2014
+2,Leonard Cohen,1957
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####28900####
+**RemainingContestants**
+1,Justin Bieber,2025
+2,Leonard Cohen,1966
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####29000####
+**RemainingContestants**
+1,Justin Bieber,2033
+2,Leonard Cohen,1974
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####29100####
+**RemainingContestants**
+1,Justin Bieber,2043
+2,Leonard Cohen,1983
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####29200####
+**RemainingContestants**
+1,Justin Bieber,2051
+2,Leonard Cohen,1994
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####29300####
+**RemainingContestants**
+1,Justin Bieber,2061
+2,Leonard Cohen,1999
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####29400####
+**RemainingContestants**
+1,Justin Bieber,2074
+2,Leonard Cohen,2004
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####29500####
+**RemainingContestants**
+1,Justin Bieber,2083
+2,Leonard Cohen,2008
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####29600####
+**RemainingContestants**
+1,Justin Bieber,2094
+2,Leonard Cohen,2019
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####29700####
+**RemainingContestants**
+1,Justin Bieber,2104
+2,Leonard Cohen,2028
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####29800####
+**RemainingContestants**
+1,Justin Bieber,2107
+2,Leonard Cohen,2035
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####29900####
+**RemainingContestants**
+1,Justin Bieber,2114
+2,Leonard Cohen,2046
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####30000####
+**RemainingContestants**
+1,Justin Bieber,2117
+2,Leonard Cohen,2054
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####30100####
+**RemainingContestants**
+1,Justin Bieber,2121
+2,Leonard Cohen,2069
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####30200####
+**RemainingContestants**
+1,Justin Bieber,2132
+2,Leonard Cohen,2074
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####30300####
+**RemainingContestants**
+1,Justin Bieber,2137
+2,Leonard Cohen,2081
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####30400####
+**RemainingContestants**
+1,Justin Bieber,2151
+2,Leonard Cohen,2087
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####30500####
+**RemainingContestants**
+1,Justin Bieber,2158
+2,Leonard Cohen,2093
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####30600####
+**RemainingContestants**
+1,Justin Bieber,2162
+2,Leonard Cohen,2103
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####30700####
+**RemainingContestants**
+1,Justin Bieber,2171
+2,Leonard Cohen,2114
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####30800####
+**RemainingContestants**
+1,Justin Bieber,2181
+2,Leonard Cohen,2126
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####30900####
+**RemainingContestants**
+1,Justin Bieber,2191
+2,Leonard Cohen,2130
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####31000####
+**RemainingContestants**
+1,Justin Bieber,2200
+2,Leonard Cohen,2137
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####31100####
+**RemainingContestants**
+1,Justin Bieber,2212
+2,Leonard Cohen,2140
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####31200####
+**RemainingContestants**
+1,Justin Bieber,2225
+2,Leonard Cohen,2145
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####31300####
+**RemainingContestants**
+1,Justin Bieber,2233
+2,Leonard Cohen,2151
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####31400####
+**RemainingContestants**
+1,Justin Bieber,2237
+2,Leonard Cohen,2157
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####31500####
+**RemainingContestants**
+1,Justin Bieber,2249
+2,Leonard Cohen,2164
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####31600####
+**RemainingContestants**
+1,Justin Bieber,2260
+2,Leonard Cohen,2177
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####31700####
+**RemainingContestants**
+1,Justin Bieber,2264
+2,Leonard Cohen,2183
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####31800####
+**RemainingContestants**
+1,Justin Bieber,2273
+2,Leonard Cohen,2187
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####31900####
+**RemainingContestants**
+1,Justin Bieber,2280
+2,Leonard Cohen,2195
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####32000####
+**RemainingContestants**
+1,Justin Bieber,2291
+2,Leonard Cohen,2208
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####32100####
+**RemainingContestants**
+1,Justin Bieber,2297
+2,Leonard Cohen,2216
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####32200####
+**RemainingContestants**
+1,Justin Bieber,2300
+2,Leonard Cohen,2223
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####32300####
+**RemainingContestants**
+1,Justin Bieber,2310
+2,Leonard Cohen,2228
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####32400####
+**RemainingContestants**
+1,Justin Bieber,2314
+2,Leonard Cohen,2237
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####32500####
+**RemainingContestants**
+1,Justin Bieber,2323
+2,Leonard Cohen,2246
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####32600####
+**RemainingContestants**
+1,Justin Bieber,2329
+2,Leonard Cohen,2253
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####32700####
+**RemainingContestants**
+1,Justin Bieber,2339
+2,Leonard Cohen,2261
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####32800####
+**RemainingContestants**
+1,Justin Bieber,2346
+2,Leonard Cohen,2268
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####32900####
+**RemainingContestants**
+1,Justin Bieber,2361
+2,Leonard Cohen,2273
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####33000####
+**RemainingContestants**
+1,Justin Bieber,2373
+2,Leonard Cohen,2285
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,2384
+---------------------------
+**RemovedContestants**
+12,Jann Arden,64
+11,Celine Dion,92
+10,Nelly Furtado,186
+9,Michael Buble,273
+8,Jim Bryson,364
+7,Micah Barnes,510
+6,Ashley Leggat,558
+5,Emily Haines,1094
+4,Adam Gontier,1406
+3,Avril Lavigne,1778
+2,Leonard Cohen,2291
+---------------------------
