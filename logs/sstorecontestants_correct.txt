@@ -1,0 +1,187 @@
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Emily Haines,105
+2,Avril Lavigne,99
+3,Jim Bryson,90
+4,Ashley Leggat,90
+5,Micah Barnes,88
+6,Adam Gontier,86
+7,Nelly Furtado,85
+8,Leonard Cohen,80
+9,Justin Bieber,78
+10,Michael Buble,71
+11,Jann Arden,64
+---------------------------
+**RemovedContestants**
+12,Celine Dion,64
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Emily Haines,197
+2,Avril Lavigne,191
+3,Justin Bieber,180
+4,Jim Bryson,179
+5,Ashley Leggat,179
+6,Leonard Cohen,176
+7,Micah Barnes,173
+8,Michael Buble,172
+9,Adam Gontier,169
+10,Jann Arden,160
+---------------------------
+**RemovedContestants**
+12,Celine Dion,64
+11,Nelly Furtado,160
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Avril Lavigne,303
+2,Emily Haines,298
+3,Justin Bieber,292
+4,Adam Gontier,279
+5,Leonard Cohen,277
+6,Ashley Leggat,276
+7,Jim Bryson,267
+8,Micah Barnes,262
+9,Jann Arden,261
+---------------------------
+**RemovedContestants**
+12,Celine Dion,64
+11,Nelly Furtado,160
+10,Michael Buble,261
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,414
+2,Avril Lavigne,412
+3,Emily Haines,411
+4,Ashley Leggat,399
+5,Leonard Cohen,387
+6,Micah Barnes,384
+7,Adam Gontier,380
+8,Jann Arden,364
+---------------------------
+**RemovedContestants**
+12,Celine Dion,64
+11,Nelly Furtado,160
+10,Michael Buble,261
+9,Jim Bryson,364
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,555
+2,Avril Lavigne,524
+3,Leonard Cohen,521
+4,Ashley Leggat,521
+5,Adam Gontier,521
+6,Emily Haines,521
+7,Jann Arden,494
+---------------------------
+**RemovedContestants**
+12,Celine Dion,64
+11,Nelly Furtado,160
+10,Michael Buble,261
+9,Jim Bryson,364
+8,Micah Barnes,494
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,714
+2,Avril Lavigne,685
+3,Leonard Cohen,674
+4,Adam Gontier,668
+5,Emily Haines,648
+6,Jann Arden,634
+---------------------------
+**RemovedContestants**
+12,Celine Dion,64
+11,Nelly Furtado,160
+10,Michael Buble,261
+9,Jim Bryson,364
+8,Micah Barnes,494
+7,Ashley Leggat,634
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,870
+2,Avril Lavigne,856
+3,Leonard Cohen,845
+4,Adam Gontier,822
+5,Jann Arden,815
+---------------------------
+**RemovedContestants**
+12,Celine Dion,64
+11,Nelly Furtado,160
+10,Michael Buble,261
+9,Jim Bryson,364
+8,Micah Barnes,494
+7,Ashley Leggat,634
+6,Emily Haines,815
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Justin Bieber,1060
+2,Jann Arden,1050
+3,Avril Lavigne,1041
+4,Leonard Cohen,1034
+---------------------------
+**RemovedContestants**
+12,Celine Dion,64
+11,Nelly Furtado,160
+10,Michael Buble,261
+9,Jim Bryson,364
+8,Micah Barnes,494
+7,Ashley Leggat,634
+6,Emily Haines,815
+5,Adam Gontier,1023
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Jann Arden,1339
+2,Justin Bieber,1302
+3,Leonard Cohen,1272
+---------------------------
+**RemovedContestants**
+12,Celine Dion,64
+11,Nelly Furtado,160
+10,Michael Buble,261
+9,Jim Bryson,364
+8,Micah Barnes,494
+7,Ashley Leggat,634
+6,Emily Haines,815
+5,Adam Gontier,1023
+4,Avril Lavigne,1272
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Jann Arden,1699
+2,Justin Bieber,1609
+---------------------------
+**RemovedContestants**
+12,Celine Dion,64
+11,Nelly Furtado,160
+10,Michael Buble,261
+9,Jim Bryson,364
+8,Micah Barnes,494
+7,Ashley Leggat,634
+6,Emily Haines,815
+5,Adam Gontier,1023
+4,Avril Lavigne,1272
+3,Leonard Cohen,1605
+---------------------------
+####DELETECANDIDATE####
+**RemainingContestants**
+1,Jann Arden,2232
+---------------------------
+**RemovedContestants**
+12,Celine Dion,64
+11,Nelly Furtado,160
+10,Michael Buble,261
+9,Jim Bryson,364
+8,Micah Barnes,494
+7,Ashley Leggat,634
+6,Emily Haines,815
+5,Adam Gontier,1023
+4,Avril Lavigne,1272
+3,Leonard Cohen,1605
+2,Justin Bieber,2076
+---------------------------
