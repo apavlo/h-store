@@ -183,6 +183,7 @@ public class Vote extends VoltProcedure {
         VoltTable[] v = voltExecuteSQL();
         VoterDemoSStoreUtil.writeToFile(v, tableNames, numVotes);
         
+        
         tableNames = new ArrayList<String>();
         voltQueueSQL(getAllRemainingContestants);
         tableNames.add("RemainingContestants");
@@ -190,6 +191,7 @@ public class Vote extends VoltProcedure {
         tableNames.add("RemovedContestants");
         v = voltExecuteSQL();
 		VoterDemoSStoreUtil.writeToContestantsFile(v, tableNames, numVotes);
+		
     }
     
 	

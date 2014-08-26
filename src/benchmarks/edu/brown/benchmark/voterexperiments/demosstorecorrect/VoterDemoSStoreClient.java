@@ -127,6 +127,11 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
         return response;
 
     }
+    
+    @Override
+    public void stopCallback() {
+        switchboard.closeConnections();
+    }
 
     @Override
     public String[] getTransactionDisplayNames() {

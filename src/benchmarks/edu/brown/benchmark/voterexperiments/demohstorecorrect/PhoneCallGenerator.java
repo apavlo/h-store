@@ -49,9 +49,9 @@ public class PhoneCallGenerator {
 	
     private LinkedList<PhoneCall> callList;
     private ListIterator<PhoneCall> callIterator;
-    Socket socket;
-    BufferedReader in;
-    PrintWriter out;
+    private Socket socket;
+    private BufferedReader in;
+    private PrintWriter out;
 	
 	// Initialize some common constants and variables
     private static final String[] AREA_CODE_STRS = ("907,205,256,334,251,870,501,479" +
@@ -188,6 +188,20 @@ public class PhoneCallGenerator {
 			e.printStackTrace();
 			System.exit(0);
 			return null;
+		}
+	}
+	
+	public void closeConnections()
+	{
+		try {
+			out.print("closing");
+			out.flush();
+			in.close();
+			out.close();
+			socket.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 
