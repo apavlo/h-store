@@ -712,6 +712,13 @@ public final class HStoreConf {
         public boolean anticache_batching;
 
         @ConfigProperty(
+                description="Type of database to which tuples are evicted",
+                defaultString="BERKELEY",
+                experimental=true,
+                enumOptions="org.voltdb.types.AntiCacheDBType"
+        )
+        public String anticache_dbtype;
+        @ConfigProperty(
             description="Enable the anti-cache timestamps feature. This requires that the system " +
             		    "is compiled with ${site.anticache_timestamps} set to true.",
             defaultBoolean=true,

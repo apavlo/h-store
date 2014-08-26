@@ -38,6 +38,8 @@
 #include "anticache/EvictedTable.h"
 #include "anticache/UnknownBlockAccessException.h"
 #include "anticache/AntiCacheDB.h"
+#include "anticache/BerkeleyAntiCacheDB.h"
+
 #include <string>
 #include <vector>
 #include <time.h>
@@ -536,6 +538,9 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
               evictedTable->name().c_str(), evictedTable->schema()->debug().c_str());
 
     // get the AntiCacheDB instance from the executorContext
+    // For now use the single AntiCacheDB from PersistentTable but in the future, this 
+    // method to get the AntiCacheDB will have to choose which AntiCacheDB from to
+    // evict to
     AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
     int tuple_length = -1;
     bool needs_flush = false;
@@ -657,6 +662,14 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                                     block.getSerializedData(),
                                     block.getSerializedSize());
             needs_flush = true;
+
+            // store pointer to AntiCacheDB associated with this block
+            m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(block_id, antiCacheDB));
+            
+
+            // TODO MJG: Do we have to check that insert is valid? Is it better
+            // check the return value of the insert or check the map for the
+            // block_id already being there? 
 
             // Update Stats
             m_tuplesEvicted += num_tuples_evicted;
@@ -976,6 +989,10 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
                     block.getSerializedSize());
             needs_flush = true;
 
+
+            // store pointer to AntiCacheDB associated with this block
+            m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(block_id, antiCacheDB));
+
             // Update Stats
             m_tuplesEvicted += num_tuples_evicted - childTuples;
             m_blocksEvicted += 1;
@@ -1105,16 +1122,33 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
         return true;
     }
 
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
+    /*
+     * Finds the AntiCacheDB* instance associated with the needed block_id
+     */
+
+    AntiCacheDB* antiCacheDB;
+
+    std::map<int16_t, AntiCacheDB*>::iterator it = m_db_lookup_table.find(block_id);
+    if (it == m_db_lookup_table.end()) {
+        VOLT_WARN("Block %d not found in db_lookup_table.", it->first);
+        // TODO MJG: should this be a different kind of Exception to throw?
+        throw UnknownBlockAccessException(block_id);
+        return false;
+    } else {
+        VOLT_DEBUG("Found block %d in db_lookup_table.", it->first);
+        antiCacheDB = it->second;
+    }
+
+    //AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
 
     try {
-        AntiCacheBlock value = antiCacheDB->readBlock(table->name(), block_id);
+        AntiCacheBlock* value = antiCacheDB->readBlock(table->name(), block_id);
 
         // allocate the memory for this block
-        char* unevicted_tuples = new char[value.getSize()];
-        memcpy(unevicted_tuples, value.getData(), value.getSize());
+        char* unevicted_tuples = new char[value->getSize()];
+        memcpy(unevicted_tuples, value->getData(), value->getSize());
         VOLT_INFO("***************** READ EVICTED BLOCK %d *****************", block_id);
-        VOLT_INFO("Block Size = %ld / Table = %s", value.getSize(), table->name().c_str());
+        VOLT_INFO("Block Size = %ld / Table = %s", value->getSize(), table->name().c_str());
         ReferenceSerializeInput in(unevicted_tuples, 10485760);
 
         // Read in all the block meta-data
@@ -1138,12 +1172,16 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
 
 
         table->insertUnevictedBlockID(std::pair<int16_t,int16_t>(block_id, 0));
+        delete value;
     } catch (UnknownBlockAccessException e) {
         throw e;
 
         VOLT_INFO("UnknownBlockAccessException caught.");
         return false;
     }
+    
+    // remove block_id from lookup table since block is merged
+    m_db_lookup_table.erase(block_id);
 
     //    VOLT_INFO("blocks read: %d", m_blocksRead);
     return true;

@@ -24,6 +24,8 @@
 
 #ifdef ANTICACHE
 #include "anticache/AntiCacheDB.h"
+#include "anticache/BerkeleyAntiCacheDB.h"
+#include "anticache/NVMAntiCacheDB.h"
 #include "anticache/AntiCacheEvictionManager.h"
 #include "execution/VoltDBEngine.h"
 #endif
@@ -208,10 +210,19 @@ namespace voltdb {
          * The input parameter is the directory where our disk-based storage
          * will write out evicted blocks of tuples for this partition
          */
-        void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize) {
+        void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize, AntiCacheDBType dbType) {
             assert(m_antiCacheEnabled == false);
             m_antiCacheEnabled = true;
-            m_antiCacheDB = new AntiCacheDB(this, dbDir, blockSize);
+            m_dbType = dbType;
+            // MJG: need a better error return (throw exception?) 
+            if (dbType == ANTICACHEDB_BERKELEY) {
+                m_antiCacheDB = new BerkeleyAntiCacheDB(this, dbDir, blockSize);
+            } else if (dbType == ANTICACHEDB_NVM) {
+                m_antiCacheDB = new NVMAntiCacheDB(this, dbDir, blockSize);
+            } else {
+                VOLT_ERROR("Invalid AntiCacheDBType: %d! Aborting...", (int)dbType);
+                assert(m_antiCacheEnabled == false);
+            }    
             m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
         }
         #endif
@@ -290,6 +301,7 @@ namespace voltdb {
         #ifdef ANTICACHE
         AntiCacheDB *m_antiCacheDB;
         AntiCacheEvictionManager *m_antiCacheEvictionManager;
+        AntiCacheDBType m_dbType;
         #endif
 
         #ifdef STORAGE_MMAP

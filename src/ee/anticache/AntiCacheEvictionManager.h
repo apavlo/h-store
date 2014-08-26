@@ -34,8 +34,10 @@
 #include "execution/VoltDBEngine.h"
 #include "common/NValue.hpp"
 #include "common/ValuePeeker.hpp"
+#include "anticache/AntiCacheDB.h"
 
 #include <vector>
+#include <map>
 
 namespace voltdb {
 
@@ -97,6 +99,8 @@ protected:
     std::vector<catalog::Table*> m_evicted_tables;
     std::vector<int16_t> m_evicted_block_ids;
     std::vector<int32_t> m_evicted_offsets;
+
+    std::map<int16_t, AntiCacheDB*> m_db_lookup_table;
     
 }; // AntiCacheEvictionManager class
 
