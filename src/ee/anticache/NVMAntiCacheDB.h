@@ -73,7 +73,7 @@ class NVMAntiCacheDB : public AntiCacheDB {
          */
         static const off_t NVM_FILE_SIZE = 1073741824/2; 
         static const int NVM_BLOCK_SIZE = 524288 + 1000; 
-	    static const int MMAP_PAGE_SIZE = 2 * 1024 * 1024; 
+        static const int MMAP_PAGE_SIZE = 2 * 1024 * 1024; 
         
         FILE* nvm_file;
         char* m_NVMBlocks; 
@@ -82,15 +82,15 @@ class NVMAntiCacheDB : public AntiCacheDB {
 
         int m_nextFreeBlock; 
         
-		/**
-		 *  List of free block indexes before the end of the last allocated block.
-		 */
+        /**
+         *  List of free block indexes before the end of the last allocated block.
+         */
         std::vector<int> m_NVMBlockFreeList; 
 
         /*
          *  Maps a block id to a <index, size> pair
          */
-		std::map<int16_t, pair<int, int32_t> > m_blockMap; 
+        std::map<int16_t, pair<int, int32_t> > m_blockMap; 
 
         /**
          *   Returns a pointer to the start of the block at the specified index. 

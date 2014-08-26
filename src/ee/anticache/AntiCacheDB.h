@@ -56,7 +56,7 @@ class AntiCacheBlock {
         virtual ~AntiCacheBlock() {};
         
         inline int16_t getBlockId() const {
-        	return m_blockId;
+            return m_blockId;
         }
 
         inline std::string getTableName() const {
@@ -64,15 +64,15 @@ class AntiCacheBlock {
         }
 
         inline long getSize() const {
-        	return m_size;
+            return m_size;
         }
         inline char* getData() const {
-	        return m_block;
+            return m_block;
         }
 
         struct payload{
-        	int16_t blockId;
-        	std::string tableName;
+            int16_t blockId;
+            std::string tableName;
             char * data;
             long size;
         };
@@ -86,9 +86,9 @@ class AntiCacheBlock {
         AntiCacheBlock(int16_t blockId);
         int16_t m_blockId;
         payload m_payload;
-	    long m_size;
-	    char * m_block;
-	    char * m_buf;
+        long m_size;
+        char * m_block;
+        char * m_buf;
         // probably should be changed to a final/const
         AntiCacheDBType m_blockType;
 }; // CLASS
@@ -137,11 +137,11 @@ class AntiCacheDB {
 
         long m_blockSize;
         int16_t m_nextBlockId;
-	    int m_partitionId; 
-	    int m_totalBlocks; 
+        int m_partitionId; 
+        int m_totalBlocks; 
 
         AntiCacheDBType m_dbType;
-		
+        
         /*
          * DB specific method of shutting down the database on destructor call
          */

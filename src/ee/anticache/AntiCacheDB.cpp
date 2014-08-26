@@ -41,10 +41,10 @@ namespace voltdb {
 
 AntiCacheBlock::AntiCacheBlock(int16_t blockId) {
 
-//	for(int i=0;i<size;i++){
-//	   VOLT_INFO("%x", data[i]);
-//	}
-	    m_blockId = blockId;
+//    for(int i=0;i<size;i++){
+//       VOLT_INFO("%x", data[i]);
+//    }
+        m_blockId = blockId;
 
   }
    
