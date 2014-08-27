@@ -80,12 +80,12 @@ public class VoterDemoSStoreClient extends BenchmarkComponent {
 //        this.switchboard = new PhoneCallGenerator(VoterDemoSStoreConstants.VOTE_FILE);
         this.switchboard = new PhoneCallGenerator();
         //VoterDemoSStoreUtil.connectToHost();
-        try {
-			Thread.sleep(VoterDemoSStoreConstants.WAIT_TIME);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+//        try {
+//			Thread.sleep(VoterDemoSStoreConstants.WAIT_TIME);
+//		} catch (InterruptedException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
     }
 
     @Override
