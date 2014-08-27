@@ -91,7 +91,10 @@ BASE_ARGS=( \
     "-Dclient.anticache_enable=false" \
     "-Dclient.anticache_evict_interval=10000" \
     "-Dclient.anticache_evict_size=102400" \
+    "-Dclient.anticache_dbtype=BERKELEY" \
+    "-Dclient.anticache_timestamps=true" \
     "-Dclient.output_csv=results.csv" \
+    
 
     # CLIENT DEBUG
     "-Dclient.output_txn_counters=txncounters.csv" \

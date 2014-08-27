@@ -71,6 +71,9 @@ BASE_ARGS=( \
     "-Dclient.anticache_enable=false" \
     "-Dclient.anticache_evict_interval=30000" \
     "-Dclient.anticache_evict_size=4194304" \
+    "-Dclient.anticache_dbtype=BERKELEY" \
+    "-Dclient.anticache_timestamps=true" \
+
     "-Dclient.output_csv=false" \
     "-Dclient.output_interval=true" \
 #    "-Dclient.output_queue_profiling=${BASE_PROJECT}-queue.csv" \
