@@ -55,7 +55,10 @@ def s_popvotes(conn, lock):
 			print "Closing S-Store connection"
 			break
 		lock.acquire()
-		conn.sendall(votes[s_index])
+		if(s_index >= len(votes)):
+			conn.sendall(str(s_index) + " 2310050899 998")
+		else:
+			conn.sendall(votes[s_index])
 		s_index+=1
 		time.sleep(waittime)
 		lock.release()
@@ -72,7 +75,10 @@ def h_popvotes(conn, lock):
 			print "Closing H-Store connection"
 			break
 		lock.acquire()
-		conn.sendall(votes[h_index])
+		if(h_index >= len(votes)):
+			conn.sendall(str(h_index) + " 2310050899 998")
+		else:
+			conn.sendall(votes[h_index])
 		h_index+=1
 		time.sleep(waittime)
 		lock.release()
