@@ -541,7 +541,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     // For now use the single AntiCacheDB from PersistentTable but in the future, this 
     // method to get the AntiCacheDB will have to choose which AntiCacheDB from to
     // evict to
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
+    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB());
     int tuple_length = -1;
     bool needs_flush = false;
 
@@ -741,7 +741,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
  //             evictedTable->name().c_str(), evictedTable->schema()->debug().c_str());
 
     // get the AntiCacheDB instance from the executorContext
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
+    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB());
     int tuple_length = -1;
     bool needs_flush = false;
 
@@ -1185,6 +1185,14 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
 
     //    VOLT_INFO("blocks read: %d", m_blocksRead);
     return true;
+}
+
+
+// stub method that may either be implemented by plug in policies
+// or via class inheritance.
+
+int AntiCacheEvictionManager::chooseDB() {
+    return 0;
 }
 
 /*

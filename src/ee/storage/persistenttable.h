@@ -278,7 +278,7 @@ class PersistentTable : public Table {
     uint32_t getOldestTupleID();
     void setNumTuplesInEvictionChain(int num_tuples);
     int getNumTuplesInEvictionChain(); 
-    AntiCacheDB* getAntiCacheDB();
+    AntiCacheDB* getAntiCacheDB(int level);
     std::map<int16_t, int16_t> getUnevictedBlockIDs();
     std::vector<char*> getUnevictedBlocks();
     int32_t getMergeTupleOffset(int);

@@ -63,7 +63,9 @@ public:
     bool mergeUnevictedTuples(PersistentTable *table);
     bool readEvictedBlock(PersistentTable *table, int16_t block_id, int32_t tuple_offset);
     //int numTuplesInEvictionList(); 
-    
+
+    int chooseDB();
+   
     // -----------------------------------------
     // Evicted Access Tracking Methods
     // -----------------------------------------

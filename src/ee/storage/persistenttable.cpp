@@ -247,9 +247,9 @@ uint32_t PersistentTable::getOldestTupleID()
     return m_oldestTupleID; 
 }
 
-AntiCacheDB* PersistentTable::getAntiCacheDB()
+AntiCacheDB* PersistentTable::getAntiCacheDB(int level)
 {
-    return m_executorContext->getAntiCacheDB();
+    return m_executorContext->getAntiCacheDB(level);
 }
 
 int32_t PersistentTable::getTuplesEvicted()

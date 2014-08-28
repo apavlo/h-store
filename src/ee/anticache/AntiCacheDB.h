@@ -131,6 +131,10 @@ class AntiCacheDB {
         inline AntiCacheDBType getDBType() {
             return m_dbType;
         }
+
+        inline int getMaxBlockSize() {
+            return m_maxBlockSize;
+        }
     protected:
         ExecutorContext *m_executorContext;
         string m_dbDir;
@@ -141,7 +145,7 @@ class AntiCacheDB {
         int m_totalBlocks; 
 
         AntiCacheDBType m_dbType;
-        
+        int m_maxBlockSize;        
         /*
          * DB specific method of shutting down the database on destructor call
          */

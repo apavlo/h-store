@@ -28,6 +28,8 @@
 #include "anticache/NVMAntiCacheDB.h"
 #include "anticache/AntiCacheEvictionManager.h"
 #include "execution/VoltDBEngine.h"
+#define MAX_LEVELS 5
+
 #endif
 
 namespace voltdb {
@@ -193,8 +195,8 @@ namespace voltdb {
          * Return the handle to disk-based storage object that we
          * can use to read and write tuples to
          */
-        AntiCacheDB* getAntiCacheDB() const {
-            return m_antiCacheDB;
+        AntiCacheDB* getAntiCacheDB(int level) const {
+            return m_antiCacheDB[level];
         }
 
         /**
@@ -203,6 +205,14 @@ namespace voltdb {
          */
         AntiCacheEvictionManager* getAntiCacheEvictionManager() const {
             return m_antiCacheEvictionManager;
+        }
+        
+        /**
+         * Return the AntiCacheDBType associated with the given AntiCacheDB
+         */
+
+        AntiCacheDBType getAntiCacheDBType(int level) {
+            return m_dbType[level];
         }
 
         /**
@@ -213,17 +223,24 @@ namespace voltdb {
         void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize, AntiCacheDBType dbType) {
             assert(m_antiCacheEnabled == false);
             m_antiCacheEnabled = true;
-            m_dbType = dbType;
+            m_levels = 0;
+            addAntiCacheDB(dbDir, blockSize, dbType);
+            m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
+        }
+
+        void addAntiCacheDB(std::string &dbDir, long blockSize, AntiCacheDBType dbType) {
+            assert(m_antiCacheEnabled == true);
+            m_dbType[m_levels] = dbType;
             // MJG: need a better error return (throw exception?) 
             if (dbType == ANTICACHEDB_BERKELEY) {
-                m_antiCacheDB = new BerkeleyAntiCacheDB(this, dbDir, blockSize);
+                m_antiCacheDB[m_levels] = new BerkeleyAntiCacheDB(this, dbDir, blockSize);
             } else if (dbType == ANTICACHEDB_NVM) {
-                m_antiCacheDB = new NVMAntiCacheDB(this, dbDir, blockSize);
+                m_antiCacheDB[m_levels] = new NVMAntiCacheDB(this, dbDir, blockSize);
             } else {
                 VOLT_ERROR("Invalid AntiCacheDBType: %d! Aborting...", (int)dbType);
                 assert(m_antiCacheEnabled == false);
-            }    
-            m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
+            }  
+            m_levels++;
         }
         #endif
 
@@ -299,9 +316,10 @@ namespace voltdb {
         int64_t m_txnId;
 
         #ifdef ANTICACHE
-        AntiCacheDB *m_antiCacheDB;
+        AntiCacheDB *m_antiCacheDB[MAX_LEVELS];
         AntiCacheEvictionManager *m_antiCacheEvictionManager;
-        AntiCacheDBType m_dbType;
+        AntiCacheDBType m_dbType[MAX_LEVELS];
+        int m_levels;
         #endif
 
         #ifdef STORAGE_MMAP
