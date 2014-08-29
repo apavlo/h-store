@@ -53,6 +53,10 @@
 namespace voltdb {
 
 #ifdef ANTICACHE_TIMESTAMPS_PRIME
+/**
+ * if we use a prime-offset sampling strategy, here are the prime numbers we want to choose from:
+ * Notice that those numbers are sufficient, because their product is bigger than block size.
+ */
 const int EvictionIterator::prime_list[prime_size] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
 #endif
 
@@ -92,11 +96,6 @@ void EvictionIterator::reserve(int64_t amount) {
     if (evict_num > active_tuple)
         evict_num = active_tuple;
 
-    // TODO: there's another block-sample strategy, but it does not get good accuracy of selecting cold data.
-    // If we use that, the throughput of VOTER can increases from 55,000 to 59,000, but IO of other experiments increases a lot
-    // The reason why this is slow? I guess is the rand() and % operation
-    //
-    // Lin Ma
     int pick_num = evict_num * RANDOM_SCALE;
 
     int block_num = (int)ptable->m_data.size();
@@ -129,9 +128,14 @@ void EvictionIterator::reserve(int64_t amount) {
         candidates = new EvictionTuple[pick_num];
 #ifdef ANTICACHE_TIMESTAMPS_PRIME
         for (int i = 0; i < last_full_block; ++i) {
-            // if this is a beginning of a loop of scan, find a proper step to let it sample tuples from almost the whole block
+            
+            /**
+             * if this is a beginning of a loop of scan, find a proper step to let it sample tuples from almost the whole block
+             * TODO: Here we use a method that every time try a different prime number from what we use last time. Is it better?
+             *       That would need further analysis.
+             */  
             if (ptable->m_stepPrime[i] < 0) {
-                int ideal_step = (rand() % 10) * tuples_per_block / pick_num_block;
+                int ideal_step = (rand() % 5) * tuples_per_block / pick_num_block;
                 int old_prime = - ptable->m_stepPrime[i];
                 for (int j = prime_size - 1; j >= 0; --j) {
                     if (prime_list[j] != old_prime && (tuples_per_block % prime_list[j]) > 0) {
@@ -141,7 +145,7 @@ void EvictionIterator::reserve(int64_t amount) {
                     if (prime_list[j] <= ideal_step)
                         break;
                 }
-                //printf("Prime of block %d: %d %d\n", i, tuples_per_block, ptable->m_stepPrime[i]);
+                VOLT_INFO("Prime of block %d: %d %d\n", i, tuples_per_block, ptable->m_stepPrime[i]);
             }
 
             // now scan the block with a step of we select.
@@ -153,7 +157,7 @@ void EvictionIterator::reserve(int64_t amount) {
             uint64_t end_of_block = (uint64_t)ptable->m_data[i] + block_size_bytes;
             bool flag_new = false;
             for (int j = 0; j < pick_num_block; ++j) {
-                //printf("Flip addr: %p %p %lu\n", addr, ptable->m_data[i], ((uint64_t)addr - (uint64_t)ptable->m_data[i]) / 1024);
+                VOLT_TRACE("Flip addr: %p %p %lu\n", addr, ptable->m_data[i], ((uint64_t)addr - (uint64_t)ptable->m_data[i]) / 1024);
 
                 current_tuple->move(addr);
 
