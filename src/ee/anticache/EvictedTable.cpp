@@ -33,6 +33,10 @@ EvictedTable::EvictedTable(ExecutorContext *ctx) : PersistentTable(ctx, false) {
     
 }
 
+#ifdef ANTICACHE_TIMESTAMPS_PRIME
+    enum { prime_size = 25 };
+    static const int prime_list[prime_size] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
+#endif
     
 /*
  Insert a tuple into the evicted table but don't create any UNDO action. Return the address

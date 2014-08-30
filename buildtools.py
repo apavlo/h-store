@@ -47,6 +47,7 @@ class BuildContext:
         self.ANTICACHE_DRAM = False
         self.ARIES= False
         self.ANTICACHE_TIMESTAMPS = True
+        self.ANTICACHE_TIMESTAMPS_PRIME = True
 
         for arg in [x.strip().upper() for x in args]:
             if arg in ["DEBUG", "RELEASE", "MEMCHECK", "MEMCHECK_NOFREELIST"]:
@@ -90,6 +91,10 @@ class BuildContext:
                 parts = arg.split("=")
                 if len(parts) > 1 and not parts[1].startswith("${"):
                     self.ANTICACHE_TIMESTAMPS = bool(parts[1])
+            if arg.startswith("ANTICACHE_TIMESTAMPS_PRIME="):
+                parts = arg.split("=")
+                if len(parts) > 1 and not parts[1].startswith("${"):
+                    self.ANTICACHE_TIMESTAMPS_PRIME = bool(parts[1])
                 
             if arg.startswith("LOG_LEVEL="):
                 parts = arg.split("=")

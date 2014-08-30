@@ -720,11 +720,19 @@ public final class HStoreConf {
         public String anticache_dbtype;
         @ConfigProperty(
             description="Enable the anti-cache timestamps feature. This requires that the system " +
-            		    "is compiled with ${site.anticache_timestamps} set to true.",
+            		    "is compiled with ${site.anticache_enable} set to true.",
             defaultBoolean=true,
             experimental=true
         )
         public boolean anticache_timestamps;
+        
+        @ConfigProperty(
+            description="Enable the anti-cache timestamps use a prime sample strategy instead of radom-tuple sampling." +
+            		    "This is compiled with ${site.anticache_timestamps} set to true.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean anticache_timestamps_prime;
         
         // ----------------------------------------------------------------------------
         // Storage MMAP Options

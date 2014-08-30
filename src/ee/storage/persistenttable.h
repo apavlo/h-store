@@ -434,6 +434,10 @@ inline void PersistentTable::allocateNextBlock() {
 #endif
     char *memory = (char*)(new char[bytes]);
     m_data.push_back(memory);
+#ifdef ANTICACHE_TIMESTAMPS_PRIME
+    m_evictPosition.push_back(0);
+    m_stepPrime.push_back(-1);
+#endif
 #ifdef MEMCHECK_NOFREELIST
     assert(m_allocatedTuplePointers.insert(memory).second);
     m_deletedTuplePointers.erase(memory);

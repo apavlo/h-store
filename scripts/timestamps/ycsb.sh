@@ -35,10 +35,10 @@ BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
 OUTPUT_DIR="~/data/ycsb/read-heavy/2/80-20"
 
-for skew in 1.2; do
+for skew in 0.8 1.01 1.1 1.2; do
     for round in 1 2 3; do
-        OUTPUT_PREFIX="ycsb-T500-NoLoop/$round-ycsb1G-timestamps-T500-S$skew"
-        LOG_PREFIX="logs/ycsb-T500-NoLoop/$round-ycsb1G-timestamps-T500-S$skew"
+        OUTPUT_PREFIX="test/ycsb-T500-NoLoop/$round-ycsb1G-flru-T500-S$skew"
+        LOG_PREFIX="logs/test/ycsb-T500-NoLoop/$round-ycsb1G-flru-T500-S$skew"
         echo $OUTPUT_PREFIX
         sed -i '$ d' "properties/benchmarks/ycsb.properties"
         echo "skew_factor = $skew" >> "properties/benchmarks/ycsb.properties"
@@ -66,7 +66,7 @@ for skew in 1.2; do
             "-Dsite.cpu_affinity_one_partition_per_core=true" \
             #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
             #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
-            "-Dsite.network_incoming_limit_txns=60000" \
+            "-Dsite.network_incoming_limit_txns=50000" \
             "-Dsite.commandlog_enable=false" \
             "-Dsite.txn_incoming_delay=5" \
             "-Dsite.exec_postprocessing_threads=false" \
@@ -81,7 +81,7 @@ for skew in 1.2; do
             # Client Params
         "-Dclient.scalefactor=10" \
             "-Dclient.memory=2048" \
-            "-Dclient.txnrate=4000" \
+            "-Dclient.txnrate=3500" \
             "-Dclient.warmup=120000" \
             "-Dclient.duration=300000" \
             "-Dclient.interval=5000" \

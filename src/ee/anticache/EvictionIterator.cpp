@@ -51,7 +51,15 @@
 #define RANDOM_SCALE 4
 
 namespace voltdb {
-    
+
+#ifdef ANTICACHE_TIMESTAMPS_PRIME
+/**
+ * if we use a prime-offset sampling strategy, here are the prime numbers we want to choose from:
+ * Notice that those numbers are sufficient, because their product is bigger than block size.
+ */
+const int EvictionIterator::prime_list[prime_size] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97};
+#endif
+
 EvictionIterator::EvictionIterator(Table *t)
 {
     //ptable = static_cast<PersistentTable*>(table); 
@@ -73,9 +81,12 @@ void EvictionIterator::reserve(int64_t amount) {
     int tuple_size = ptable->m_schema->tupleLength() + TUPLE_HEADER_SIZE;
     int active_tuple = (int)ptable->activeTupleCount();
     int evict_num = 0;
-    //uint32_t tuples_per_block = ptable->m_tuplesPerBlock;
+    int64_t used_tuple = ptable->usedTupleCount();
+#ifdef ANTICACHE_TIMESTAMPS_PRIME
+    uint32_t tuples_per_block = ptable->m_tuplesPerBlock;
+#endif
 
-    if (active_tuple)	
+    if (active_tuple)   
         evict_num = (int)(amount / (tuple_size + ptable->nonInlinedMemorySize() / active_tuple));
     else 
         evict_num = (int)(amount / tuple_size);
@@ -85,17 +96,14 @@ void EvictionIterator::reserve(int64_t amount) {
     if (evict_num > active_tuple)
         evict_num = active_tuple;
 
-    // TODO: there's another block-sample strategy, but it does not get good accuracy of selecting cold data.
-    // If we use that, the throughput of VOTER can increases from 55,000 to 59,000, but IO of other experiments increases a lot
-    // The reason why this is slow? I guess is the rand() and % operation
-    //
-    // Lin Ma
     int pick_num = evict_num * RANDOM_SCALE;
 
     int block_num = (int)ptable->m_data.size();
     int block_size = ptable->m_tuplesPerBlock;
     int location_size;
+#ifndef ANTICACHE_TIMESTAMPS_PRIME
     int block_location;
+#endif
 
     srand((unsigned int)time(0));
 
@@ -103,20 +111,93 @@ void EvictionIterator::reserve(int64_t amount) {
     VOLT_INFO("active_tuple: %d\n", active_tuple);
     VOLT_INFO("block number: %d\n", block_num);
 
-    int activeN = 0, evictedN = 0;
     m_size = 0;
     current_tuple_id = 0;
+
+#ifdef ANTICACHE_TIMESTAMPS_PRIME
+    int pick_num_block = (int)(((int64_t)pick_num * tuples_per_block) / used_tuple);
+    int last_full_block = (int)(used_tuple / block_size);
+    VOLT_INFO("LOG: %d %d %ld\n", last_full_block, tuples_per_block, used_tuple);
+    int last_block_size = (int)(used_tuple % block_size);
+    int pick_num_last_block = pick_num - pick_num_block * last_full_block;
+#endif
 
     // If we'll evict the entire table, we should do a scan instead of sampling.
     // The main reason we should do that is to past the test...
     if (evict_num < active_tuple) {
         candidates = new EvictionTuple[pick_num];
+#ifdef ANTICACHE_TIMESTAMPS_PRIME
+        for (int i = 0; i < last_full_block; ++i) {
+            
+            /**
+             * if this is a beginning of a loop of scan, find a proper step to let it sample tuples from almost the whole block
+             * TODO: Here we use a method that every time try a different prime number from what we use last time. Is it better?
+             *       That would need further analysis.
+             */  
+            if (ptable->m_stepPrime[i] < 0) {
+                int ideal_step = (rand() % 5) * tuples_per_block / pick_num_block;
+                int old_prime = - ptable->m_stepPrime[i];
+                for (int j = prime_size - 1; j >= 0; --j) {
+                    if (prime_list[j] != old_prime && (tuples_per_block % prime_list[j]) > 0) {
+                        ptable->m_stepPrime[i] = prime_list[j];
+                        VOLT_TRACE("DEBUG: %d %d\n", tuples_per_block, ptable->m_stepPrime[i]);
+                    }
+                    if (prime_list[j] <= ideal_step)
+                        break;
+                }
+                VOLT_INFO("Prime of block %d: %d %d\n", i, tuples_per_block, ptable->m_stepPrime[i]);
+            }
+
+            // now scan the block with a step of we select.
+            // if we go across the boundry, minus it back to the beginning (like a mod operation)
+            int step_prime = ptable->m_stepPrime[i];
+            int step_offset = step_prime * tuple_size;
+            int block_size_bytes = block_size * tuple_size;
+            addr = ptable->m_data[i] + ptable->m_evictPosition[i];
+            uint64_t end_of_block = (uint64_t)ptable->m_data[i] + block_size_bytes;
+            bool flag_new = false;
+            for (int j = 0; j < pick_num_block; ++j) {
+                VOLT_TRACE("Flip addr: %p %p %lu\n", addr, ptable->m_data[i], ((uint64_t)addr - (uint64_t)ptable->m_data[i]) / 1024);
+
+                current_tuple->move(addr);
+
+                if (current_tuple->isActive()) {
+                    candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
+                    m_size++;
+                }
+
+                addr += step_offset;
+                if ((uint64_t)addr >= end_of_block)
+                    addr -= block_size_bytes;
+                if (addr == ptable->m_data[i])
+                    flag_new = true;
+            }
+            int new_position = (int)((uint64_t)addr - (uint64_t)ptable->m_data[i]);
+            ptable->m_evictPosition[i] = new_position;
+            if (flag_new)
+                ptable->m_stepPrime[i] = - ptable->m_stepPrime[i];
+        }
+        if (last_full_block < block_num) {
+            addr = ptable->m_data[last_full_block];
+            char* current_addr;
+            for (int j = 0; j < pick_num_last_block; ++j) {
+                current_addr = addr + (rand() % last_block_size) * tuple_size;
+                current_tuple->move(current_addr);
+                if (!current_tuple->isActive() || current_tuple->isEvicted())
+                    continue;
+
+                candidates[m_size].setTuple(current_tuple->getTimeStamp(), current_addr);
+                m_size++;
+            }
+        }
+
+#else
         for (int i = 0; i < pick_num; i++) {
             // should we use a faster random generator?
             block_location = rand() % block_num;
             addr = ptable->m_data[block_location];
-            if ((block_location + 1) * block_size > ptable->usedTupleCount())
-                location_size = (int)(ptable->usedTupleCount() - block_location * block_size);
+            if ((block_location + 1) * block_size > used_tuple)
+                location_size = (int)(used_tuple - block_location * block_size);
             else
                 location_size = block_size;
             addr += (rand() % location_size) * tuple_size;
@@ -125,15 +206,13 @@ void EvictionIterator::reserve(int64_t amount) {
 
             VOLT_DEBUG("Flip addr: %p\n", addr);
 
-            if (current_tuple->isActive()) activeN++;
-            if (current_tuple->isEvicted()) evictedN++;
-
             if (!current_tuple->isActive() || current_tuple->isEvicted())
                 continue;
 
             candidates[m_size].setTuple(current_tuple->getTimeStamp(), addr);
             m_size++;
         }
+#endif
     } else {
         candidates = new EvictionTuple[active_tuple];
         for (int i = 0; i < block_num; ++i) { 
@@ -144,9 +223,6 @@ void EvictionIterator::reserve(int64_t amount) {
                 location_size = block_size;
             for (int j = 0; j < location_size; j++) {
                 current_tuple->move(addr);
-
-                if (current_tuple->isActive()) activeN++;
-                if (current_tuple->isEvicted()) evictedN++;
 
                 if (!current_tuple->isActive() || current_tuple->isEvicted()) {
                     addr += tuple_size;
