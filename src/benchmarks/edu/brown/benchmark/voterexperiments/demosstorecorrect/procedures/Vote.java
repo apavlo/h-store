@@ -137,6 +137,7 @@ public class Vote extends VoltProcedure {
 	+ "        , contestant_number ASC");
 	
 	public final SQLStmt getVoteCountStmt = new SQLStmt( "SELECT totalcnt FROM proc_one_count WHERE row_id=1;");
+	public final SQLStmt getSuccessCountStmt = new SQLStmt( "SELECT successcnt FROM proc_one_count WHERE row_id=1;");
 	public final SQLStmt getActualVoteCountStmt = new SQLStmt( "SELECT totalcnt, successcnt FROM proc_one_count WHERE row_id = 1;");
 	public final SQLStmt getTrendingCountStmt = new SQLStmt("SELECT count(*) FROM trending_leaderboard;");
 	public final SQLStmt getRemainingContestants = new SQLStmt("SELECT count(*) FROM contestants;");
@@ -166,9 +167,11 @@ public class Vote extends VoltProcedure {
             voltQueueSQL(getTrendingCountStmt);
             tableNames.add("TrendingCount");
             voltQueueSQL(getRemainingContestants);
-	        tableNames.add("RemainingContestants");
+			tableNames.add("remainingContestants");
 	        voltQueueSQL(getVotesTilNextDeleteStmt);
 	        tableNames.add("VotesTilNextDelete");
+	        voltQueueSQL(getSuccessCountStmt);
+	        tableNames.add("SuccessCount");
 	        //voltQueueSQL(getRemovedContestant);
 	        //tableNames.add("RemovedContestant");
         }
