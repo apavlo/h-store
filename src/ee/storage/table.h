@@ -411,6 +411,15 @@ protected:
     int64_t m_bytesRead;
 #endif
 
+#ifdef ANTICACHE_TIMESTAMPS_PRIME
+    // track the position of where we're eviction so far
+    std::vector<int> m_evictPosition;
+
+    // which prime we use as the step
+    std::vector<int> m_stepPrime;
+#endif
+
+
 #ifdef MEMCHECK_NOFREELIST
     int64_t m_deletedTupleCount;
     //Store pointers to all allocated tuples so they can be freed on destruction
@@ -499,6 +508,10 @@ inline void Table::allocateNextBlock() {
 #endif
     char *memory = (char*)(new char[bytes]);
     m_data.push_back(memory);
+#ifdef ANTICACHE_TIMESTAMPS_PRIME
+    m_evictPosition.push_back(0);
+    m_stepPrime.push_back(-1);
+#endif
 #ifdef MEMCHECK_NOFREELIST
     assert(m_allocatedTuplePointers.insert(memory).second);
     m_deletedTuplePointers.erase(memory);

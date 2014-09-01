@@ -79,7 +79,7 @@ namespace voltdb {
  |  flags (1 byte)  |  "previous" tuple id  (4 bytes)  |  "next" tuple id (4 bytes)  | tuple data  |
  ---------------------------------------------------------------------------------------------------
  
- (d). Anti-Caching with time stamps
+ (d). Anti-Caching with timestamps
  ----------------------------------------------------------
  |  flags (1 byte)  |  time stamp (4 bytes) | tuple data  |
  ----------------------------------------------------------
