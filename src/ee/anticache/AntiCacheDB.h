@@ -110,7 +110,7 @@ class AntiCacheDB {
         /**
          * Read a block and return its contents
          */
-        virtual AntiCacheBlock* readBlock(std::string tableName, int16_t blockId) = 0;
+        virtual AntiCacheBlock* readBlock(int16_t blockId) = 0;
 
 
         /**

@@ -95,7 +95,7 @@ TEST_F(AntiCacheDBTest, BerkeleyReadBlock) {
 						 const_cast<char*>(payload.data()),
 						 static_cast<int>(payload.size())+1);
 
-	AntiCacheBlock* block = anticache->readBlock(tableName,blockId);
+	AntiCacheBlock* block = anticache->readBlock(blockId);
 
 	ASSERT_EQ(block->getTableName(), tableName);
 	ASSERT_EQ(block->getBlockId(), blockId);

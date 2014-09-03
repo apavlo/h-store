@@ -167,7 +167,7 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     delete [] databuf_;
 }
 
-AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
+AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(int16_t blockId) {
     Dbt key;
     key.set_data(&blockId);
     key.set_size(sizeof(blockId));

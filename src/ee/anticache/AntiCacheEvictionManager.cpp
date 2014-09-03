@@ -1142,7 +1142,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
     //AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
 
     try {
-        AntiCacheBlock* value = antiCacheDB->readBlock(table->name(), block_id);
+        AntiCacheBlock* value = antiCacheDB->readBlock(block_id);
 
         // allocate the memory for this block
         char* unevicted_tuples = new char[value->getSize()];
@@ -1195,6 +1195,18 @@ int AntiCacheEvictionManager::chooseDB() {
     return 0;
 }
 
+/*
+ * Function to move a block between DBs. This will take a source and destination and 
+ * return the new blockId. If there is an error, the function will return -1.
+ *
+ * In the future, it might make sense to allow for the return of a list of new tuple 
+ * mappings so that blocks could be split or merged depending on the underlying 
+ * physical medium
+ */
+
+//int migrateBlock(AntiCacheDB* srcDB, AntiCacheDB* dstDB) {
+    
+//}
 /*
  * Merges the unevicted block into the regular data table
  */

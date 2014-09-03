@@ -55,7 +55,7 @@ class NVMAntiCacheDB : public AntiCacheDB {
 
         void initializeDB();
 
-        AntiCacheBlock* readBlock(std::string tableName, int16_t blockId);
+        AntiCacheBlock* readBlock(int16_t blockId);
 
         void shutdownDB();
 

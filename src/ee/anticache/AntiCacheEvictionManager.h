@@ -65,6 +65,7 @@ public:
     //int numTuplesInEvictionList(); 
 
     int chooseDB();
+    //bool migrateBlocks(AntiCacheDB* srcDB, AntiCacheDB* dstDB, int blocks); 
    
     // -----------------------------------------
     // Evicted Access Tracking Methods

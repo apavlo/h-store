@@ -167,14 +167,14 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     m_totalBlocks++; 
 }
 
-AntiCacheBlock* NVMAntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
+AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
     
     std::map<int16_t, std::pair<int, int32_t> >::iterator itr; 
     itr = m_blockMap.find(blockId); 
   
     if (itr == m_blockMap.end()) {
-        VOLT_INFO("Invalid anti-cache blockId '%d' for table '%s'", blockId, tableName.c_str());
-        VOLT_ERROR("Invalid anti-cache blockId '%d' for table '%s'", blockId, tableName.c_str());
+        VOLT_INFO("Invalid anti-cache blockId '%d'", blockId);
+        VOLT_ERROR("Invalid anti-cache blockId '%d''", blockId);
         //throw UnknownBlockAccessException(tableName, blockId);
         throw UnknownBlockAccessException(blockId);
    
