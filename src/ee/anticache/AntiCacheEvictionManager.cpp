@@ -1204,9 +1204,15 @@ int AntiCacheEvictionManager::chooseDB() {
  * physical medium
  */
 
-//int migrateBlock(AntiCacheDB* srcDB, AntiCacheDB* dstDB) {
-    
-//}
+int migrateBlock(int16_t blockId, AntiCacheDB* srcDB, AntiCacheDB* dstDB) {
+    int16_t newBlockId = -1;
+    AntiCacheBlock* block = srcDB->readBlock(blockId);    
+    newBlockId = dstDB->nextBlockId();
+    dstDB->writeBlock(block->getTableName(), newBlockId, 0, block->getData(),
+            block->getSize());
+    return newBlockId;
+}
+
 /*
  * Merges the unevicted block into the regular data table
  */
