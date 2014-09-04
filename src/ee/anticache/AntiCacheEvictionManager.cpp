@@ -1204,12 +1204,15 @@ int AntiCacheEvictionManager::chooseDB() {
  * physical medium
  */
 
-int migrateBlock(int16_t blockId, AntiCacheDB* srcDB, AntiCacheDB* dstDB) {
+int16_t AntiCacheEvictionManager::migrateBlock(int16_t blockId, AntiCacheDB* srcDB, AntiCacheDB* dstDB) {
     int16_t newBlockId = -1;
     AntiCacheBlock* block = srcDB->readBlock(blockId);    
+    //VOLT_INFO("oldname: %s\n", block->getTableName().c_str());
     newBlockId = dstDB->nextBlockId();
     dstDB->writeBlock(block->getTableName(), newBlockId, 0, block->getData(),
             block->getSize());
+   
+    delete block;
     return newBlockId;
 }
 
