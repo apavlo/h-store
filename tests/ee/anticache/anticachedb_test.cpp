@@ -105,6 +105,10 @@ TEST_F(AntiCacheDBTest, BerkeleyReadBlock) {
     delete block;
     delete anticache;
 }
+
+// This test needs a functioning executorContext in order to obtain a partitionID
+// to write out the file. Not havign a valid one causes a seg fault. The solution i
+// s probably to not require the use of a partitionID for the filename
 /*
 TEST_F(AntiCacheDBTest, NVMReadBlock) {
     // This will create a tempdir that will automatically be cleaned up
@@ -121,7 +125,7 @@ TEST_F(AntiCacheDBTest, NVMReadBlock) {
 						 const_cast<char*>(payload.data()),
 						 static_cast<int>(payload.size())+1);
 
-	AntiCacheBlock* block = anticache->readBlock(tableName,blockId);
+	AntiCacheBlock* block = anticache->readBlock(blockId);
 
 	ASSERT_EQ(block->getTableName(), tableName);
 	ASSERT_EQ(block->getBlockId(), blockId);

@@ -47,6 +47,8 @@
 
 #include "anticache/AntiCacheDB.h"
 
+#define BLOCK_SIZE 1024000
+
 using namespace std;
 using namespace voltdb;
 using stupidunit::ChTempDir;
@@ -164,6 +166,43 @@ public:
     int32_t m_tuplesDeleted;
     
 };
+
+TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
+    ExecutorContext* ctx = m_engine->getExecutorContext();
+    AntiCacheEvictionManager* acem = ctx->getAntiCacheEvictionManager();
+    AntiCacheDB* berkeleydb = new BerkeleyAntiCacheDB(ctx, "/tmp/h-store/bdb", BLOCK_SIZE);
+    AntiCacheDB* nvmdb = new NVMAntiCacheDB(ctx, "/tmp/h-store/nvm", BLOCK_SIZE);
+    
+    string tableName("TEST");
+    string payload("Test payload");
+
+    int16_t blockId = nvmdb->nextBlockId();
+    nvmdb->writeBlock(tableName,
+        blockId,
+        1,
+        const_cast<char*>(payload.data()),
+        static_cast<int>(payload.size())+1);
+    
+    //AntiCacheBlock* nvmblock = nvmdb->readBlock(blockId);
+    int16_t newblockId = acem->migrateBlock(blockId, nvmdb, berkeleydb);
+    AntiCacheBlock* berkeleyblock = berkeleydb->readBlock(newblockId);
+    //VOLT_INFO("tableName: %s berkeleyblock name: %s\n", tableName.c_str(), berkeleyblock->getTableName().c_str());
+    
+    //ASSERT_EQ(blockId, nvmblock->getBlockId());
+    ASSERT_EQ(newblockId, berkeleyblock->getBlockId());
+    //ASSERT_EQ(payload.size()+1, nvmblock->getSize());
+    ASSERT_EQ(payload.size()+1, berkeleyblock->getSize());
+    //ASSERT_EQ(tableName, nvmblock->getTableName());
+    //ASSERT_EQ(0, tableName.compare(berkeleyblock->getTableName()));
+    //ASSERT_EQ(0, payload.compare(nvmblock->getData()));
+    ASSERT_EQ(0, payload.compare(berkeleyblock->getData()));
+    
+    //delete ctx;
+    //delete nvmblock;
+    delete berkeleyblock;
+    delete berkeleydb;
+    delete nvmdb;
+}
 
 #ifndef ANTICACHE_TIMESTAMPS
 TEST_F(AntiCacheEvictionManagerTest, GetTupleID)
