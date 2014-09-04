@@ -240,7 +240,7 @@ void EvictionIterator::reserve(int64_t amount) {
     }
     sort(candidates, candidates + m_size, less <EvictionTuple>());
 
-    VOLT_INFO("Size of eviction candidates: %lu %d %d\n", m_size, activeN, evictedN);
+    //VOLT_INFO("Size of eviction candidates: %lu %d %d\n", (long unsigned int)m_size, activeN, evictedN);
 }
 #endif
 
@@ -255,7 +255,7 @@ EvictionIterator::~EvictionIterator()
 
 bool EvictionIterator::hasNext()
 {        
-    VOLT_DEBUG("Size: %lu\n", m_size);
+    VOLT_DEBUG("Size: %lu\n", (long unsigned int)m_size);
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
 
     VOLT_DEBUG("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
