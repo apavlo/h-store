@@ -49,7 +49,7 @@ BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) :
 
 BerkeleyAntiCacheBlock::~BerkeleyAntiCacheBlock() {
     if(m_blockId > 0 && m_buf != NULL) {
-        delete m_buf;
+        free(m_buf);
     }
 }
 

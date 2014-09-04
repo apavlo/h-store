@@ -128,7 +128,7 @@ void NVMAntiCacheDB::initializeDB() {
     }
 
     close(nvm_fd); // can safely close file now, mmap creates new reference
-
+    fclose(nvm_file);
     
     // write out NULL characters to ensure entire file has been fetchted from memory
     for(int i = 0; i < NVM_FILE_SIZE; i++)
@@ -174,7 +174,7 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
   
     if (itr == m_blockMap.end()) {
         VOLT_INFO("Invalid anti-cache blockId '%d'", blockId);
-        VOLT_ERROR("Invalid anti-cache blockId '%d''", blockId);
+        VOLT_ERROR("Invalid anti-cache blockId '%d'", blockId);
         //throw UnknownBlockAccessException(tableName, blockId);
         throw UnknownBlockAccessException(blockId);
    
@@ -192,6 +192,7 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
     freeNVMBlock(blockId); 
 
     m_blockMap.erase(itr); 
+    free(block);
     return (anticache_block);
 }
 
