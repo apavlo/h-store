@@ -76,8 +76,16 @@ void NVMAntiCacheDB::initializeDB() {
     return; 
     #endif
 
+    int partition_id;
     // use executor context to figure out which partition we are at
-    int partition_id = (int)m_executorContext->getPartitionId(); 
+    // if there is no executor context, assume this is a test and let it go
+    if (!m_executorContext) {
+        VOLT_WARN("NVMAntiCacheDB has no executor context. If this is an EE test, don't worry\n");
+        partition_id = 0;
+    } else {
+        partition_id = (int)m_executorContext->getPartitionId(); 
+    }
+    
     sprintf(partition_str, "%d", partition_id); 
 
     strcpy(nvm_file_name, m_dbDir.c_str()); 
