@@ -168,6 +168,8 @@ public:
 };
 
 TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
+    ChTempDir tempdir;
+
     ExecutorContext* ctx = m_engine->getExecutorContext();
     AntiCacheEvictionManager* acem = ctx->getAntiCacheEvictionManager();
     AntiCacheDB* berkeleydb = new BerkeleyAntiCacheDB(ctx, ".", BLOCK_SIZE);
