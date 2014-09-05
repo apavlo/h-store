@@ -170,8 +170,8 @@ public:
 TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     ExecutorContext* ctx = m_engine->getExecutorContext();
     AntiCacheEvictionManager* acem = ctx->getAntiCacheEvictionManager();
-    AntiCacheDB* berkeleydb = new BerkeleyAntiCacheDB(ctx, "/tmp/h-store/bdb", BLOCK_SIZE);
-    AntiCacheDB* nvmdb = new NVMAntiCacheDB(ctx, "/tmp/h-store/nvm", BLOCK_SIZE);
+    AntiCacheDB* berkeleydb = new BerkeleyAntiCacheDB(ctx, ".", BLOCK_SIZE);
+    AntiCacheDB* nvmdb = new NVMAntiCacheDB(ctx, ".", BLOCK_SIZE);
     
     string tableName("TEST");
     string payload("Test payload");
