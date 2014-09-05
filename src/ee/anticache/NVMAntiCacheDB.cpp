@@ -58,6 +58,10 @@ NVMAntiCacheDB::NVMAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long bl
     initializeDB();
 }
 
+NVMAntiCacheDB::~NVMAntiCacheDB() {
+    shutdownDB();
+}
+
 void NVMAntiCacheDB::initializeDB() {
     
     char nvm_file_name[150];
@@ -128,7 +132,7 @@ void NVMAntiCacheDB::initializeDB() {
     }
 
     close(nvm_fd); // can safely close file now, mmap creates new reference
-    fclose(nvm_file);
+    //fclose(nvm_file);
     
     // write out NULL characters to ensure entire file has been fetchted from memory
     for(int i = 0; i < NVM_FILE_SIZE; i++)

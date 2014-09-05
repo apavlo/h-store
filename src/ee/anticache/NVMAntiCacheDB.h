@@ -51,7 +51,7 @@ class NVMAntiCacheBlock : public AntiCacheBlock {
 class NVMAntiCacheDB : public AntiCacheDB {
     public:
         NVMAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
-        ~NVMAntiCacheDB() {};
+        ~NVMAntiCacheDB();
 
         void initializeDB();
 
