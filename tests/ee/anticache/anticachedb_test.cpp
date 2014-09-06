@@ -91,6 +91,7 @@ TEST_F(AntiCacheDBTest, BerkeleyWriteBlock) {
                              const_cast<char*>(payload.data()),
                              static_cast<int>(payload.size())+1);
     } catch (...) {
+        delete anticache;
         ASSERT_TRUE(false);
     }
     delete anticache;
@@ -112,6 +113,7 @@ TEST_F(AntiCacheDBTest, NVMWriteBlock) {
                              const_cast<char*>(payload.data()),
                              static_cast<int>(payload.size())+1);
     } catch (...) {
+        delete anticache;
         ASSERT_TRUE(false);
     }
     delete anticache;

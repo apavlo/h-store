@@ -597,19 +597,3 @@ int main() {
     return TestSuite::globalInstance()->runAll();
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
