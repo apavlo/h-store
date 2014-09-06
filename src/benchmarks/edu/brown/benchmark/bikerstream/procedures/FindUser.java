@@ -41,51 +41,18 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 @ProcInfo (
     singlePartition = true
 )
-public class GetDiscount extends VoltProcedure {
+public class FindUser extends VoltProcedure {
 
     // Logging Information
-    private static final Logger Log = Logger.getLogger(CheckoutBike.class);
-    // Is debugging on or not?
-    final boolean debug = Log.isDebugEnabled();
+    private static final Logger Log = Logger.getLogger(FindUser.class);
 
-    public final SQLStmt getStation = new SQLStmt(
-                "SELECT * FROM stations where station_id = ?"
+    public final SQLStmt getUser = new SQLStmt(
+                "SELECT * FROM users WHERE user_name=?"
             );
 
-    public final SQLStmt updateStation = new SQLStmt(
-                "UPDATE stations SET num_discs = ? where station_id = ?"
-            );
-
-    public final SQLStmt addDisc = new SQLStmt(
-                "INSERT INTO dicounts (rider_id, station_id, valid) VALUES (?,?,1)"
-            );
-
-    public final SQLStmt logSuccess = new SQLStmt(
-                "INSERT INTO logs (rider_id, time, success, action) VALUES (?,?,1,?)"
-            );
-
-
-    public long run(long rider_id, long station_id) throws Exception {
-
-        voltQueueSQL(getStation, station_id);
-        VoltTable results[] = voltExecuteSQL();
-
-        assert(results[0].getRowCount() == 1);
-
-        long numDiscs = results[0].fetchRow(0).getLong("num_discs");
-
-        if (numDiscs > 0) {
-
-            voltQueueSQL(updateStation, numDiscs -1, station_id);
-            voltQueueSQL(addDisc, rider_id, station_id);
-            voltQueueSQL(logSuccess, rider_id, new TimestampType(), "Got discount for station: " + station_id);
-            voltExecuteSQL(true);
-            return 0;
-
-        } else {
-            throw new RuntimeException("There are no discounts availible at station: " + station_id);
-        }
-
+    public VoltTable [] run(String user_name) {
+        voltQueueSQL(getUser, user_name);
+        return voltExecuteSQL(true);
     }
 
 } // End Class

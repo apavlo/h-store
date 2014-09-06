@@ -44,42 +44,97 @@ import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 public class CheckinBike extends VoltProcedure {
 
     // Logging Information
-    private static final Logger Log = Logger.getLogger(CheckoutBike.class);
+    private static final Logger Log = Logger.getLogger(CheckinBike.class);
     // Is debugging on or not?
     final boolean debug = Log.isDebugEnabled();
 
+    public final SQLStmt getUser = new SQLStmt(
+    			"SELECT * FROM users WHERE user_id = ?"
+    		);
+
     public final SQLStmt getStation = new SQLStmt(
-                "SELECT * FROM stationstatus where station_id = ?"
-            );
+        "SELECT * FROM stationstatus where station_id = ?"
+    );
 
     public final SQLStmt updateStation = new SQLStmt(
-                "UPDATE stationstatus SET current_bikes = ?, current_docks = ? where station_id = ?"
+        "UPDATE stationstatus SET current_bikes = ?, current_docks = ? where station_id = ?"
+    );
+
+    public final SQLStmt updateStationDiscount = new SQLStmt(
+                "UPDATE stationstatus SET current_bikes = ?, current_docks = ?, current_discount = ? where station_id = ?"
+            );
+
+    public final SQLStmt getBike = new SQLStmt(
+                "SELECT bike_id FROM bikes WHERE user_id = ?"
+            );
+
+    public final SQLStmt returnBike = new SQLStmt(
+                "UPDATE bikes SET user_id = 'NULL', station_id = ?, current_status = 1 WHERE bike_id = ?"
+            );
+
+    public final SQLStmt removeFromLocation = new SQLStmt(
+                "DELETE from userLocations WHERE user_id = ?"
             );
 
     public final SQLStmt log = new SQLStmt(
-                "INSERT INTO logs (user_id, time, success, action) VALUES (?,?,?,?)"
-            );
+        "INSERT INTO logs (user_id, time, success, action) VALUES (?,?,?,?)"
+    );
+
+    public final SQLStmt  checkDiscount = new SQLStmt (
+        "SELECT count(*) FROM discounts WHERE user_id = ?"
+    );
 
 
     public long run(long rider_id, long station_id) throws Exception {
 
-        voltQueueSQL(getStation, station_id);
-        VoltTable results[] = voltExecuteSQL();
+    	voltQueueSQL(getUser, rider_id);
+    	VoltTable results[] = voltExecuteSQL();
+    	if (results[0].getRowCount() < 1)
+            return BikerStreamConstants.USER_DOESNT_EXIST;
+    		//throw new RuntimeException("Rider: " + rider_id + " does not exist");
 
-        assert(results[0].getRowCount() == 1);
+        voltQueueSQL(getStation, station_id);
+        voltQueueSQL(checkDiscount, rider_id);
+        results = voltExecuteSQL();
+
+        //assert(results[0].getRowCount() == 1);
 
         long numBikes = results[0].fetchRow(0).getLong("current_bikes");
         long numDocks = results[0].fetchRow(0).getLong("current_docks");
+        long numDiscounts = results[0].fetchRow(0).getLong("current_discount");
+        boolean hasDiscount = results[1].asScalarLong() > 0;
 
         if (numDocks > 0){
-            voltQueueSQL(updateStation, ++numBikes, --numDocks, station_id);
+
+            voltQueueSQL(getBike, rider_id);
+            VoltTable bikes[] = voltExecuteSQL();
+            if (bikes[0].getRowCount() >= 1) {
+                Log.info("Checking into station: " + station_id + " by user: " + rider_id);
+                if (numDiscounts > 0 && !(hasDiscount)){
+                    voltQueueSQL(updateStationDiscount, ++numBikes, --numDocks, numDiscounts -1, station_id);
+                    Log.info("Rider: " + rider_id + " Checking in and Removing discount from station: " + station_id);
+                } else {
+                    voltQueueSQL(updateStation, ++numBikes, --numDocks, station_id);
+                    Log.info("Rider: " + rider_id + " Checking in and *not* Removing discount from station: " + station_id);
+                }
+                long bike_id = bikes[0].fetchRow(0).getLong(0);
+                voltQueueSQL(returnBike, station_id, bike_id);
+                voltQueueSQL(removeFromLocation, rider_id);
+                voltExecuteSQL();
+            }
+            else
+                return BikerStreamConstants.NO_BIKE_CHECKED_OUT;
+                //throw new Exception("Rider " + rider_id + " does not have a bike checked out");
+
             voltQueueSQL(log, rider_id, new TimestampType(), 1, "successfully docked bike at station: " + station_id);
-            voltExecuteSQL();
-            return 1;
+            voltExecuteSQL(true);
+            return BikerStreamConstants.CHECKIN_SUCCESS;
+
         } else {
+            Log.info("Could not checkinto station: " + station_id + " by rider: " + rider_id);
             voltQueueSQL(log, rider_id, new TimestampType(), 0, "could not dock bike at station: " + station_id);
-            voltExecuteSQL();
-            throw new RuntimeException("There are no docks availible at station: " + station_id);
+            voltExecuteSQL(true);
+            return BikerStreamConstants.FAILED_CHECKIN;
         }
 
     }

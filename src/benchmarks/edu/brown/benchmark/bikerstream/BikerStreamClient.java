@@ -32,8 +32,12 @@
 package edu.brown.benchmark.bikerstream;
 
 import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.jfree.util.Log;
+import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
@@ -47,6 +51,9 @@ public class BikerStreamClient extends BenchmarkComponent {
 
     // Bike Readings
     AtomicLong failure = new AtomicLong(0);
+
+    private static Semaphore waiters = new Semaphore(BikerStreamConstants.NUM_WAITERS);
+    private final long timer = (new TimestampType()).getMSTime() + BikerStreamConstants.GAME_TIMER;
 
     public static void main(String args[]) {
         BenchmarkComponent.main(BikerStreamClient.class, args, false);
@@ -76,43 +83,117 @@ public class BikerStreamClient extends BenchmarkComponent {
     @Override
     protected boolean runOnce() throws IOException {
 
-        // gnerate a client class struct for the current thread
+        // generate a client class for the current thread
         Client client = this.getClientHandle();
+        ClientResponse cr;
+        int waiting = BikerStreamConstants.NUM_WAITERS;
+        long result;
 
         // Bike reading generator
         try {
+            // Signup a random rider and get the rider's id
+            cr = client.callProcedure("SignUpRand");
+            result = cr.getResults()[0].asScalarLong();
+            incrementTransactionCounter(cr, 0);
+            long rider_id;
+            if (result != BikerStreamConstants.FAILED_SIGNUP)
+                rider_id = cr.getResults()[0].asScalarLong();
+            else
+                return false;
 
-            // Generate a random Rider ID
-            long rider_id = (int) (Math.random() * 100000);
-
-            // Create a new Rider Struct
-            BikeRider rider = new BikeRider(rider_id);
-
-            long startStation = rider.getStartingStation();
-            long endStation   = rider.getFinalStation();
-
-            // Sign the rider up, by sticking rider information into the DB
-            client.callProcedure(new SignUpCallback(), "SignUp",  rider.getRiderId());
-            client.callProcedure(new TestCallback(5), "LogRiderTrip", rider_id, startStation, endStation);
-            client.callProcedure(new TestCallback(4), "TestProcedure");
-            client.callProcedure(new CheckoutCallback(), "CheckoutBike",  rider.getRiderId(), rider.getStartingStation());
-
-            Reading point;
-            long time_t;
-
-            while (rider.hasPoints()) {
-
-                point = rider.getPoint();
-                client.callProcedure(new RideCallback(), "RideBike",  rider.getRiderId(), point.lat, point.lon);
-
-                // Sit and spin for specified time, to ensure spacing of gps points
-                long lastTime = (new TimestampType()).getMSTime();
-                while (((time_t = (new TimestampType()).getMSTime()) - lastTime) < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
-
+            // Create the rider using the id returned from the signup procedure
+            BikeRider rider;
+            boolean isWaiting = waiters.tryAcquire();
+            if (isWaiting && waiting > 0){
+                waiting--;
+                Log.info("Rider: " + rider_id + " is waiting");
+                rider = new BikeRider(rider_id, BikerStreamConstants.GAME_STATION);
+                while ((new TimestampType()).getMSTime() < timer ) {}
+            } else {
+                rider = new BikeRider(rider_id);
             }
 
-                client.callProcedure(new CheckinCallback(), "CheckinBike",  rider.getRiderId(), rider.getFinalStation());
+            // Checkout a bike from the Biker's initial station
+            // If the checkout fails then return, there must not be any bikes available at that station
+            cr = client.callProcedure("CheckoutBike", rider.getRiderId(), rider.getStartingStation());
+            result = cr.getResults()[0].asScalarLong();
+            incrementTransactionCounter(cr, 1);
+            if (result == BikerStreamConstants.FAILED_CHECKOUT)
+                return false;
 
+            // Get ready for getting the Biker's route data
+            LinkedList<Reading> route;
+            Reading point;
+
+            // The biker trip is divided into legs. after each leg the biker will stop to see if any nearby stations
+            // are providing discounts. If so the biker should deviate toward that station. If there are no more legs
+            // available then the rider is considered to be at the final destination and should attempt to checkin the
+            // bike.
+            while ((route = rider.getNextRoute()) != null) {
+
+                // As long as there are points in the current leg, put them into the data base at a rate specified by
+                // the MILI_BETWEEN_GPS_EVENTS Constant.
+                while ((point = route.poll()) != null) {
+                    client.callProcedure("RideBike", rider.getRiderId(), point.lat, point.lon);
+                    incrementTransactionCounter(cr, 2);
+                    long lastTime = (new TimestampType()).getMSTime();
+                    while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {
+                    }
+                }
+
+                // Check to see if we have more legs. This tells us that we are somewhere in the middle of a trip, and
+                // there may be a station close by offering discounts to us.
+                // TODO: check for discounts and alter route accordingly
+                if (rider.hasMorePoints()) {
+                    cr = client.callProcedure("GetNearDiscounts", rider_id);
+
+                    if (cr.getException() == null){
+
+                        VoltTable table = cr.getResults()[0];
+                        int numDiscounts = table.getRowCount();
+
+                        // Need to acquire the discount, if fail, try the next one if available
+                        for (int i=0; i < numDiscounts; ++i) {
+                            cr = client.callProcedure("AcceptDiscount", rider_id, table.fetchRow(i).getLong("station_id"));
+                            System.out.println("Rider: " + rider_id + " : Accepted Discount");
+
+                            result = cr.getResults()[0].asScalarLong();
+                            if (result != BikerStreamConstants.FAILED_ACCEPT_DISCOUNT){
+                                rider.deviateDirectly((int) cr.getResults()[0].asScalarLong());
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // When all legs of the journey are finished. Attempt to park the bike. The callback will handle whether or
+            //not we were successful.
+            cr = client.callProcedure("CheckinBike", rider.getRiderId(), rider.getFinalStation());
+            result = cr.getResults()[0].asScalarLong();
+            incrementTransactionCounter(cr, 3);
+            while (result == BikerStreamConstants.FAILED_CHECKIN) {
+
+                rider.deviateRandomly();
+                route = rider.getNextRoute();
+
+                // Put those points into the DB
+                while ((point = route.poll()) != null) {
+                    client.callProcedure("RideBike", rider.getRiderId(), point.lat, point.lon);
+                    incrementTransactionCounter(cr, 2);
+                    long lastTime = (new TimestampType()).getMSTime();
+                    while (((new TimestampType()).getMSTime()) - lastTime < BikerStreamConstants.MILI_BETWEEN_GPS_EVENTS) {}
+                }
+
+                // Try again to checkin the bike. Loop to check for success
+                cr = client.callProcedure("CheckinBike", rider.getRiderId(), rider.getFinalStation());
+                result = cr.getResults()[0].asScalarLong();
+                incrementTransactionCounter(cr, 3);
+
+            }
+        } catch (NoSuchElementException e) {
+            e.printStackTrace();
+            return false;
         } catch (Exception e) {
             e.printStackTrace();
             return false;
@@ -125,78 +206,13 @@ public class BikerStreamClient extends BenchmarkComponent {
     public String[] getTransactionDisplayNames() {
         // Return an array of transaction names
         String procNames[] = new String[]{
-            "SignUp",
-            "CheckoutBike",
-            "RideBike",
-            "CheckinBike",
-            "TestProcedure",
-            "LogRiderTrip"
+                "Riders signed up",
+                "Bikes checked out",
+                "Points added to the DB",
+                "Bikes checked in",
         };
         return (procNames);
     }
 
-
-    private class SignUpCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            // Increment the BenchmarkComponent's internal counter on the
-            // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse, 0);
-
-        }
-
-    } // END CLASS
-
-    private class CheckoutCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            // Increment the BenchmarkComponent's internal counter on the
-            // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse, 1);
-
-        }
-
-    } // END CLASS
-
-    private class RideCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            // Increment the BenchmarkComponent's internal counter on the
-            // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse, 2);
-
-        }
-
-    } // END CLASS
-
-    private class CheckinCallback implements ProcedureCallback {
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            // Increment the BenchmarkComponent's internal counter on the
-            // number of transactions that have been completed
-            incrementTransactionCounter(clientResponse, 3);
-
-        }
-
-    } // END CLASS
-
-    private class TestCallback implements ProcedureCallback {
-
-        private int procNum;
-
-        public TestCallback(int numProc) {
-            procNum = numProc;
-        }
-
-        @Override
-        public void clientCallback(ClientResponse clientResponse) {
-            incrementTransactionCounter(clientResponse, procNum);
-        }
-
-
-    } // END CLASS
 }
+
