@@ -44,11 +44,23 @@ namespace voltdb {
 NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) :
     AntiCacheBlock(blockId) {
 
-    m_block = block;
+    char* buffer = block;
+    std::string tableName = buffer;
+    block = buffer + tableName.size() + 1;
+    size -= tableName.size() + 1;
+
+    payload p;
+    p.tableName = tableName;
+    p.blockId = blockId;
+    p.data = block;
+    p.size = size;
+     
+    m_payload = p;
+    m_block = m_payload.data;
     m_size = size;
     m_blockType = ANTICACHEDB_NVM;
-    VOLT_DEBUG("AntiCacheBlock #%d [size=%ld / payload=%ld]",
-              blockId, m_size, m_payload.size);
+    VOLT_DEBUG("NVMAntiCacheBlock #%d from table: %s [size=%ld / payload=%ld = '%s']",
+              blockId, m_payload.tableName.c_str(), m_size, m_payload.size, m_payload.data);
 }
 
 NVMAntiCacheDB::NVMAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
@@ -140,7 +152,6 @@ void NVMAntiCacheDB::initializeDB() {
     }
 
     close(nvm_fd); // can safely close file now, mmap creates new reference
-    //fclose(nvm_file);
     
     // write out NULL characters to ensure entire file has been fetchted from memory
     for(int i = 0; i < NVM_FILE_SIZE; i++)
@@ -167,16 +178,25 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
                                 const char* data,
                                 const long size)  {
    
-  //int index = getFreeNVMBlockIndex();
-  //char* block = getNVMBlock(index);
     char* block = getNVMBlock(m_totalBlocks); 
-    memcpy(block, data, size);                      
-   //m_NVMBlocks[m_totalBlocks] = new char[size]; 
-   //memcpy(m_NVMBlocks[m_totalBlocks], data, size); 
+    long bufsize; 
+    char* buffer = new char [tableName.size() + 1 + size];
+    memset(buffer, 0, tableName.size() + 1 + size);
+    bufsize = tableName.size() + 1;
+    memcpy(buffer, tableName.c_str(), bufsize);
+    memcpy(buffer + bufsize, data, size);
+    bufsize += size;
+    memcpy(block, buffer, bufsize);                      
+    //memcpy(block, data, size);
 
-    VOLT_INFO("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, m_totalBlocks, size); 
-    m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(m_totalBlocks, static_cast<int32_t>(size))));
+    //m_NVMBlocks[m_totalBlocks] = new char[size]; 
+    //memcpy(m_NVMBlocks[m_totalBlocks], data, size); 
+
+    VOLT_DEBUG("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, m_totalBlocks, bufsize); 
+
+    m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(m_totalBlocks, static_cast<int32_t>(bufsize))));
     m_totalBlocks++; 
+    free(buffer);
 }
 
 AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
@@ -193,12 +213,12 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
     }
 
     int blockIndex = itr->second.first; 
-    VOLT_INFO("Reading NVM block: ID = %d, index = %d, size = %d", blockId, blockIndex, itr->second.second);
+    VOLT_DEBUG("Reading NVM block: ID = %d, index = %d, size = %d", blockId, blockIndex, itr->second.second);
    
     char* block_ptr = getNVMBlock(blockIndex);
     char* block = new char[itr->second.second];
     memcpy(block, block_ptr, itr->second.second); 
-
+    
     AntiCacheBlock* anticache_block = new NVMAntiCacheBlock(blockId, block, itr->second.second);
    
     freeNVMBlock(blockId); 
@@ -209,11 +229,11 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
 }
 
 char* NVMAntiCacheDB::getNVMBlock(int index) {
-  //char* nvm_block = new char[NVM_BLOCK_SIZE];     
-  //memcpy(nvm_block, m_NVMBlocks+(index*NVM_BLOCK_SIZE), NVM_BLOCK_SIZE); 
+    //char* nvm_block = new char[NVM_BLOCK_SIZE];     
+    //memcpy(nvm_block, m_NVMBlocks+(index*NVM_BLOCK_SIZE), NVM_BLOCK_SIZE); 
     
-  //return nvm_block; 
-  return (m_NVMBlocks+(index*NVM_BLOCK_SIZE));  
+    //return nvm_block; 
+    return (m_NVMBlocks+(index*NVM_BLOCK_SIZE));  
 }
 
 int NVMAntiCacheDB::getFreeNVMBlockIndex() {
