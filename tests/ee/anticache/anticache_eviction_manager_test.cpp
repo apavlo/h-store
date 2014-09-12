@@ -195,7 +195,7 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     //ASSERT_EQ(payload.size()+1, nvmblock->getSize());
     ASSERT_EQ(payload.size()+1, berkeleyblock->getSize());
     //ASSERT_EQ(tableName, nvmblock->getTableName());
-    //ASSERT_EQ(0, tableName.compare(berkeleyblock->getTableName()));
+    ASSERT_EQ(0, tableName.compare(berkeleyblock->getTableName()));
     //ASSERT_EQ(0, payload.compare(nvmblock->getData()));
     ASSERT_EQ(0, payload.compare(berkeleyblock->getData()));
     
