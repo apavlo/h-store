@@ -174,6 +174,7 @@ public enum ProjectType {
     VOTERWINSSTOREW100S1("VoterWinSStoreW100S1", "edu.brown.benchmark.voterexperiments.winsstore.w100s1"),
     VOTERWINSSTOREW100S5("VoterWinSStoreW100S5", "edu.brown.benchmark.voterexperiments.winsstore.w100s5"),
     VOTERWINSSTOREW100S10("VoterWinSStoreW100S10", "edu.brown.benchmark.voterexperiments.winsstore.w100s10"),
+    VOTERWINSSTOREW100S10WITHBATCH("VoterWinSStoreW100S10WithBatch", "edu.brown.benchmark.voterexperiments.winsstore.w100s10withbatch"),
     VOTERWINSSTOREW100S100("VoterWinSStoreW100S100", "edu.brown.benchmark.voterexperiments.winsstore.w100s100"),
     VOTERWINSSTOREW1000S1("VoterWinSStoreW1000S1", "edu.brown.benchmark.voterexperiments.winsstore.w1000s1"),
     VOTERWINSSTOREW1000S5("VoterWinSStoreW1000S5", "edu.brown.benchmark.voterexperiments.winsstore.w1000s5"),

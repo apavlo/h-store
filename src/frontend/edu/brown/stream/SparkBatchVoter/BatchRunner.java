@@ -1,4 +1,4 @@
-package edu.brown.stream;
+package edu.brown.stream.SparkBatchVoter;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -35,6 +35,8 @@ import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.stream.Batch;
+import edu.brown.stream.BatchRunnerResults;
 import edu.brown.utils.CollectionUtil;
 
 public class BatchRunner implements Runnable{
@@ -66,6 +68,7 @@ public class BatchRunner implements Runnable{
     
     private Catalog catalog;
     private Database catalog_db;
+    private InputClient inputclient = null;
     private String hostname = null;
     private List<String> hostnames = new ArrayList<String>();
     private List<InputClientConnection> connections = new ArrayList<InputClientConnection>();
@@ -84,8 +87,9 @@ public class BatchRunner implements Runnable{
     // ---------------------------------------------------------------
 
     
-    public BatchRunner(BlockingQueue<BatchRunnerResults> batchResultQueue, int rounds, boolean display)
+    public BatchRunner(InputClient inputclient, BlockingQueue<BatchRunnerResults> batchResultQueue, int rounds, boolean display)
     {
+        this.inputclient = inputclient;
         this.batchResultQueue = batchResultQueue;
         this.rounds = rounds;
         
@@ -211,7 +215,7 @@ public class BatchRunner implements Runnable{
                     Batch batch = this.batchQueue.take();
                     
                     // empty batch encountered, quit processing
-                    if(batch==null || batch.getID()==-1)
+                    if(batch==null || batch.getID()==-1 || batch.getSize()==0)
                         break;
                     
                     int retries = 3;
@@ -320,7 +324,7 @@ public class BatchRunner implements Runnable{
                 this.closeConnections();
                 
                 //
-                // inputclient.setStop(true);
+                inputclient.setBatchRounds(workers.size());
                 
                 //if (icc != null) icc.client.close();
             } catch (InterruptedException ex) {
@@ -801,8 +805,9 @@ public class BatchRunner implements Runnable{
                         + " with return batchid: " + response.getBatchId());
                 batchid = batch.getID();
                 batchsize = batch.getSize();
-                clientlatency = (int)batch.getLatency(); 
+                clientlatency = response.getClientRoundtrip();//(int)batch.getLatency(); 
                 clusterlatency = response.getClusterRoundtrip();
+                System.out.println(String.format("batchid: %d - size: %d - client latency: %d - cluster latency: %d ", batch.getID(), batch.getSize(), response.getClientRoundtrip(), response.getClusterRoundtrip()));
                 //runner.increaseBatchCounter(batch.getID(), batch.getSize(), (int)batch.getLatency(), response.getClusterRoundtrip());
             }
             
