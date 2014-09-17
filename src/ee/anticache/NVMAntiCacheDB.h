@@ -46,6 +46,7 @@ class NVMAntiCacheBlock : public AntiCacheBlock {
 
     private:
         NVMAntiCacheBlock(int16_t blockId, char* block, long size);
+        //std::string m_tableName;
 }; // CLASS
 
 class NVMAntiCacheDB : public AntiCacheDB {
