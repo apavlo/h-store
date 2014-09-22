@@ -33,7 +33,7 @@ conf-*.html
 .DS_Store
 SourceJars
 cmdlog
-.metadata/
+
 
 ## -------------------------------
 ## JNI Compiler Artifacts
