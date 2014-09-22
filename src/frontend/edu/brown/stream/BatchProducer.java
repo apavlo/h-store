@@ -5,7 +5,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class BatchProducer implements Runnable {
 
-    BlockingQueue<Tuple> queue = new LinkedBlockingQueue<Tuple>();
+    public BlockingQueue<Tuple> queue = new LinkedBlockingQueue<Tuple>();
     private BlockingQueue<Batch> batchQueue;
     private int timeinterval;
 
@@ -43,7 +43,7 @@ public class BatchProducer implements Runnable {
                 Batch batch = new Batch();
                 batch.setID(batchid++);
                 //batch.setTimestamp(currentTimeStamp);
-                //System.out.println("Creating batch-" + batch.getID() + " at time : " + currentTimeStamp);
+                System.out.println("Creating batch-" + batch.getID() + " at time : " + currentTimeStamp);
 
                 finishOperation = false;
                 // get all the tuples in a batch interval
@@ -57,6 +57,7 @@ public class BatchProducer implements Runnable {
                         if (tuple == null || tuple.getFieldLength() == 0) {
                             //System.out.println("Info - BatchProducer : encounter the last empty tuple");
                             finishOperation = true;
+                            //System.out.println("Batch : " + batch.toJSONString());
                             batchQueue.put(batch);
                             break;
                         }
@@ -72,6 +73,7 @@ public class BatchProducer implements Runnable {
                             //System.out.println("Finish packaging batch-" + batch.getID() + " and put it in queue at time : " + current);
                             // put this batch into batch queue
                             batch.setTimestamp(current);
+                            //System.out.println("Batch : " + batch.toJSONString());
                             batchQueue.put(batch);
                             // break to next interval
                             break;
@@ -87,7 +89,7 @@ public class BatchProducer implements Runnable {
                 } while (true);
 
                 // print for debugging
-                //System.out.println("Batch-" + batch.getID() + " : " + currentTimeStamp + " - #tuples : " + batch.getSize());
+                System.out.println("Batch-" + batch.getID() + " : " + currentTimeStamp + " - #tuples : " + batch.getSize());
 
                 if (finishOperation == true)
                     break;

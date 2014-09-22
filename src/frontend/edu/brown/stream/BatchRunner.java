@@ -46,6 +46,8 @@ public class BatchRunner implements Runnable{
     private boolean display = false;
     private int rounds = 10;
     
+    private String EntrySPName = "SimpleCall";
+    
     private class InputClientConnection {
         final Client client;
         final String hostname;
@@ -111,6 +113,11 @@ public class BatchRunner implements Runnable{
     public void setPort(int port)
     {
         this.port = port;
+    }
+    
+    public void setEntrySPName(String name)
+    {
+        this.EntrySPName = name;
     }
     
     private void createConnections() 
@@ -221,7 +228,7 @@ public class BatchRunner implements Runnable{
                                 System.out.println("Sending batch-" + batch.getID() + " to node-" + icc.hostname + " at time: " + currentTimeStamp);
                             }
                             //boolean successful = this.execBatch(icc.client, "SimpleCall", batch);
-                            TransactionRunner t = new TransactionRunner(this, batch, icc.client,"SimpleCall");
+                            TransactionRunner t = new TransactionRunner(this, batch, icc.client, this.EntrySPName);
                             workers.add(t);
                             t.start();
 
@@ -311,6 +318,10 @@ public class BatchRunner implements Runnable{
                     this.increaseBatchCounter(worker.batchid, worker.batchsize, worker.clientlatency, worker.clusterlatency);
                 }
                 this.closeConnections();
+                
+                //
+                // inputclient.setStop(true);
+                
                 //if (icc != null) icc.client.close();
             } catch (InterruptedException ex) {
                 // Ignore
@@ -650,7 +661,7 @@ public class BatchRunner implements Runnable{
                 //ois.close();
                 this.execBatch(client, procedurename, batch);
                 
-                displayResult();
+                //displayResult();
             }
             catch(Exception e){
                 e.printStackTrace();
@@ -769,10 +780,18 @@ public class BatchRunner implements Runnable{
             boolean result = true;
             //result = client.asynCallProcedure(null, catalog_proc.getName(), null, params);
             //ClientResponse response = client.callProcedure(catalog_proc.getName(), params);
+            System.out.println("Executing batch-" + batch.getID() 
+                    + " at time: " + currentTimeStamp);
             ClientResponse response = client.callStreamProcedure(catalog_proc.getName(), batch.getID(), params);
             
             if(response.getStatus()!=Status.OK)
+            {
+                currentTimeStamp = System.currentTimeMillis();
+                System.out.println("fail to finishing batch-" + batch.getID() 
+                        + " at time: " + currentTimeStamp);
+                
                 result = false;
+            }
             else
             {
                 currentTimeStamp = System.currentTimeMillis();
