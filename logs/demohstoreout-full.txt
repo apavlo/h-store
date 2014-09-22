@@ -18,13 +18,16 @@ Adam Gontier,7
 100
 ---------------------------
 **TrendingCount**
-94
+95
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 12
 ---------------------------
 **VotesTilNextDelete**
 903
+---------------------------
+**SuccessCount**
+97
 ---------------------------
 ####200####
 **TopThree**
@@ -48,11 +51,14 @@ Avril Lavigne,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 12
 ---------------------------
 **VotesTilNextDelete**
 806
+---------------------------
+**SuccessCount**
+194
 ---------------------------
 ####300####
 **TopThree**
@@ -76,11 +82,14 @@ Jim Bryson,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 12
 ---------------------------
 **VotesTilNextDelete**
 707
+---------------------------
+**SuccessCount**
+293
 ---------------------------
 ####400####
 **TopThree**
@@ -104,11 +113,14 @@ Jann Arden,10
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 12
 ---------------------------
 **VotesTilNextDelete**
 610
+---------------------------
+**SuccessCount**
+390
 ---------------------------
 ####500####
 **TopThree**
@@ -132,11 +144,14 @@ Nelly Furtado,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 12
 ---------------------------
 **VotesTilNextDelete**
 511
+---------------------------
+**SuccessCount**
+489
 ---------------------------
 ####600####
 **TopThree**
@@ -152,7 +167,7 @@ Ashley Leggat,41
 **TrendingThree**
 Jim Bryson,14
 Avril Lavigne,13
-Adam Gontier,12
+Adam Gontier,11
 ---------------------------
 **VoteCount**
 600
@@ -160,11 +175,14 @@ Adam Gontier,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 12
 ---------------------------
 **VotesTilNextDelete**
 414
+---------------------------
+**SuccessCount**
+586
 ---------------------------
 ####700####
 **TopThree**
@@ -188,11 +206,14 @@ Ashley Leggat,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 12
 ---------------------------
 **VotesTilNextDelete**
 316
+---------------------------
+**SuccessCount**
+684
 ---------------------------
 ####800####
 **TopThree**
@@ -216,11 +237,14 @@ Emily Haines,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 12
 ---------------------------
 **VotesTilNextDelete**
 217
+---------------------------
+**SuccessCount**
+783
 ---------------------------
 ####900####
 **TopThree**
@@ -236,7 +260,7 @@ Michael Buble,63
 **TrendingThree**
 Justin Bieber,15
 Ashley Leggat,13
-Micah Barnes,11
+Avril Lavigne,12
 ---------------------------
 **VoteCount**
 900
@@ -244,11 +268,14 @@ Micah Barnes,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 12
 ---------------------------
 **VotesTilNextDelete**
 121
+---------------------------
+**SuccessCount**
+879
 ---------------------------
 ####1000####
 **TopThree**
@@ -272,11 +299,14 @@ Micah Barnes,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 12
 ---------------------------
 **VotesTilNextDelete**
 23
+---------------------------
+**SuccessCount**
+977
 ---------------------------
 ####DELETECANDIDATE####
 **TopThree**
@@ -285,7 +315,7 @@ Avril Lavigne,99
 Jim Bryson,90
 ---------------------------
 **BottomThree**
-Celine Dion,65
+Jann Arden,64
 Michael Buble,71
 Justin Bieber,78
 ---------------------------
@@ -295,32 +325,35 @@ Adam Gontier,14
 Ashley Leggat,10
 ---------------------------
 **VoteCount**
-1024
+1023
 ---------------------------
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 11
 ---------------------------
 **VotesTilNextDelete**
 1000
 ---------------------------
+**SuccessCount**
+1000
+---------------------------
 ####1100####
 **TopThree**
-Emily Haines,105
-Avril Lavigne,101
-Jim Bryson,92
+Emily Haines,111
+Avril Lavigne,105
+Jim Bryson,98
 ---------------------------
 **BottomThree**
-Celine Dion,71
-Michael Buble,71
-Justin Bieber,78
+Michael Buble,77
+Jann Arden,77
+Justin Bieber,83
 ---------------------------
 **TrendingThree**
-Adam Gontier,13
-Emily Haines,13
-Celine Dion,12
+Jann Arden,16
+Emily Haines,11
+Avril Lavigne,10
 ---------------------------
 **VoteCount**
 1100
@@ -328,27 +361,30 @@ Celine Dion,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 11
 ---------------------------
 **VotesTilNextDelete**
-987
+932
+---------------------------
+**SuccessCount**
+1068
 ---------------------------
 ####1200####
 **TopThree**
-Emily Haines,121
-Avril Lavigne,110
-Jim Bryson,100
+Emily Haines,127
+Avril Lavigne,114
+Jim Bryson,106
 ---------------------------
 **BottomThree**
-Celine Dion,73
-Michael Buble,80
-Justin Bieber,88
+Michael Buble,86
+Jann Arden,86
+Nelly Furtado,93
 ---------------------------
 **TrendingThree**
 Emily Haines,16
-Leonard Cohen,12
-Avril Lavigne,11
+Leonard Cohen,11
+Micah Barnes,10
 ---------------------------
 **VoteCount**
 1200
@@ -356,27 +392,30 @@ Avril Lavigne,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 11
 ---------------------------
 **VotesTilNextDelete**
-896
+834
+---------------------------
+**SuccessCount**
+1166
 ---------------------------
 ####1300####
 **TopThree**
-Emily Haines,130
-Avril Lavigne,117
-Micah Barnes,109
+Emily Haines,136
+Avril Lavigne,121
+Jim Bryson,114
 ---------------------------
 **BottomThree**
-Celine Dion,76
-Michael Buble,88
-Justin Bieber,97
+Michael Buble,94
+Jann Arden,94
+Justin Bieber,102
 ---------------------------
 **TrendingThree**
-Micah Barnes,13
-Nelly Furtado,13
-Justin Bieber,11
+Micah Barnes,12
+Nelly Furtado,12
+Jann Arden,10
 ---------------------------
 **VoteCount**
 1300
@@ -384,27 +423,30 @@ Justin Bieber,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 11
 ---------------------------
 **VotesTilNextDelete**
-806
+739
+---------------------------
+**SuccessCount**
+1261
 ---------------------------
 ####1400####
 **TopThree**
-Emily Haines,141
-Avril Lavigne,127
-Jim Bryson,119
+Emily Haines,147
+Avril Lavigne,131
+Jim Bryson,125
 ---------------------------
 **BottomThree**
-Celine Dion,78
-Michael Buble,95
-Justin Bieber,103
+Jann Arden,100
+Michael Buble,101
+Justin Bieber,108
 ---------------------------
 **TrendingThree**
 Jim Bryson,12
-Ashley Leggat,12
 Adam Gontier,11
+Emily Haines,11
 ---------------------------
 **VoteCount**
 1400
@@ -412,26 +454,29 @@ Adam Gontier,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 11
 ---------------------------
 **VotesTilNextDelete**
-713
+642
+---------------------------
+**SuccessCount**
+1358
 ---------------------------
 ####1500####
 **TopThree**
-Emily Haines,146
-Avril Lavigne,137
-Micah Barnes,129
+Emily Haines,152
+Avril Lavigne,141
+Jim Bryson,132
 ---------------------------
 **BottomThree**
-Celine Dion,79
-Michael Buble,108
-Justin Bieber,109
+Michael Buble,114
+Justin Bieber,114
+Jann Arden,114
 ---------------------------
 **TrendingThree**
+Jann Arden,14
 Michael Buble,14
-Micah Barnes,13
 Leonard Cohen,12
 ---------------------------
 **VoteCount**
@@ -440,26 +485,29 @@ Leonard Cohen,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 11
 ---------------------------
 **VotesTilNextDelete**
-629
+545
+---------------------------
+**SuccessCount**
+1455
 ---------------------------
 ####1600####
 **TopThree**
-Emily Haines,156
-Avril Lavigne,145
-Micah Barnes,134
+Emily Haines,162
+Avril Lavigne,149
+Jim Bryson,138
 ---------------------------
 **BottomThree**
-Celine Dion,81
-Justin Bieber,119
-Adam Gontier,123
+Justin Bieber,124
+Jann Arden,124
+Nelly Furtado,127
 ---------------------------
 **TrendingThree**
-Michael Buble,19
-Justin Bieber,11
+Michael Buble,16
+Jann Arden,12
 Emily Haines,11
 ---------------------------
 **VoteCount**
@@ -468,25 +516,28 @@ Emily Haines,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 11
 ---------------------------
 **VotesTilNextDelete**
-544
+452
+---------------------------
+**SuccessCount**
+1548
 ---------------------------
 ####1700####
 **TopThree**
-Emily Haines,161
-Avril Lavigne,154
-Jim Bryson,143
+Emily Haines,167
+Avril Lavigne,158
+Jim Bryson,149
 ---------------------------
 **BottomThree**
-Celine Dion,83
-Nelly Furtado,125
-Adam Gontier,128
+Nelly Furtado,129
+Jann Arden,129
+Adam Gontier,134
 ---------------------------
 **TrendingThree**
-Justin Bieber,19
+Justin Bieber,18
 Michael Buble,14
 Leonard Cohen,13
 ---------------------------
@@ -496,26 +547,29 @@ Leonard Cohen,13
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 11
 ---------------------------
 **VotesTilNextDelete**
-451
+356
+---------------------------
+**SuccessCount**
+1644
 ---------------------------
 ####1800####
 **TopThree**
-Emily Haines,172
-Avril Lavigne,159
-Micah Barnes,152
+Emily Haines,178
+Avril Lavigne,163
+Leonard Cohen,155
 ---------------------------
 **BottomThree**
-Celine Dion,83
-Adam Gontier,136
-Nelly Furtado,138
+Jann Arden,141
+Adam Gontier,142
+Nelly Furtado,142
 ---------------------------
 **TrendingThree**
-Justin Bieber,14
-Micah Barnes,13
+Jann Arden,12
+Micah Barnes,12
 Leonard Cohen,12
 ---------------------------
 **VoteCount**
@@ -524,26 +578,29 @@ Leonard Cohen,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 11
 ---------------------------
 **VotesTilNextDelete**
-364
+257
+---------------------------
+**SuccessCount**
+1743
 ---------------------------
 ####1900####
 **TopThree**
-Emily Haines,177
-Avril Lavigne,170
-Micah Barnes,161
+Emily Haines,183
+Avril Lavigne,174
+Leonard Cohen,165
 ---------------------------
 **BottomThree**
-Celine Dion,84
-Nelly Furtado,145
-Adam Gontier,146
+Nelly Furtado,149
+Jann Arden,149
+Adam Gontier,152
 ---------------------------
 **TrendingThree**
-Avril Lavigne,12
 Leonard Cohen,11
+Avril Lavigne,11
 Ashley Leggat,11
 ---------------------------
 **VoteCount**
@@ -552,27 +609,30 @@ Ashley Leggat,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 11
 ---------------------------
 **VotesTilNextDelete**
-272
+158
+---------------------------
+**SuccessCount**
+1842
 ---------------------------
 ####2000####
 **TopThree**
-Emily Haines,188
-Avril Lavigne,183
-Jim Bryson,169
+Emily Haines,194
+Avril Lavigne,187
+Jim Bryson,175
 ---------------------------
 **BottomThree**
-Celine Dion,86
-Nelly Furtado,154
-Adam Gontier,155
+Nelly Furtado,158
+Jann Arden,158
+Adam Gontier,161
 ---------------------------
 **TrendingThree**
 Avril Lavigne,14
 Jim Bryson,13
-Adam Gontier,13
+Emily Haines,11
 ---------------------------
 **VoteCount**
 2000
@@ -580,27 +640,61 @@ Adam Gontier,13
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 11
 ---------------------------
 **VotesTilNextDelete**
-183
+62
+---------------------------
+**SuccessCount**
+1938
+---------------------------
+####DELETECANDIDATE####
+**TopThree**
+Emily Haines,197
+Avril Lavigne,191
+Justin Bieber,180
+---------------------------
+**BottomThree**
+Jann Arden,160
+Adam Gontier,169
+Michael Buble,172
+---------------------------
+**TrendingThree**
+Justin Bieber,15
+Adam Gontier,13
+Jim Bryson,11
+---------------------------
+**VoteCount**
+2062
+---------------------------
+**TrendingCount**
+100
+---------------------------
+**remainingContestants**
+10
+---------------------------
+**VotesTilNextDelete**
+1000
+---------------------------
+**SuccessCount**
+2000
 ---------------------------
 ####2100####
 **TopThree**
-Emily Haines,191
-Avril Lavigne,188
-Justin Bieber,178
+Emily Haines,197
+Avril Lavigne,192
+Justin Bieber,186
 ---------------------------
 **BottomThree**
-Celine Dion,86
-Nelly Furtado,161
-Adam Gontier,163
+Adam Gontier,173
+Jann Arden,173
+Michael Buble,175
 ---------------------------
 **TrendingThree**
-Justin Bieber,18
-Jim Bryson,11
-Adam Gontier,11
+Justin Bieber,20
+Jann Arden,15
+Adam Gontier,13
 ---------------------------
 **VoteCount**
 2100
@@ -608,27 +702,30 @@ Adam Gontier,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-11
+**remainingContestants**
+10
 ---------------------------
 **VotesTilNextDelete**
-113
+968
+---------------------------
+**SuccessCount**
+2032
 ---------------------------
 ####2200####
 **TopThree**
-Emily Haines,191
-Avril Lavigne,188
-Justin Bieber,178
+Emily Haines,210
+Avril Lavigne,209
+Justin Bieber,194
 ---------------------------
 **BottomThree**
-Celine Dion,86
-Nelly Furtado,161
-Adam Gontier,163
+Adam Gontier,182
+Micah Barnes,182
+Jann Arden,182
 ---------------------------
 **TrendingThree**
-Justin Bieber,18
-Jim Bryson,11
-Adam Gontier,11
+Avril Lavigne,17
+Emily Haines,13
+Jann Arden,11
 ---------------------------
 **VoteCount**
 2200
@@ -636,27 +733,30 @@ Adam Gontier,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-11
+**remainingContestants**
+10
 ---------------------------
 **VotesTilNextDelete**
-113
+872
+---------------------------
+**SuccessCount**
+2128
 ---------------------------
 ####2300####
 **TopThree**
-Emily Haines,196
-Avril Lavigne,195
-Justin Bieber,186
+Avril Lavigne,218
+Emily Haines,215
+Justin Bieber,207
 ---------------------------
 **BottomThree**
-Celine Dion,87
-Nelly Furtado,163
-Adam Gontier,170
+Michael Buble,190
+Micah Barnes,190
+Jann Arden,190
 ---------------------------
 **TrendingThree**
-Justin Bieber,19
-Adam Gontier,12
-Jim Bryson,11
+Leonard Cohen,14
+Adam Gontier,13
+Justin Bieber,12
 ---------------------------
 **VoteCount**
 2300
@@ -664,55 +764,30 @@ Jim Bryson,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-11
----------------------------
-**VotesTilNextDelete**
-54
----------------------------
-####DELETECANDIDATE####
-**TopThree**
-Emily Haines,207
-Avril Lavigne,204
-Justin Bieber,191
----------------------------
-**BottomThree**
-Nelly Furtado,163
-Adam Gontier,175
-Michael Buble,178
----------------------------
-**TrendingThree**
-Emily Haines,16
-Avril Lavigne,14
-Justin Bieber,12
----------------------------
-**VoteCount**
-2361
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
+**remainingContestants**
 10
 ---------------------------
 **VotesTilNextDelete**
-1000
+782
+---------------------------
+**SuccessCount**
+2218
 ---------------------------
 ####2400####
 **TopThree**
-Emily Haines,211
-Avril Lavigne,208
-Justin Bieber,195
+Avril Lavigne,231
+Emily Haines,230
+Justin Bieber,216
 ---------------------------
 **BottomThree**
-Nelly Furtado,163
-Adam Gontier,177
-Michael Buble,182
+Michael Buble,199
+Micah Barnes,199
+Jann Arden,199
 ---------------------------
 **TrendingThree**
-Avril Lavigne,15
 Emily Haines,14
-Ashley Leggat,12
+Avril Lavigne,14
+Ashley Leggat,13
 ---------------------------
 **VoteCount**
 2400
@@ -720,27 +795,30 @@ Ashley Leggat,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 10
 ---------------------------
 **VotesTilNextDelete**
-964
+688
+---------------------------
+**SuccessCount**
+2312
 ---------------------------
 ####2500####
 **TopThree**
-Emily Haines,223
-Avril Lavigne,219
-Justin Bieber,206
+Emily Haines,242
+Avril Lavigne,242
+Justin Bieber,227
 ---------------------------
 **BottomThree**
-Nelly Furtado,165
-Adam Gontier,185
-Leonard Cohen,190
+Micah Barnes,206
+Jann Arden,206
+Leonard Cohen,208
 ---------------------------
 **TrendingThree**
 Ashley Leggat,15
-Justin Bieber,13
 Michael Buble,13
+Emily Haines,13
 ---------------------------
 **VoteCount**
 2500
@@ -748,22 +826,25 @@ Michael Buble,13
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 10
 ---------------------------
 **VotesTilNextDelete**
-875
+594
+---------------------------
+**SuccessCount**
+2406
 ---------------------------
 ####2600####
 **TopThree**
-Emily Haines,237
-Avril Lavigne,231
-Justin Bieber,215
+Emily Haines,256
+Avril Lavigne,254
+Justin Bieber,236
 ---------------------------
 **BottomThree**
-Nelly Furtado,168
-Adam Gontier,197
-Jim Bryson,198
+Jann Arden,214
+Micah Barnes,215
+Leonard Cohen,217
 ---------------------------
 **TrendingThree**
 Emily Haines,15
@@ -776,26 +857,29 @@ Avril Lavigne,14
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 10
 ---------------------------
 **VotesTilNextDelete**
-788
+502
+---------------------------
+**SuccessCount**
+2498
 ---------------------------
 ####2700####
 **TopThree**
-Emily Haines,242
-Avril Lavigne,242
-Justin Bieber,225
+Avril Lavigne,265
+Emily Haines,261
+Justin Bieber,246
 ---------------------------
 **BottomThree**
-Nelly Furtado,173
-Michael Buble,204
-Adam Gontier,206
+Michael Buble,221
+Jann Arden,221
+Micah Barnes,222
 ---------------------------
 **TrendingThree**
-Jim Bryson,14
 Ashley Leggat,14
+Jim Bryson,13
 Justin Bieber,12
 ---------------------------
 **VoteCount**
@@ -804,27 +888,30 @@ Justin Bieber,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 10
 ---------------------------
 **VotesTilNextDelete**
-701
+413
+---------------------------
+**SuccessCount**
+2587
 ---------------------------
 ####2800####
 **TopThree**
-Emily Haines,251
-Avril Lavigne,248
-Ashley Leggat,235
+Avril Lavigne,271
+Emily Haines,270
+Justin Bieber,255
 ---------------------------
 **BottomThree**
-Nelly Furtado,174
-Adam Gontier,214
-Jim Bryson,214
+Michael Buble,232
+Jann Arden,232
+Jim Bryson,234
 ---------------------------
 **TrendingThree**
-Leonard Cohen,15
 Micah Barnes,13
-Ashley Leggat,13
+Leonard Cohen,13
+Ashley Leggat,12
 ---------------------------
 **VoteCount**
 2800
@@ -832,22 +919,25 @@ Ashley Leggat,13
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 10
 ---------------------------
 **VotesTilNextDelete**
-617
+319
+---------------------------
+**SuccessCount**
+2681
 ---------------------------
 ####2900####
 **TopThree**
-Emily Haines,258
-Avril Lavigne,255
-Justin Bieber,248
+Avril Lavigne,278
+Emily Haines,277
+Justin Bieber,269
 ---------------------------
 **BottomThree**
-Nelly Furtado,175
-Michael Buble,222
-Jim Bryson,224
+Michael Buble,239
+Jann Arden,239
+Jim Bryson,244
 ---------------------------
 **TrendingThree**
 Justin Bieber,15
@@ -860,27 +950,30 @@ Ashley Leggat,13
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 10
 ---------------------------
 **VotesTilNextDelete**
-526
+222
+---------------------------
+**SuccessCount**
+2778
 ---------------------------
 ####3000####
 **TopThree**
-Emily Haines,268
-Avril Lavigne,265
-Justin Bieber,255
+Avril Lavigne,288
+Emily Haines,287
+Justin Bieber,276
 ---------------------------
 **BottomThree**
-Nelly Furtado,177
-Jim Bryson,230
-Michael Buble,234
+Jim Bryson,250
+Jann Arden,250
+Michael Buble,251
 ---------------------------
 **TrendingThree**
-Adam Gontier,14
 Michael Buble,12
 Leonard Cohen,12
+Jann Arden,11
 ---------------------------
 **VoteCount**
 3000
@@ -888,27 +981,30 @@ Leonard Cohen,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 10
 ---------------------------
 **VotesTilNextDelete**
-441
+128
+---------------------------
+**SuccessCount**
+2872
 ---------------------------
 ####3100####
 **TopThree**
-Emily Haines,278
-Avril Lavigne,278
-Justin Bieber,263
+Avril Lavigne,301
+Emily Haines,297
+Justin Bieber,284
 ---------------------------
 **BottomThree**
-Nelly Furtado,179
-Michael Buble,242
-Jim Bryson,242
+Michael Buble,259
+Jann Arden,259
+Micah Barnes,261
 ---------------------------
 **TrendingThree**
-Avril Lavigne,17
-Adam Gontier,13
+Avril Lavigne,15
 Jim Bryson,12
+Adam Gontier,12
 ---------------------------
 **VoteCount**
 3100
@@ -916,27 +1012,61 @@ Jim Bryson,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 10
 ---------------------------
 **VotesTilNextDelete**
-352
+32
+---------------------------
+**SuccessCount**
+2968
+---------------------------
+####DELETECANDIDATE####
+**TopThree**
+Avril Lavigne,303
+Emily Haines,298
+Justin Bieber,292
+---------------------------
+**BottomThree**
+Michael Buble,262
+Micah Barnes,262
+Jim Bryson,267
+---------------------------
+**TrendingThree**
+Justin Bieber,14
+Jim Bryson,12
+Avril Lavigne,12
+---------------------------
+**VoteCount**
+3134
+---------------------------
+**TrendingCount**
+100
+---------------------------
+**remainingContestants**
+9
+---------------------------
+**VotesTilNextDelete**
+1000
+---------------------------
+**SuccessCount**
+3001
 ---------------------------
 ####3200####
 **TopThree**
-Avril Lavigne,281
-Emily Haines,279
-Justin Bieber,272
+Avril Lavigne,304
+Emily Haines,298
+Justin Bieber,293
 ---------------------------
 **BottomThree**
-Nelly Furtado,179
-Jim Bryson,247
-Micah Barnes,247
+Micah Barnes,263
+Michael Buble,266
+Jim Bryson,267
 ---------------------------
 **TrendingThree**
 Justin Bieber,15
-Jim Bryson,12
-Avril Lavigne,12
+Jim Bryson,11
+Michael Buble,11
 ---------------------------
 **VoteCount**
 3200
@@ -944,27 +1074,30 @@ Avril Lavigne,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-10
+**remainingContestants**
+9
 ---------------------------
 **VotesTilNextDelete**
-312
+990
+---------------------------
+**SuccessCount**
+3010
 ---------------------------
 ####3300####
 **TopThree**
-Avril Lavigne,282
-Emily Haines,279
-Justin Bieber,272
+Avril Lavigne,304
+Emily Haines,298
+Justin Bieber,293
 ---------------------------
 **BottomThree**
-Nelly Furtado,179
-Jim Bryson,247
-Micah Barnes,247
+Micah Barnes,263
+Michael Buble,266
+Jim Bryson,267
 ---------------------------
 **TrendingThree**
 Justin Bieber,15
-Avril Lavigne,12
 Jim Bryson,11
+Michael Buble,11
 ---------------------------
 **VoteCount**
 3300
@@ -972,27 +1105,30 @@ Jim Bryson,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-10
+**remainingContestants**
+9
 ---------------------------
 **VotesTilNextDelete**
-309
+990
+---------------------------
+**SuccessCount**
+3010
 ---------------------------
 ####3400####
 **TopThree**
-Avril Lavigne,282
-Emily Haines,280
-Justin Bieber,272
+Avril Lavigne,304
+Emily Haines,298
+Justin Bieber,293
 ---------------------------
 **BottomThree**
-Nelly Furtado,179
-Jim Bryson,248
-Micah Barnes,248
+Micah Barnes,263
+Michael Buble,266
+Jim Bryson,267
 ---------------------------
 **TrendingThree**
 Justin Bieber,15
-Jim Bryson,12
-Micah Barnes,11
+Jim Bryson,11
+Michael Buble,11
 ---------------------------
 **VoteCount**
 3400
@@ -1000,27 +1136,30 @@ Micah Barnes,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-10
+**remainingContestants**
+9
 ---------------------------
 **VotesTilNextDelete**
-306
+990
+---------------------------
+**SuccessCount**
+3010
 ---------------------------
 ####3500####
 **TopThree**
-Emily Haines,296
-Avril Lavigne,295
-Justin Bieber,282
+Avril Lavigne,317
+Emily Haines,314
+Justin Bieber,303
 ---------------------------
 **BottomThree**
-Nelly Furtado,182
-Michael Buble,252
-Jim Bryson,253
+Michael Buble,269
+Jim Bryson,272
+Micah Barnes,274
 ---------------------------
 **TrendingThree**
-Emily Haines,16
-Avril Lavigne,15
-Ashley Leggat,15
+Emily Haines,15
+Avril Lavigne,14
+Ashley Leggat,14
 ---------------------------
 **VoteCount**
 3500
@@ -1028,22 +1167,25 @@ Ashley Leggat,15
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-10
+**remainingContestants**
+9
 ---------------------------
 **VotesTilNextDelete**
-216
+903
+---------------------------
+**SuccessCount**
+3097
 ---------------------------
 ####3600####
 **TopThree**
-Emily Haines,306
-Avril Lavigne,303
-Justin Bieber,296
+Avril Lavigne,325
+Emily Haines,324
+Justin Bieber,317
 ---------------------------
 **BottomThree**
-Nelly Furtado,182
-Michael Buble,253
-Jim Bryson,262
+Michael Buble,270
+Jim Bryson,281
+Micah Barnes,288
 ---------------------------
 **TrendingThree**
 Ashley Leggat,19
@@ -1056,25 +1198,28 @@ Micah Barnes,14
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-10
+**remainingContestants**
+9
 ---------------------------
 **VotesTilNextDelete**
-128
+815
+---------------------------
+**SuccessCount**
+3185
 ---------------------------
 ####3700####
 **TopThree**
-Emily Haines,324
-Avril Lavigne,318
-Justin Bieber,305
+Emily Haines,342
+Avril Lavigne,340
+Justin Bieber,326
 ---------------------------
 **BottomThree**
-Nelly Furtado,185
-Michael Buble,254
-Jim Bryson,271
+Michael Buble,271
+Jim Bryson,290
+Micah Barnes,296
 ---------------------------
 **TrendingThree**
-Emily Haines,19
+Emily Haines,20
 Leonard Cohen,15
 Avril Lavigne,15
 ---------------------------
@@ -1084,55 +1229,30 @@ Avril Lavigne,15
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-10
----------------------------
-**VotesTilNextDelete**
-39
----------------------------
-####DELETECANDIDATE####
-**TopThree**
-Emily Haines,327
-Avril Lavigne,324
-Justin Bieber,306
----------------------------
-**BottomThree**
-Michael Buble,256
-Jim Bryson,278
-Adam Gontier,283
----------------------------
-**TrendingThree**
-Avril Lavigne,19
-Leonard Cohen,15
-Emily Haines,14
----------------------------
-**VoteCount**
-3746
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-1000
+729
+---------------------------
+**SuccessCount**
+3271
 ---------------------------
 ####3800####
 **TopThree**
-Emily Haines,332
-Avril Lavigne,328
-Ashley Leggat,310
+Emily Haines,350
+Avril Lavigne,350
+Justin Bieber,329
 ---------------------------
 **BottomThree**
-Michael Buble,256
-Jim Bryson,287
-Adam Gontier,290
+Michael Buble,273
+Jim Bryson,306
+Micah Barnes,308
 ---------------------------
 **TrendingThree**
 Jim Bryson,19
-Avril Lavigne,14
-Micah Barnes,13
+Avril Lavigne,15
+Adam Gontier,14
 ---------------------------
 **VoteCount**
 3800
@@ -1140,22 +1260,25 @@ Micah Barnes,13
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-957
+648
+---------------------------
+**SuccessCount**
+3352
 ---------------------------
 ####3900####
 **TopThree**
-Emily Haines,341
-Avril Lavigne,339
-Justin Bieber,322
+Avril Lavigne,361
+Emily Haines,359
+Justin Bieber,343
 ---------------------------
 **BottomThree**
-Michael Buble,257
-Jim Bryson,295
-Adam Gontier,296
+Michael Buble,274
+Jim Bryson,314
+Adam Gontier,321
 ---------------------------
 **TrendingThree**
 Justin Bieber,16
@@ -1168,22 +1291,25 @@ Emily Haines,13
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-872
+563
+---------------------------
+**SuccessCount**
+3437
 ---------------------------
 ####4000####
 **TopThree**
-Avril Lavigne,351
-Emily Haines,349
-Ashley Leggat,334
+Avril Lavigne,373
+Emily Haines,367
+Justin Bieber,352
 ---------------------------
 **BottomThree**
-Michael Buble,258
-Jim Bryson,302
-Adam Gontier,309
+Michael Buble,275
+Jim Bryson,321
+Micah Barnes,332
 ---------------------------
 **TrendingThree**
 Leonard Cohen,15
@@ -1196,22 +1322,25 @@ Avril Lavigne,14
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-785
+476
+---------------------------
+**SuccessCount**
+3524
 ---------------------------
 ####4100####
 **TopThree**
-Avril Lavigne,361
-Emily Haines,355
-Ashley Leggat,346
+Avril Lavigne,383
+Emily Haines,373
+Justin Bieber,359
 ---------------------------
 **BottomThree**
-Michael Buble,258
-Jim Bryson,315
-Adam Gontier,322
+Michael Buble,275
+Jim Bryson,334
+Micah Barnes,339
 ---------------------------
 **TrendingThree**
 Ashley Leggat,17
@@ -1224,22 +1353,25 @@ Adam Gontier,15
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-706
+397
+---------------------------
+**SuccessCount**
+3603
 ---------------------------
 ####4200####
 **TopThree**
-Avril Lavigne,368
-Emily Haines,361
-Justin Bieber,355
+Avril Lavigne,390
+Emily Haines,379
+Justin Bieber,376
 ---------------------------
 **BottomThree**
-Michael Buble,262
-Jim Bryson,326
-Adam Gontier,331
+Michael Buble,279
+Jim Bryson,345
+Micah Barnes,349
 ---------------------------
 **TrendingThree**
 Justin Bieber,18
@@ -1252,27 +1384,30 @@ Ashley Leggat,14
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-625
+316
+---------------------------
+**SuccessCount**
+3684
 ---------------------------
 ####4300####
 **TopThree**
-Avril Lavigne,370
-Emily Haines,365
-Justin Bieber,360
+Avril Lavigne,392
+Emily Haines,383
+Justin Bieber,380
 ---------------------------
 **BottomThree**
-Michael Buble,263
-Jim Bryson,331
-Adam Gontier,334
+Michael Buble,280
+Jim Bryson,350
+Micah Barnes,350
 ---------------------------
 **TrendingThree**
 Justin Bieber,21
 Jim Bryson,16
-Adam Gontier,12
+Ashley Leggat,12
 ---------------------------
 **VoteCount**
 4300
@@ -1280,27 +1415,30 @@ Adam Gontier,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-596
+293
+---------------------------
+**SuccessCount**
+3707
 ---------------------------
 ####4400####
 **TopThree**
-Avril Lavigne,370
-Emily Haines,366
-Justin Bieber,361
+Avril Lavigne,392
+Emily Haines,383
+Justin Bieber,380
 ---------------------------
 **BottomThree**
-Michael Buble,263
-Jim Bryson,331
-Adam Gontier,334
+Michael Buble,280
+Jim Bryson,350
+Micah Barnes,350
 ---------------------------
 **TrendingThree**
-Justin Bieber,19
+Justin Bieber,21
 Jim Bryson,16
-Adam Gontier,12
+Ashley Leggat,12
 ---------------------------
 **VoteCount**
 4400
@@ -1308,27 +1446,30 @@ Adam Gontier,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-592
+293
+---------------------------
+**SuccessCount**
+3707
 ---------------------------
 ####4500####
 **TopThree**
-Avril Lavigne,370
-Emily Haines,366
-Justin Bieber,364
+Avril Lavigne,392
+Emily Haines,383
+Justin Bieber,380
 ---------------------------
 **BottomThree**
-Michael Buble,263
-Jim Bryson,331
-Adam Gontier,334
+Michael Buble,280
+Jim Bryson,350
+Micah Barnes,350
 ---------------------------
 **TrendingThree**
 Justin Bieber,21
 Jim Bryson,16
-Micah Barnes,11
+Ashley Leggat,12
 ---------------------------
 **VoteCount**
 4500
@@ -1336,27 +1477,30 @@ Micah Barnes,11
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-588
+293
+---------------------------
+**SuccessCount**
+3707
 ---------------------------
 ####4600####
 **TopThree**
-Avril Lavigne,373
-Emily Haines,368
-Ashley Leggat,365
+Avril Lavigne,394
+Emily Haines,384
+Justin Bieber,380
 ---------------------------
 **BottomThree**
-Michael Buble,263
-Jim Bryson,332
-Adam Gontier,335
+Michael Buble,280
+Jim Bryson,351
+Micah Barnes,352
 ---------------------------
 **TrendingThree**
-Justin Bieber,18
-Jim Bryson,16
-Ashley Leggat,14
+Justin Bieber,17
+Jim Bryson,17
+Adam Gontier,12
 ---------------------------
 **VoteCount**
 4600
@@ -1364,27 +1508,30 @@ Ashley Leggat,14
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-573
+282
+---------------------------
+**SuccessCount**
+3718
 ---------------------------
 ####4700####
 **TopThree**
-Avril Lavigne,386
-Ashley Leggat,380
-Emily Haines,377
+Avril Lavigne,407
+Emily Haines,393
+Justin Bieber,391
 ---------------------------
 **BottomThree**
-Michael Buble,263
-Jim Bryson,333
-Adam Gontier,348
+Michael Buble,280
+Jim Bryson,352
+Micah Barnes,361
 ---------------------------
 **TrendingThree**
 Ashley Leggat,20
 Avril Lavigne,16
-Justin Bieber,14
+Adam Gontier,14
 ---------------------------
 **VoteCount**
 4700
@@ -1392,22 +1539,25 @@ Justin Bieber,14
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-491
+200
+---------------------------
+**SuccessCount**
+3800
 ---------------------------
 ####4800####
 **TopThree**
-Avril Lavigne,396
-Emily Haines,393
-Ashley Leggat,390
+Avril Lavigne,417
+Emily Haines,409
+Justin Bieber,403
 ---------------------------
 **BottomThree**
-Michael Buble,265
-Jim Bryson,334
-Adam Gontier,360
+Michael Buble,282
+Jim Bryson,353
+Micah Barnes,372
 ---------------------------
 **TrendingThree**
 Leonard Cohen,17
@@ -1420,22 +1570,25 @@ Adam Gontier,15
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-405
+114
+---------------------------
+**SuccessCount**
+3886
 ---------------------------
 ####4900####
 **TopThree**
-Avril Lavigne,411
-Ashley Leggat,403
-Justin Bieber,402
+Avril Lavigne,432
+Justin Bieber,418
+Emily Haines,418
 ---------------------------
 **BottomThree**
-Michael Buble,265
-Jim Bryson,335
-Micah Barnes,367
+Michael Buble,282
+Jim Bryson,354
+Micah Barnes,379
 ---------------------------
 **TrendingThree**
 Adam Gontier,17
@@ -1448,22 +1601,56 @@ Justin Bieber,16
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 9
 ---------------------------
 **VotesTilNextDelete**
-318
+27
+---------------------------
+**SuccessCount**
+3973
+---------------------------
+####DELETECANDIDATE####
+**TopThree**
+Avril Lavigne,436
+Emily Haines,423
+Justin Bieber,422
+---------------------------
+**BottomThree**
+Jim Bryson,354
+Micah Barnes,380
+Leonard Cohen,395
+---------------------------
+**TrendingThree**
+Adam Gontier,21
+Avril Lavigne,16
+Ashley Leggat,15
+---------------------------
+**VoteCount**
+4931
+---------------------------
+**TrendingCount**
+100
+---------------------------
+**remainingContestants**
+8
+---------------------------
+**VotesTilNextDelete**
+1000
+---------------------------
+**SuccessCount**
+4000
 ---------------------------
 ####5000####
 **TopThree**
-Avril Lavigne,422
-Ashley Leggat,415
-Justin Bieber,414
+Avril Lavigne,443
+Justin Bieber,430
+Emily Haines,425
 ---------------------------
 **BottomThree**
-Michael Buble,267
-Jim Bryson,337
-Micah Barnes,376
+Jim Bryson,356
+Micah Barnes,388
+Leonard Cohen,409
 ---------------------------
 **TrendingThree**
 Leonard Cohen,17
@@ -1476,27 +1663,30 @@ Ashley Leggat,15
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-9
+**remainingContestants**
+8
 ---------------------------
 **VotesTilNextDelete**
-234
+943
+---------------------------
+**SuccessCount**
+4057
 ---------------------------
 ####5100####
 **TopThree**
-Ashley Leggat,429
-Justin Bieber,427
-Avril Lavigne,427
+Avril Lavigne,448
+Justin Bieber,443
+Ashley Leggat,438
 ---------------------------
 **BottomThree**
-Michael Buble,268
-Jim Bryson,339
-Micah Barnes,387
+Jim Bryson,358
+Micah Barnes,399
+Leonard Cohen,424
 ---------------------------
 **TrendingThree**
 Leonard Cohen,18
 Justin Bieber,17
-Ashley Leggat,16
+Ashley Leggat,17
 ---------------------------
 **VoteCount**
 5100
@@ -1504,27 +1694,30 @@ Ashley Leggat,16
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-9
+**remainingContestants**
+8
 ---------------------------
 **VotesTilNextDelete**
-150
+860
+---------------------------
+**SuccessCount**
+4140
 ---------------------------
 ####5200####
 **TopThree**
-Justin Bieber,445
-Ashley Leggat,440
-Avril Lavigne,437
+Justin Bieber,461
+Avril Lavigne,458
+Ashley Leggat,449
 ---------------------------
 **BottomThree**
-Michael Buble,270
-Jim Bryson,340
-Micah Barnes,398
+Jim Bryson,359
+Micah Barnes,410
+Leonard Cohen,434
 ---------------------------
 **TrendingThree**
 Justin Bieber,21
 Adam Gontier,19
-Micah Barnes,12
+Micah Barnes,13
 ---------------------------
 **VoteCount**
 5200
@@ -1532,55 +1725,30 @@ Micah Barnes,12
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-9
+**remainingContestants**
+8
 ---------------------------
 **VotesTilNextDelete**
-65
+777
 ---------------------------
-####DELETECANDIDATE####
+**SuccessCount**
+4223
+---------------------------
+####5300####
 **TopThree**
-Justin Bieber,455
-Ashley Leggat,450
-Avril Lavigne,440
+Justin Bieber,471
+Avril Lavigne,464
+Ashley Leggat,461
 ---------------------------
 **BottomThree**
-Jim Bryson,342
-Micah Barnes,406
-Adam Gontier,423
+Jim Bryson,361
+Micah Barnes,420
+Leonard Cohen,448
 ---------------------------
 **TrendingThree**
 Leonard Cohen,16
 Justin Bieber,15
-Micah Barnes,14
----------------------------
-**VoteCount**
-5280
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-8
----------------------------
-**VotesTilNextDelete**
-1000
----------------------------
-####5300####
-**TopThree**
-Justin Bieber,455
-Ashley Leggat,452
-Avril Lavigne,443
----------------------------
-**BottomThree**
-Jim Bryson,342
-Micah Barnes,408
-Adam Gontier,429
----------------------------
-**TrendingThree**
-Justin Bieber,15
 Adam Gontier,15
-Emily Haines,15
 ---------------------------
 **VoteCount**
 5300
@@ -1588,27 +1756,30 @@ Emily Haines,15
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-982
+697
+---------------------------
+**SuccessCount**
+4303
 ---------------------------
 ####5400####
 **TopThree**
-Justin Bieber,458
-Ashley Leggat,455
-Avril Lavigne,443
+Justin Bieber,474
+Avril Lavigne,464
+Ashley Leggat,463
 ---------------------------
 **BottomThree**
-Jim Bryson,342
-Micah Barnes,413
-Adam Gontier,432
+Jim Bryson,361
+Micah Barnes,425
+Leonard Cohen,452
 ---------------------------
 **TrendingThree**
-Leonard Cohen,18
-Adam Gontier,16
-Ashley Leggat,15
+Leonard Cohen,19
+Adam Gontier,17
+Micah Barnes,16
 ---------------------------
 **VoteCount**
 5400
@@ -1616,22 +1787,25 @@ Ashley Leggat,15
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-964
+680
+---------------------------
+**SuccessCount**
+4320
 ---------------------------
 ####5500####
 **TopThree**
-Justin Bieber,460
-Ashley Leggat,458
-Avril Lavigne,443
+Justin Bieber,476
+Ashley Leggat,466
+Avril Lavigne,464
 ---------------------------
 **BottomThree**
-Jim Bryson,342
-Micah Barnes,413
-Adam Gontier,434
+Jim Bryson,361
+Micah Barnes,425
+Leonard Cohen,454
 ---------------------------
 **TrendingThree**
 Leonard Cohen,19
@@ -1644,25 +1818,28 @@ Ashley Leggat,17
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-953
+671
+---------------------------
+**SuccessCount**
+4329
 ---------------------------
 ####5600####
 **TopThree**
-Justin Bieber,460
-Ashley Leggat,459
-Avril Lavigne,445
+Justin Bieber,476
+Ashley Leggat,467
+Avril Lavigne,465
 ---------------------------
 **BottomThree**
-Jim Bryson,342
-Micah Barnes,413
-Adam Gontier,435
+Jim Bryson,361
+Micah Barnes,425
+Emily Haines,456
 ---------------------------
 **TrendingThree**
-Leonard Cohen,21
+Leonard Cohen,20
 Adam Gontier,18
 Ashley Leggat,17
 ---------------------------
@@ -1672,27 +1849,30 @@ Ashley Leggat,17
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-947
+666
+---------------------------
+**SuccessCount**
+4334
 ---------------------------
 ####5700####
 **TopThree**
-Justin Bieber,463
-Ashley Leggat,459
-Leonard Cohen,448
+Justin Bieber,477
+Avril Lavigne,467
+Ashley Leggat,467
 ---------------------------
 **BottomThree**
-Jim Bryson,343
-Micah Barnes,413
-Adam Gontier,438
+Jim Bryson,362
+Micah Barnes,425
+Emily Haines,456
 ---------------------------
 **TrendingThree**
-Leonard Cohen,24
-Adam Gontier,19
-Justin Bieber,14
+Leonard Cohen,22
+Adam Gontier,20
+Ashley Leggat,15
 ---------------------------
 **VoteCount**
 5700
@@ -1700,27 +1880,30 @@ Justin Bieber,14
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-934
+657
+---------------------------
+**SuccessCount**
+4343
 ---------------------------
 ####5800####
 **TopThree**
-Justin Bieber,466
-Ashley Leggat,459
-Leonard Cohen,450
+Justin Bieber,479
+Avril Lavigne,468
+Ashley Leggat,467
 ---------------------------
 **BottomThree**
-Jim Bryson,343
-Micah Barnes,413
-Adam Gontier,440
+Jim Bryson,362
+Micah Barnes,425
+Emily Haines,457
 ---------------------------
 **TrendingThree**
-Leonard Cohen,24
-Adam Gontier,20
-Justin Bieber,15
+Leonard Cohen,23
+Adam Gontier,19
+Justin Bieber,14
 ---------------------------
 **VoteCount**
 5800
@@ -1728,27 +1911,30 @@ Justin Bieber,15
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-925
+650
+---------------------------
+**SuccessCount**
+4350
 ---------------------------
 ####5900####
 **TopThree**
-Justin Bieber,475
-Ashley Leggat,471
-Avril Lavigne,469
+Avril Lavigne,489
+Justin Bieber,488
+Ashley Leggat,479
 ---------------------------
 **BottomThree**
-Jim Bryson,343
-Micah Barnes,413
-Emily Haines,452
+Jim Bryson,362
+Micah Barnes,425
+Emily Haines,468
 ---------------------------
 **TrendingThree**
 Avril Lavigne,25
 Leonard Cohen,18
-Adam Gontier,18
+Adam Gontier,17
 ---------------------------
 **VoteCount**
 5900
@@ -1756,22 +1942,25 @@ Adam Gontier,18
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-849
+574
+---------------------------
+**SuccessCount**
+4426
 ---------------------------
 ####6000####
 **TopThree**
-Justin Bieber,488
-Avril Lavigne,485
-Ashley Leggat,483
+Avril Lavigne,505
+Justin Bieber,501
+Ashley Leggat,491
 ---------------------------
 **BottomThree**
-Jim Bryson,344
-Micah Barnes,414
-Emily Haines,466
+Jim Bryson,363
+Micah Barnes,426
+Emily Haines,482
 ---------------------------
 **TrendingThree**
 Avril Lavigne,21
@@ -1784,22 +1973,25 @@ Adam Gontier,16
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-766
+491
+---------------------------
+**SuccessCount**
+4509
 ---------------------------
 ####6100####
 **TopThree**
-Justin Bieber,507
-Avril Lavigne,501
-Ashley Leggat,492
+Avril Lavigne,521
+Justin Bieber,520
+Ashley Leggat,500
 ---------------------------
 **BottomThree**
-Jim Bryson,347
-Micah Barnes,418
-Emily Haines,477
+Jim Bryson,366
+Micah Barnes,430
+Emily Haines,493
 ---------------------------
 **TrendingThree**
 Justin Bieber,22
@@ -1812,22 +2004,25 @@ Leonard Cohen,14
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-683
+408
+---------------------------
+**SuccessCount**
+4592
 ---------------------------
 ####6200####
 **TopThree**
-Avril Lavigne,519
-Justin Bieber,518
-Ashley Leggat,503
+Avril Lavigne,539
+Justin Bieber,531
+Ashley Leggat,511
 ---------------------------
 **BottomThree**
-Jim Bryson,347
-Micah Barnes,419
-Adam Gontier,488
+Jim Bryson,366
+Micah Barnes,431
+Emily Haines,508
 ---------------------------
 **TrendingThree**
 Avril Lavigne,20
@@ -1840,22 +2035,25 @@ Adam Gontier,16
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-602
+327
+---------------------------
+**SuccessCount**
+4673
 ---------------------------
 ####6300####
 **TopThree**
-Justin Bieber,536
-Avril Lavigne,528
-Leonard Cohen,513
+Justin Bieber,549
+Avril Lavigne,548
+Leonard Cohen,524
 ---------------------------
 **BottomThree**
-Jim Bryson,349
-Micah Barnes,422
-Adam Gontier,501
+Jim Bryson,368
+Micah Barnes,434
+Ashley Leggat,519
 ---------------------------
 **TrendingThree**
 Emily Haines,22
@@ -1868,22 +2066,25 @@ Leonard Cohen,18
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-518
+243
+---------------------------
+**SuccessCount**
+4757
 ---------------------------
 ####6400####
 **TopThree**
-Justin Bieber,548
-Avril Lavigne,538
-Leonard Cohen,530
+Justin Bieber,561
+Avril Lavigne,558
+Leonard Cohen,541
 ---------------------------
 **BottomThree**
-Jim Bryson,351
-Micah Barnes,425
-Adam Gontier,512
+Jim Bryson,370
+Micah Barnes,437
+Ashley Leggat,533
 ---------------------------
 **TrendingThree**
 Leonard Cohen,19
@@ -1896,22 +2097,25 @@ Emily Haines,16
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-439
+164
+---------------------------
+**SuccessCount**
+4836
 ---------------------------
 ####6500####
 **TopThree**
-Justin Bieber,556
-Avril Lavigne,547
-Leonard Cohen,537
+Justin Bieber,569
+Avril Lavigne,567
+Leonard Cohen,548
 ---------------------------
 **BottomThree**
-Jim Bryson,352
-Micah Barnes,425
-Adam Gontier,514
+Jim Bryson,371
+Micah Barnes,437
+Emily Haines,536
 ---------------------------
 **TrendingThree**
 Leonard Cohen,21
@@ -1924,27 +2128,30 @@ Avril Lavigne,17
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-402
+127
+---------------------------
+**SuccessCount**
+4873
 ---------------------------
 ####6600####
 **TopThree**
-Justin Bieber,556
-Avril Lavigne,549
-Leonard Cohen,538
+Justin Bieber,569
+Avril Lavigne,568
+Leonard Cohen,549
 ---------------------------
 **BottomThree**
-Jim Bryson,352
-Micah Barnes,425
-Adam Gontier,515
+Jim Bryson,371
+Micah Barnes,437
+Emily Haines,536
 ---------------------------
 **TrendingThree**
-Leonard Cohen,20
-Avril Lavigne,19
-Ashley Leggat,17
+Leonard Cohen,21
+Avril Lavigne,18
+Justin Bieber,17
 ---------------------------
 **VoteCount**
 6600
@@ -1952,27 +2159,30 @@ Ashley Leggat,17
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-396
+125
+---------------------------
+**SuccessCount**
+4875
 ---------------------------
 ####6700####
 **TopThree**
-Justin Bieber,558
-Avril Lavigne,549
-Leonard Cohen,540
+Justin Bieber,569
+Avril Lavigne,568
+Leonard Cohen,550
 ---------------------------
 **BottomThree**
-Jim Bryson,352
-Micah Barnes,425
-Adam Gontier,516
+Jim Bryson,371
+Micah Barnes,437
+Emily Haines,536
 ---------------------------
 **TrendingThree**
-Leonard Cohen,22
+Leonard Cohen,21
 Avril Lavigne,18
-Justin Bieber,17
+Ashley Leggat,17
 ---------------------------
 **VoteCount**
 6700
@@ -1980,27 +2190,30 @@ Justin Bieber,17
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-391
+122
+---------------------------
+**SuccessCount**
+4878
 ---------------------------
 ####6800####
 **TopThree**
-Justin Bieber,558
-Avril Lavigne,549
-Leonard Cohen,540
+Justin Bieber,569
+Avril Lavigne,568
+Leonard Cohen,550
 ---------------------------
 **BottomThree**
-Jim Bryson,352
-Micah Barnes,425
-Adam Gontier,516
+Jim Bryson,371
+Micah Barnes,437
+Emily Haines,536
 ---------------------------
 **TrendingThree**
-Leonard Cohen,22
+Leonard Cohen,21
 Avril Lavigne,18
-Justin Bieber,17
+Ashley Leggat,17
 ---------------------------
 **VoteCount**
 6800
@@ -2008,27 +2221,30 @@ Justin Bieber,17
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-391
+122
+---------------------------
+**SuccessCount**
+4878
 ---------------------------
 ####6900####
 **TopThree**
-Justin Bieber,559
-Avril Lavigne,552
-Leonard Cohen,541
+Justin Bieber,570
+Avril Lavigne,570
+Leonard Cohen,551
 ---------------------------
 **BottomThree**
-Jim Bryson,352
-Micah Barnes,425
-Adam Gontier,517
+Jim Bryson,371
+Micah Barnes,437
+Emily Haines,537
 ---------------------------
 **TrendingThree**
-Leonard Cohen,21
-Avril Lavigne,20
-Justin Bieber,18
+Leonard Cohen,22
+Avril Lavigne,19
+Justin Bieber,16
 ---------------------------
 **VoteCount**
 6900
@@ -2036,27 +2252,30 @@ Justin Bieber,18
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-383
+116
+---------------------------
+**SuccessCount**
+4884
 ---------------------------
 ####7000####
 **TopThree**
-Justin Bieber,560
-Avril Lavigne,553
-Leonard Cohen,544
+Justin Bieber,571
+Avril Lavigne,571
+Leonard Cohen,552
 ---------------------------
 **BottomThree**
-Jim Bryson,352
-Micah Barnes,425
-Adam Gontier,518
+Jim Bryson,371
+Micah Barnes,437
+Emily Haines,537
 ---------------------------
 **TrendingThree**
 Leonard Cohen,22
 Avril Lavigne,20
-Justin Bieber,19
+Justin Bieber,17
 ---------------------------
 **VoteCount**
 7000
@@ -2064,27 +2283,30 @@ Justin Bieber,19
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-377
+112
+---------------------------
+**SuccessCount**
+4888
 ---------------------------
 ####7100####
 **TopThree**
-Justin Bieber,562
-Avril Lavigne,558
-Leonard Cohen,548
+Avril Lavigne,576
+Justin Bieber,573
+Leonard Cohen,556
 ---------------------------
 **BottomThree**
-Jim Bryson,355
-Micah Barnes,426
-Adam Gontier,525
+Jim Bryson,374
+Micah Barnes,438
+Ashley Leggat,541
 ---------------------------
 **TrendingThree**
-Avril Lavigne,21
-Leonard Cohen,20
-Adam Gontier,15
+Leonard Cohen,19
+Avril Lavigne,19
+Adam Gontier,16
 ---------------------------
 **VoteCount**
 7100
@@ -2092,22 +2314,25 @@ Adam Gontier,15
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-349
+84
+---------------------------
+**SuccessCount**
+4916
 ---------------------------
 ####7200####
 **TopThree**
-Justin Bieber,578
-Avril Lavigne,568
-Leonard Cohen,567
+Justin Bieber,589
+Avril Lavigne,586
+Leonard Cohen,575
 ---------------------------
 **BottomThree**
-Jim Bryson,357
-Micah Barnes,428
-Ashley Leggat,534
+Jim Bryson,376
+Micah Barnes,440
+Ashley Leggat,542
 ---------------------------
 **TrendingThree**
 Leonard Cohen,23
@@ -2120,27 +2345,61 @@ Justin Bieber,18
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 8
 ---------------------------
 **VotesTilNextDelete**
-270
+5
+---------------------------
+**SuccessCount**
+4995
+---------------------------
+####DELETECANDIDATE####
+**TopThree**
+Justin Bieber,591
+Avril Lavigne,588
+Leonard Cohen,575
+---------------------------
+**BottomThree**
+Micah Barnes,440
+Ashley Leggat,542
+Emily Haines,556
+---------------------------
+**TrendingThree**
+Adam Gontier,21
+Justin Bieber,20
+Leonard Cohen,20
+---------------------------
+**VoteCount**
+7206
+---------------------------
+**TrendingCount**
+100
+---------------------------
+**remainingContestants**
+7
+---------------------------
+**VotesTilNextDelete**
+1000
+---------------------------
+**SuccessCount**
+5001
 ---------------------------
 ####7300####
 **TopThree**
-Justin Bieber,597
-Avril Lavigne,582
-Leonard Cohen,579
+Justin Bieber,608
+Avril Lavigne,600
+Leonard Cohen,587
 ---------------------------
 **BottomThree**
-Jim Bryson,360
-Micah Barnes,430
-Ashley Leggat,535
+Micah Barnes,442
+Ashley Leggat,543
+Emily Haines,573
 ---------------------------
 **TrendingThree**
 Justin Bieber,25
 Emily Haines,19
-Leonard Cohen,17
+Leonard Cohen,18
 ---------------------------
 **VoteCount**
 7300
@@ -2148,26 +2407,29 @@ Leonard Cohen,17
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-8
+**remainingContestants**
+7
 ---------------------------
 **VotesTilNextDelete**
-191
+929
+---------------------------
+**SuccessCount**
+5071
 ---------------------------
 ####7400####
 **TopThree**
-Justin Bieber,612
-Avril Lavigne,592
-Leonard Cohen,589
+Justin Bieber,623
+Avril Lavigne,610
+Leonard Cohen,597
 ---------------------------
 **BottomThree**
-Jim Bryson,362
-Micah Barnes,431
-Ashley Leggat,536
+Micah Barnes,443
+Ashley Leggat,544
+Emily Haines,589
 ---------------------------
 **TrendingThree**
 Justin Bieber,23
-Emily Haines,22
+Emily Haines,23
 Adam Gontier,20
 ---------------------------
 **VoteCount**
@@ -2176,27 +2438,30 @@ Adam Gontier,20
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-8
+**remainingContestants**
+7
 ---------------------------
 **VotesTilNextDelete**
-119
+859
+---------------------------
+**SuccessCount**
+5141
 ---------------------------
 ####7500####
 **TopThree**
-Justin Bieber,624
-Leonard Cohen,605
-Avril Lavigne,604
+Justin Bieber,635
+Avril Lavigne,622
+Leonard Cohen,613
 ---------------------------
 **BottomThree**
-Jim Bryson,364
-Micah Barnes,433
-Ashley Leggat,538
+Micah Barnes,445
+Ashley Leggat,546
+Adam Gontier,598
 ---------------------------
 **TrendingThree**
-Emily Haines,27
+Emily Haines,28
 Leonard Cohen,21
-Justin Bieber,16
+Justin Bieber,17
 ---------------------------
 **VoteCount**
 7500
@@ -2204,50 +2469,25 @@ Justin Bieber,16
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
-8
----------------------------
-**VotesTilNextDelete**
-44
----------------------------
-####DELETECANDIDATE####
-**TopThree**
-Justin Bieber,633
-Leonard Cohen,614
-Avril Lavigne,614
----------------------------
-**BottomThree**
-Micah Barnes,433
-Ashley Leggat,538
-Adam Gontier,584
----------------------------
-**TrendingThree**
-Leonard Cohen,24
-Emily Haines,23
-Justin Bieber,19
----------------------------
-**VoteCount**
-7559
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-1000
+786
+---------------------------
+**SuccessCount**
+5214
 ---------------------------
 ####7600####
 **TopThree**
-Justin Bieber,635
-Leonard Cohen,619
-Avril Lavigne,619
+Justin Bieber,646
+Avril Lavigne,637
+Leonard Cohen,627
 ---------------------------
 **BottomThree**
-Micah Barnes,433
-Ashley Leggat,538
-Adam Gontier,590
+Micah Barnes,445
+Ashley Leggat,546
+Adam Gontier,612
 ---------------------------
 **TrendingThree**
 Emily Haines,23
@@ -2260,22 +2500,25 @@ Leonard Cohen,21
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-975
+717
+---------------------------
+**SuccessCount**
+5283
 ---------------------------
 ####7700####
 **TopThree**
-Justin Bieber,638
-Leonard Cohen,624
-Avril Lavigne,620
+Justin Bieber,649
+Avril Lavigne,638
+Leonard Cohen,632
 ---------------------------
 **BottomThree**
-Micah Barnes,433
-Ashley Leggat,538
-Adam Gontier,590
+Micah Barnes,445
+Ashley Leggat,546
+Adam Gontier,612
 ---------------------------
 **TrendingThree**
 Leonard Cohen,24
@@ -2288,22 +2531,25 @@ Emily Haines,21
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-966
+708
+---------------------------
+**SuccessCount**
+5292
 ---------------------------
 ####7800####
 **TopThree**
-Justin Bieber,639
-Leonard Cohen,628
-Avril Lavigne,623
+Justin Bieber,650
+Avril Lavigne,640
+Leonard Cohen,635
 ---------------------------
 **BottomThree**
-Micah Barnes,433
-Ashley Leggat,538
-Adam Gontier,592
+Micah Barnes,445
+Ashley Leggat,546
+Adam Gontier,614
 ---------------------------
 **TrendingThree**
 Leonard Cohen,24
@@ -2316,25 +2562,28 @@ Emily Haines,19
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-956
+700
+---------------------------
+**SuccessCount**
+5300
 ---------------------------
 ####7900####
 **TopThree**
-Justin Bieber,641
-Leonard Cohen,631
-Avril Lavigne,625
+Justin Bieber,651
+Avril Lavigne,641
+Leonard Cohen,637
 ---------------------------
 **BottomThree**
-Micah Barnes,433
-Ashley Leggat,538
-Adam Gontier,593
+Micah Barnes,445
+Ashley Leggat,546
+Adam Gontier,615
 ---------------------------
 **TrendingThree**
-Leonard Cohen,26
+Leonard Cohen,24
 Avril Lavigne,23
 Justin Bieber,19
 ---------------------------
@@ -2344,27 +2593,30 @@ Justin Bieber,19
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-948
+695
+---------------------------
+**SuccessCount**
+5305
 ---------------------------
 ####8000####
 **TopThree**
-Justin Bieber,643
-Leonard Cohen,633
-Avril Lavigne,629
+Justin Bieber,654
+Avril Lavigne,645
+Leonard Cohen,639
 ---------------------------
 **BottomThree**
-Micah Barnes,433
-Ashley Leggat,539
-Adam Gontier,596
+Micah Barnes,445
+Ashley Leggat,546
+Adam Gontier,617
 ---------------------------
 **TrendingThree**
-Leonard Cohen,26
-Avril Lavigne,24
-Adam Gontier,19
+Leonard Cohen,25
+Avril Lavigne,22
+Justin Bieber,19
 ---------------------------
 **VoteCount**
 8000
@@ -2372,27 +2624,30 @@ Adam Gontier,19
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-936
+684
+---------------------------
+**SuccessCount**
+5316
 ---------------------------
 ####8100####
 **TopThree**
-Justin Bieber,645
-Leonard Cohen,635
-Avril Lavigne,629
+Justin Bieber,656
+Avril Lavigne,645
+Leonard Cohen,641
 ---------------------------
 **BottomThree**
-Micah Barnes,434
-Ashley Leggat,539
-Adam Gontier,597
+Micah Barnes,446
+Ashley Leggat,546
+Adam Gontier,618
 ---------------------------
 **TrendingThree**
-Leonard Cohen,27
+Leonard Cohen,25
 Avril Lavigne,22
-Adam Gontier,20
+Justin Bieber,20
 ---------------------------
 **VoteCount**
 8100
@@ -2400,27 +2655,30 @@ Adam Gontier,20
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-930
+678
+---------------------------
+**SuccessCount**
+5322
 ---------------------------
 ####8200####
 **TopThree**
-Justin Bieber,646
-Leonard Cohen,636
-Avril Lavigne,629
+Justin Bieber,657
+Avril Lavigne,645
+Leonard Cohen,642
 ---------------------------
 **BottomThree**
-Micah Barnes,436
-Ashley Leggat,539
-Adam Gontier,600
+Micah Barnes,448
+Ashley Leggat,546
+Adam Gontier,619
 ---------------------------
 **TrendingThree**
-Leonard Cohen,27
-Adam Gontier,21
-Avril Lavigne,21
+Leonard Cohen,26
+Justin Bieber,20
+Adam Gontier,20
 ---------------------------
 **VoteCount**
 8200
@@ -2428,27 +2686,30 @@ Avril Lavigne,21
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-923
+673
+---------------------------
+**SuccessCount**
+5327
 ---------------------------
 ####8300####
 **TopThree**
-Justin Bieber,649
-Leonard Cohen,636
-Avril Lavigne,632
+Justin Bieber,659
+Avril Lavigne,646
+Leonard Cohen,642
 ---------------------------
 **BottomThree**
-Micah Barnes,436
-Ashley Leggat,539
-Adam Gontier,602
+Micah Barnes,448
+Ashley Leggat,546
+Adam Gontier,620
 ---------------------------
 **TrendingThree**
-Leonard Cohen,24
-Avril Lavigne,24
-Adam Gontier,22
+Leonard Cohen,26
+Justin Bieber,22
+Adam Gontier,20
 ---------------------------
 **VoteCount**
 8300
@@ -2456,27 +2717,30 @@ Adam Gontier,22
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-915
+669
+---------------------------
+**SuccessCount**
+5331
 ---------------------------
 ####8400####
 **TopThree**
-Justin Bieber,651
-Leonard Cohen,638
-Avril Lavigne,633
+Justin Bieber,661
+Avril Lavigne,647
+Leonard Cohen,643
 ---------------------------
 **BottomThree**
-Micah Barnes,436
-Ashley Leggat,539
-Adam Gontier,603
+Micah Barnes,448
+Ashley Leggat,546
+Adam Gontier,621
 ---------------------------
 **TrendingThree**
-Leonard Cohen,25
-Avril Lavigne,22
-Justin Bieber,21
+Leonard Cohen,26
+Justin Bieber,22
+Avril Lavigne,21
 ---------------------------
 **VoteCount**
 8400
@@ -2484,26 +2748,29 @@ Justin Bieber,21
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-909
+664
+---------------------------
+**SuccessCount**
+5336
 ---------------------------
 ####8500####
 **TopThree**
-Justin Bieber,669
-Leonard Cohen,653
-Avril Lavigne,643
+Justin Bieber,679
+Leonard Cohen,658
+Avril Lavigne,657
 ---------------------------
 **BottomThree**
-Micah Barnes,439
-Ashley Leggat,540
-Emily Haines,616
+Micah Barnes,451
+Ashley Leggat,547
+Emily Haines,629
 ---------------------------
 **TrendingThree**
-Adam Gontier,28
-Justin Bieber,26
+Justin Bieber,28
+Adam Gontier,26
 Leonard Cohen,20
 ---------------------------
 **VoteCount**
@@ -2512,22 +2779,25 @@ Leonard Cohen,20
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-838
+593
+---------------------------
+**SuccessCount**
+5407
 ---------------------------
 ####8600####
 **TopThree**
-Justin Bieber,681
-Leonard Cohen,672
-Avril Lavigne,654
+Justin Bieber,691
+Leonard Cohen,677
+Avril Lavigne,668
 ---------------------------
 **BottomThree**
-Micah Barnes,442
-Ashley Leggat,543
-Emily Haines,617
+Micah Barnes,454
+Ashley Leggat,550
+Emily Haines,630
 ---------------------------
 **TrendingThree**
 Adam Gontier,33
@@ -2540,22 +2810,25 @@ Justin Bieber,17
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-763
+518
+---------------------------
+**SuccessCount**
+5482
 ---------------------------
 ####8700####
 **TopThree**
-Justin Bieber,698
-Leonard Cohen,683
-Adam Gontier,669
+Justin Bieber,708
+Leonard Cohen,688
+Adam Gontier,687
 ---------------------------
 **BottomThree**
-Micah Barnes,444
-Ashley Leggat,544
-Emily Haines,620
+Micah Barnes,456
+Ashley Leggat,551
+Emily Haines,633
 ---------------------------
 **TrendingThree**
 Adam Gontier,34
@@ -2568,27 +2841,30 @@ Leonard Cohen,17
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-696
+451
+---------------------------
+**SuccessCount**
+5549
 ---------------------------
 ####8800####
 **TopThree**
-Justin Bieber,707
-Leonard Cohen,690
-Adam Gontier,687
+Justin Bieber,717
+Adam Gontier,705
+Leonard Cohen,694
 ---------------------------
 **BottomThree**
-Micah Barnes,444
-Ashley Leggat,545
-Emily Haines,621
+Micah Barnes,456
+Ashley Leggat,552
+Emily Haines,634
 ---------------------------
 **TrendingThree**
 Adam Gontier,36
 Justin Bieber,25
-Leonard Cohen,17
+Leonard Cohen,16
 ---------------------------
 **VoteCount**
 8800
@@ -2596,27 +2872,30 @@ Leonard Cohen,17
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-657
+412
+---------------------------
+**SuccessCount**
+5588
 ---------------------------
 ####8900####
 **TopThree**
-Justin Bieber,708
-Leonard Cohen,692
-Adam Gontier,687
+Justin Bieber,718
+Adam Gontier,705
+Leonard Cohen,695
 ---------------------------
 **BottomThree**
-Micah Barnes,445
-Ashley Leggat,545
-Emily Haines,621
+Micah Barnes,457
+Ashley Leggat,552
+Emily Haines,634
 ---------------------------
 **TrendingThree**
 Adam Gontier,35
-Justin Bieber,23
-Leonard Cohen,18
+Justin Bieber,24
+Leonard Cohen,16
 ---------------------------
 **VoteCount**
 8900
@@ -2624,27 +2903,30 @@ Leonard Cohen,18
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-651
+408
+---------------------------
+**SuccessCount**
+5592
 ---------------------------
 ####9000####
 **TopThree**
-Justin Bieber,711
-Leonard Cohen,693
-Adam Gontier,687
+Justin Bieber,721
+Adam Gontier,705
+Leonard Cohen,696
 ---------------------------
 **BottomThree**
-Micah Barnes,445
-Ashley Leggat,545
-Emily Haines,623
+Micah Barnes,457
+Ashley Leggat,552
+Emily Haines,635
 ---------------------------
 **TrendingThree**
 Adam Gontier,32
-Justin Bieber,23
-Leonard Cohen,18
+Justin Bieber,26
+Leonard Cohen,16
 ---------------------------
 **VoteCount**
 9000
@@ -2652,27 +2934,30 @@ Leonard Cohen,18
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-644
+402
+---------------------------
+**SuccessCount**
+5598
 ---------------------------
 ####9100####
 **TopThree**
-Justin Bieber,712
-Leonard Cohen,694
-Adam Gontier,687
+Justin Bieber,722
+Adam Gontier,705
+Leonard Cohen,696
 ---------------------------
 **BottomThree**
-Micah Barnes,445
-Ashley Leggat,545
-Emily Haines,623
+Micah Barnes,457
+Ashley Leggat,552
+Emily Haines,635
 ---------------------------
 **TrendingThree**
-Adam Gontier,31
-Justin Bieber,23
-Leonard Cohen,19
+Adam Gontier,32
+Justin Bieber,26
+Leonard Cohen,16
 ---------------------------
 **VoteCount**
 9100
@@ -2680,27 +2965,30 @@ Leonard Cohen,19
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-642
+401
+---------------------------
+**SuccessCount**
+5599
 ---------------------------
 ####9200####
 **TopThree**
-Justin Bieber,713
-Leonard Cohen,697
-Adam Gontier,688
+Justin Bieber,722
+Adam Gontier,705
+Leonard Cohen,698
 ---------------------------
 **BottomThree**
-Micah Barnes,445
-Ashley Leggat,545
-Emily Haines,624
+Micah Barnes,457
+Ashley Leggat,552
+Emily Haines,636
 ---------------------------
 **TrendingThree**
-Adam Gontier,30
-Justin Bieber,21
-Leonard Cohen,21
+Adam Gontier,31
+Justin Bieber,23
+Leonard Cohen,18
 ---------------------------
 **VoteCount**
 9200
@@ -2708,27 +2996,30 @@ Leonard Cohen,21
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-634
+397
+---------------------------
+**SuccessCount**
+5603
 ---------------------------
 ####9300####
 **TopThree**
-Justin Bieber,717
+Justin Bieber,725
+Adam Gontier,705
 Leonard Cohen,699
-Adam Gontier,688
 ---------------------------
 **BottomThree**
-Micah Barnes,445
-Ashley Leggat,545
-Emily Haines,624
+Micah Barnes,457
+Ashley Leggat,552
+Emily Haines,636
 ---------------------------
 **TrendingThree**
 Adam Gontier,30
-Justin Bieber,20
-Avril Lavigne,20
+Justin Bieber,23
+Avril Lavigne,19
 ---------------------------
 **VoteCount**
 9300
@@ -2736,27 +3027,30 @@ Avril Lavigne,20
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-624
+390
+---------------------------
+**SuccessCount**
+5610
 ---------------------------
 ####9400####
 **TopThree**
-Justin Bieber,720
+Justin Bieber,727
+Adam Gontier,705
 Leonard Cohen,700
-Adam Gontier,688
 ---------------------------
 **BottomThree**
-Micah Barnes,445
-Ashley Leggat,545
-Emily Haines,624
+Micah Barnes,457
+Ashley Leggat,552
+Emily Haines,636
 ---------------------------
 **TrendingThree**
-Adam Gontier,28
-Justin Bieber,23
-Leonard Cohen,20
+Adam Gontier,29
+Justin Bieber,24
+Avril Lavigne,19
 ---------------------------
 **VoteCount**
 9400
@@ -2764,27 +3058,30 @@ Leonard Cohen,20
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-620
+387
+---------------------------
+**SuccessCount**
+5613
 ---------------------------
 ####9500####
 **TopThree**
-Justin Bieber,721
-Leonard Cohen,708
-Adam Gontier,688
+Justin Bieber,728
+Leonard Cohen,705
+Adam Gontier,705
 ---------------------------
 **BottomThree**
-Micah Barnes,447
-Ashley Leggat,545
-Emily Haines,624
+Micah Barnes,458
+Ashley Leggat,552
+Emily Haines,636
 ---------------------------
 **TrendingThree**
-Leonard Cohen,26
-Justin Bieber,23
-Adam Gontier,22
+Adam Gontier,28
+Justin Bieber,21
+Avril Lavigne,21
 ---------------------------
 **VoteCount**
 9500
@@ -2792,27 +3089,30 @@ Adam Gontier,22
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-605
+377
+---------------------------
+**SuccessCount**
+5623
 ---------------------------
 ####9600####
 **TopThree**
-Justin Bieber,724
-Leonard Cohen,711
-Adam Gontier,688
+Justin Bieber,730
+Leonard Cohen,707
+Adam Gontier,705
 ---------------------------
 **BottomThree**
-Micah Barnes,447
-Ashley Leggat,545
-Emily Haines,624
+Micah Barnes,458
+Ashley Leggat,552
+Emily Haines,636
 ---------------------------
 **TrendingThree**
-Leonard Cohen,28
-Justin Bieber,26
-Adam Gontier,20
+Adam Gontier,26
+Justin Bieber,23
+Leonard Cohen,22
 ---------------------------
 **VoteCount**
 9600
@@ -2820,27 +3120,30 @@ Adam Gontier,20
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-599
+373
+---------------------------
+**SuccessCount**
+5627
 ---------------------------
 ####9700####
 **TopThree**
-Justin Bieber,727
-Leonard Cohen,712
-Adam Gontier,690
+Justin Bieber,733
+Leonard Cohen,708
+Adam Gontier,707
 ---------------------------
 **BottomThree**
-Micah Barnes,447
-Ashley Leggat,547
-Emily Haines,624
+Micah Barnes,458
+Ashley Leggat,553
+Emily Haines,636
 ---------------------------
 **TrendingThree**
-Leonard Cohen,29
-Justin Bieber,28
-Adam Gontier,18
+Justin Bieber,25
+Adam Gontier,24
+Leonard Cohen,23
 ---------------------------
 **VoteCount**
 9700
@@ -2848,27 +3151,30 @@ Adam Gontier,18
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-590
+365
+---------------------------
+**SuccessCount**
+5635
 ---------------------------
 ####9800####
 **TopThree**
-Justin Bieber,739
-Leonard Cohen,719
-Adam Gontier,691
+Justin Bieber,745
+Leonard Cohen,715
+Adam Gontier,708
 ---------------------------
 **BottomThree**
-Micah Barnes,447
-Ashley Leggat,548
-Emily Haines,624
+Micah Barnes,458
+Ashley Leggat,553
+Emily Haines,636
 ---------------------------
 **TrendingThree**
-Justin Bieber,33
-Leonard Cohen,31
-Avril Lavigne,22
+Justin Bieber,32
+Leonard Cohen,25
+Avril Lavigne,20
 ---------------------------
 **VoteCount**
 9800
@@ -2876,22 +3182,25 @@ Avril Lavigne,22
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-562
+338
+---------------------------
+**SuccessCount**
+5662
 ---------------------------
 ####9900####
 **TopThree**
-Justin Bieber,760
-Leonard Cohen,748
-Avril Lavigne,708
+Justin Bieber,766
+Leonard Cohen,744
+Avril Lavigne,719
 ---------------------------
 **BottomThree**
-Micah Barnes,449
-Ashley Leggat,550
-Emily Haines,628
+Micah Barnes,460
+Ashley Leggat,555
+Emily Haines,640
 ---------------------------
 **TrendingThree**
 Leonard Cohen,33
@@ -2904,27 +3213,30 @@ Avril Lavigne,24
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-483
+259
+---------------------------
+**SuccessCount**
+5741
 ---------------------------
 ####10000####
 **TopThree**
-Justin Bieber,778
-Leonard Cohen,758
-Avril Lavigne,718
+Justin Bieber,783
+Leonard Cohen,754
+Avril Lavigne,729
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,553
-Emily Haines,631
+Micah Barnes,461
+Ashley Leggat,558
+Emily Haines,643
 ---------------------------
 **TrendingThree**
-Justin Bieber,32
+Justin Bieber,31
 Leonard Cohen,29
-Avril Lavigne,22
+Avril Lavigne,23
 ---------------------------
 **VoteCount**
 10000
@@ -2932,27 +3244,30 @@ Avril Lavigne,22
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-438
+215
+---------------------------
+**SuccessCount**
+5785
 ---------------------------
 ####10100####
 **TopThree**
-Justin Bieber,779
-Leonard Cohen,760
-Avril Lavigne,718
+Justin Bieber,783
+Leonard Cohen,754
+Avril Lavigne,729
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,553
-Emily Haines,631
+Micah Barnes,461
+Ashley Leggat,558
+Emily Haines,643
 ---------------------------
 **TrendingThree**
-Justin Bieber,33
-Leonard Cohen,30
-Avril Lavigne,21
+Justin Bieber,31
+Leonard Cohen,29
+Avril Lavigne,22
 ---------------------------
 **VoteCount**
 10100
@@ -2960,27 +3275,30 @@ Avril Lavigne,21
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-434
+214
+---------------------------
+**SuccessCount**
+5786
 ---------------------------
 ####10200####
 **TopThree**
-Justin Bieber,784
-Leonard Cohen,760
-Avril Lavigne,718
+Justin Bieber,787
+Leonard Cohen,754
+Avril Lavigne,729
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,553
-Emily Haines,632
+Micah Barnes,461
+Ashley Leggat,558
+Emily Haines,644
 ---------------------------
 **TrendingThree**
-Justin Bieber,37
+Justin Bieber,35
 Leonard Cohen,27
-Avril Lavigne,20
+Avril Lavigne,21
 ---------------------------
 **VoteCount**
 10200
@@ -2988,27 +3306,30 @@ Avril Lavigne,20
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-428
+209
+---------------------------
+**SuccessCount**
+5791
 ---------------------------
 ####10300####
 **TopThree**
-Justin Bieber,787
-Leonard Cohen,761
-Avril Lavigne,719
+Justin Bieber,790
+Leonard Cohen,754
+Avril Lavigne,729
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,553
-Emily Haines,632
+Micah Barnes,461
+Ashley Leggat,558
+Emily Haines,644
 ---------------------------
 **TrendingThree**
-Justin Bieber,38
+Justin Bieber,37
 Leonard Cohen,26
-Avril Lavigne,20
+Avril Lavigne,21
 ---------------------------
 **VoteCount**
 10300
@@ -3016,27 +3337,30 @@ Avril Lavigne,20
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-423
+206
+---------------------------
+**SuccessCount**
+5794
 ---------------------------
 ####10400####
 **TopThree**
-Justin Bieber,788
-Leonard Cohen,766
-Avril Lavigne,719
+Justin Bieber,792
+Leonard Cohen,758
+Avril Lavigne,729
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,553
-Emily Haines,632
+Micah Barnes,461
+Ashley Leggat,558
+Emily Haines,644
 ---------------------------
 **TrendingThree**
 Justin Bieber,37
-Leonard Cohen,30
-Avril Lavigne,18
+Leonard Cohen,27
+Avril Lavigne,20
 ---------------------------
 **VoteCount**
 10400
@@ -3044,27 +3368,30 @@ Avril Lavigne,18
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-417
+200
+---------------------------
+**SuccessCount**
+5800
 ---------------------------
 ####10500####
 **TopThree**
-Justin Bieber,790
-Leonard Cohen,767
-Avril Lavigne,719
+Justin Bieber,794
+Leonard Cohen,759
+Avril Lavigne,729
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,553
-Emily Haines,633
+Micah Barnes,461
+Ashley Leggat,558
+Emily Haines,644
 ---------------------------
 **TrendingThree**
-Justin Bieber,36
-Leonard Cohen,30
-Avril Lavigne,18
+Justin Bieber,38
+Leonard Cohen,28
+Avril Lavigne,19
 ---------------------------
 **VoteCount**
 10500
@@ -3072,27 +3399,30 @@ Avril Lavigne,18
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-413
+197
+---------------------------
+**SuccessCount**
+5803
 ---------------------------
 ####10600####
 **TopThree**
-Justin Bieber,791
-Leonard Cohen,770
-Avril Lavigne,720
+Justin Bieber,795
+Leonard Cohen,761
+Avril Lavigne,730
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,553
-Emily Haines,633
+Micah Barnes,461
+Ashley Leggat,558
+Emily Haines,644
 ---------------------------
 **TrendingThree**
-Justin Bieber,35
-Leonard Cohen,31
-Avril Lavigne,19
+Justin Bieber,38
+Leonard Cohen,29
+Avril Lavigne,18
 ---------------------------
 **VoteCount**
 10600
@@ -3100,26 +3430,29 @@ Avril Lavigne,19
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-408
+193
+---------------------------
+**SuccessCount**
+5807
 ---------------------------
 ####10700####
 **TopThree**
-Justin Bieber,793
-Leonard Cohen,770
-Avril Lavigne,720
+Justin Bieber,797
+Leonard Cohen,761
+Avril Lavigne,730
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,553
-Emily Haines,633
+Micah Barnes,461
+Ashley Leggat,558
+Emily Haines,644
 ---------------------------
 **TrendingThree**
-Justin Bieber,37
-Leonard Cohen,30
+Justin Bieber,38
+Leonard Cohen,29
 Avril Lavigne,18
 ---------------------------
 **VoteCount**
@@ -3128,27 +3461,30 @@ Avril Lavigne,18
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-406
+191
+---------------------------
+**SuccessCount**
+5809
 ---------------------------
 ####10800####
 **TopThree**
-Justin Bieber,797
-Leonard Cohen,770
-Avril Lavigne,720
+Justin Bieber,799
+Leonard Cohen,761
+Avril Lavigne,730
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,553
-Emily Haines,633
+Micah Barnes,461
+Ashley Leggat,558
+Emily Haines,644
 ---------------------------
 **TrendingThree**
-Justin Bieber,39
-Leonard Cohen,30
-Avril Lavigne,17
+Justin Bieber,38
+Leonard Cohen,29
+Avril Lavigne,18
 ---------------------------
 **VoteCount**
 10800
@@ -3156,27 +3492,30 @@ Avril Lavigne,17
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-402
+189
+---------------------------
+**SuccessCount**
+5811
 ---------------------------
 ####10900####
 **TopThree**
-Justin Bieber,797
-Leonard Cohen,772
-Avril Lavigne,720
+Justin Bieber,799
+Leonard Cohen,763
+Avril Lavigne,730
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,554
-Emily Haines,633
+Micah Barnes,461
+Ashley Leggat,559
+Emily Haines,644
 ---------------------------
 **TrendingThree**
-Justin Bieber,39
-Leonard Cohen,30
-Avril Lavigne,16
+Justin Bieber,37
+Leonard Cohen,29
+Avril Lavigne,18
 ---------------------------
 **VoteCount**
 10900
@@ -3184,27 +3523,30 @@ Avril Lavigne,16
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-399
+186
+---------------------------
+**SuccessCount**
+5814
 ---------------------------
 ####11000####
 **TopThree**
-Justin Bieber,797
-Leonard Cohen,773
-Avril Lavigne,720
+Justin Bieber,799
+Leonard Cohen,764
+Avril Lavigne,730
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,554
-Emily Haines,634
+Micah Barnes,461
+Ashley Leggat,559
+Emily Haines,645
 ---------------------------
 **TrendingThree**
-Justin Bieber,38
-Leonard Cohen,30
-Avril Lavigne,16
+Justin Bieber,37
+Leonard Cohen,29
+Avril Lavigne,18
 ---------------------------
 **VoteCount**
 11000
@@ -3212,27 +3554,30 @@ Avril Lavigne,16
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-397
+184
+---------------------------
+**SuccessCount**
+5816
 ---------------------------
 ####11100####
 **TopThree**
-Justin Bieber,800
-Leonard Cohen,774
-Avril Lavigne,721
+Justin Bieber,801
+Leonard Cohen,765
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,555
-Emily Haines,634
+Micah Barnes,461
+Ashley Leggat,559
+Emily Haines,645
 ---------------------------
 **TrendingThree**
-Justin Bieber,41
+Justin Bieber,38
 Leonard Cohen,29
-Avril Lavigne,15
+Avril Lavigne,17
 ---------------------------
 **VoteCount**
 11100
@@ -3240,27 +3585,30 @@ Avril Lavigne,15
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-391
+180
+---------------------------
+**SuccessCount**
+5820
 ---------------------------
 ####11200####
 **TopThree**
 Justin Bieber,801
-Leonard Cohen,775
-Avril Lavigne,721
+Leonard Cohen,766
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,556
-Emily Haines,634
+Micah Barnes,461
+Ashley Leggat,560
+Emily Haines,645
 ---------------------------
 **TrendingThree**
-Justin Bieber,40
-Leonard Cohen,29
-Avril Lavigne,15
+Justin Bieber,38
+Leonard Cohen,30
+Avril Lavigne,16
 ---------------------------
 **VoteCount**
 11200
@@ -3268,27 +3616,30 @@ Avril Lavigne,15
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-388
+178
+---------------------------
+**SuccessCount**
+5822
 ---------------------------
 ####11300####
 **TopThree**
-Justin Bieber,806
-Leonard Cohen,789
-Avril Lavigne,721
+Justin Bieber,805
+Leonard Cohen,780
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,557
-Emily Haines,634
+Micah Barnes,461
+Ashley Leggat,561
+Emily Haines,645
 ---------------------------
 **TrendingThree**
 Justin Bieber,39
-Leonard Cohen,37
-Avril Lavigne,10
+Leonard Cohen,36
+Avril Lavigne,12
 ---------------------------
 **VoteCount**
 11300
@@ -3296,27 +3647,30 @@ Avril Lavigne,10
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-368
+159
+---------------------------
+**SuccessCount**
+5841
 ---------------------------
 ####11400####
 **TopThree**
-Justin Bieber,809
-Leonard Cohen,791
-Avril Lavigne,721
+Justin Bieber,808
+Leonard Cohen,782
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,450
-Ashley Leggat,557
-Emily Haines,634
+Micah Barnes,461
+Ashley Leggat,561
+Emily Haines,645
 ---------------------------
 **TrendingThree**
-Justin Bieber,41
-Leonard Cohen,38
-Avril Lavigne,8
+Justin Bieber,40
+Leonard Cohen,36
+Avril Lavigne,11
 ---------------------------
 **VoteCount**
 11400
@@ -3324,27 +3678,30 @@ Avril Lavigne,8
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-363
+154
+---------------------------
+**SuccessCount**
+5846
 ---------------------------
 ####11500####
 **TopThree**
-Justin Bieber,809
-Leonard Cohen,791
-Avril Lavigne,721
+Justin Bieber,808
+Leonard Cohen,782
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,451
-Ashley Leggat,557
-Emily Haines,634
+Micah Barnes,462
+Ashley Leggat,561
+Emily Haines,645
 ---------------------------
 **TrendingThree**
 Justin Bieber,40
-Leonard Cohen,38
-Avril Lavigne,8
+Leonard Cohen,35
+Avril Lavigne,11
 ---------------------------
 **VoteCount**
 11500
@@ -3352,27 +3709,30 @@ Avril Lavigne,8
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-362
+153
+---------------------------
+**SuccessCount**
+5847
 ---------------------------
 ####11600####
 **TopThree**
-Justin Bieber,810
-Leonard Cohen,791
-Avril Lavigne,721
+Justin Bieber,809
+Leonard Cohen,782
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,452
-Ashley Leggat,557
-Emily Haines,634
+Micah Barnes,463
+Ashley Leggat,561
+Emily Haines,645
 ---------------------------
 **TrendingThree**
-Justin Bieber,41
-Leonard Cohen,37
-Avril Lavigne,8
+Justin Bieber,40
+Leonard Cohen,35
+Avril Lavigne,10
 ---------------------------
 **VoteCount**
 11600
@@ -3380,27 +3740,30 @@ Avril Lavigne,8
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-360
+151
+---------------------------
+**SuccessCount**
+5849
 ---------------------------
 ####11700####
 **TopThree**
-Justin Bieber,812
-Leonard Cohen,791
-Avril Lavigne,721
+Justin Bieber,811
+Leonard Cohen,782
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,452
-Ashley Leggat,557
-Emily Haines,634
+Micah Barnes,463
+Ashley Leggat,561
+Emily Haines,645
 ---------------------------
 **TrendingThree**
-Justin Bieber,43
-Leonard Cohen,36
-Avril Lavigne,8
+Justin Bieber,41
+Leonard Cohen,34
+Avril Lavigne,10
 ---------------------------
 **VoteCount**
 11700
@@ -3408,26 +3771,29 @@ Avril Lavigne,8
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-358
+149
+---------------------------
+**SuccessCount**
+5851
 ---------------------------
 ####11800####
 **TopThree**
-Justin Bieber,814
-Leonard Cohen,791
-Avril Lavigne,722
+Justin Bieber,812
+Leonard Cohen,782
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,452
-Ashley Leggat,557
-Emily Haines,634
+Micah Barnes,463
+Ashley Leggat,561
+Emily Haines,645
 ---------------------------
 **TrendingThree**
-Justin Bieber,43
-Leonard Cohen,35
+Justin Bieber,42
+Leonard Cohen,34
 Avril Lavigne,9
 ---------------------------
 **VoteCount**
@@ -3436,26 +3802,29 @@ Avril Lavigne,9
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-355
+148
+---------------------------
+**SuccessCount**
+5852
 ---------------------------
 ####11900####
 **TopThree**
-Justin Bieber,814
-Leonard Cohen,792
-Avril Lavigne,722
+Justin Bieber,812
+Leonard Cohen,783
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,452
-Ashley Leggat,557
-Emily Haines,634
+Micah Barnes,463
+Ashley Leggat,561
+Emily Haines,645
 ---------------------------
 **TrendingThree**
-Justin Bieber,42
-Leonard Cohen,36
+Justin Bieber,41
+Leonard Cohen,35
 Avril Lavigne,9
 ---------------------------
 **VoteCount**
@@ -3464,26 +3833,29 @@ Avril Lavigne,9
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-354
+147
+---------------------------
+**SuccessCount**
+5853
 ---------------------------
 ####12000####
 **TopThree**
-Justin Bieber,815
-Leonard Cohen,792
-Avril Lavigne,722
+Justin Bieber,812
+Leonard Cohen,783
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,452
-Ashley Leggat,558
-Emily Haines,635
+Micah Barnes,463
+Ashley Leggat,562
+Emily Haines,646
 ---------------------------
 **TrendingThree**
 Justin Bieber,39
-Leonard Cohen,36
+Leonard Cohen,35
 Avril Lavigne,9
 ---------------------------
 **VoteCount**
@@ -3492,27 +3864,30 @@ Avril Lavigne,9
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-350
+144
+---------------------------
+**SuccessCount**
+5856
 ---------------------------
 ####12100####
 **TopThree**
-Justin Bieber,817
-Leonard Cohen,792
-Avril Lavigne,722
+Justin Bieber,813
+Leonard Cohen,783
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,452
-Ashley Leggat,558
-Emily Haines,635
+Micah Barnes,463
+Ashley Leggat,562
+Emily Haines,646
 ---------------------------
 **TrendingThree**
-Justin Bieber,41
-Leonard Cohen,36
-Avril Lavigne,7
+Justin Bieber,40
+Leonard Cohen,35
+Avril Lavigne,8
 ---------------------------
 **VoteCount**
 12100
@@ -3520,27 +3895,30 @@ Avril Lavigne,7
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-348
+143
+---------------------------
+**SuccessCount**
+5857
 ---------------------------
 ####12200####
 **TopThree**
-Justin Bieber,822
-Leonard Cohen,792
-Avril Lavigne,722
+Justin Bieber,817
+Leonard Cohen,783
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,452
-Ashley Leggat,558
-Emily Haines,635
+Micah Barnes,463
+Ashley Leggat,562
+Emily Haines,646
 ---------------------------
 **TrendingThree**
-Justin Bieber,46
-Leonard Cohen,35
-Ashley Leggat,7
+Justin Bieber,43
+Leonard Cohen,34
+Avril Lavigne,7
 ---------------------------
 **VoteCount**
 12200
@@ -3548,27 +3926,30 @@ Ashley Leggat,7
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-343
+139
+---------------------------
+**SuccessCount**
+5861
 ---------------------------
 ####12300####
 **TopThree**
-Justin Bieber,823
-Leonard Cohen,792
-Avril Lavigne,722
+Justin Bieber,818
+Leonard Cohen,783
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,452
-Ashley Leggat,558
-Emily Haines,635
+Micah Barnes,463
+Ashley Leggat,562
+Emily Haines,646
 ---------------------------
 **TrendingThree**
-Justin Bieber,46
-Leonard Cohen,35
-Ashley Leggat,7
+Justin Bieber,43
+Leonard Cohen,34
+Avril Lavigne,7
 ---------------------------
 **VoteCount**
 12300
@@ -3576,27 +3957,30 @@ Ashley Leggat,7
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-342
+138
+---------------------------
+**SuccessCount**
+5862
 ---------------------------
 ####12400####
 **TopThree**
-Justin Bieber,826
-Leonard Cohen,792
-Avril Lavigne,722
+Justin Bieber,820
+Leonard Cohen,783
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,452
-Ashley Leggat,558
-Emily Haines,635
+Micah Barnes,463
+Ashley Leggat,562
+Emily Haines,646
 ---------------------------
 **TrendingThree**
-Justin Bieber,49
-Leonard Cohen,34
-Ashley Leggat,5
+Justin Bieber,45
+Leonard Cohen,33
+Avril Lavigne,7
 ---------------------------
 **VoteCount**
 12400
@@ -3604,27 +3988,30 @@ Ashley Leggat,5
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-339
+136
+---------------------------
+**SuccessCount**
+5864
 ---------------------------
 ####12500####
 **TopThree**
-Justin Bieber,830
-Leonard Cohen,792
-Avril Lavigne,722
+Justin Bieber,824
+Leonard Cohen,783
+Avril Lavigne,731
 ---------------------------
 **BottomThree**
-Micah Barnes,452
-Ashley Leggat,558
-Emily Haines,635
+Micah Barnes,463
+Ashley Leggat,562
+Emily Haines,646
 ---------------------------
 **TrendingThree**
-Justin Bieber,51
-Leonard Cohen,32
-Ashley Leggat,5
+Justin Bieber,48
+Leonard Cohen,31
+Avril Lavigne,7
 ---------------------------
 **VoteCount**
 12500
@@ -3632,2278 +4019,13 @@ Ashley Leggat,5
 **TrendingCount**
 100
 ---------------------------
-**RemainingContestants**
+**remainingContestants**
 7
 ---------------------------
 **VotesTilNextDelete**
-335
+132
+---------------------------
+**SuccessCount**
+5868
 ---------------------------
 ####12600####
-**TopThree**
-Justin Bieber,833
-Leonard Cohen,797
-Avril Lavigne,729
----------------------------
-**BottomThree**
-Micah Barnes,459
-Ashley Leggat,558
-Emily Haines,639
----------------------------
-**TrendingThree**
-Justin Bieber,39
-Leonard Cohen,27
-Avril Lavigne,9
----------------------------
-**VoteCount**
-12600
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-304
----------------------------
-####12700####
-**TopThree**
-Justin Bieber,835
-Leonard Cohen,798
-Avril Lavigne,730
----------------------------
-**BottomThree**
-Micah Barnes,460
-Ashley Leggat,558
-Emily Haines,641
----------------------------
-**TrendingThree**
-Justin Bieber,36
-Leonard Cohen,25
-Micah Barnes,10
----------------------------
-**VoteCount**
-12700
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-294
----------------------------
-####12800####
-**TopThree**
-Justin Bieber,836
-Leonard Cohen,798
-Avril Lavigne,732
----------------------------
-**BottomThree**
-Micah Barnes,460
-Ashley Leggat,558
-Emily Haines,641
----------------------------
-**TrendingThree**
-Justin Bieber,36
-Leonard Cohen,23
-Avril Lavigne,11
----------------------------
-**VoteCount**
-12800
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-290
----------------------------
-####12900####
-**TopThree**
-Justin Bieber,837
-Leonard Cohen,798
-Avril Lavigne,732
----------------------------
-**BottomThree**
-Micah Barnes,460
-Ashley Leggat,558
-Emily Haines,641
----------------------------
-**TrendingThree**
-Justin Bieber,37
-Leonard Cohen,23
-Avril Lavigne,11
----------------------------
-**VoteCount**
-12900
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-289
----------------------------
-####13000####
-**TopThree**
-Justin Bieber,837
-Leonard Cohen,798
-Avril Lavigne,732
----------------------------
-**BottomThree**
-Micah Barnes,460
-Ashley Leggat,558
-Emily Haines,641
----------------------------
-**TrendingThree**
-Justin Bieber,37
-Leonard Cohen,23
-Avril Lavigne,11
----------------------------
-**VoteCount**
-13000
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-289
----------------------------
-####13100####
-**TopThree**
-Justin Bieber,838
-Leonard Cohen,798
-Avril Lavigne,733
----------------------------
-**BottomThree**
-Micah Barnes,460
-Ashley Leggat,558
-Emily Haines,641
----------------------------
-**TrendingThree**
-Justin Bieber,37
-Leonard Cohen,22
-Avril Lavigne,12
----------------------------
-**VoteCount**
-13100
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-287
----------------------------
-####13200####
-**TopThree**
-Justin Bieber,838
-Leonard Cohen,798
-Avril Lavigne,733
----------------------------
-**BottomThree**
-Micah Barnes,460
-Ashley Leggat,558
-Emily Haines,641
----------------------------
-**TrendingThree**
-Justin Bieber,37
-Leonard Cohen,21
-Avril Lavigne,12
----------------------------
-**VoteCount**
-13200
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-286
----------------------------
-####13300####
-**TopThree**
-Justin Bieber,838
-Leonard Cohen,798
-Avril Lavigne,733
----------------------------
-**BottomThree**
-Micah Barnes,460
-Ashley Leggat,558
-Emily Haines,641
----------------------------
-**TrendingThree**
-Justin Bieber,37
-Leonard Cohen,21
-Avril Lavigne,12
----------------------------
-**VoteCount**
-13300
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-286
----------------------------
-####13400####
-**TopThree**
-Justin Bieber,838
-Leonard Cohen,798
-Avril Lavigne,734
----------------------------
-**BottomThree**
-Micah Barnes,460
-Ashley Leggat,558
-Emily Haines,643
----------------------------
-**TrendingThree**
-Justin Bieber,37
-Leonard Cohen,18
-Avril Lavigne,13
----------------------------
-**VoteCount**
-13400
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-283
----------------------------
-####13500####
-**TopThree**
-Justin Bieber,838
-Leonard Cohen,798
-Avril Lavigne,736
----------------------------
-**BottomThree**
-Micah Barnes,460
-Ashley Leggat,558
-Emily Haines,643
----------------------------
-**TrendingThree**
-Justin Bieber,37
-Leonard Cohen,15
-Avril Lavigne,15
----------------------------
-**VoteCount**
-13500
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-280
----------------------------
-####13600####
-**TopThree**
-Justin Bieber,839
-Leonard Cohen,798
-Avril Lavigne,737
----------------------------
-**BottomThree**
-Micah Barnes,460
-Ashley Leggat,558
-Emily Haines,643
----------------------------
-**TrendingThree**
-Justin Bieber,38
-Avril Lavigne,16
-Adam Gontier,13
----------------------------
-**VoteCount**
-13600
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-277
----------------------------
-####13700####
-**TopThree**
-Justin Bieber,839
-Leonard Cohen,798
-Avril Lavigne,738
----------------------------
-**BottomThree**
-Micah Barnes,460
-Ashley Leggat,558
-Emily Haines,643
----------------------------
-**TrendingThree**
-Justin Bieber,38
-Avril Lavigne,17
-Adam Gontier,14
----------------------------
-**VoteCount**
-13700
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-275
----------------------------
-####13800####
-**TopThree**
-Justin Bieber,840
-Leonard Cohen,798
-Avril Lavigne,738
----------------------------
-**BottomThree**
-Micah Barnes,460
-Ashley Leggat,558
-Emily Haines,644
----------------------------
-**TrendingThree**
-Justin Bieber,38
-Avril Lavigne,17
-Adam Gontier,14
----------------------------
-**VoteCount**
-13800
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-273
----------------------------
-####13900####
-**TopThree**
-Justin Bieber,840
-Leonard Cohen,799
-Avril Lavigne,738
----------------------------
-**BottomThree**
-Micah Barnes,461
-Ashley Leggat,558
-Emily Haines,646
----------------------------
-**TrendingThree**
-Justin Bieber,35
-Avril Lavigne,17
-Adam Gontier,14
----------------------------
-**VoteCount**
-13900
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-269
----------------------------
-####14000####
-**TopThree**
-Justin Bieber,840
-Leonard Cohen,799
-Avril Lavigne,738
----------------------------
-**BottomThree**
-Micah Barnes,461
-Ashley Leggat,558
-Emily Haines,646
----------------------------
-**TrendingThree**
-Justin Bieber,35
-Avril Lavigne,17
-Adam Gontier,14
----------------------------
-**VoteCount**
-14000
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-269
----------------------------
-####14100####
-**TopThree**
-Justin Bieber,841
-Leonard Cohen,799
-Avril Lavigne,738
----------------------------
-**BottomThree**
-Micah Barnes,461
-Ashley Leggat,558
-Emily Haines,647
----------------------------
-**TrendingThree**
-Justin Bieber,34
-Avril Lavigne,17
-Adam Gontier,15
----------------------------
-**VoteCount**
-14100
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-266
----------------------------
-####14200####
-**TopThree**
-Justin Bieber,841
-Leonard Cohen,799
-Avril Lavigne,738
----------------------------
-**BottomThree**
-Micah Barnes,461
-Ashley Leggat,558
-Emily Haines,648
----------------------------
-**TrendingThree**
-Justin Bieber,32
-Avril Lavigne,17
-Adam Gontier,16
----------------------------
-**VoteCount**
-14200
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-264
----------------------------
-####14300####
-**TopThree**
-Justin Bieber,842
-Leonard Cohen,799
-Avril Lavigne,739
----------------------------
-**BottomThree**
-Micah Barnes,461
-Ashley Leggat,558
-Emily Haines,649
----------------------------
-**TrendingThree**
-Justin Bieber,32
-Avril Lavigne,18
-Adam Gontier,16
----------------------------
-**VoteCount**
-14300
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-261
----------------------------
-####14400####
-**TopThree**
-Justin Bieber,842
-Leonard Cohen,800
-Avril Lavigne,740
----------------------------
-**BottomThree**
-Micah Barnes,461
-Ashley Leggat,558
-Emily Haines,649
----------------------------
-**TrendingThree**
-Justin Bieber,29
-Avril Lavigne,19
-Adam Gontier,18
----------------------------
-**VoteCount**
-14400
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-257
----------------------------
-####14500####
-**TopThree**
-Justin Bieber,842
-Leonard Cohen,800
-Avril Lavigne,740
----------------------------
-**BottomThree**
-Micah Barnes,461
-Ashley Leggat,558
-Emily Haines,651
----------------------------
-**TrendingThree**
-Justin Bieber,28
-Adam Gontier,19
-Avril Lavigne,18
----------------------------
-**VoteCount**
-14500
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-254
----------------------------
-####14600####
-**TopThree**
-Justin Bieber,842
-Leonard Cohen,801
-Avril Lavigne,742
----------------------------
-**BottomThree**
-Micah Barnes,461
-Ashley Leggat,558
-Emily Haines,652
----------------------------
-**TrendingThree**
-Justin Bieber,25
-Adam Gontier,20
-Avril Lavigne,20
----------------------------
-**VoteCount**
-14600
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-248
----------------------------
-####14700####
-**TopThree**
-Justin Bieber,843
-Leonard Cohen,801
-Avril Lavigne,743
----------------------------
-**BottomThree**
-Micah Barnes,461
-Ashley Leggat,558
-Emily Haines,652
----------------------------
-**TrendingThree**
-Justin Bieber,23
-Adam Gontier,21
-Avril Lavigne,21
----------------------------
-**VoteCount**
-14700
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-245
----------------------------
-####14800####
-**TopThree**
-Justin Bieber,843
-Leonard Cohen,802
-Avril Lavigne,743
----------------------------
-**BottomThree**
-Micah Barnes,462
-Ashley Leggat,558
-Emily Haines,652
----------------------------
-**TrendingThree**
-Justin Bieber,21
-Adam Gontier,21
-Avril Lavigne,21
----------------------------
-**VoteCount**
-14800
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-243
----------------------------
-####14900####
-**TopThree**
-Justin Bieber,843
-Leonard Cohen,802
-Avril Lavigne,743
----------------------------
-**BottomThree**
-Micah Barnes,462
-Ashley Leggat,558
-Emily Haines,652
----------------------------
-**TrendingThree**
-Justin Bieber,21
-Adam Gontier,21
-Avril Lavigne,21
----------------------------
-**VoteCount**
-14900
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-243
----------------------------
-####15000####
-**TopThree**
-Justin Bieber,843
-Leonard Cohen,802
-Avril Lavigne,744
----------------------------
-**BottomThree**
-Micah Barnes,463
-Ashley Leggat,558
-Emily Haines,654
----------------------------
-**TrendingThree**
-Avril Lavigne,22
-Adam Gontier,21
-Emily Haines,19
----------------------------
-**VoteCount**
-15000
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-239
----------------------------
-####15100####
-**TopThree**
-Justin Bieber,853
-Leonard Cohen,808
-Avril Lavigne,750
----------------------------
-**BottomThree**
-Micah Barnes,470
-Ashley Leggat,558
-Emily Haines,662
----------------------------
-**TrendingThree**
-Emily Haines,21
-Avril Lavigne,21
-Justin Bieber,19
----------------------------
-**VoteCount**
-15100
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-197
----------------------------
-####15200####
-**TopThree**
-Justin Bieber,858
-Leonard Cohen,823
-Avril Lavigne,756
----------------------------
-**BottomThree**
-Micah Barnes,476
-Ashley Leggat,558
-Emily Haines,670
----------------------------
-**TrendingThree**
-Leonard Cohen,22
-Emily Haines,18
-Justin Bieber,16
----------------------------
-**VoteCount**
-15200
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-148
----------------------------
-####15300####
-**TopThree**
-Justin Bieber,866
-Leonard Cohen,824
-Avril Lavigne,765
----------------------------
-**BottomThree**
-Micah Barnes,488
-Ashley Leggat,558
-Emily Haines,677
----------------------------
-**TrendingThree**
-Micah Barnes,19
-Leonard Cohen,19
-Adam Gontier,17
----------------------------
-**VoteCount**
-15300
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-104
----------------------------
-####15400####
-**TopThree**
-Justin Bieber,871
-Leonard Cohen,837
-Avril Lavigne,767
----------------------------
-**BottomThree**
-Micah Barnes,502
-Ashley Leggat,558
-Emily Haines,685
----------------------------
-**TrendingThree**
-Micah Barnes,26
-Adam Gontier,20
-Emily Haines,16
----------------------------
-**VoteCount**
-15400
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-7
----------------------------
-**VotesTilNextDelete**
-49
----------------------------
-####DELETECANDIDATE####
-**TopThree**
-Justin Bieber,882
-Leonard Cohen,848
-Avril Lavigne,775
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,693
-Adam Gontier,755
----------------------------
-**TrendingThree**
-Leonard Cohen,24
-Emily Haines,16
-Justin Bieber,15
----------------------------
-**VoteCount**
-15487
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-1000
----------------------------
-####15500####
-**TopThree**
-Justin Bieber,884
-Leonard Cohen,848
-Avril Lavigne,775
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,693
-Adam Gontier,758
----------------------------
-**TrendingThree**
-Leonard Cohen,24
-Justin Bieber,16
-Emily Haines,16
----------------------------
-**VoteCount**
-15500
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-995
----------------------------
-####15600####
-**TopThree**
-Justin Bieber,896
-Leonard Cohen,849
-Avril Lavigne,778
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,704
-Adam Gontier,763
----------------------------
-**TrendingThree**
-Justin Bieber,27
-Emily Haines,19
-Leonard Cohen,17
----------------------------
-**VoteCount**
-15600
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-963
----------------------------
-####15700####
-**TopThree**
-Justin Bieber,904
-Leonard Cohen,858
-Avril Lavigne,787
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,714
-Adam Gontier,769
----------------------------
-**TrendingThree**
-Justin Bieber,28
-Emily Haines,24
-Adam Gontier,16
----------------------------
-**VoteCount**
-15700
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-921
----------------------------
-####15800####
-**TopThree**
-Justin Bieber,910
-Leonard Cohen,867
-Avril Lavigne,796
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,722
-Adam Gontier,778
----------------------------
-**TrendingThree**
-Emily Haines,25
-Justin Bieber,19
-Leonard Cohen,19
----------------------------
-**VoteCount**
-15800
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-880
----------------------------
-####15900####
-**TopThree**
-Justin Bieber,926
-Leonard Cohen,873
-Avril Lavigne,803
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,727
-Adam Gontier,786
----------------------------
-**TrendingThree**
-Justin Bieber,26
-Adam Gontier,20
-Avril Lavigne,19
----------------------------
-**VoteCount**
-15900
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-838
----------------------------
-####16000####
-**TopThree**
-Justin Bieber,937
-Leonard Cohen,883
-Avril Lavigne,813
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,733
-Adam Gontier,790
----------------------------
-**TrendingThree**
-Justin Bieber,30
-Avril Lavigne,21
-Leonard Cohen,20
----------------------------
-**VoteCount**
-16000
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-797
----------------------------
-####16100####
-**TopThree**
-Justin Bieber,944
-Leonard Cohen,891
-Avril Lavigne,825
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,740
-Adam Gontier,798
----------------------------
-**TrendingThree**
-Justin Bieber,25
-Avril Lavigne,25
-Leonard Cohen,21
----------------------------
-**VoteCount**
-16100
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-755
----------------------------
-####16200####
-**TopThree**
-Justin Bieber,952
-Leonard Cohen,898
-Avril Lavigne,835
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,745
-Adam Gontier,805
----------------------------
-**TrendingThree**
-Avril Lavigne,25
-Leonard Cohen,23
-Justin Bieber,21
----------------------------
-**VoteCount**
-16200
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-718
----------------------------
-####16300####
-**TopThree**
-Justin Bieber,961
-Leonard Cohen,902
-Avril Lavigne,850
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,752
-Adam Gontier,809
----------------------------
-**TrendingThree**
-Avril Lavigne,32
-Justin Bieber,19
-Adam Gontier,18
----------------------------
-**VoteCount**
-16300
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-679
----------------------------
-####16400####
-**TopThree**
-Justin Bieber,968
-Leonard Cohen,910
-Avril Lavigne,856
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,762
-Adam Gontier,820
----------------------------
-**TrendingThree**
-Avril Lavigne,26
-Justin Bieber,22
-Adam Gontier,19
----------------------------
-**VoteCount**
-16400
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-637
----------------------------
-####16500####
-**TopThree**
-Justin Bieber,977
-Leonard Cohen,917
-Avril Lavigne,865
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,770
-Adam Gontier,830
----------------------------
-**TrendingThree**
-Adam Gontier,24
-Emily Haines,23
-Justin Bieber,18
----------------------------
-**VoteCount**
-16500
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-594
----------------------------
-####16600####
-**TopThree**
-Justin Bieber,984
-Leonard Cohen,925
-Avril Lavigne,879
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,783
-Adam Gontier,835
----------------------------
-**TrendingThree**
-Avril Lavigne,25
-Emily Haines,23
-Justin Bieber,19
----------------------------
-**VoteCount**
-16600
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-547
----------------------------
-####16700####
-**TopThree**
-Justin Bieber,986
-Leonard Cohen,933
-Avril Lavigne,885
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,797
-Adam Gontier,844
----------------------------
-**TrendingThree**
-Emily Haines,29
-Avril Lavigne,24
-Leonard Cohen,18
----------------------------
-**VoteCount**
-16700
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-508
----------------------------
-####16800####
-**TopThree**
-Justin Bieber,997
-Leonard Cohen,941
-Avril Lavigne,893
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,806
-Adam Gontier,851
----------------------------
-**TrendingThree**
-Emily Haines,30
-Adam Gontier,19
-Leonard Cohen,18
----------------------------
-**VoteCount**
-16800
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-465
----------------------------
-####16900####
-**TopThree**
-Justin Bieber,1004
-Leonard Cohen,949
-Avril Lavigne,899
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,812
-Adam Gontier,859
----------------------------
-**TrendingThree**
-Emily Haines,23
-Adam Gontier,21
-Leonard Cohen,20
----------------------------
-**VoteCount**
-16900
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-430
----------------------------
-####17000####
-**TopThree**
-Justin Bieber,1013
-Leonard Cohen,961
-Avril Lavigne,907
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,820
-Adam Gontier,867
----------------------------
-**TrendingThree**
-Justin Bieber,24
-Leonard Cohen,21
-Adam Gontier,20
----------------------------
-**VoteCount**
-17000
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-385
----------------------------
-####17100####
-**TopThree**
-Justin Bieber,1015
-Leonard Cohen,970
-Avril Lavigne,915
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,829
-Adam Gontier,880
----------------------------
-**TrendingThree**
-Adam Gontier,26
-Leonard Cohen,23
-Emily Haines,19
----------------------------
-**VoteCount**
-17100
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-344
----------------------------
-####17200####
-**TopThree**
-Justin Bieber,1020
-Leonard Cohen,976
-Avril Lavigne,927
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,835
-Adam Gontier,892
----------------------------
-**TrendingThree**
-Adam Gontier,27
-Avril Lavigne,26
-Leonard Cohen,22
----------------------------
-**VoteCount**
-17200
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-303
----------------------------
-####17300####
-**TopThree**
-Justin Bieber,1029
-Leonard Cohen,981
-Avril Lavigne,933
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,841
-Adam Gontier,903
----------------------------
-**TrendingThree**
-Adam Gontier,29
-Avril Lavigne,24
-Leonard Cohen,16
----------------------------
-**VoteCount**
-17300
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-266
----------------------------
-####17400####
-**TopThree**
-Justin Bieber,1037
-Leonard Cohen,987
-Avril Lavigne,941
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,846
-Adam Gontier,909
----------------------------
-**TrendingThree**
-Adam Gontier,26
-Avril Lavigne,24
-Justin Bieber,21
----------------------------
-**VoteCount**
-17400
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-233
----------------------------
-####17500####
-**TopThree**
-Justin Bieber,1044
-Leonard Cohen,994
-Avril Lavigne,946
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,857
-Adam Gontier,917
----------------------------
-**TrendingThree**
-Adam Gontier,23
-Justin Bieber,22
-Emily Haines,20
----------------------------
-**VoteCount**
-17500
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-195
----------------------------
-####17600####
-**TopThree**
-Justin Bieber,1058
-Leonard Cohen,1002
-Avril Lavigne,954
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,864
-Adam Gontier,924
----------------------------
-**TrendingThree**
-Justin Bieber,26
-Emily Haines,21
-Leonard Cohen,19
----------------------------
-**VoteCount**
-17600
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-151
----------------------------
-####17700####
-**TopThree**
-Justin Bieber,1062
-Leonard Cohen,1007
-Avril Lavigne,963
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,869
-Adam Gontier,929
----------------------------
-**TrendingThree**
-Justin Bieber,23
-Emily Haines,21
-Avril Lavigne,20
----------------------------
-**VoteCount**
-17700
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-123
----------------------------
-####17800####
-**TopThree**
-Justin Bieber,1065
-Leonard Cohen,1014
-Avril Lavigne,974
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,876
-Adam Gontier,934
----------------------------
-**TrendingThree**
-Avril Lavigne,28
-Leonard Cohen,19
-Emily Haines,19
----------------------------
-**VoteCount**
-17800
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-90
----------------------------
-####17900####
-**TopThree**
-Justin Bieber,1078
-Leonard Cohen,1025
-Avril Lavigne,981
----------------------------
-**BottomThree**
-Ashley Leggat,558
-Emily Haines,884
-Adam Gontier,943
----------------------------
-**TrendingThree**
-Avril Lavigne,25
-Leonard Cohen,21
-Justin Bieber,20
----------------------------
-**VoteCount**
-17900
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-6
----------------------------
-**VotesTilNextDelete**
-42
----------------------------
-####DELETECANDIDATE####
-**TopThree**
-Justin Bieber,1083
-Leonard Cohen,1037
-Avril Lavigne,991
----------------------------
-**BottomThree**
-Emily Haines,892
-Adam Gontier,950
-Avril Lavigne,991
----------------------------
-**TrendingThree**
-Leonard Cohen,28
-Emily Haines,19
-Justin Bieber,18
----------------------------
-**VoteCount**
-17998
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-1000
----------------------------
-####18000####
-**TopThree**
-Justin Bieber,1083
-Leonard Cohen,1037
-Avril Lavigne,991
----------------------------
-**BottomThree**
-Emily Haines,892
-Adam Gontier,951
-Avril Lavigne,991
----------------------------
-**TrendingThree**
-Leonard Cohen,28
-Emily Haines,19
-Justin Bieber,18
----------------------------
-**VoteCount**
-18000
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-999
----------------------------
-####18100####
-**TopThree**
-Justin Bieber,1092
-Leonard Cohen,1049
-Avril Lavigne,1004
----------------------------
-**BottomThree**
-Emily Haines,901
-Adam Gontier,957
-Avril Lavigne,1004
----------------------------
-**TrendingThree**
-Avril Lavigne,24
-Leonard Cohen,23
-Justin Bieber,18
----------------------------
-**VoteCount**
-18100
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-950
----------------------------
-####18200####
-**TopThree**
-Justin Bieber,1101
-Leonard Cohen,1055
-Avril Lavigne,1008
----------------------------
-**BottomThree**
-Emily Haines,913
-Adam Gontier,961
-Avril Lavigne,1008
----------------------------
-**TrendingThree**
-Leonard Cohen,25
-Emily Haines,25
-Avril Lavigne,20
----------------------------
-**VoteCount**
-18200
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-915
----------------------------
-####18300####
-**TopThree**
-Justin Bieber,1109
-Leonard Cohen,1061
-Avril Lavigne,1022
----------------------------
-**BottomThree**
-Emily Haines,921
-Adam Gontier,968
-Avril Lavigne,1022
----------------------------
-**TrendingThree**
-Emily Haines,25
-Avril Lavigne,24
-Justin Bieber,23
----------------------------
-**VoteCount**
-18300
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-872
----------------------------
-####18400####
-**TopThree**
-Justin Bieber,1116
-Leonard Cohen,1067
-Avril Lavigne,1029
----------------------------
-**BottomThree**
-Emily Haines,936
-Adam Gontier,973
-Avril Lavigne,1029
----------------------------
-**TrendingThree**
-Emily Haines,30
-Avril Lavigne,22
-Justin Bieber,18
----------------------------
-**VoteCount**
-18400
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-832
----------------------------
-####18500####
-**TopThree**
-Justin Bieber,1124
-Leonard Cohen,1079
-Avril Lavigne,1033
----------------------------
-**BottomThree**
-Emily Haines,943
-Adam Gontier,981
-Avril Lavigne,1033
----------------------------
-**TrendingThree**
-Emily Haines,24
-Leonard Cohen,22
-Justin Bieber,20
----------------------------
-**VoteCount**
-18500
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-793
----------------------------
-####18600####
-**TopThree**
-Justin Bieber,1132
-Leonard Cohen,1088
-Avril Lavigne,1045
----------------------------
-**BottomThree**
-Emily Haines,950
-Adam Gontier,988
-Avril Lavigne,1045
----------------------------
-**TrendingThree**
-Leonard Cohen,23
-Emily Haines,22
-Avril Lavigne,20
----------------------------
-**VoteCount**
-18600
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-750
----------------------------
-####18700####
-**TopThree**
-Justin Bieber,1144
-Leonard Cohen,1097
-Avril Lavigne,1055
----------------------------
-**BottomThree**
-Emily Haines,955
-Adam Gontier,996
-Avril Lavigne,1055
----------------------------
-**TrendingThree**
-Justin Bieber,24
-Avril Lavigne,23
-Leonard Cohen,22
----------------------------
-**VoteCount**
-18700
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-706
----------------------------
-####18800####
-**TopThree**
-Justin Bieber,1148
-Leonard Cohen,1104
-Avril Lavigne,1065
----------------------------
-**BottomThree**
-Emily Haines,961
-Adam Gontier,1007
-Avril Lavigne,1065
----------------------------
-**TrendingThree**
-Avril Lavigne,26
-Adam Gontier,22
-Justin Bieber,21
----------------------------
-**VoteCount**
-18800
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-668
----------------------------
-####18900####
-**TopThree**
-Justin Bieber,1153
-Leonard Cohen,1112
-Avril Lavigne,1075
----------------------------
-**BottomThree**
-Emily Haines,968
-Adam Gontier,1013
-Avril Lavigne,1075
----------------------------
-**TrendingThree**
-Avril Lavigne,26
-Adam Gontier,21
-Leonard Cohen,20
----------------------------
-**VoteCount**
-18900
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-632
----------------------------
-####19000####
-**TopThree**
-Justin Bieber,1160
-Leonard Cohen,1118
-Avril Lavigne,1082
----------------------------
-**BottomThree**
-Emily Haines,977
-Adam Gontier,1025
-Avril Lavigne,1082
----------------------------
-**TrendingThree**
-Adam Gontier,24
-Avril Lavigne,24
-Leonard Cohen,20
----------------------------
-**VoteCount**
-19000
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-591
----------------------------
-####19100####
-**TopThree**
-Justin Bieber,1169
-Leonard Cohen,1133
-Avril Lavigne,1091
----------------------------
-**BottomThree**
-Emily Haines,982
-Adam Gontier,1031
-Avril Lavigne,1091
----------------------------
-**TrendingThree**
-Leonard Cohen,23
-Adam Gontier,21
-Avril Lavigne,21
----------------------------
-**VoteCount**
-19100
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-547
----------------------------
-####19200####
-**TopThree**
-Justin Bieber,1178
-Leonard Cohen,1138
-Avril Lavigne,1101
----------------------------
-**BottomThree**
-Emily Haines,989
-Adam Gontier,1041
-Avril Lavigne,1101
----------------------------
-**TrendingThree**
-Leonard Cohen,23
-Justin Bieber,21
-Adam Gontier,21
----------------------------
-**VoteCount**
-19200
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-506
----------------------------
-####19300####
-**TopThree**
-Justin Bieber,1187
-Leonard Cohen,1149
-Avril Lavigne,1108
----------------------------
-**BottomThree**
-Emily Haines,995
-Adam Gontier,1053
-Avril Lavigne,1108
----------------------------
-**TrendingThree**
-Adam Gontier,24
-Avril Lavigne,22
-Leonard Cohen,21
----------------------------
-**VoteCount**
-19300
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-461
----------------------------
-####19400####
-**TopThree**
-Justin Bieber,1202
-Leonard Cohen,1157
-Avril Lavigne,1118
----------------------------
-**BottomThree**
-Emily Haines,1007
-Adam Gontier,1058
-Avril Lavigne,1118
----------------------------
-**TrendingThree**
-Justin Bieber,25
-Avril Lavigne,20
-Leonard Cohen,19
----------------------------
-**VoteCount**
-19400
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-411
----------------------------
-####19500####
-**TopThree**
-Justin Bieber,1210
-Leonard Cohen,1166
-Avril Lavigne,1120
----------------------------
-**BottomThree**
-Emily Haines,1012
-Adam Gontier,1070
-Avril Lavigne,1120
----------------------------
-**TrendingThree**
-Justin Bieber,27
-Leonard Cohen,20
-Adam Gontier,20
----------------------------
-**VoteCount**
-19500
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-375
----------------------------
-####19600####
-**TopThree**
-Justin Bieber,1219
-Leonard Cohen,1173
-Avril Lavigne,1126
----------------------------
-**BottomThree**
-Emily Haines,1022
-Adam Gontier,1078
-Avril Lavigne,1126
----------------------------
-**TrendingThree**
-Justin Bieber,23
-Emily Haines,23
-Adam Gontier,21
----------------------------
-**VoteCount**
-19600
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-335
----------------------------
-####19700####
-**TopThree**
-Justin Bieber,1232
-Leonard Cohen,1176
-Avril Lavigne,1133
----------------------------
-**BottomThree**
-Emily Haines,1033
-Adam Gontier,1088
-Avril Lavigne,1133
----------------------------
-**TrendingThree**
-Justin Bieber,25
-Adam Gontier,24
-Emily Haines,23
----------------------------
-**VoteCount**
-19700
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-291
----------------------------
-####19800####
-**TopThree**
-Justin Bieber,1242
-Leonard Cohen,1185
-Avril Lavigne,1142
----------------------------
-**BottomThree**
-Emily Haines,1040
-Adam Gontier,1097
-Avril Lavigne,1142
----------------------------
-**TrendingThree**
-Justin Bieber,25
-Adam Gontier,23
-Emily Haines,20
----------------------------
-**VoteCount**
-19800
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-247
----------------------------
-####19900####
-**TopThree**
-Justin Bieber,1249
-Leonard Cohen,1192
-Avril Lavigne,1149
----------------------------
-**BottomThree**
-Emily Haines,1050
-Adam Gontier,1104
-Avril Lavigne,1149
----------------------------
-**TrendingThree**
-Justin Bieber,24
-Emily Haines,20
-Avril Lavigne,20
----------------------------
-**VoteCount**
-19900
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-209
----------------------------
-####20000####
-**TopThree**
-Justin Bieber,1258
-Leonard Cohen,1198
-Avril Lavigne,1160
----------------------------
-**BottomThree**
-Emily Haines,1062
-Adam Gontier,1114
-Avril Lavigne,1160
----------------------------
-**TrendingThree**
-Emily Haines,24
-Avril Lavigne,22
-Adam Gontier,19
----------------------------
-**VoteCount**
-20000
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-161
----------------------------
-####20100####
-**TopThree**
-Justin Bieber,1267
-Leonard Cohen,1205
-Avril Lavigne,1172
----------------------------
-**BottomThree**
-Emily Haines,1071
-Adam Gontier,1122
-Avril Lavigne,1172
----------------------------
-**TrendingThree**
-Avril Lavigne,25
-Emily Haines,24
-Adam Gontier,19
----------------------------
-**VoteCount**
-20100
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-116
----------------------------
-####20200####
-**TopThree**
-Justin Bieber,1276
-Leonard Cohen,1214
-Avril Lavigne,1183
----------------------------
-**BottomThree**
-Emily Haines,1082
-Adam Gontier,1129
-Avril Lavigne,1183
----------------------------
-**TrendingThree**
-Avril Lavigne,26
-Emily Haines,23
-Justin Bieber,20
----------------------------
-**VoteCount**
-20200
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-69
----------------------------
-####20300####
-**TopThree**
-Justin Bieber,1287
-Leonard Cohen,1223
-Avril Lavigne,1194
----------------------------
-**BottomThree**
-Emily Haines,1090
-Adam Gontier,1136
-Avril Lavigne,1194
----------------------------
-**TrendingThree**
-Avril Lavigne,23
-Justin Bieber,21
-Leonard Cohen,19
----------------------------
-**VoteCount**
-20300
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-5
----------------------------
-**VotesTilNextDelete**
-23
----------------------------
-####DELETECANDIDATE####
-**TopThree**
-Justin Bieber,1292
-Leonard Cohen,1227
-Avril Lavigne,1197
----------------------------
-**BottomThree**
-Adam Gontier,1143
-Avril Lavigne,1197
-Leonard Cohen,1227
----------------------------
-**TrendingThree**
-Justin Bieber,23
-Leonard Cohen,20
-Avril Lavigne,20
----------------------------
-**VoteCount**
-20347
----------------------------
-**TrendingCount**
-100
----------------------------
-**RemainingContestants**
-4
----------------------------
-**VotesTilNextDelete**
-1000
----------------------------
-####20400####

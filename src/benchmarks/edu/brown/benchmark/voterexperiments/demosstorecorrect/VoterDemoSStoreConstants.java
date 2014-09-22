@@ -80,5 +80,5 @@ public abstract class VoterDemoSStoreConstants {
     public static final long BM_FINISHED = 8;
     
     public static final boolean DEBUG = false;
-    public static final int WAIT_TIME = 2000;
+    public static final int WAIT_TIME = 0;
 }

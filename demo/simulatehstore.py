@@ -43,7 +43,7 @@ def printvotes(filename):
 getlines(CONTESTANTS_INFILE, c_lines)
 getlines(VOTES_INFILE, v_lines)
 print "waiting for S-Store to start"
-time.sleep(15)
+time.sleep(14)
 while v_index < len(v_lines) - 1:
 	printcontestants(CONTESTANTS_OUTFILE)
 	printvotes(VOTES_OUTFILE)
