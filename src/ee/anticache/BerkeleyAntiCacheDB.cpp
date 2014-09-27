@@ -163,6 +163,8 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
                blockId, tupleCount, size);
     // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);
+    
+    pushBlockLRU(blockId);
 
     delete [] databuf_;
 }
@@ -191,6 +193,14 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(int16_t blockId) {
     }
     
     AntiCacheBlock* block = new BerkeleyAntiCacheBlock(blockId, value);
+    
+    removeBlockLRU(blockId);
+
+    /*uint16_t rm_block = removeBlockLRU(blockId);
+    if (rm_block != blockId) {
+        VOLT_ERROR("LRU rm_block id: %d  and blockId %d not equal!", rm_block, blockId);
+    }
+ */
     return (block);
 }
 
