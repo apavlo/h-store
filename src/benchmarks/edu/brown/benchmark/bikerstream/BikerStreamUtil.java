@@ -130,4 +130,31 @@ public abstract class BikerStreamUtil {
         return sub;
     }
 
+    /**
+     * Compute the distance in miles between two GPS coordinate points (lat1, lon1)
+     * and (lat2, lon2) using Haversine formula.
+     *
+     * @param lat1 Latitude of the first point in degree
+     * @param lon1 Longitude of the first point in degree
+     * @param lat2 Latitude of the second point in degree
+     * @param lon2 Longitude of the second point in degree
+     * @return  The distance between two GPS coordinates in miles
+     */
+    public static double geoDistance(double lat1, double lon1, double lat2, double lon2) {
+        final double EARTH_RADIUS = 3958.761;
+
+        final double lat1Rad = Math.toRadians(lat1);
+        final double lon1Rad = Math.toRadians(lon1);
+        final double lat2Rad = Math.toRadians(lat2);
+        final double lon2Rad = Math.toRadians(lon2);
+        final double latDiff = Math.abs(lat2Rad - lat1Rad);
+        final double lonDiff = Math.abs(lon2Rad - lon1Rad);
+
+        double m =  haversine(latDiff) + (Math.cos(lat1Rad) * Math.cos(lat2Rad) * haversine(lonDiff));
+        return EARTH_RADIUS * 2 * Math.atan2(Math.sqrt(m), Math.sqrt(1-m));
+    }
+
+    private static double haversine(double angle) {
+        return Math.sin(angle / 2) * Math.sin(angle / 2);
+    }
 }

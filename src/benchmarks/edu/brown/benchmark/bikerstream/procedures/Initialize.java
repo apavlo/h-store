@@ -44,29 +44,35 @@ public class Initialize extends VoltProcedure
     );
 
     public final SQLStmt insertBike = new SQLStmt(
-        "INSERT INTO bikes (bike_id, current_status) VALUES (?,?)"
+        "INSERT INTO bikes (bike_id, station_id, current_status) VALUES (?,?,?)"
     );
 
     public final SQLStmt initialStationStatus = new SQLStmt(
-        "INSERT INTO StationStatus (station_id, current_bikes, current_docks, current_bike_discount, current_dock_discount) " +
-        "VALUES (?,?,?,?,?)"
+        "INSERT INTO StationStatus (station_id, current_bikes, current_docks, current_discount) " +
+        "VALUES (?,?,?,?)"
 
     );
 
     public long run() {
 
-        int maxBikes    = BikerStreamConstants.NUM_BIKES_PER_STATION;
-        int maxStations = BikerStreamConstants.STATION_LOCATIONS.length;
+        int numBikes    = BikerStreamConstants.NUM_BIKES_PER_STATION;
+        int numDocks    = BikerStreamConstants.NUM_DOCKS_PER_STATION;
+        int numStations = BikerStreamConstants.STATION_NAMES.length;
 
-        for (int i = 0; i < maxStations; ++i){
+        for (int i = 0; i < numStations; ++i){
             // Insert the Station
-            voltQueueSQL(insertStation, i+1, BikerStreamConstants.STATION_LOCATIONS[i], "ADRESS HERE", i, i);
+            voltQueueSQL(insertStation,
+                    i,
+                    BikerStreamConstants.STATION_LOGICAL_NAMES[i],
+                    BikerStreamConstants.STATION_ADDRESSES[i],
+                    BikerStreamConstants.STATION_LATS[i],
+                    BikerStreamConstants.STATION_LONS[i]);
 
             int j;
-            for (j = 0; j < 10; ++j) {
-                voltQueueSQL(insertBike, (i*1000) + j, 0);
+            for (j = 0; j < numBikes; ++j) {
+                voltQueueSQL(insertBike, (i*1000) + j, i, 1);
             }
-            voltQueueSQL(initialStationStatus, i, j +1, 20 - (j+1), 0.0, 0.0);
+            voltQueueSQL(initialStationStatus, i, numBikes, numDocks - numBikes, 0.0);
             voltExecuteSQL();
         }
 

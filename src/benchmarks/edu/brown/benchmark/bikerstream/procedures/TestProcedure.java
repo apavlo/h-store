@@ -33,10 +33,6 @@ import org.voltdb.ProcInfo;
 import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
-import org.voltdb.VoltType;
-import org.voltdb.types.TimestampType;
-
-import edu.brown.benchmark.bikerstream.BikerStreamConstants;
 
 @ProcInfo (
     singlePartition = true
@@ -45,17 +41,15 @@ public class TestProcedure extends VoltProcedure {
 
     // Logging Information
     private static final Logger Log = Logger.getLogger(CheckoutBike.class);
-    // Is debugging on or not?
-    final boolean debug = Log.isDebugEnabled();
 
     public final SQLStmt getStation = new SQLStmt(
                 "SELECT * FROM stations"
             );
 
-    public long run() {
+    public VoltTable [] run() {
         voltQueueSQL(getStation);
-        voltExecuteSQL(true);
-        return 0;
+        return voltExecuteSQL(true);
+        //return 0;
     }
 
 } // End Class
