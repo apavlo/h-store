@@ -24,21 +24,21 @@ BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) :
     m_buf = (char *) value.get_data();
     int16_t id = *((int16_t *)m_buf);
     long bufLen_ = sizeof(int16_t);
-	std::string tableName = m_buf + bufLen_;
-	bufLen_ += tableName.size()+1;
-	long size = *((long *)(m_buf+bufLen_));
-	bufLen_+=sizeof(long);
-	char * data = m_buf + bufLen_;
-	bufLen_ += size;
-	    
+    std::string tableName = m_buf + bufLen_;
+    bufLen_ += tableName.size()+1;
+    long size = *((long *)(m_buf+bufLen_));
+    bufLen_+=sizeof(long);
+    char * data = m_buf + bufLen_;
+    bufLen_ += size;
+        
     payload p;
-	p.blockId = id;
-	p.tableName = tableName;
-	p.data = data;
-	p.size = size;
-	m_size = size;
-	m_payload = p;
-	
+    p.blockId = id;
+    p.tableName = tableName;
+    p.data = data;
+    p.size = size;
+    m_size = size;
+    m_payload = p;
+    
     m_block = m_payload.data;
 	    
     VOLT_DEBUG("BerkeleyAntiCacheBlock #%d from table: %s [size=%ld / payload=%ld = '%s']",
@@ -136,27 +136,27 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
 
 
     char * databuf_ = new char [size+tableName.size() + 1+sizeof(blockId)+sizeof(size)];
-	memset(databuf_, 0, size+tableName.size() + 1+sizeof(blockId)+sizeof(size));
-	// Now pack the data into a single contiguous memory location
-	// for storage.
-	long bufLen_ = 0;
-	long dataLen = 0;
-	dataLen = sizeof(blockId);
-	memcpy(databuf_, &blockId, dataLen);
-	bufLen_ += dataLen;
-	dataLen = tableName.size() + 1;
-	memcpy(databuf_ + bufLen_, tableName.c_str(), dataLen);
-	bufLen_ += dataLen;
-	dataLen = sizeof(size);
-	memcpy(databuf_ + bufLen_, &size, dataLen);
-	bufLen_ += dataLen;
-	dataLen = size;
-	memcpy(databuf_ + bufLen_, data, dataLen);
-	bufLen_ += dataLen;
+    memset(databuf_, 0, size+tableName.size() + 1+sizeof(blockId)+sizeof(size));
+    // Now pack the data into a single contiguous memory location
+    // for storage.
+    long bufLen_ = 0;
+    long dataLen = 0;
+    dataLen = sizeof(blockId);
+    memcpy(databuf_, &blockId, dataLen);
+    bufLen_ += dataLen;
+    dataLen = tableName.size() + 1;
+    memcpy(databuf_ + bufLen_, tableName.c_str(), dataLen);
+    bufLen_ += dataLen;
+    dataLen = sizeof(size);
+    memcpy(databuf_ + bufLen_, &size, dataLen);
+    bufLen_ += dataLen;
+    dataLen = size;
+    memcpy(databuf_ + bufLen_, data, dataLen);
+    bufLen_ += dataLen;
 
     Dbt value;
-	value.set_data(databuf_);
-	value.set_size(static_cast<int32_t>(bufLen_));
+    value.set_data(databuf_);
+    value.set_size(static_cast<int32_t>(bufLen_));
 
 
     VOLT_DEBUG("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",

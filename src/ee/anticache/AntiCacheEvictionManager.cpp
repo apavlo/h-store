@@ -614,8 +614,8 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             // Make sure this tuple is marked as evicted, so that we know it is an evicted
             // tuple as we iterate through the index
             VOLT_TRACE("block id is %d for table %s", block_id, table->name().c_str());
-            evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));
-            evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(num_tuples_evicted));
+            evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id)); // BLOCK ID
+            evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(num_tuples_evicted)); // OFFSET
             evicted_tuple.setEvictedTrue();
             VOLT_TRACE("EvictedTuple: %s", evicted_tuple.debug(evictedTable->name()).c_str());
 
