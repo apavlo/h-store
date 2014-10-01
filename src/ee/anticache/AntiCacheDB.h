@@ -134,8 +134,8 @@ class AntiCacheDB {
             return m_dbType;
         }
 
-        inline long getMaxBlockSize() {
-            return m_maxBlockSize;
+        inline int getNumBlocks() {
+            return m_totalBlocks;
         }
 
         inline long getMaxDBSize() {
@@ -157,7 +157,7 @@ class AntiCacheDB {
                 lru_block_id = m_block_lru.front();
                 m_block_lru.pop_front();
                 lru_block = readBlock(lru_block_id);
-
+                m_totalBlocks--;
                 return lru_block;
             }
         }
@@ -172,6 +172,7 @@ class AntiCacheDB {
                     VOLT_INFO("Found block id %d == blockId %d", *it, blockId);
                     m_block_lru.erase(it);
                     found = true;
+                    m_totalBlocks--;
                     break;
                 }
             }
@@ -185,6 +186,7 @@ class AntiCacheDB {
         inline void pushBlockLRU(uint16_t blockId) {
             VOLT_INFO("Pushing blockId %d into LRU", blockId);
             m_block_lru.push_back(blockId);
+            m_totalBlocks++;
         }
 
         inline uint16_t popBlockLRU() {
@@ -204,7 +206,6 @@ class AntiCacheDB {
         int m_totalBlocks; 
 
         AntiCacheDBType m_dbType;
-        long m_maxBlockSize;        
         long m_maxDBSize;
 
         /* we need to test whether a deque or list is better. If we push/pop more than we

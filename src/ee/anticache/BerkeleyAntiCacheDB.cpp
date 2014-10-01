@@ -195,7 +195,6 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(int16_t blockId) {
     AntiCacheBlock* block = new BerkeleyAntiCacheBlock(blockId, value);
     
     removeBlockLRU(blockId);
-
     /*uint16_t rm_block = removeBlockLRU(blockId);
     if (rm_block != blockId) {
         VOLT_ERROR("LRU rm_block id: %d  and blockId %d not equal!", rm_block, blockId);

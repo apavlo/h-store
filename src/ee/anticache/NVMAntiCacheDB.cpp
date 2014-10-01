@@ -79,7 +79,7 @@ void NVMAntiCacheDB::initializeDB() {
     char nvm_file_name[150];
     char partition_str[50];
 
-    m_totalBlocks = 0; 
+    m_blockIndex = 0; 
 
     // TODO: Make DRAM based store a separate type
     #ifdef ANTICACHE_DRAM
@@ -178,7 +178,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
                                 const char* data,
                                 const long size)  {
    
-    char* block = getNVMBlock(m_totalBlocks); 
+    char* block = getNVMBlock(m_blockIndex); 
     long bufsize; 
     char* buffer = new char [tableName.size() + 1 + size];
     memset(buffer, 0, tableName.size() + 1 + size);
@@ -189,17 +189,16 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     memcpy(block, buffer, bufsize);                      
     //memcpy(block, data, size);
 
-    //m_NVMBlocks[m_totalBlocks] = new char[size]; 
-    //memcpy(m_NVMBlocks[m_totalBlocks], data, size); 
+    //m_NVMBlocks[m_blockIndex] = new char[size]; 
+    //memcpy(m_NVMBlocks[m_blockIndex], data, size); 
 
-    VOLT_DEBUG("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, m_totalBlocks, bufsize); 
+    VOLT_DEBUG("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, m_blockIndex, bufsize); 
 
-    m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(m_totalBlocks, static_cast<int32_t>(bufsize))));
-    m_totalBlocks++; 
+    m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(m_blockIndex, static_cast<int32_t>(bufsize))));
+    m_blockIndex++; 
     free(buffer);
     
     pushBlockLRU(blockId);
-
 }
 
 AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
@@ -230,7 +229,6 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
     free(block);
 
     removeBlockLRU(blockId);
-    
     /*uint16_t rm_block = removeBlockLRU(blockId);
     if (rm_block != blockId) {
         VOLT_ERROR("LRU rm_block id: %d  and blockId %d not equal!", rm_block, blockId);
@@ -261,12 +259,12 @@ int NVMAntiCacheDB::getFreeNVMBlockIndex() {
         m_nextFreeBlock++;  
     }
   
-    //int free_index = m_totalBlocks++; 
+    //int free_index = m_blockIndex++; 
     return free_index; 
 }
 
 void NVMAntiCacheDB::freeNVMBlock(int index) {
     m_NVMBlockFreeList.push_back(index); 
-    //m_totalBlocks--; 
+    //m_blockIndex--; 
 }
 }

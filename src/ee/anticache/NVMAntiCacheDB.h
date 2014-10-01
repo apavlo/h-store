@@ -79,7 +79,7 @@ class NVMAntiCacheDB : public AntiCacheDB {
         FILE* nvm_file;
         char* m_NVMBlocks; 
         int nvm_fd; 
-
+        int m_blockIndex;
 
         int m_nextFreeBlock; 
         
