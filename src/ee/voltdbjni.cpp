@@ -1451,7 +1451,9 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         jlong engine_ptr,
         jstring dbDir,
         jlong blockSize,
-        jint dbType) {
+        jint dbType,
+        jlong maxSize
+        ) {
     
     VOLT_DEBUG("nativeAntiCacheInitialize() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
@@ -1464,7 +1466,32 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         std::string dbDirString(dbDirChars);
         env->ReleaseStringUTFChars(dbDir, dbDirChars);
         
-        engine->antiCacheInitialize(dbDirString, static_cast<int64_t>(blockSize), static_cast<AntiCacheDBType>(dbType));
+        engine->antiCacheInitialize(dbDirString, static_cast<AntiCacheDBType>(dbType), static_cast<int64_t>(blockSize),static_cast<int64_t>(maxSize));
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheAddDB (
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jstring dbDir,
+        jlong blockSize,
+        jint dbType,
+        jlong maxSize) {
+    VOLT_DEBUG("nativeAntiCacheAddDB() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) {
+        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    }
+    try {
+        const char *dbDirChars = env->GetStringUTFChars(dbDir, NULL);
+        std::string dbDirString(dbDirChars);
+        env->ReleaseStringUTFChars(dbDir, dbDirChars);
+        engine->antiCacheAddDB(dbDirString, static_cast<AntiCacheDBType>(dbType), static_cast<int64_t>(blockSize), static_cast<int64_t>(maxSize));
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }

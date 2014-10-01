@@ -34,7 +34,7 @@ using namespace voltdb;
 using stupidunit::ChTempDir;
 
 #define BLOCK_SIZE 524288
-
+#define MAX_SIZE 1024000000
 /**
  * AntiCacheDB Tests
  */
@@ -48,7 +48,7 @@ public:
 
 TEST_F(AntiCacheDBTest, BerkeleyNextBlockId) {
     ChTempDir tempdir;
-    AntiCacheDB* anticache = new BerkeleyAntiCacheDB(NULL, ".", BLOCK_SIZE);
+    AntiCacheDB* anticache = new BerkeleyAntiCacheDB(NULL, ".", BLOCK_SIZE, MAX_SIZE);
     
     uint16_t lastBlockId;
     for (int i = 0; i < 1000; i++) {
@@ -61,7 +61,7 @@ TEST_F(AntiCacheDBTest, BerkeleyNextBlockId) {
 
 TEST_F(AntiCacheDBTest, NVMNextBlockId) {
     ChTempDir tempdir;
-    AntiCacheDB* anticache = new NVMAntiCacheDB(NULL, ".", BLOCK_SIZE);
+    AntiCacheDB* anticache = new NVMAntiCacheDB(NULL, ".", BLOCK_SIZE, MAX_SIZE);
     
     uint16_t lastBlockId;
     for (int i = 0; i < 1000; i++) {
@@ -78,7 +78,7 @@ TEST_F(AntiCacheDBTest, NVMNextBlockId) {
 TEST_F(AntiCacheDBTest, BerkeleyWriteBlock) {
     // This will create a tempdir that will automatically be cleaned up
     ChTempDir tempdir;
-    AntiCacheDB* anticache = new BerkeleyAntiCacheDB(NULL, ".", BLOCK_SIZE);
+    AntiCacheDB* anticache = new BerkeleyAntiCacheDB(NULL, ".", BLOCK_SIZE, MAX_SIZE);
 
     string tableName("FAKE");
     string payload("Squirrels and Girls!");
@@ -100,7 +100,7 @@ TEST_F(AntiCacheDBTest, BerkeleyWriteBlock) {
 TEST_F(AntiCacheDBTest, NVMWriteBlock) {
     // This will create a tempdir that will automatically be cleaned up
     ChTempDir tempdir;
-    AntiCacheDB* anticache = new NVMAntiCacheDB(NULL, ".", BLOCK_SIZE);
+    AntiCacheDB* anticache = new NVMAntiCacheDB(NULL, ".", BLOCK_SIZE, MAX_SIZE);
 
     string tableName("FAKE");
     string payload("Squirrels and Girls!");
@@ -124,7 +124,7 @@ TEST_F(AntiCacheDBTest, BerkeleyReadBlock) {
     // This will create a tempdir that will automatically be cleaned up
     ChTempDir tempdir;
 
-    AntiCacheDB* anticache = new BerkeleyAntiCacheDB(NULL, ".", BLOCK_SIZE);
+    AntiCacheDB* anticache = new BerkeleyAntiCacheDB(NULL, ".", BLOCK_SIZE, MAX_SIZE);
 
     string tableName("FAKE");
     string payload("Test Read");
@@ -154,7 +154,7 @@ TEST_F(AntiCacheDBTest, NVMReadBlock) {
     // This will create a tempdir that will automatically be cleaned up
     ChTempDir tempdir;
 
-    AntiCacheDB* anticache = new NVMAntiCacheDB(NULL, ".", BLOCK_SIZE);
+    AntiCacheDB* anticache = new NVMAntiCacheDB(NULL, ".", BLOCK_SIZE, MAX_SIZE);
 
     string tableName("FAKE");
     string payload("Test Read");

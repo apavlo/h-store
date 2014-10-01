@@ -57,8 +57,8 @@ BerkeleyDBBlock::~BerkeleyDBBlock() {
     delete [] serialized_data;
 }
 
-BerkeleyAntiCacheDB::BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
-    AntiCacheDB(ctx, db_dir, blockSize) {
+BerkeleyAntiCacheDB::BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize, long maxSize) :
+    AntiCacheDB(ctx, db_dir, blockSize, maxSize) {
 
     m_dbType = ANTICACHEDB_BERKELEY;
     initializeDB();

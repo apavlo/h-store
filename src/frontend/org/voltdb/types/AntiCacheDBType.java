@@ -9,6 +9,10 @@ import java.util.Map;
  * @author giardino
  */
 public enum AntiCacheDBType {
+    /*
+     * No AntiCacheDB (intended to disable second or subsequent levels)
+    */
+    NONE,
     /**
      * BerkeleyDB Backing Store
      */

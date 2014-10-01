@@ -48,12 +48,14 @@ AntiCacheBlock::AntiCacheBlock(int16_t blockId) {
 
   }
    
-AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
+AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize, long maxSize) :
     m_executorContext(ctx),
     m_dbDir(db_dir),
-    m_blockSize(blockSize),
     m_nextBlockId(0),
-    m_totalBlocks(0) {
+    m_blockSize(blockSize),
+    m_totalBlocks(0),
+    m_maxDBSize(maxSize) {
+    m_maxBlocks = (int) m_maxDBSize/m_blockSize;
         
 }
 

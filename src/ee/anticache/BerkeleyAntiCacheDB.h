@@ -79,7 +79,7 @@ private:
 
 class BerkeleyAntiCacheDB : public AntiCacheDB {
     public:
-        BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
+        BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize, long maxSize);
         ~BerkeleyAntiCacheDB(); 
 
         void initializeDB();

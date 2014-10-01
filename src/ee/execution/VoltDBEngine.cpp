@@ -1935,10 +1935,16 @@ int VoltDBEngine::trackingTupleSet(int64_t txnId, bool writes) {
 // -------------------------------------------------
 
 #ifdef ANTICACHE
-void VoltDBEngine::antiCacheInitialize(std::string dbDir, long blockSize, AntiCacheDBType dbType) const {
-    VOLT_INFO("Enabling type %d Anti-Cache at Partition %d: dir=%s / blockSize=%ld", (int)dbType,
-            m_partitionId, dbDir.c_str(), blockSize);
-    m_executorContext->enableAntiCache(this, dbDir, blockSize, dbType);
+void VoltDBEngine::antiCacheInitialize(std::string dbDir, AntiCacheDBType dbType, long blockSize, long maxSize) const {
+    VOLT_INFO("Enabling type %d Anti-Cache at Partition %d: dir=%s / blockSize=%ld max=%ld", (int)dbType,
+            m_partitionId, dbDir.c_str(), blockSize, maxSize);
+    m_executorContext->enableAntiCache(this, dbDir, blockSize, dbType, maxSize);
+}
+
+void VoltDBEngine::antiCacheAddDB(std::string dbDir, AntiCacheDBType dbType, long blockSize, long maxSize) const {
+    VOLT_INFO("Adding type %d Anti-Cache at Partition %d: dir=%s / blockSize=%ld max=%ld", (int)dbType,
+            m_partitionId, dbDir.c_str(), blockSize, maxSize);
+    m_executorContext->addAntiCacheDB(dbDir, blockSize, dbType, maxSize);
 }
 
 int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]) {
@@ -2076,8 +2082,8 @@ void VoltDBEngine::antiCacheResetEvictedTupleTracker() {
 }
 
 #else
-void VoltDBEngine::antiCacheInitialize(std::string dbDir,
-        long blockSize) const {
+void VoltDBEngine::antiCacheInitialize(std::string dbDir, AntiCacheDBType dbType,
+        long blockSize, long maxSize) const {
     // FIX :: Dummy call if ANTICACHE is not defined
     //VOLT_ERROR("Anti-Cache feature was not enable when compiling the EE");
 }

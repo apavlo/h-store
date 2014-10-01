@@ -48,6 +48,8 @@
 #include "anticache/AntiCacheDB.h"
 
 #define BLOCK_SIZE 1024000
+#define MAX_SIZE 1024000000
+
 
 using namespace std;
 using namespace voltdb;
@@ -172,8 +174,8 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
 
     ExecutorContext* ctx = m_engine->getExecutorContext();
     AntiCacheEvictionManager* acem = ctx->getAntiCacheEvictionManager();
-    AntiCacheDB* berkeleydb = new BerkeleyAntiCacheDB(ctx, ".", BLOCK_SIZE);
-    AntiCacheDB* nvmdb = new NVMAntiCacheDB(ctx, ".", BLOCK_SIZE);
+    AntiCacheDB* berkeleydb = new BerkeleyAntiCacheDB(ctx, ".", BLOCK_SIZE, MAX_SIZE);
+    AntiCacheDB* nvmdb = new NVMAntiCacheDB(ctx, ".", BLOCK_SIZE, MAX_SIZE);
     
     string tableName("TEST");
     string payload("Test payload");

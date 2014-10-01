@@ -933,14 +933,24 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      * for this PartitionExecutor
      * @return
      */
-    public static File getDatabaseDir(PartitionExecutor executor) {
+    public static File getDatabaseDir(PartitionExecutor executor, int dbnum) {
         HStoreConf hstore_conf = executor.getHStoreConf();
         Database catalog_db = CatalogUtil.getDatabase(executor.getPartition());
-
+        // initial DB initialization
         // First make sure that our base directory exists
         String base_dir = FileUtil.realpath(hstore_conf.site.anticache_dir +
-                File.separatorChar +
-                catalog_db.getProject());
+                    File.separatorChar +
+                    catalog_db.getProject());
+       
+        if (hstore_conf.site.anticache_enable_multilevel) {
+            String config = hstore_conf.site.anticache_multilevel_dirs;
+            String delims = "[;]";
+            String[] dirs = config.split(delims);
+            base_dir = FileUtil.realpath(dirs[dbnum] +
+                    File.separatorChar +
+                    catalog_db.getProject());
+        } 
+            
         synchronized (AntiCacheManager.class) {
             FileUtil.makeDirIfNotExists(base_dir);
         } // SYNC
@@ -955,7 +965,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         }
         FileUtil.makeDirIfNotExists(dbDirPath);
 
-        return (dbDirPath);
+    return (dbDirPath);
     }
 
     // ----------------------------------------------------------------------------

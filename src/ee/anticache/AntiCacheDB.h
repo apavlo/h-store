@@ -98,7 +98,7 @@ class AntiCacheBlock {
 class AntiCacheDB {
         
     public: 
-        AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
+        AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize, long maxSize);
         virtual ~AntiCacheDB();
 
         /**
@@ -134,8 +134,16 @@ class AntiCacheDB {
             return m_dbType;
         }
 
-        inline int getMaxBlockSize() {
+        inline long getMaxBlockSize() {
             return m_maxBlockSize;
+        }
+
+        inline long getMaxDBSize() {
+            return m_maxDBSize;
+        }
+
+        inline int getMaxBlocks() {
+            return (int)(m_maxDBSize/m_blockSize);
         }
         
         inline AntiCacheBlock* getLRUBlock() {
@@ -190,13 +198,14 @@ class AntiCacheDB {
         ExecutorContext *m_executorContext;
         string m_dbDir;
 
-        long m_blockSize;
         int16_t m_nextBlockId;
+        long m_blockSize;
         int m_partitionId; 
         int m_totalBlocks; 
 
         AntiCacheDBType m_dbType;
-        int m_maxBlockSize;        
+        long m_maxBlockSize;        
+        long m_maxDBSize;
 
         /* we need to test whether a deque or list is better. If we push/pop more than we
          * remove, this is better. otherwise, let's use a list
