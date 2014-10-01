@@ -159,7 +159,7 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     value.set_size(static_cast<int32_t>(bufLen_));
 
 
-    VOLT_DEBUG("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
+    VOLT_INFO("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
                blockId, tupleCount, size);
     // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);
@@ -177,7 +177,7 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(int16_t blockId) {
     Dbt value;
     value.set_flags(DB_DBT_MALLOC);
     
-    VOLT_DEBUG("Reading evicted block with id %d", blockId);
+    VOLT_INFO("Reading evicted block with id %d", blockId);
     
     int ret_value = m_db->get(NULL, &key, &value, 0);
 

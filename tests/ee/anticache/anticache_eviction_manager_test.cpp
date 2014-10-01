@@ -186,11 +186,13 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
         1,
         const_cast<char*>(payload.data()),
         static_cast<int>(payload.size())+1);
+
+    VOLT_WARN("blockId: %d\n", blockId);
     
     //AntiCacheBlock* nvmblock = nvmdb->readBlock(blockId);
     int16_t newblockId = acem->migrateBlock(blockId, nvmdb, berkeleydb);
     AntiCacheBlock* berkeleyblock = berkeleydb->readBlock(newblockId);
-    //VOLT_INFO("tableName: %s berkeleyblock name: %s\n", tableName.c_str(), berkeleyblock->getTableName().c_str());
+    VOLT_WARN("tableName: %s berkeleyblock name: %s\n", tableName.c_str(), berkeleyblock->getTableName().c_str());
     
     //ASSERT_EQ(blockId, nvmblock->getBlockId());
     ASSERT_EQ(newblockId, berkeleyblock->getBlockId());

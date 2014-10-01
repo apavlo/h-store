@@ -1197,7 +1197,9 @@ int AntiCacheEvictionManager::chooseDB() {
 
 /*
  * Function to move a block between DBs. This will take a source and destination and 
- * return the new blockId. If there is an error, the function will return -1.
+ * return the new blockId. It first checks to see if there is room in the destination
+ * AntiCacheDB. If there is an error, the function will return -1. The db_lookup
+ * table is then updated, removing the old entry and adding the new block Id.
  *
  * In the future, it might make sense to allow for the return of a list of new tuple 
  * mappings so that blocks could be split or merged depending on the underlying 
@@ -1206,26 +1208,57 @@ int AntiCacheEvictionManager::chooseDB() {
 
 int16_t AntiCacheEvictionManager::migrateBlock(int16_t blockId, AntiCacheDB* srcDB, AntiCacheDB* dstDB) {
     int16_t newBlockId = -1;
+    if (dstDB->getFreeBlocks() == 0) {
+        return newBlockId;
+    }
     AntiCacheBlock* block = srcDB->readBlock(blockId);    
-    //VOLT_INFO("oldname: %s\n", block->getTableName().c_str());
+    //VOLT_DEBUG("oldname: %s\n", block->getTableName().c_str());
     newBlockId = dstDB->nextBlockId();
+    //VOLT_DEBUG("tablename: %s newBlockId: %d, data: %s, size: %ld\n", block->getTableName().c_str(), newBlockId,
+    //        block->getData(), block->getSize());
     dstDB->writeBlock(block->getTableName(), newBlockId, 0, block->getData(),
             block->getSize());
-   
+    /*VOLT_INFO("dealing with lookup table\n");
+
+    if (m_db_lookup_table.count(blockId) > 0) {
+        m_db_lookup_table.erase(blockId);
+    } else {
+        VOLT_WARN("Empty m_db_lookup_table. If in EE test, don't worry\n");
+    }
+    
+    m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(newBlockId, dstDB));
+    */
     delete block;
     return newBlockId;
 }
 
 /*
  * Get the LRU block from the source AntiCacheDB and move it to the destination
- * AntiCacheDB. If there is an error, the function will return -1.
+ * AntiCacheDB. It first checks if there is room in the destination AntiCacheDB.
+ * If there is an error, the function will return -1. The db_lookup
+ * table is then updated, removing the old entry and adding the new block Id.
+ * 
  */
 
 int16_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheDB* dstDB) {
     int16_t newBlockId = -1;
+    if (dstDB->getFreeBlocks() == 0) {
+        return newBlockId;
+    }
     AntiCacheBlock* block = srcDB->getLRUBlock();
     newBlockId = dstDB->nextBlockId();
     dstDB->writeBlock(block->getTableName(), newBlockId, 0, block->getData(), block->getSize());
+    
+    /*VOLT_INFO("dealing with lookup table\n");
+    
+    if (m_db_lookup_table.count(block->getBlockId()) > 0) {
+        m_db_lookup_table.erase(block->getBlockId());
+    } else {
+        VOLT_WARN("Empty m_db_lookup_table. If in EE test, don't worry\n");
+    }
+    
+    m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(newBlockId, dstDB));
+    */
     delete block;
     return newBlockId;
 }

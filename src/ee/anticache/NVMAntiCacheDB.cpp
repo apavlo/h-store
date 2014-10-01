@@ -59,7 +59,7 @@ NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) :
     m_block = m_payload.data;
     m_size = size;
     m_blockType = ANTICACHEDB_NVM;
-    VOLT_DEBUG("NVMAntiCacheBlock #%d from table: %s [size=%ld / payload=%ld = '%s']",
+    VOLT_INFO("NVMAntiCacheBlock #%d from table: %s [size=%ld / payload=%ld = '%s']",
               blockId, m_payload.tableName.c_str(), m_size, m_payload.size, m_payload.data);
 }
 
@@ -192,7 +192,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     //m_NVMBlocks[m_blockIndex] = new char[size]; 
     //memcpy(m_NVMBlocks[m_blockIndex], data, size); 
 
-    VOLT_DEBUG("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, m_blockIndex, bufsize); 
+    VOLT_INFO("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, m_blockIndex, bufsize); 
 
     m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(m_blockIndex, static_cast<int32_t>(bufsize))));
     m_blockIndex++; 
