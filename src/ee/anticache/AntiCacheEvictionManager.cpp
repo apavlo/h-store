@@ -1228,7 +1228,7 @@ int16_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
     dstDB->writeBlock(block->getTableName(), newBlockId, 0, block->getData(), block->getSize());
     delete block;
     return newBlockId;
-
+}
 /*
  * Merges the unevicted block into the regular data table
  */
