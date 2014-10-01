@@ -193,10 +193,12 @@ TEST_F(AntiCacheDBTest, BerkeleyCheckCapacity) {
     ASSERT_EQ(anticache->getMaxBlocks(), 10);
     ASSERT_EQ(anticache->getMaxDBSize(), BLOCK_SIZE*10);
     ASSERT_EQ(anticache->getNumBlocks(), 1);
+    ASSERT_EQ(anticache->getFreeBlocks(), 9);
     
     AntiCacheBlock* block = anticache->readBlock(blockId);
     
     ASSERT_EQ(anticache->getNumBlocks(), 0);
+    ASSERT_EQ(anticache->getFreeBlocks(), 10);
     delete block;
     delete anticache;
 }
@@ -217,10 +219,12 @@ TEST_F(AntiCacheDBTest, NVMCheckCapacity) {
     ASSERT_EQ(anticache->getMaxBlocks(), 10);
     ASSERT_EQ(anticache->getMaxDBSize(), BLOCK_SIZE*10);
     ASSERT_EQ(anticache->getNumBlocks(), 1);
+    ASSERT_EQ(anticache->getFreeBlocks(), 9);
     
     AntiCacheBlock* block = anticache->readBlock(blockId);
     
     ASSERT_EQ(anticache->getNumBlocks(), 0);
+    ASSERT_EQ(anticache->getFreeBlocks(), 10);
     delete block;
     delete anticache;
 }

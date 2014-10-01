@@ -84,7 +84,7 @@ void NVMAntiCacheDB::initializeDB() {
     // TODO: Make DRAM based store a separate type
     #ifdef ANTICACHE_DRAM
         VOLT_INFO("Allocating anti-cache in DRAM."); 
-        m_NVMBlocks = new char[aligned_file_size];
+        m_NVMBlocks = new char[m_maxDBSize];
     return; 
     #endif
 
@@ -132,7 +132,7 @@ void NVMAntiCacheDB::initializeDB() {
         throwFatalException("Failed to initialize anti-cache PMFS file in directory %s.", m_dbDir.c_str());
     }
     
-    if(ftruncate(nvm_fd, NVM_FILE_SIZE) < 0)
+    if(ftruncate(nvm_fd, m_maxDBSize) < 0)
     {
         VOLT_ERROR("Anti-Cache initialization error."); 
         VOLT_ERROR("Failed to ftruncate anti-cache PMFS file %s: %s", nvm_file_name, strerror(errno));
@@ -140,7 +140,7 @@ void NVMAntiCacheDB::initializeDB() {
     }
 
     //off_t aligned_file_size = (((NVM_FILE_SIZE) + MMAP_PAGE_SIZE - 1) / MMAP_PAGE_SIZE * MMAP_PAGE_SIZE);  
-    off_t aligned_file_size = NVM_FILE_SIZE; 
+    off_t aligned_file_size = (off_t)m_maxDBSize; 
 
     m_NVMBlocks =  (char*)mmap(NULL, aligned_file_size, PROT_READ | PROT_WRITE, MAP_SHARED, nvm_fd, 0);
  
@@ -154,7 +154,7 @@ void NVMAntiCacheDB::initializeDB() {
     close(nvm_fd); // can safely close file now, mmap creates new reference
     
     // write out NULL characters to ensure entire file has been fetchted from memory
-    for(int i = 0; i < NVM_FILE_SIZE; i++)
+    for(int i = 0; i < m_maxDBSize; i++)
     {
         m_NVMBlocks[i] = '\0'; 
     }
@@ -242,7 +242,8 @@ char* NVMAntiCacheDB::getNVMBlock(int index) {
     //memcpy(nvm_block, m_NVMBlocks+(index*NVM_BLOCK_SIZE), NVM_BLOCK_SIZE); 
     
     //return nvm_block; 
-    return (m_NVMBlocks+(index*NVM_BLOCK_SIZE));  
+    //return (m_NVMBlocks+(index*NVM_BLOCK_SIZE));  
+    return (m_NVMBlocks+(index*m_blockSize));
 }
 
 int NVMAntiCacheDB::getFreeNVMBlockIndex() {

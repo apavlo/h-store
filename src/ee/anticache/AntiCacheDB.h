@@ -145,7 +145,10 @@ class AntiCacheDB {
         inline int getMaxBlocks() {
             return (int)(m_maxDBSize/m_blockSize);
         }
-        
+
+        inline int getFreeBlocks() {
+            return getMaxBlocks()-getNumBlocks();
+        }
         inline AntiCacheBlock* getLRUBlock() {
             uint16_t lru_block_id;
             AntiCacheBlock* lru_block;
