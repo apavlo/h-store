@@ -1217,6 +1217,19 @@ int16_t AntiCacheEvictionManager::migrateBlock(int16_t blockId, AntiCacheDB* src
 }
 
 /*
+ * Get the LRU block from the source AntiCacheDB and move it to the destination
+ * AntiCacheDB. If there is an error, the function will return -1.
+ */
+
+int16_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheDB* dstDB) {
+    int16_t newBlockId = -1;
+    AntiCacheBlock* block = srcDB->getLRUBlock();
+    newBlockID = dstDB->nextBlockId();
+    dstDB->writeBlock(block->getTableName(), newBlockId, 0, block->getData(), block->getSize());
+    delete block;
+    return newBlockId;
+
+/*
  * Merges the unevicted block into the regular data table
  */
 bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
