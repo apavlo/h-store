@@ -1224,7 +1224,7 @@ int16_t AntiCacheEvictionManager::migrateBlock(int16_t blockId, AntiCacheDB* src
 int16_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheDB* dstDB) {
     int16_t newBlockId = -1;
     AntiCacheBlock* block = srcDB->getLRUBlock();
-    newBlockID = dstDB->nextBlockId();
+    newBlockId = dstDB->nextBlockId();
     dstDB->writeBlock(block->getTableName(), newBlockId, 0, block->getData(), block->getSize());
     delete block;
     return newBlockId;

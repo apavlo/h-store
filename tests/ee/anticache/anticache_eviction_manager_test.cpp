@@ -208,6 +208,56 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     delete nvmdb;
 }
 
+TEST_F(AntiCacheEvictionManagerTest, MigrateLRUBlock) {
+    ChTempDir tempdir;
+
+    ExecutorContext* ctx = m_engine->getExecutorContext();
+    AntiCacheEvictionManager* acem = ctx->getAntiCacheEvictionManager();
+    AntiCacheDB* berkeleydb = new BerkeleyAntiCacheDB(ctx, ".", BLOCK_SIZE, MAX_SIZE);
+    AntiCacheDB* nvmdb = new NVMAntiCacheDB(ctx, ".", BLOCK_SIZE, MAX_SIZE);
+
+    string tableNameLRU("LRU Table");
+    string payloadLRU("LRU Test payload");
+    
+    string tableName("TEST");
+    string payload("Test payload");
+
+    int16_t blockIdLRU = nvmdb->nextBlockId();
+    nvmdb->writeBlock(tableNameLRU,
+        blockIdLRU,
+        1,
+        const_cast<char*>(payloadLRU.data()),
+        static_cast<int>(payloadLRU.size())+1);
+
+    int16_t blockId = nvmdb->nextBlockId();
+    nvmdb->writeBlock(tableName,
+        blockId,
+        1,
+        const_cast<char*>(payload.data()),
+        static_cast<int>(payload.size())+1);
+    
+    //AntiCacheBlock* nvmblock = nvmdb->readBlock(blockId);
+    int16_t newblockId = acem->migrateLRUBlock(nvmdb, berkeleydb);
+    AntiCacheBlock* berkeleyblock = berkeleydb->readBlock(newblockId);
+    //VOLT_INFO("tableName: %s berkeleyblock name: %s\n", tableName.c_str(), berkeleyblock->getTableName().c_str());
+    
+    //ASSERT_EQ(blockId, nvmblock->getBlockId());
+    ASSERT_EQ(newblockId, berkeleyblock->getBlockId());
+    //ASSERT_EQ(payload.size()+1, nvmblock->getSize());
+    ASSERT_EQ(payloadLRU.size()+1, berkeleyblock->getSize());
+    //ASSERT_EQ(tableName, nvmblock->getTableName());
+    ASSERT_EQ(0, tableNameLRU.compare(berkeleyblock->getTableName()));
+    //ASSERT_EQ(0, payload.compare(nvmblock->getData()));
+    ASSERT_EQ(0, payloadLRU.compare(berkeleyblock->getData()));
+    
+    //delete ctx;
+    //delete nvmblock;
+    delete berkeleyblock;
+    delete berkeleydb;
+    delete nvmdb;
+}
+
+
 #ifndef ANTICACHE_TIMESTAMPS
 TEST_F(AntiCacheEvictionManagerTest, GetTupleID)
 {

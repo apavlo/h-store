@@ -66,7 +66,7 @@ public:
 
     int chooseDB();
     int16_t migrateBlock(int16_t blockId, AntiCacheDB* srcDB, AntiCacheDB* dstDB); 
-   
+    int16_t migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheDB* dstDB); 
     // -----------------------------------------
     // Evicted Access Tracking Methods
     // -----------------------------------------
