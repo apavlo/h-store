@@ -364,7 +364,7 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
      */
     @Test
     public void testReadNonExistentBlock() throws Exception {
-        short block_ids[] = new short[]{ 1111 };
+        int block_ids[] = new int[]{ 1111 };
         int offsets[] = new int[]{0};
         boolean failed = false;
         try {

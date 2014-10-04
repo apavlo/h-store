@@ -360,7 +360,7 @@ public class TestAntiCacheManager extends BaseTestCase {
 
     @Test
     public void testReadNonExistentBlock() throws Exception {
-        short block_ids[] = new short[]{ 1111 };
+        int block_ids[] = new int[]{ 1111 };
         int tuple_offsets[] = new int[]{0}; 
         boolean failed = false;
         try {
