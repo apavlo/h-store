@@ -196,7 +196,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
 
     m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(m_blockIndex, static_cast<int32_t>(bufsize))));
     m_blockIndex++; 
-    free(buffer);
+    delete[] buffer;
     
     pushBlockLRU(blockId);
 }
@@ -226,7 +226,7 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
     freeNVMBlock(blockId); 
 
     m_blockMap.erase(itr); 
-    free(block);
+    delete[] block;
 
     removeBlockLRU(blockId);
     /*uint16_t rm_block = removeBlockLRU(blockId);

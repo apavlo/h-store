@@ -62,8 +62,12 @@ namespace voltdb {
 
             #ifdef ANTICACHE
             if (m_antiCacheEnabled) {
-                delete m_antiCacheDB;
+                //delete[] m_antiCacheDB;
                 delete m_antiCacheEvictionManager;
+                int i;
+                for (i = 0; i < m_levels; i++) {
+                    delete m_antiCacheDB[i];
+                }
             }
             #endif
         }

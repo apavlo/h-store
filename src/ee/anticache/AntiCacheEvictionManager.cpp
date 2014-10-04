@@ -1198,8 +1198,10 @@ int AntiCacheEvictionManager::chooseDB() {
 /*
  * Function to move a block between DBs. This will take a source and destination and 
  * return the new blockId. It first checks to see if there is room in the destination
- * AntiCacheDB. If there is an error, the function will return -1. The db_lookup
- * table is then updated, removing the old entry and adding the new block Id.
+ * AntiCacheDB. If there is an error, the function will return -1. 
+ *
+ * m_db_lookup_table is NOT updated because of testing reasons. Make the adjustment outside
+ * of the function call. 
  *
  * In the future, it might make sense to allow for the return of a list of new tuple 
  * mappings so that blocks could be split or merged depending on the underlying 
@@ -1218,14 +1220,17 @@ int16_t AntiCacheEvictionManager::migrateBlock(int16_t blockId, AntiCacheDB* src
     //        block->getData(), block->getSize());
     dstDB->writeBlock(block->getTableName(), newBlockId, 0, block->getData(),
             block->getSize());
-    /*VOLT_INFO("dealing with lookup table\n");
 
-    if (m_db_lookup_table.count(blockId) > 0) {
-        m_db_lookup_table.erase(blockId);
+    /*if (static_cast<int>(m_db_lookup_table.size()) == 0) {
+        VOLT_WARN("empty m_db_lookup_table!\n");
     } else {
-        VOLT_WARN("Empty m_db_lookup_table. If in EE test, don't worry\n");
+        if(static_cast<int>(m_db_lookup_table.count(blockId) > 0)) {
+            m_db_lookup_table.erase(blockId);
+        } else {
+            VOLT_WARN("blockId %d not found in m_db_lookup_table\n", blockId);
+        }
     }
-    
+    VOLT_INFO("blockId: %d erased, newBlockId %d being inserted.\n", blockId, newBlockId);
     m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(newBlockId, dstDB));
     */
     delete block;
@@ -1235,8 +1240,8 @@ int16_t AntiCacheEvictionManager::migrateBlock(int16_t blockId, AntiCacheDB* src
 /*
  * Get the LRU block from the source AntiCacheDB and move it to the destination
  * AntiCacheDB. It first checks if there is room in the destination AntiCacheDB.
- * If there is an error, the function will return -1. The db_lookup
- * table is then updated, removing the old entry and adding the new block Id.
+ * If there is an error, the function will return -1. The db_lookup is NOT updated.
+ * You have to do that from the calling function because reasons.
  * 
  */
 

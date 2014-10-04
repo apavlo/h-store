@@ -82,7 +82,7 @@ void BerkeleyAntiCacheDB::initializeDB() {
         // allocate and initialize Berkeley DB database env
         m_dbEnv = new DbEnv(0); 
         m_dbEnv->open(m_dbDir.c_str(), env_flags, 0); 
-
+        VOLT_INFO("created BerkeleyDB: %s\n", m_dbDir.c_str());
         // allocate and initialize new Berkeley DB instance
         m_db = new Db(m_dbEnv, 0); 
         m_db->open(NULL, ANTICACHE_DB_NAME, NULL, DB_HASH, DB_CREATE, 0); 
