@@ -83,10 +83,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         final AbstractTransaction ts;
         final Table catalog_tbl;
         final int partition;
-        final short block_ids[];
+        final int block_ids[];
         final int tuple_offsets[]; 
 
-        public QueueEntry(AbstractTransaction ts, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
+        public QueueEntry(AbstractTransaction ts, int partition, Table catalog_tbl, int block_ids[], int tuple_offsets[]) {
             this.ts = ts;
             this.partition = partition;
             this.catalog_tbl = catalog_tbl;
@@ -376,19 +376,19 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      * @param block_ids
      *            - The list of blockIds that need to be read in for the table
      */
-    public boolean queue(AbstractTransaction txn, int partition, Table catalog_tbl, short block_ids[], int tuple_offsets[]) {
+    public boolean queue(AbstractTransaction txn, int partition, Table catalog_tbl, int block_ids[], int tuple_offsets[]) {
     	if (debug.val)
     	    LOG.debug(String.format("\nBase partition: %d \nPartition that needs to unevict data: %d",
     	              txn.getBasePartition(), partition));
     	
     	// HACK
-    	Set<Short> allBlockIds = new HashSet<Short>();
-    	for (short block : block_ids) {
+    	Set<Integer> allBlockIds = new HashSet<Integer>();
+    	for (int block : block_ids) {
     	    allBlockIds.add(block);
     	}
-    	block_ids = new short[allBlockIds.size()];
+    	block_ids = new int[allBlockIds.size()];
     	int i = 0;
-    	for (short block : allBlockIds) {
+    	for (int block : allBlockIds) {
     	    block_ids[i++] = block;
     	}
     	

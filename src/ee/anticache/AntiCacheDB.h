@@ -198,15 +198,24 @@ class AntiCacheDB {
             return blockId;
         }
 
+        inline void setACID(int16_t ACID) {
+            m_ACID = ACID;
+        }
+
+        inline int16_t getACID() {
+            return m_ACID;
+        }
 
     protected:
         ExecutorContext *m_executorContext;
         string m_dbDir;
 
         int16_t m_nextBlockId;
+        int16_t m_ACID;
         long m_blockSize;
         int m_partitionId; 
         int m_totalBlocks; 
+        
 
         AntiCacheDBType m_dbType;
         long m_maxDBSize;

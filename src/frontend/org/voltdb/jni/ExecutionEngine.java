@@ -817,7 +817,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param catalog_tbl
      * @param block_ids
      */
-    public abstract void antiCacheReadBlocks(Table catalog_tbl, short block_ids[], int tuple_offsets[]);
+    public abstract void antiCacheReadBlocks(Table catalog_tbl, int block_ids[], int tuple_offsets[]);
 
     /**
      * Forcibly tell the EE that it needs to evict a certain number of bytes
@@ -879,7 +879,7 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param block_ids
      * @return
      */
-    protected native int nativeAntiCacheReadBlocks(long pointer, int tableId, short block_ids[], int tuple_offsets[]);
+    protected native int nativeAntiCacheReadBlocks(long pointer, int tableId, int block_ids[], int tuple_offsets[]);
     
     /**
      * 

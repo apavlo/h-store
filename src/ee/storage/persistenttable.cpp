@@ -312,17 +312,17 @@ void PersistentTable::setBytesWritten(int64_t bytesWritten)
     m_bytesWritten = bytesWritten;
 }
 
-std::map<int16_t, int16_t> PersistentTable::getUnevictedBlockIDs()
+std::map<int32_t, int16_t> PersistentTable::getUnevictedBlockIDs()
 {
     return m_unevictedBlockIDs;
 }
 
-bool PersistentTable::isAlreadyUnEvicted(int16_t blockId)
+bool PersistentTable::isAlreadyUnEvicted(int32_t blockId)
 {
     return m_unevictedBlockIDs.find(blockId) != m_unevictedBlockIDs.end();
 }
 
-void PersistentTable::insertUnevictedBlockID(std::pair<int16_t,int16_t> pair)
+void PersistentTable::insertUnevictedBlockID(std::pair<int32_t,int16_t> pair)
 {
     VOLT_TRACE("pair is %d", pair.first);
     m_unevictedBlockIDs.insert(pair);

@@ -1947,7 +1947,7 @@ void VoltDBEngine::antiCacheAddDB(std::string dbDir, AntiCacheDBType dbType, lon
     m_executorContext->addAntiCacheDB(dbDir, blockSize, dbType, maxSize);
 }
 
-int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t blockIds[], int32_t tupleOffsets[]) {
+int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t blockIds[], int32_t tupleOffsets[]) {
     int retval = ENGINE_ERRORCODE_SUCCESS;
 
     // Grab the PersistentTable referenced by the given tableId

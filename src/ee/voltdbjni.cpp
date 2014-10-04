@@ -1503,7 +1503,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         jobject obj,
         jlong engine_ptr,
         jint tableId,
-        jshortArray blockIdsArray,
+        jintArray blockIdsArray,
         jintArray offsetsArray) {
     
     int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
@@ -1514,7 +1514,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     
     try {
         jsize numBlockIds = env->GetArrayLength(blockIdsArray);
-        jshort *_blockIds = env->GetShortArrayElements(blockIdsArray, NULL);
+        jint *_blockIds = env->GetIntArrayElements(blockIdsArray, NULL);
         jint *_tupleOffsets = env->GetIntArrayElements(offsetsArray, NULL); 
         if (_blockIds == NULL) {
             VOLT_ERROR("No evicted blockIds were given to the EE");
@@ -1526,7 +1526,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         }
         
         // XXX: Is this necessary?
-        int16_t *blockIds = new int16_t[numBlockIds];
+        int32_t *blockIds = new int32_t[numBlockIds];
         for (int ii = 0; ii < numBlockIds; ii++) {
             blockIds[ii] = _blockIds[ii];
         } // FOR

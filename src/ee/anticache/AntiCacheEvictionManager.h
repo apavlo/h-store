@@ -39,6 +39,8 @@
 #include <vector>
 #include <map>
 
+#define MAX_DBS 8
+
 namespace voltdb {
 
 class Table;
@@ -61,12 +63,15 @@ public:
     Table* evictBlockInBatch(PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks);
     // Table* readBlocks(PersistentTable *table, int numBlocks, int16_t blockIds[], int32_t tuple_offsets[]);
     bool mergeUnevictedTuples(PersistentTable *table);
-    bool readEvictedBlock(PersistentTable *table, int16_t block_id, int32_t tuple_offset);
+    bool readEvictedBlock(PersistentTable *table, int32_t block_id, int32_t tuple_offset);
     //int numTuplesInEvictionList(); 
 
     int chooseDB();
-    int16_t migrateBlock(int16_t blockId, AntiCacheDB* srcDB, AntiCacheDB* dstDB); 
-    int16_t migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheDB* dstDB); 
+    int32_t migrateBlock(int32_t blockId, AntiCacheDB* dstDB); 
+    int32_t migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheDB* dstDB); 
+    
+    int16_t addAntiCacheDB(AntiCacheDB* acdb);
+
     // -----------------------------------------
     // Evicted Access Tracking Methods
     // -----------------------------------------
@@ -100,10 +105,13 @@ protected:
     TableTuple* m_evicted_tuple; 
     
     std::vector<catalog::Table*> m_evicted_tables;
-    std::vector<int16_t> m_evicted_block_ids;
+    std::vector<int32_t> m_evicted_block_ids;
     std::vector<int32_t> m_evicted_offsets;
 
-    std::map<int16_t, AntiCacheDB*> m_db_lookup_table;
+    AntiCacheDB* m_db_lookup[MAX_DBS];
+    int16_t m_numdbs;
+    
+    //std::map<int16_t, AntiCacheDB*> m_db_lookup_table;
     
 }; // AntiCacheEvictionManager class
 

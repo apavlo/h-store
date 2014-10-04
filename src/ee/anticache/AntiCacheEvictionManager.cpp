@@ -79,11 +79,19 @@ AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
     // Initialize EvictedTable Tuple
     TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema();
     m_evicted_tuple = new TableTuple(evictedSchema);
+    TupleSchema::freeTupleSchema(evictedSchema);
+
+    m_numdbs = 0;
 }
 
 AntiCacheEvictionManager::~AntiCacheEvictionManager() {
     delete m_evictResultTable;
     delete m_evicted_tuple;
+    
+    // int i;
+    //for (i = 1; i <= m_numdbs; i++) {
+    //    delete m_db_lookup[i];
+    //}
 }
 
 void AntiCacheEvictionManager::initEvictResultTable() {
@@ -560,12 +568,16 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     {
 
         // get a unique block id from the executorContext
-        int16_t block_id = antiCacheDB->nextBlockId();
+        int32_t block_id = (int32_t)antiCacheDB->nextBlockId();
+        
+        // get the LS16B and send that to the antiCacheDB
+        int16_t _block_id = (int16_t)(block_id & 0xFFFF0000);
+
 
         // create a new evicted table tuple based on the schema for the source tuple
         TableTuple evicted_tuple = evictedTable->tempTuple();
         VOLT_DEBUG("Setting %s tuple blockId at offset %d", evictedTable->name().c_str(), 0);
-        evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));   // Set the ID for this block
+        evicted_tuple.setNValue(0, ValueFactory::getIntegerValue(block_id));   // Set the ID for this block
         evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(0));          // set the tuple offset of this block
 
         #ifdef VOLT_INFO_ENABLED
@@ -580,7 +592,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
         std::vector<std::string> tableNames;
         tableNames.push_back(table->name());
         block.initialize(block_size, tableNames,
-                block_id,
+                _block_id,
                 num_tuples_evicted);
         int initSize = block.getSerializedSize();
 
@@ -614,7 +626,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             // Make sure this tuple is marked as evicted, so that we know it is an evicted
             // tuple as we iterate through the index
             VOLT_TRACE("block id is %d for table %s", block_id, table->name().c_str());
-            evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id)); // BLOCK ID
+            evicted_tuple.setNValue(0, ValueFactory::getIntegerValue(block_id)); // BLOCK ID
             evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(num_tuples_evicted)); // OFFSET
             evicted_tuple.setEvictedTrue();
             VOLT_TRACE("EvictedTuple: %s", evicted_tuple.debug(evictedTable->name()).c_str());
@@ -656,15 +668,16 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             // TODO: make this look like
             // block.flush();
             //  antiCacheDB->writeBlock(block);
+
             antiCacheDB->writeBlock(table->name(),
-                                    block_id,
+                                    _block_id,
                                     num_tuples_evicted,
                                     block.getSerializedData(),
                                     block.getSerializedSize());
             needs_flush = true;
 
             // store pointer to AntiCacheDB associated with this block
-            m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(block_id, antiCacheDB));
+            //m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(block_id, antiCacheDB));
             
 
             // TODO MJG: Do we have to check that insert is valid? Is it better
@@ -782,12 +795,13 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
     //    VOLT_INFO("Printing child's LRU chain");
    //     this->printLRUChain(childTable, 4, true);
         // get a unique block id from the executorContext
-        int16_t block_id = antiCacheDB->nextBlockId();
+        int32_t block_id = (int32_t)antiCacheDB->nextBlockId();
+        int16_t _block_id = (int16_t)(block_id & 0xFFFF0000);
 
         // create a new evicted table tuple based on the schema for the source tuple
         TableTuple evicted_tuple = evictedTable->tempTuple();
    //     VOLT_DEBUG("Setting %s tuple blockId at offset %d", evictedTable->name().c_str(), 0);
-        evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));   // Set the ID for this block
+        evicted_tuple.setNValue(0, ValueFactory::getIntegerValue(block_id));   // Set the ID for this block
         evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(0));          // set the tuple offset of this block
 
        // #ifdef VOLT_INFO_ENABLED
@@ -802,7 +816,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
         tableNames.push_back(childTable->name());
         BerkeleyDBBlock block;
         block.initialize(block_size, tableNames,
-                block_id,
+                _block_id,
                 num_tuples_evicted);
         int initSize = block.getSerializedSize();
 
@@ -887,7 +901,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             // Populate the evicted_tuple with the block id and tuple offset
             // Make sure this tuple is marked as evicted, so that we know it is an evicted
             // tuple as we iterate through the index
-            evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));
+            evicted_tuple.setNValue(0, ValueFactory::getIntegerValue(block_id));
             evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(num_tuples_evicted));
             evicted_tuple.setEvictedTrue();
             //VOLT_INFO("EvictedTuple: %s", evicted_tuple.debug(evictedTable->name()).c_str());
@@ -920,7 +934,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             TableTuple childTuple(childTable->m_schema);
             TableTuple child_evicted_tuple = child_evictedTable->tempTuple();
             VOLT_INFO("Setting %s tuple blockId at offset %d", child_evictedTable->name().c_str(), 0);
-            child_evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));   // Set the ID for this block
+            child_evicted_tuple.setNValue(0, ValueFactory::getIntegerValue(block_id));   // Set the ID for this block
             child_evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(0));          // set the tuple offset of this block
 
             childTuple = *it;
@@ -931,7 +945,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             // Populate the evicted_tuple with the block id and tuple offset
             // Make sure this tuple is marked as evicted, so that we know it is an evicted
             // tuple as we iterate through the index
-            child_evicted_tuple.setNValue(0, ValueFactory::getSmallIntValue(block_id));
+            child_evicted_tuple.setNValue(0, ValueFactory::getIntegerValue(block_id));
             child_evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(childTuples));
             child_evicted_tuple.setEvictedTrue();
             VOLT_INFO("EvictedTuple: %s", child_evicted_tuple.debug(child_evictedTable->name()).c_str());
@@ -982,8 +996,10 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             // TODO: make this look like
             //          block.flush();
             //          antiCacheDB->writeBlock(block);
+
+
             antiCacheDB->writeBlock(table->name(),
-                    block_id,
+                    _block_id,
                     num_tuples_evicted,
                     block.getSerializedData(),
                     block.getSerializedSize());
@@ -991,7 +1007,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
 
 
             // store pointer to AntiCacheDB associated with this block
-            m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(block_id, antiCacheDB));
+            //m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(block_id, antiCacheDB));
 
             // Update Stats
             m_tuplesEvicted += num_tuples_evicted - childTuples;
@@ -1114,7 +1130,7 @@ Table* AntiCacheEvictionManager::evictBlockInBatch(PersistentTable *table, Persi
 //     return (m_readResultTable);
 // }
     
-bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t block_id, int32_t tuple_offset) {
+bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t block_id, int32_t tuple_offset) {
 
     bool already_unevicted = table->isAlreadyUnEvicted(block_id);
     if (already_unevicted) { // this block has already been read
@@ -1125,10 +1141,13 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
     /*
      * Finds the AntiCacheDB* instance associated with the needed block_id
      */
+    int16_t _block_id = (int16_t)(block_id & 0xFFFF0000);
+    int16_t ACID = (int16_t)((block_id & 0x0000FFFF) >> 16);
+    VOLT_INFO("block_id: %d ACID: %d _block_id: %d\n", block_id, ACID, _block_id);
 
-    AntiCacheDB* antiCacheDB;
-
-    std::map<int16_t, AntiCacheDB*>::iterator it = m_db_lookup_table.find(block_id);
+    AntiCacheDB* antiCacheDB = m_db_lookup[ACID]; 
+    
+    /*std::map<int16_t, AntiCacheDB*>::iterator it = m_db_lookup_table.find(block_id);
     if (it == m_db_lookup_table.end()) {
         VOLT_WARN("Block %d not found in db_lookup_table.", it->first);
         // TODO MJG: should this be a different kind of Exception to throw?
@@ -1138,16 +1157,17 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
         VOLT_DEBUG("Found block %d in db_lookup_table.", it->first);
         antiCacheDB = it->second;
     }
+    */
 
     //AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
 
     try {
-        AntiCacheBlock* value = antiCacheDB->readBlock(block_id);
+        AntiCacheBlock* value = antiCacheDB->readBlock(_block_id);
 
         // allocate the memory for this block
         char* unevicted_tuples = new char[value->getSize()];
         memcpy(unevicted_tuples, value->getData(), value->getSize());
-        VOLT_INFO("***************** READ EVICTED BLOCK %d *****************", block_id);
+        VOLT_INFO("***************** READ EVICTED BLOCK %d *****************", _block_id);
         VOLT_INFO("Block Size = %ld / Table = %s", value->getSize(), table->name().c_str());
         ReferenceSerializeInput in(unevicted_tuples, 10485760);
 
@@ -1167,11 +1187,11 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
 
         table->insertUnevictedBlock(unevicted_tuples);
         VOLT_DEBUG("BLOCK %d - unevicted blocks size is %d",
-                   block_id, static_cast<int>(table->unevictedBlocksSize()));
+                   _block_id, static_cast<int>(table->unevictedBlocksSize()));
         table->insertTupleOffset(tuple_offset);
 
 
-        table->insertUnevictedBlockID(std::pair<int16_t,int16_t>(block_id, 0));
+        table->insertUnevictedBlockID(std::pair<int32_t,int16_t>(block_id, 0));
         delete value;
     } catch (UnknownBlockAccessException e) {
         throw e;
@@ -1181,7 +1201,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int16_t 
     }
     
     // remove block_id from lookup table since block is merged
-    m_db_lookup_table.erase(block_id);
+    //m_db_lookup_table.erase(block_id);
 
     //    VOLT_INFO("blocks read: %d", m_blocksRead);
     return true;
@@ -1200,73 +1220,97 @@ int AntiCacheEvictionManager::chooseDB() {
  * return the new blockId. It first checks to see if there is room in the destination
  * AntiCacheDB. If there is an error, the function will return -1. 
  *
- * m_db_lookup_table is NOT updated because of testing reasons. Make the adjustment outside
- * of the function call. 
+ * TODO MJG: We probably need to throw a NoFreeDBSpace Exception or something instead of just
+ * returning -1.
  *
  * In the future, it might make sense to allow for the return of a list of new tuple 
  * mappings so that blocks could be split or merged depending on the underlying 
  * physical medium
  */
 
-int16_t AntiCacheEvictionManager::migrateBlock(int16_t blockId, AntiCacheDB* srcDB, AntiCacheDB* dstDB) {
-    int16_t newBlockId = -1;
+int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* dstDB) {
+    int16_t _new_block_id = -1;
+    int16_t new_acid;
+    int32_t new_block_id = 0;
+
     if (dstDB->getFreeBlocks() == 0) {
-        return newBlockId;
+        return _new_block_id;
     }
-    AntiCacheBlock* block = srcDB->readBlock(blockId);    
+    
+    int16_t acid = (int16_t)(block_id & 0xFFFF0000 >> 16);
+    int16_t _block_id = (int16_t)(block_id & 0x0000FFFF);
+    AntiCacheDB* srcDB = m_db_lookup[acid];
+
+    AntiCacheBlock* block = srcDB->readBlock(_block_id);    
     //VOLT_DEBUG("oldname: %s\n", block->getTableName().c_str());
-    newBlockId = dstDB->nextBlockId();
+    _new_block_id = dstDB->nextBlockId();
+    
     //VOLT_DEBUG("tablename: %s newBlockId: %d, data: %s, size: %ld\n", block->getTableName().c_str(), newBlockId,
     //        block->getData(), block->getSize());
-    dstDB->writeBlock(block->getTableName(), newBlockId, 0, block->getData(),
+    dstDB->writeBlock(block->getTableName(), _new_block_id, 0, block->getData(),
             block->getSize());
 
-    /*if (static_cast<int>(m_db_lookup_table.size()) == 0) {
-        VOLT_WARN("empty m_db_lookup_table!\n");
-    } else {
-        if(static_cast<int>(m_db_lookup_table.count(blockId) > 0)) {
-            m_db_lookup_table.erase(blockId);
-        } else {
-            VOLT_WARN("blockId %d not found in m_db_lookup_table\n", blockId);
-        }
-    }
-    VOLT_INFO("blockId: %d erased, newBlockId %d being inserted.\n", blockId, newBlockId);
-    m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(newBlockId, dstDB));
-    */
+    new_acid = dstDB->getACID();
+
+    new_block_id = (int32_t) _new_block_id;
+    new_block_id = new_block_id | (new_acid << 16);
+    VOLT_INFO("block_id: %x _block_id: %x acid: %x new_block_id: %x _new_block_id: %x new_acid: %x\n",
+            block_id, _block_id, acid, new_block_id, _new_block_id, new_acid);
+        
     delete block;
-    return newBlockId;
+    return new_block_id;
 }
 
 /*
  * Get the LRU block from the source AntiCacheDB and move it to the destination
  * AntiCacheDB. It first checks if there is room in the destination AntiCacheDB.
- * If there is an error, the function will return -1. The db_lookup is NOT updated.
- * You have to do that from the calling function because reasons.
+ * If there is an error, the function will return -1. 
  * 
+ * TODO MJG: We probably need to throw a NoFreeDBSpace Exception or something instead of just
+ * returning -1.
  */
 
-int16_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheDB* dstDB) {
-    int16_t newBlockId = -1;
+int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheDB* dstDB) {
+    int16_t _new_block_id = -1;
+    int16_t new_acid;
+    int32_t new_block_id = 0;
     if (dstDB->getFreeBlocks() == 0) {
-        return newBlockId;
+        return (int32_t) _new_block_id;
     }
+
     AntiCacheBlock* block = srcDB->getLRUBlock();
-    newBlockId = dstDB->nextBlockId();
-    dstDB->writeBlock(block->getTableName(), newBlockId, 0, block->getData(), block->getSize());
+    _new_block_id = dstDB->nextBlockId();
     
-    /*VOLT_INFO("dealing with lookup table\n");
+    dstDB->writeBlock(block->getTableName(), _new_block_id, 0, block->getData(), block->getSize());
     
-    if (m_db_lookup_table.count(block->getBlockId()) > 0) {
-        m_db_lookup_table.erase(block->getBlockId());
-    } else {
-        VOLT_WARN("Empty m_db_lookup_table. If in EE test, don't worry\n");
-    }
-    
-    m_db_lookup_table.insert(std::pair<uint16_t, AntiCacheDB*>(newBlockId, dstDB));
-    */
+    // TODO!!!: We can't just delete this block willy nilly if we can't get a new_block_id. 
+    // Have to do something better than this. XXX
     delete block;
-    return newBlockId;
+
+    new_acid = dstDB->getACID();
+    new_block_id = (int32_t) _new_block_id;
+    new_block_id = new_block_id | (new_acid << 16);
+    VOLT_INFO("new_block_id: %x _new_block_id: %x new_acid: %x\n",
+            new_block_id, _new_block_id, new_acid);
+
+
+    return new_block_id;
 }
+
+/*
+ * use this to add an AntiCacheDB* pointer to the table upon initialization
+ * of an AntiCacheDB. It will return the ACID.
+ */
+
+int16_t AntiCacheEvictionManager::addAntiCacheDB(AntiCacheDB* acdb) {
+    m_numdbs++;
+    m_db_lookup[m_numdbs] = acdb;
+    acdb->setACID(m_numdbs);
+    return m_numdbs;
+}
+
+
+
 /*
  * Merges the unevicted block into the regular data table
  */
@@ -1425,7 +1469,7 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     m_evicted_tuple->move(tuple->address()); 
     
     // Determine the block id and tuple offset in the block using the EvictedTable tuple
-    int16_t block_id = peeker.peekSmallInt(m_evicted_tuple->getNValue(0));
+    int32_t block_id = peeker.peekInteger(m_evicted_tuple->getNValue(0));
     int32_t tuple_id = peeker.peekInteger(m_evicted_tuple->getNValue(1)); 
     
     // Updated internal tracking info
@@ -1447,12 +1491,12 @@ void AntiCacheEvictionManager::throwEvictedAccessException() {
     
     VOLT_DEBUG("Txn accessed data from %d evicted blocks", num_block_ids);
         
-    int16_t* block_ids = new int16_t[num_block_ids];
+    int32_t* block_ids = new int32_t[num_block_ids];
     int32_t* tuple_ids = new int32_t[num_block_ids];
         
     // copy the block ids into an array 
     int num_blocks = 0; 
-    for(vector<int16_t>::iterator itr = m_evicted_block_ids.begin(); itr != m_evicted_block_ids.end(); ++itr) {
+    for(vector<int32_t>::iterator itr = m_evicted_block_ids.begin(); itr != m_evicted_block_ids.end(); ++itr) {
         VOLT_DEBUG("Marking block %d as being needed for uneviction", *itr); 
         block_ids[num_blocks++] = *itr; 
     }
