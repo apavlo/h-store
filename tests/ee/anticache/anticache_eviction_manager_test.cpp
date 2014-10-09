@@ -141,7 +141,7 @@ public:
     void cleanupTable()
     {
         //printf("delete from cleanupTable(): %p\n", m_table->getEvictedTable());
-        delete m_table->getEvictedTable();
+        //delete m_table->getEvictedTable();
         delete m_table;
     
     }
