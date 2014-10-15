@@ -510,7 +510,8 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeSetBu
   (JNIEnv *env, jobject obj, jlong engine_ptr, jobject parameter_buffer, jint parameter_buffer_size,
    jobject result_buffer, jint result_buffer_size,
    jobject exception_buffer, jint exception_buffer_size,
-   jobject arieslog_buffer, jint arieslog_buffer_size)
+   jobject arieslog_buffer, jint arieslog_buffer_size,
+   jobject anticacheutility_buffer, jint anticacheutility_buffer_size)
 {
     VOLT_DEBUG("nativeSetBuffers() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
@@ -539,10 +540,15 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeSetBu
                 int arieslogBufferCapacity = arieslog_buffer_size;
         //#endif
 
+        char *antiCacheUtilityBuffer = reinterpret_cast<char*>(
+                env->GetDirectBufferAddress(anticacheutility_buffer));
+        int antiCacheUtilityBufferCapacity = anticacheutility_buffer_size;
+
         engine->setBuffers(parameterBuffer, parameterBufferCapacity,
             reusedResultBuffer, reusedResultBufferCapacity,
             exceptionBuffer, exceptionBufferCapacity,
-            arieslogBuffer, arieslogBufferCapacity);
+            arieslogBuffer, arieslogBufferCapacity,
+            antiCacheUtilityBuffer, antiCacheUtilityBufferCapacity);
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }

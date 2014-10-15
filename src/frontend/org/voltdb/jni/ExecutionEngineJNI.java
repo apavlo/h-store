@@ -93,6 +93,9 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     // ARIES
     private final BBContainer ariesLogBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 10);
     private ByteBuffer ariesLogBuffer = ariesLogBufferOrigin.b;
+
+    private final BBContainer antiCacheUtilityBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 10);
+    private ByteBuffer antiCacheUtilityBuffer = antiCacheUtilityBufferOrigin.b;
     
     /**
      * Java cache for read/write tracking sets
@@ -138,7 +141,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                         fsForParameterSet.getContainerNoFlip().b.capacity(),
                         deserializer.buffer(), deserializer.buffer().capacity(),
                         exceptionBuffer, exceptionBuffer.capacity(),
-                        ariesLogBuffer, ariesLogBuffer.capacity());
+                        ariesLogBuffer, ariesLogBuffer.capacity(),
+                        antiCacheUtilityBuffer, antiCacheUtilityBuffer.capacity());
                 checkErrorCode(code);
             }
         }, null);
@@ -147,7 +151,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                 fsForParameterSet.getContainerNoFlip().b.capacity(),
                 deserializer.buffer(), deserializer.buffer().capacity(),
                 exceptionBuffer, exceptionBuffer.capacity(),
-                ariesLogBuffer, ariesLogBuffer.capacity());
+                ariesLogBuffer, ariesLogBuffer.capacity(),
+                antiCacheUtilityBuffer, antiCacheUtilityBuffer.capacity());
 
         checkErrorCode(errorCode);
         

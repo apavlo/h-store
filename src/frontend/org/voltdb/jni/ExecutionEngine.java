@@ -520,7 +520,8 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     protected native int nativeSetBuffers(long pointer, ByteBuffer parameter_buffer, int parameter_buffer_size,
                                           ByteBuffer resultBuffer, int result_buffer_size,
                                           ByteBuffer exceptionBuffer, int exception_buffer_size,
-                                          ByteBuffer ariesLogBuffer, int arieslog_buffer_size);
+                                          ByteBuffer ariesLogBuffer, int arieslog_buffer_size,
+                                          ByteBuffer antiCacheUtilityBuffer, int anticacheutility_buffer_size);
     
     /**
      * Load the system catalog for this engine.
