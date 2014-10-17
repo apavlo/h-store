@@ -363,6 +363,7 @@ public:
 
             //assert(isActive());
             const voltdb::ValueType columnType = m_schema->columnType(idx);
+            //VOLT_DEBUG("column type: %d\n", (int)columnType);
             const char* dataPtr = getDataPtr(idx);
             const bool isInlined = m_schema->columnIsInlined(idx);
             return NValue::deserializeFromTupleStorage( dataPtr, columnType, isInlined);

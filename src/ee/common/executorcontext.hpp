@@ -229,8 +229,8 @@ namespace voltdb {
             assert(m_antiCacheEnabled == false);
             m_antiCacheEnabled = true;
             m_levels = 0;
-            addAntiCacheDB(dbDir, blockSize, dbType, maxSize);
             m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
+            addAntiCacheDB(dbDir, blockSize, dbType, maxSize);
         }
 
         void addAntiCacheDB(std::string &dbDir, long blockSize, AntiCacheDBType dbType, long maxSize) {
@@ -239,12 +239,15 @@ namespace voltdb {
             // MJG: need a better error return (throw exception?) 
             if (dbType == ANTICACHEDB_BERKELEY) {
                 m_antiCacheDB[m_levels] = new BerkeleyAntiCacheDB(this, dbDir, blockSize, maxSize);
+//                m_antiCacheEvictionManager->addAntiCacheDB(new BerkeleyAntiCacheDB(this, dbDir, blockSize, maxSize));
             } else if (dbType == ANTICACHEDB_NVM) {
                 m_antiCacheDB[m_levels] = new NVMAntiCacheDB(this, dbDir, blockSize, maxSize);
+                //m_antiCacheEvictionManager->addAntiCacheDB(new NVMAntiCacheDB(this, dbDir, blockSize, maxSize));
             } else {
                 VOLT_ERROR("Invalid AntiCacheDBType: %d! Aborting...", (int)dbType);
                 assert(m_antiCacheEnabled == false);
             }  
+            m_antiCacheEvictionManager->addAntiCacheDB(m_antiCacheDB[m_levels]);
             m_levels++;
         }
         #endif
@@ -324,7 +327,7 @@ namespace voltdb {
         AntiCacheDB *m_antiCacheDB[MAX_LEVELS];
         AntiCacheEvictionManager *m_antiCacheEvictionManager;
         AntiCacheDBType m_dbType[MAX_LEVELS];
-        int m_levels;
+        int16_t m_levels;
         #endif
 
         #ifdef STORAGE_MMAP

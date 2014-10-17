@@ -77,9 +77,9 @@ AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
     srand((int)time(NULL));
     
     // Initialize EvictedTable Tuple
-    TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema();
-    m_evicted_tuple = new TableTuple(evictedSchema);
-    TupleSchema::freeTupleSchema(evictedSchema);
+    m_evicted_schema = TupleSchema::createEvictedTupleSchema();
+    m_evicted_tuple = new TableTuple(m_evicted_schema);
+    //TupleSchema::freeTupleSchema(evictedSchema);
 
     m_numdbs = 0;
 }
@@ -87,6 +87,7 @@ AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
 AntiCacheEvictionManager::~AntiCacheEvictionManager() {
     delete m_evictResultTable;
     delete m_evicted_tuple;
+    TupleSchema::freeTupleSchema(m_evicted_schema);
     
     // int i;
     //for (i = 1; i <= m_numdbs; i++) {
@@ -567,11 +568,13 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     for(int i = 0; i < num_blocks; i++)
     {
 
-        // get a unique block id from the executorContext
-        int32_t block_id = (int32_t)antiCacheDB->nextBlockId();
-        
+        VOLT_DEBUG("about to get next blockID\n");
         // get the LS16B and send that to the antiCacheDB
-        int16_t _block_id = (int16_t)(block_id & 0xFFFF0000);
+        int16_t _block_id = antiCacheDB->nextBlockId();
+        VOLT_DEBUG("got it\n");
+        // get a unique block id from the executorContext
+        int32_t block_id = (int32_t)antiCacheDB->getACID();
+        block_id = ((block_id << 16) | (int32_t)_block_id); 
 
 
         // create a new evicted table tuple based on the schema for the source tuple
@@ -645,7 +648,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             table->deleteTupleStorage(tuple);
 
             num_tuples_evicted++;
-            VOLT_DEBUG("Added new evicted %s tuple to block #%d [tuplesEvicted=%d]",
+            VOLT_DEBUG("Added new evicted %s tuple to block #%x [tuplesEvicted=%d]",
                        table->name().c_str(), block_id, num_tuples_evicted);
 
         } // WHILE
@@ -702,7 +705,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
 
             #ifdef VOLT_INFO_ENABLED
             VOLT_INFO("AntiCacheDB Time: %.2f sec", timer.elapsed());
-            VOLT_INFO("Evicted Block #%d for %s [tuples=%d / size=%ld / tupleLen=%d]",
+            VOLT_INFO("Evicted Block #%x for %s [tuples=%d / size=%ld / tupleLen=%d]",
                       block_id, table->name().c_str(),
                       num_tuples_evicted, m_bytesEvicted, tuple_length);
 //            VOLT_INFO("%s EvictedTable [origCount:%ld / newCount:%ld]",
@@ -795,8 +798,8 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
     //    VOLT_INFO("Printing child's LRU chain");
    //     this->printLRUChain(childTable, 4, true);
         // get a unique block id from the executorContext
-        int32_t block_id = (int32_t)antiCacheDB->nextBlockId();
-        int16_t _block_id = (int16_t)(block_id & 0xFFFF0000);
+        int16_t _block_id = antiCacheDB->nextBlockId();
+        int32_t block_id = ((antiCacheDB->getACID() << 16) | _block_id);
 
         // create a new evicted table tuple based on the schema for the source tuple
         TableTuple evicted_tuple = evictedTable->tempTuple();
@@ -816,7 +819,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
         tableNames.push_back(childTable->name());
         BerkeleyDBBlock block;
         block.initialize(block_size, tableNames,
-                _block_id,
+                block_id,
                 num_tuples_evicted);
         int initSize = block.getSerializedSize();
 
@@ -920,7 +923,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
 
 
             num_tuples_evicted++;
-            VOLT_DEBUG("Added new evicted %s tuple to block #%d [tuplesEvicted=%d]",
+            VOLT_DEBUG("Added new evicted %s tuple to block #%x [tuplesEvicted=%d]",
                     table->name().c_str(), block_id, num_tuples_evicted);
             if(block.getSerializedSize() + childTuplesSize >= block_size){
                 break;
@@ -1141,8 +1144,8 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
     /*
      * Finds the AntiCacheDB* instance associated with the needed block_id
      */
-    int16_t _block_id = (int16_t)(block_id & 0xFFFF0000);
-    int16_t ACID = (int16_t)((block_id & 0x0000FFFF) >> 16);
+    int16_t _block_id = (int16_t)(block_id & 0x0000FFFF);
+    int16_t ACID = (int16_t)((block_id & 0xFFFF0000) >> 16);
     VOLT_INFO("block_id: %d ACID: %d _block_id: %d\n", block_id, ACID, _block_id);
 
     AntiCacheDB* antiCacheDB = m_db_lookup[ACID]; 
@@ -1303,9 +1306,9 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
  */
 
 int16_t AntiCacheEvictionManager::addAntiCacheDB(AntiCacheDB* acdb) {
-    m_numdbs++;
-    m_db_lookup[m_numdbs] = acdb;
     acdb->setACID(m_numdbs);
+    m_db_lookup[m_numdbs] = acdb;
+    m_numdbs++;
     return m_numdbs;
 }
 
@@ -1462,16 +1465,18 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
         throwFatalException("Trying to access evicted tuple from table '%s' that is also marked as deleted",
                             catalogTable->name().c_str());
     }
-    
     // Create an evicted tuple from the current tuple address
     // NOTE: This is necessary because the original table tuple and the evicted tuple
     // do not have the same schema
     m_evicted_tuple->move(tuple->address()); 
-    
+    VOLT_DEBUG("%s\n",m_evicted_tuple->getSchema()->debug().c_str());
+    VOLT_DEBUG("moved tuple into m_evicted_tuple. Time to get blockId\n"); 
+    VOLT_DEBUG("debug tuple: %s\n", m_evicted_tuple->debug(catalogTable->name()).c_str());
     // Determine the block id and tuple offset in the block using the EvictedTable tuple
-    int32_t block_id = peeker.peekInteger(m_evicted_tuple->getNValue(0));
     int32_t tuple_id = peeker.peekInteger(m_evicted_tuple->getNValue(1)); 
-    
+    VOLT_DEBUG("Got tuple_id: %d\n", tuple_id);
+    int32_t block_id = peeker.peekInteger(m_evicted_tuple->getNValue(0));
+    VOLT_DEBUG("Got blockId: %d\n", block_id);
     // Updated internal tracking info
     m_evicted_tables.push_back(catalogTable);
     m_evicted_block_ids.push_back(block_id); 

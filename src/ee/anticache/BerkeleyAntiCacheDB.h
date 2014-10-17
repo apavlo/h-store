@@ -33,7 +33,7 @@ class BerkeleyDBBlock{
 public:
     ~BerkeleyDBBlock();
 
-    inline void initialize(long blockSize, std::vector<std::string> tableNames, int16_t blockId, int numTuplesEvicted){
+    inline void initialize(long blockSize, std::vector<std::string> tableNames, int32_t blockId, int numTuplesEvicted){
         DefaultTupleSerializer serializer;
         // buffer used for serializing a single tuple
         serialized_data = new char[blockSize];

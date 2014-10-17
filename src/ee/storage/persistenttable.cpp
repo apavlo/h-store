@@ -312,7 +312,7 @@ void PersistentTable::setBytesWritten(int64_t bytesWritten)
     m_bytesWritten = bytesWritten;
 }
 
-std::map<int32_t, int16_t> PersistentTable::getUnevictedBlockIDs()
+std::map<int32_t, int32_t> PersistentTable::getUnevictedBlockIDs()
 {
     return m_unevictedBlockIDs;
 }
@@ -322,9 +322,9 @@ bool PersistentTable::isAlreadyUnEvicted(int32_t blockId)
     return m_unevictedBlockIDs.find(blockId) != m_unevictedBlockIDs.end();
 }
 
-void PersistentTable::insertUnevictedBlockID(std::pair<int32_t,int16_t> pair)
+void PersistentTable::insertUnevictedBlockID(std::pair<int32_t,int32_t> pair)
 {
-    VOLT_TRACE("pair is %d", pair.first);
+    VOLT_DEBUG("pair is %d", pair.first);
     m_unevictedBlockIDs.insert(pair);
 }
 
@@ -408,7 +408,7 @@ int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int m
     m_tmpTarget1.setEvictedFalse();
     m_tmpTarget1.setDeletedFalse();
     // update the indexes to point to this newly unevicted tuple
-    VOLT_TRACE("BEFORE: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
+    VOLT_DEBUG("BEFORE: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
     setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address());
     updateStringMemory((int)m_tmpTarget1.getNonInlinedMemorySize());
 
@@ -416,7 +416,7 @@ int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int m
     //insertTuple(m_tmpTarget1);
 
     m_tmpTarget1.setEvictedFalse();
-    VOLT_TRACE("AFTER: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
+    VOLT_DEBUG("AFTER: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
     VOLT_DEBUG("Merged Tuple: %s", m_tmpTarget1.debug(name()).c_str());
     //VOLT_INFO("tuple size: %d, non-inlined memory size: %d", m_tmpTarget1.tupleLength(), m_tmpTarget1.getNonInlinedMemorySize());
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();

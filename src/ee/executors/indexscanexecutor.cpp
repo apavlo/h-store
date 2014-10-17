@@ -531,8 +531,9 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
                        m_targetTable->name().c_str());      
 
             // Tell the EvictionManager's internal tracker that we touched this mofo
+            VOLT_DEBUG("%s",m_tuple.getSchema()->debug().c_str());
             eviction_manager->recordEvictedAccess(m_catalogTable, &m_tuple);
-            
+            VOLT_DEBUG("recorded the evicted access in table %s\n", m_catalogTable->name().c_str());
             // Pavlo: 2014-07-09
             // If the tuple is evicted, then we can't continue with the rest of stuff below us.
             // There is nothing else we can do with it (i.e., check expressions).
@@ -676,6 +677,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     #ifdef ANTICACHE
     // throw exception indicating evicted blocks are needed
     if (hasEvictedTable && eviction_manager->hasEvictedAccesses()) {
+        VOLT_DEBUG("Throwing EvictedaccessException\n");
         eviction_manager->throwEvictedAccessException();
     }
     #endif

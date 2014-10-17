@@ -75,7 +75,7 @@ class AllocatorTracker : public std::allocator<ValueType> {
         }
 
         void destroy(pointer __ptr) {
-            VOLT_TRACE("-+-+-+- %08x.\n", __p);
+            VOLT_TRACE("-+-+-+- %08x.\n", __ptr);
             __ptr->~ValueType();
             *memory_size -= sizeof(ValueType);
         }
