@@ -206,8 +206,8 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     
     ASSERT_EQ(nvm_acid, nvmdb->getACID());
     ASSERT_EQ(berkeley_acid, berkeleydb->getACID());
-    ASSERT_EQ(1, nvm_acid);
-    ASSERT_EQ(2, berkeley_acid);
+    ASSERT_EQ(0, nvm_acid);
+    ASSERT_EQ(1, berkeley_acid);
 
     string tableName("TEST");
     string payload("Test payload");
@@ -219,7 +219,8 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
         const_cast<char*>(payload.data()),
         static_cast<int>(payload.size())+1);
 
-    VOLT_INFO("blockId: %d\n", blockId);
+    int32_t fullBlockId = (nvm_acid << 16) | blockId;
+    VOLT_INFO("acid: %x, blockId: %x fullBlockId: %x\n", nvm_acid, blockId, fullBlockId);
     
     //AntiCacheBlock* nvmblock = nvmdb->readBlock(blockId);
     int32_t newBlockId = (int32_t) acem->migrateBlock(blockId, berkeleydb);

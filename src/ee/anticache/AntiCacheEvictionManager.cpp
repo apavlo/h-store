@@ -1240,10 +1240,12 @@ int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* ds
         return _new_block_id;
     }
     
-    int16_t acid = (int16_t)(block_id & 0xFFFF0000 >> 16);
+    int16_t acid = (int16_t)((block_id & 0xFFFF0000) >> 16);
     int16_t _block_id = (int16_t)(block_id & 0x0000FFFF);
     AntiCacheDB* srcDB = m_db_lookup[acid];
 
+    VOLT_INFO("source: block_id: %x _block_id: %x acid: %x\n",
+            block_id, _block_id, acid);
     AntiCacheBlock* block = srcDB->readBlock(_block_id);    
     //VOLT_DEBUG("oldname: %s\n", block->getTableName().c_str());
     _new_block_id = dstDB->nextBlockId();
@@ -1306,10 +1308,12 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
  */
 
 int16_t AntiCacheEvictionManager::addAntiCacheDB(AntiCacheDB* acdb) {
+    int16_t acid;
     acdb->setACID(m_numdbs);
     m_db_lookup[m_numdbs] = acdb;
+    acid = m_numdbs;
     m_numdbs++;
-    return m_numdbs;
+    return acid;
 }
 
 
