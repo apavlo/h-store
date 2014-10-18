@@ -158,7 +158,7 @@ class AntiCacheDB {
                 throw UnknownBlockAccessException(0);
             } else {
                 lru_block_id = m_block_lru.front();
-                m_block_lru.pop_front();
+                //m_block_lru.pop_front();
                 lru_block = readBlock(lru_block_id);
                 m_totalBlocks--;
                 return lru_block;
