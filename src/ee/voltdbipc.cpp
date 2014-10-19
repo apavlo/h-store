@@ -651,7 +651,7 @@ void VoltDBIPC::sendException(int8_t errorCode) {
     fflush(stdout);
 
     const std::size_t expectedSize = exceptionLength + sizeof(int32_t);
-    writeOrDie(m_fd, (unsigned char*)exceptionData, expectedSize);
+    writeOrDie(m_fd, const_cast<unsigned char*>(reinterpret_cast<const unsigned char*>(exceptionData)), expectedSize);
 }
 
 void VoltDBIPC::executeCustomPlanFragmentAndGetResults(struct ipc_command *cmd) {
@@ -682,7 +682,7 @@ void VoltDBIPC::executeCustomPlanFragmentAndGetResults(struct ipc_command *cmd) 
     // write the results array back across the wire
     const int8_t successResult = kErrorCode_Success;
     if (errors == 0) {
-        writeOrDie(m_fd, (unsigned char*)&successResult, sizeof(int8_t));
+        writeOrDie(m_fd, const_cast<unsigned char*>(reinterpret_cast<const unsigned char*>(&successResult)), sizeof(int8_t));
         const int32_t size = m_engine->getResultsSize();
 
         // write the dependency tables back across the wire
@@ -905,7 +905,7 @@ void VoltDBIPC::getStats(struct ipc_command *cmd) {
         // write the results array back across the wire
         const int8_t successResult = kErrorCode_Success;
         if (result == 1) {
-            writeOrDie(m_fd, (unsigned char*)&successResult, sizeof(int8_t));
+            writeOrDie(m_fd, const_cast<unsigned char*>(reinterpret_cast<const unsigned char*>(&successResult)), sizeof(int8_t));
 
             // write the dependency tables back across the wire
             // the result set includes the total serialization size

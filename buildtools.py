@@ -16,6 +16,7 @@ class BuildContext:
         self.CPPFLAGS = ""
         self.EXTRAFLAGS = ""
         self.LDFLAGS = ""
+        self.LDLIBS = ""
         self.JNIEXT = ""
         self.JNILIBFLAGS = ""
         self.JNIBINFLAGS = ""
@@ -233,6 +234,7 @@ def buildMakefile(CTX):
     makefile.write("CXX = g++\n")
     makefile.write("CPPFLAGS += %s\n" % (MAKECPPFLAGS))
     makefile.write("LDFLAGS += %s\n" % (CTX.LDFLAGS))
+    makefile.write("LDLIBS += %s\n" % (CTX.LDLIBS))
     makefile.write("JNILIBFLAGS += %s\n" % (JNILIBFLAGS))
     makefile.write("JNIBINFLAGS += %s\n" % (JNIBINFLAGS))
     makefile.write("JNIEXT = %s\n" % (JNIEXT))
@@ -276,17 +278,17 @@ def buildMakefile(CTX):
 
     makefile.write("# main jnilib target\n")
     makefile.write("nativelibs/%s.$(JNIEXT): " % (baselibname) + " ".join(jni_objects) + "\n")
-    makefile.write("\t$(LINK.cpp) $(JNILIBFLAGS) -o $@ $^ " + " ".join(CTX.THIRD_PARTY_STATIC_LIBS) + "\n")
+    makefile.write("\t$(LINK.cpp) $(JNILIBFLAGS) -o $@ $^ $(LDLIBS)" + " ".join(CTX.THIRD_PARTY_STATIC_LIBS) + "\n")
     makefile.write("\n")
 
     makefile.write("# voltdb instance that loads the jvm from C++\n")
     makefile.write("prod/voltrun: $(SRC)/voltrun.cpp " + " ".join(static_objects) + "\n")
-    makefile.write("\t$(LINK.cpp) $(JNIBINFLAGS) -o $@ $^\n")
+    makefile.write("\t$(LINK.cpp) $(JNIBINFLAGS) -o $@ $^ $(LDLIBS)\n")
     makefile.write("\n")
 
     makefile.write("# voltdb execution engine that accepts work on a tcp socket (vs. jni)\n")
     makefile.write("prod/voltdbipc: $(SRC)/voltdbipc.cpp " + " objects/volt.a\n")
-    makefile.write("\t$(LINK.cpp) %s -o $@ $^\n" % CTX.TEST_EXTRAFLAGS)
+    makefile.write("\t$(LINK.cpp) {test_extraflags} -o $@ $^ $(LDLIBS) {third_party_static_libs}\n".format(test_extraflags=CTX.TEST_EXTRAFLAGS, third_party_static_libs=" ".join(CTX.THIRD_PARTY_STATIC_LIBS)))
     makefile.write("\n")
 
 

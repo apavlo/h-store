@@ -166,7 +166,7 @@ class CV : public AE {
 
     int m_jsontype;  // 0 = string, 1 = int64_t, 2 = double
 
-    int64_t  m_intValue;     // VALUE
+    long long int m_intValue;     // VALUE
     char    *m_stringValue;  // VALUE
     double   m_doubleValue;  // VALUE
 };

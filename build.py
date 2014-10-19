@@ -91,7 +91,8 @@ if gcc_major == 4 and gcc_minor >= 3:
     CTX.CPPFLAGS += " -Wno-ignored-qualifiers -fno-strict-aliasing"
 
 # linker flags
-CTX.LDFLAGS = """-g3 -ldl"""
+#CTX.LDFLAGS = """-g3 -ldl"""
+CTX.LDFLAGS = """-g3"""
 # Done by default on Darwin -- unrecognized option for the linker on Darwin
 if CTX.PLATFORM == "Linux":
     CTX.LDFLAGS +=" -rdynamic"
@@ -99,6 +100,9 @@ if CTX.COVERAGE:
     CTX.LDFLAGS += " -ftest-coverage -fprofile-arcs"
 # for the google perftools profiler and the recommended stack unwinder
 #CTX.LDFLAGS = """ -g3 -rdynamic -lprofiler -lunwind"""
+# Libraries
+CTX.LDLIBS = "-ldl"
+
 
 # this is where the build will look for header files
 # - the test source will also automatically look in the test root dir
