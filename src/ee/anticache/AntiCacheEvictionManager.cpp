@@ -550,7 +550,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     // For now use the single AntiCacheDB from PersistentTable but in the future, this 
     // method to get the AntiCacheDB will have to choose which AntiCacheDB from to
     // evict to
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB());
+    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size));
     int tuple_length = -1;
     bool needs_flush = false;
 
@@ -757,7 +757,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
  //             evictedTable->name().c_str(), evictedTable->schema()->debug().c_str());
 
     // get the AntiCacheDB instance from the executorContext
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB());
+    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size));
     int tuple_length = -1;
     bool needs_flush = false;
 
@@ -1218,6 +1218,31 @@ int AntiCacheEvictionManager::chooseDB() {
     return 0;
 }
 
+// A version of chooseDB that takes blockSize. This will allow us to check if
+// a block will fit.
+
+int AntiCacheEvictionManager::chooseDB(long blockSize) {
+    int i;
+    AntiCacheDB* acdb;
+    for (i = 0; i < m_numdbs; i++) {
+        acdb = m_db_lookup[i];
+        if (acdb->getBlockSize() < blockSize) {
+            VOLT_DEBUG("blockSize %ld larger than database %d's block size %ld.",
+                    blockSize, i, acdb->getBlockSize());
+            continue;
+        }
+
+        if (acdb->getFreeBlocks() < 1) {
+            VOLT_DEBUG("AntiCacheDB ACID: %d has no free blocks", i);
+            continue;
+        }
+        return acdb->getACID();
+    }
+    throwFatalException("Cannot find free space in %d levels for blocksize: %ld",
+            i, blockSize);
+    return -1;
+}
+
 /*
  * Function to move a block between DBs. This will take a source and destination and 
  * return the new blockId. It first checks to see if there is room in the destination
@@ -1316,7 +1341,17 @@ int16_t AntiCacheEvictionManager::addAntiCacheDB(AntiCacheDB* acdb) {
     return acid;
 }
 
-
+/*
+ * Get a pointer to the AntiCacheDB identified by given ACID
+ */
+AntiCacheDB* AntiCacheEvictionManager::getAntiCacheDB(int acid) {
+    if (acid >= m_numdbs) {
+        VOLT_ERROR("invalid acid: %d/%d", acid, m_numdbs);
+        return NULL;
+    } else {
+        return m_db_lookup[acid];
+    }
+}    
 
 /*
  * Merges the unevicted block into the regular data table

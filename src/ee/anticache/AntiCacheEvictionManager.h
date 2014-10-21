@@ -67,10 +67,13 @@ public:
     //int numTuplesInEvictionList(); 
 
     int chooseDB();
+    int chooseDB(long blockSize);
+
     int32_t migrateBlock(int32_t blockId, AntiCacheDB* dstDB); 
     int32_t migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheDB* dstDB); 
     
     int16_t addAntiCacheDB(AntiCacheDB* acdb);
+    AntiCacheDB* getAntiCacheDB(int acid);
 
     // -----------------------------------------
     // Evicted Access Tracking Methods
