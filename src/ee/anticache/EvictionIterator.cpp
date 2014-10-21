@@ -255,10 +255,10 @@ EvictionIterator::~EvictionIterator()
 
 bool EvictionIterator::hasNext()
 {        
-    VOLT_DEBUG("Size: %lu\n", (long unsigned int)m_size);
+    VOLT_TRACE("Size: %lu\n", (long unsigned int)m_size);
     PersistentTable* ptable = static_cast<PersistentTable*>(table);
 
-    VOLT_DEBUG("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
+    VOLT_TRACE("Count: %lu %lu\n", ptable->usedTupleCount(), ptable->activeTupleCount());
 
     if(ptable->usedTupleCount() == 0)
         return false; 
