@@ -32,6 +32,7 @@
 #include "common/types.h"
 #include "common/DefaultTupleSerializer.h"
 #include "anticache/UnknownBlockAccessException.h"
+#include "anticache/FullBackingStoreException.h"
 
 #include <deque>
 #include <map>
@@ -133,75 +134,76 @@ class AntiCacheDB {
         inline AntiCacheDBType getDBType() {
             return m_dbType;
         }
-
+        /**
+         * Return the blockSize of stored blocks
+         */
+        inline long getBlockSize() {
+            return m_blockSize;
+        }
+        /**
+         * Return the number of blocks stored in the database
+         */
         inline int getNumBlocks() {
             return m_totalBlocks;
         }
-
+        /**
+         * Return the maximum size of the database
+         */
         inline long getMaxDBSize() {
             return m_maxDBSize;
         }
-
+        /**
+         * Return the maximum number of blocks that can be stored 
+         * in the database.
+         */
         inline int getMaxBlocks() {
             return (int)(m_maxDBSize/m_blockSize);
         }
-
+        /**
+         * Return the number of free (available) blocks
+         */
         inline int getFreeBlocks() {
             return getMaxBlocks()-getNumBlocks();
         }
-        inline AntiCacheBlock* getLRUBlock() {
-            uint16_t lru_block_id;
-            AntiCacheBlock* lru_block;
+        /**
+         * Return the LRU block from the database. This *removes* the block
+         * from the database. If you take it, it's yours, it exists nowhere else.
+         * If a migrate or merge fails, you have to write it back. 
+         *
+         * It also updates removes the blockId from the LRU deque.
+         */
+        AntiCacheBlock* getLRUBlock();       
 
-            if (m_block_lru.empty()) {
-                VOLT_ERROR("LRU Blocklist Empty!");
-                throw UnknownBlockAccessException(0);
-            } else {
-                lru_block_id = m_block_lru.front();
-                //m_block_lru.pop_front();
-                lru_block = readBlock(lru_block_id);
-                m_totalBlocks--;
-                return lru_block;
-            }
-        }
+        /**
+         * Removes a blockId from the LRU queue. This is used when reading a
+         * specific block.
+         */
+        void removeBlockLRU(uint16_t blockId);
+        
+        /** 
+         * Adds a blockId to the LRU deque.
+         */
+        void pushBlockLRU(uint16_t blockId);
 
-        inline void removeBlockLRU(uint16_t blockId) {
-            std::deque<uint16_t>::iterator it;
-            bool found = false;
-           
-    
-            for (it = m_block_lru.begin(); it != m_block_lru.end(); ++it) {
-                if (*it == blockId) {
-                    VOLT_INFO("Found block id %d == blockId %d", *it, blockId);
-                    m_block_lru.erase(it);
-                    found = true;
-                    m_totalBlocks--;
-                    break;
-                }
-            }
+        /**
+         * Pops and returns the LRU blockID from the deque. This isn't a 
+         * peek. When this function finishes, the block is in the database
+         * but the blockId is no longer in the LRU. This shouldn't necessarily
+         * be fatal, but it should be avoided.
+         */
+        inline uint16_t popBlockLRU();
 
-            if (!found) {
-                VOLT_ERROR("Found block but didn't find blockId %d in LRU!", blockId);
-                //throw UnknownBlockAccessException(blockId);
-            }
-        }
-
-        inline void pushBlockLRU(uint16_t blockId) {
-            VOLT_INFO("Pushing blockId %d into LRU", blockId);
-            m_block_lru.push_back(blockId);
-            m_totalBlocks++;
-        }
-
-        inline uint16_t popBlockLRU() {
-            uint16_t blockId = m_block_lru.front();
-            m_block_lru.pop_front();
-            return blockId;
-        }
-
+        /**
+         * Set the AntiCacheID number. This should be done on initialization and
+         * should also match the the level in VoltDBEngine/executorcontext
+         */
         inline void setACID(int16_t ACID) {
             m_ACID = ACID;
         }
-
+        
+        /**
+         * Return the AntiCacheID number.
+         */
         inline int16_t getACID() {
             return m_ACID;
         }
