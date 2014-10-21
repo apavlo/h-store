@@ -178,6 +178,11 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
                                 const char* data,
                                 const long size)  {
    
+    if (getFreeBlocks() == 0) {
+        VOLT_WARN("No free space in ACID %d for blockid %d with blocksize %ld",
+                m_ACID, blockId, size);
+        throw FullBackingStoreException(((int32_t)m_ACID << 16) & blockId, 0);
+    }
     char* block = getNVMBlock(m_blockIndex); 
     long bufsize; 
     char* buffer = new char [tableName.size() + 1 + size];
