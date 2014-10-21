@@ -186,18 +186,12 @@ public:
 
 TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     ChTempDir tempdir;
-    //ChTempDir tempdir2;
 
     string temp = tempdir.name();
 
     ExecutorContext* ctx = m_engine->getExecutorContext();
-    //ctx->enableAntiCache(m_engine, temp, BLOCK_SIZE, ANTICACHEDB_NVM, MAX_SIZE);
-    //ctx->addAntiCacheDB(temp, BLOCK_SIZE, ANTICACHEDB_BERKELEY, MAX_SIZE);
 
     AntiCacheEvictionManager* acem = new AntiCacheEvictionManager(m_engine);
-    //AntiCacheEvictionManager* acem = ctx->getAntiCacheEvictionManager();
-    //AntiCacheDB* nvmdb = ctx->getAntiCacheDB(0);
-    //AntiCacheDB* berkeleydb = ctx->getAntiCacheDB(1);
     AntiCacheDB* nvmdb = new NVMAntiCacheDB(ctx, temp, BLOCK_SIZE, MAX_SIZE);
     AntiCacheDB* berkeleydb = new BerkeleyAntiCacheDB(ctx, temp, BLOCK_SIZE, MAX_SIZE);
 
@@ -279,11 +273,66 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     //delete nvmblock;
     delete berkeleyblock;
     delete berkeleydb;
-    VOLT_INFO("BerkeleyDB deleted\n");
     delete nvmdb;
     delete acem;
 }
 
+TEST_F(AntiCacheEvictionManagerTest, FullBackingStore) {
+    ChTempDir tempdir;
+
+    string temp = tempdir.name();
+
+    ExecutorContext* ctx = m_engine->getExecutorContext();
+
+    AntiCacheEvictionManager* acem = new AntiCacheEvictionManager(m_engine);
+    AntiCacheDB* nvmdb = new NVMAntiCacheDB(ctx, temp, BLOCK_SIZE, 2 * BLOCK_SIZE - 1);
+    AntiCacheDB* berkeleydb = new BerkeleyAntiCacheDB(ctx, temp, BLOCK_SIZE, MAX_SIZE);
+    AntiCacheDB* acdb;
+
+
+    acem->addAntiCacheDB(nvmdb);
+    acem->addAntiCacheDB(berkeleydb);
+
+    string tableName("TEST");
+    string payload("Test payload");
+
+
+    acdb = acem->getAntiCacheDB(acem->chooseDB(BLOCK_SIZE));
+    ASSERT_EQ(0, acdb->getACID());
+    int16_t blockId = acdb->nextBlockId();
+    acdb->writeBlock(tableName,
+        blockId,
+        1,
+        const_cast<char*>(payload.data()),
+        BLOCK_SIZE);
+
+    acdb = acem->getAntiCacheDB(acem->chooseDB(BLOCK_SIZE));
+    ASSERT_EQ(1, acdb->getACID());
+    blockId = acdb->nextBlockId();
+
+    acdb->writeBlock(tableName, blockId, 1, const_cast<char*>(payload.data()), BLOCK_SIZE);
+    
+    ASSERT_EQ(1, nvmdb->getNumBlocks());
+    ASSERT_EQ(1, berkeleydb->getNumBlocks());
+
+    try {
+        nvmdb->writeBlock(tableName,
+            blockId,
+            1,
+            const_cast<char*>(payload.data()),
+            BLOCK_SIZE);
+    } catch (...)  {
+            VOLT_INFO("Throwing FullBackingStoreException (this is what we want!)");
+            ASSERT_TRUE(true);
+    }
+    delete berkeleydb;
+    delete nvmdb;
+    delete acem;
+}
+
+
+
+ 
 
 #ifndef ANTICACHE_TIMESTAMPS
 TEST_F(AntiCacheEvictionManagerTest, GetTupleID)
