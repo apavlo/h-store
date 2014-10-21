@@ -523,7 +523,7 @@ bool PersistentTable::insertTuple(TableTuple &source) {
         new (pool->allocate(sizeof(voltdb::PersistentTableUndoInsertAction)))
         voltdb::PersistentTableUndoInsertAction(m_tmpTarget1, this, pool, elMark);
     undoQuantum->registerUndoAction(ptuia);
-    VOLT_DEBUG("Registered UndoAction for new tuple in table '%s'", name().c_str());
+    VOLT_TRACE("Registered UndoAction for new tuple in table '%s'", name().c_str());
 
     // handle any materialized views
     for (int i = 0; i < m_views.size(); i++) {
@@ -920,7 +920,7 @@ void PersistentTable::updateFromAllIndexes(TableTuple &targetTuple, const TableT
 
 void PersistentTable::setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address) {
     for (int i = m_indexCount - 1; i >= 0; --i) {
-        VOLT_DEBUG("Updating tuple address in index %s.%s [%s]",
+        VOLT_TRACE("Updating tuple address in index %s.%s [%s]",
                    name().c_str(), m_indexes[i]->getName().c_str(), m_indexes[i]->getTypeName().c_str());
         VOLT_TRACE("address is %p", address);
         if (!m_indexes[i]->setEntryToNewAddress(tuple, address)) {
