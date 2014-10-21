@@ -680,7 +680,8 @@ public final class HStoreConf {
 
         @ConfigProperty(
             description="The size (in bytes) for the anti-cache's blocks on disk.",
-            defaultLong=262144, // 256kb
+            //defaultLong=262144, // 256kb
+            defaultLong=1048576, // 1MB
             experimental=true
         )
         public long anticache_block_size;

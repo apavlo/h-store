@@ -1233,7 +1233,9 @@ int AntiCacheEvictionManager::chooseDB(long blockSize) {
         }
 
         if (acdb->getFreeBlocks() < 1) {
-            VOLT_DEBUG("AntiCacheDB ACID: %d has no free blocks", i);
+            VOLT_INFO("AntiCacheDB ACID: %d has %d free blocks", i, acdb->getFreeBlocks());
+            VOLT_DEBUG("maxBlocks: %d maxDBSize: %ld numBlocks %d",
+                    acdb->getMaxBlocks(), acdb->getMaxDBSize(), acdb->getNumBlocks());
             continue;
         }
         return acdb->getACID();
