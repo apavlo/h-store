@@ -419,6 +419,7 @@ if CTX.ANTICACHE_BUILD:
     CTX.INPUT['anticache'] = """
         EvictedTupleAccessException.cpp
         UnknownBlockAccessException.cpp
+        FullBackingStoreException.cpp
         AntiCacheDB.cpp
         BerkeleyAntiCacheDB.cpp
         NVMAntiCacheDB.cpp
