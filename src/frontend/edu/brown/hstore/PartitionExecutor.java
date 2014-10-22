@@ -596,13 +596,13 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     private long parseSize(String size) {
         String unit = size.substring(size.length() - 1);
         long Size = Long.valueOf(size.substring(0, size.length() - 1));
-        if (unit == "K") {
+        if (unit.equals("K")) {
             Size = Size * 1024;
-        } else if (unit == "M") {
+        } else if (unit.equals("M")) {
             Size = Size * 1024*1024;
-        } else if (unit == "G") {
+        } else if (unit.equals("G")) {
             Size = Size * 1024*1024*1024;
-        } else if (unit == "T") {
+        } else if (unit.equals("T")) {
             Size = Size * 1024*1024*1024*1024;
         } else {
             //Throw error
@@ -838,7 +838,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             long maxSize = parseSize(maxstr);
                             
                             File acFile = AntiCacheManager.getDatabaseDir(this, i);
-                            LOG.debug(String.format("Creating AntiCacheDB type: %d blocksize: %d maxsize: %d", dbType, blockSize, maxSize));
+                            LOG.debug(String.format("Creating AntiCacheDB type: %d blocksize: %d maxsize: %d", 
+                                        dbType.ordinal(), blockSize, maxSize));
                             if (i == 0) {
                                 eeTemp.antiCacheInitialize(acFile, dbType, blockSize, maxSize);
                             } else {
