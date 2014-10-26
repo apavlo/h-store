@@ -278,7 +278,7 @@ def buildMakefile(CTX):
 
     makefile.write("# main jnilib target\n")
     makefile.write("nativelibs/%s.$(JNIEXT): " % (baselibname) + " ".join(jni_objects) + "\n")
-    makefile.write("\t$(LINK.cpp) $(JNILIBFLAGS) -o $@ $^ $(LDLIBS) " + " ".join(CTX.THIRD_PARTY_STATIC_LIBS) + "\n")
+    makefile.write("\t$(LINK.cpp) $(JNILIBFLAGS) -o $@ $^ $(LDLIBS)" + " ".join(CTX.THIRD_PARTY_STATIC_LIBS) + "\n")
     makefile.write("\n")
 
     makefile.write("# voltdb instance that loads the jvm from C++\n")
