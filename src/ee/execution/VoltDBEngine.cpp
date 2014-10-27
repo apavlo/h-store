@@ -1999,7 +1999,8 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int16_t bl
         //        same time that txns are running
         resetAntiCacheUtilityOutputBuffer();
         e.serialize(getAntiCacheUtilityOutputSerializer());
-        retval = ENGINE_ERRORCODE_ERROR;
+        //retval = ENGINE_ERRORCODE_ERROR;
+        retval = ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
     }
 
     return (retval);

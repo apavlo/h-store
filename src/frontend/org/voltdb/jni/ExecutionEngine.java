@@ -74,6 +74,8 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public static final int ERRORCODE_WRONG_SERIALIZED_BYTES = 101;
     public static final int ERRORCODE_NO_DATA = 102;
 
+    public static final int ERRORCODE_ANTICACHE_EXCEPTION = 103;
+
     /** Create an ee and load the volt shared library */
     public ExecutionEngine(final PartitionExecutor executor) {
         this.executor = executor;

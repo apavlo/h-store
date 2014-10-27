@@ -162,25 +162,60 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     /** Utility method to throw a Runtime exception based on the error code and serialized exception **/
     @Override
     final protected void throwExceptionForError(final int errorCode) throws RuntimeException {
+        SerializableException ex;
+        switch (errorCode) {
+            case ERRORCODE_ANTICACHE_EXCEPTION:
+                ex = antiCacheException();
+                break;
+            default:
+                ex = executionEngineExceptionFor(errorCode);
+        }
+        throw ex;
+    }
+
+    private SerializableException antiCacheException() {
+        antiCacheUtilityBuffer.clear();
+        int exceptionLength = antiCacheUtilityBuffer.getInt();
+        //if (debug.val) LOG.debug("EEException Length: " + exceptionLength);
+        LOG.info("AntiCacheException Length: " + exceptionLength);
+
+        if (exceptionLength == 0) {
+            return new EEException(ERRORCODE_ANTICACHE_EXCEPTION);
+        } else {
+            antiCacheUtilityBuffer.position(0);
+            antiCacheUtilityBuffer.limit(4 + exceptionLength);
+            SerializableException ex;
+            try {
+                ex = SerializableException.deserializeFromBuffer(antiCacheUtilityBuffer);
+            } catch (Throwable e) {
+                ex = new SerializableException();
+                e.printStackTrace();
+            }
+            return ex;
+        }
+    }
+
+    private SerializableException executionEngineExceptionFor(int errorCode) {
         exceptionBuffer.clear();
         final int exceptionLength = exceptionBuffer.getInt();
         if (debug.val) LOG.debug("EEException Length: " + exceptionLength);
 
         if (exceptionLength == 0) {
-            throw new EEException(errorCode);
+            return new EEException(errorCode);
         } else {
             exceptionBuffer.position(0);
             exceptionBuffer.limit(4 + exceptionLength);
-            SerializableException ex = null;
+            SerializableException ex;
             try {
                 ex = SerializableException.deserializeFromBuffer(exceptionBuffer);
             } catch (Throwable e) {
-                ex = new SerializableException(); 
+                ex = new SerializableException();
                 e.printStackTrace();
             }
-            throw ex;
+            return ex;
         }
     }
+
 
     /**
      * Releases the Engine object.
