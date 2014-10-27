@@ -27,8 +27,6 @@ package edu.brown.hstore;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.lang.management.RuntimeMXBean;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -550,17 +548,9 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 Thread thread = arg.getFirst();
                 Throwable error = arg.getSecond();
                 String threadName = "<unknown>";
-                if (thread != null) threadName = thread.getName();
-                LOG.fatal("Runtime maxMemory: " + Runtime.getRuntime().maxMemory());
-                RuntimeMXBean runtimeMxBean = ManagementFactory.getRuntimeMXBean();
-                List<String> arguments = runtimeMxBean.getInputArguments();
-                String as = "";
-                for (String argument : arguments) {
-                    as += argument;
-                }
-                LOG.fatal("JVM arguments: " + as);
+                if (thread != null) threadName = thread.getName(); 
                 LOG.fatal(String.format("Thread %s had a fatal error: %s",
-                        threadName, (error != null ? error.getMessage() : null)));
+                          threadName, (error != null ? error.getMessage() : null)));
                 error.printStackTrace();
                 hstore_coordinator.shutdownClusterBlocking(error);
             }
