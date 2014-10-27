@@ -961,14 +961,14 @@ TEST CASES
             failureproperty="junit.failures"
             printsummary="@{printsummary}"
             timeout="@{timeout}"
-            maxmemory='2600M'
+            maxmemory='3600M'
             showoutput="@{showoutput}"
         >
             <classpath refid='project.classpath' />
             <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
             <jvmarg value="-server" />
             <jvmarg value="-Xcheck:jni" />
-            <jvmarg value="-Xmx2600m"/>
+            <jvmarg value="-Xmx3600m"/>
             <jvmarg value="-XX:+HeapDumpOnOutOfMemoryError"/>
 
             <env key="ENABLE_JAR_REUSE" value="${junit.reusejars}"/>
