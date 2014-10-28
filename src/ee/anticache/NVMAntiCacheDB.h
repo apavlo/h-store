@@ -42,7 +42,7 @@ class NVMAntiCacheBlock : public AntiCacheBlock {
     friend class AntiCacheDB;
 
     public:
-        ~NVMAntiCacheBlock() {};
+        ~NVMAntiCacheBlock();
 
     private:
         NVMAntiCacheBlock(int16_t blockId, char* block, long size);
