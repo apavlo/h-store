@@ -838,8 +838,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             long maxSize = parseSize(maxstr);
                             
                             File acFile = AntiCacheManager.getDatabaseDir(this, i);
-                            LOG.debug(String.format("Creating AntiCacheDB type: %d blocksize: %d maxsize: %d", 
-                                        dbType.ordinal(), blockSize, maxSize));
+                            LOG.debug(String.format("Creating AntiCacheDB type: %d blocksize: %d maxsize: %d @ %s", 
+                                        dbType.ordinal(), blockSize, maxSize, acFile.getAbsolutePath()));
                             if (i == 0) {
                                 eeTemp.antiCacheInitialize(acFile, dbType, blockSize, maxSize);
                             } else {
