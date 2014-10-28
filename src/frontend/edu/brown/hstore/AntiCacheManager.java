@@ -946,7 +946,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             String config = hstore_conf.site.anticache_multilevel_dirs;
             String delims = "[;]";
             String[] dirs = config.split(delims);
-            base_dir = FileUtil.realpath(dirs[dbnum] +
+            base_dir = FileUtil.realpath(hstore_conf.global.temp_dir + dirs[dbnum] +
                     File.separatorChar +
                     catalog_db.getProject());
         } 

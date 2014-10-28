@@ -673,7 +673,7 @@ public final class HStoreConf {
 
         @ConfigProperty(
             description="The directories used for multilevel anticaching databases.",
-            defaultString="${global.temp_dir}/ac-level1;${global.temp_dir}/ac-level2;$global.temp_dir}/ac-level3;${global.temp_dir}/ac-level4;$global.temp_dir}/ac-level5",
+            defaultString="/ac-level1;/ac-level2;/ac-level3;/ac-level4;/ac-level5",
             experimental=true
         )
         public String anticache_multilevel_dirs;
