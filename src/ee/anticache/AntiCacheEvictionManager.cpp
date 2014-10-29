@@ -1186,12 +1186,6 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
         VOLT_INFO("Block Size = %ld / Table = %s", value->getSize(), table->name().c_str());
         ReferenceSerializeInput in(unevicted_tuples, value->getSize());
         
-        /*for (int i = 0; i < 200; i++) {
-            printf( "%X", unevicted_tuples[i]);
-        }
-        cout << "\n";
-        VOLT_DEBUG("serializer unread size: %d", (int)in.numBytesNotYetRead());
-        */
         // Read in all the block meta-data
         int num_tables = in.readInt();
         VOLT_DEBUG("num tables is %d", num_tables);
@@ -1221,8 +1215,6 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
         return false;
     }
     
-    // remove block_id from lookup table since block is merged
-    //m_db_lookup_table.erase(block_id);
 
     //    VOLT_INFO("blocks read: %d", m_blocksRead);
     return true;
@@ -1333,7 +1325,7 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
     
     dstDB->writeBlock(block->getTableName(), _new_block_id, 0, block->getData(), block->getSize());
     
-    // TODO!!!: We can't just delete this block willy nilly if we can't get a new_block_id. 
+    // MJG TODO!!!: We can't just delete this block willy nilly if we can't get a new_block_id. 
     // Have to do something better than this. XXX
     delete block;
 

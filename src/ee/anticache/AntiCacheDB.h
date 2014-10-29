@@ -208,6 +208,14 @@ class AntiCacheDB {
             return m_ACID;
         }
 
+        /**
+         * return true if we should stall false if we need to abort
+         */
+        inline bool stallForData() {
+            return m_stall;
+        }
+
+
     protected:
         ExecutorContext *m_executorContext;
         string m_dbDir;
@@ -218,6 +226,7 @@ class AntiCacheDB {
         int m_partitionId; 
         int m_totalBlocks; 
         
+        bool m_stall;
 
         AntiCacheDBType m_dbType;
         long m_maxDBSize;
