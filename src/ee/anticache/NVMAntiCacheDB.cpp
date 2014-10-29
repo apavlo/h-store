@@ -44,31 +44,36 @@ namespace voltdb {
 NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) :
     AntiCacheBlock(blockId) {
 
-    m_block = block;
+    /* m_block = block;
     m_size = size;
     m_blockType = ANTICACHEDB_NVM;
-    
-    /*char* buffer = block;
+    */
+    char* buffer = block;
     std::string tableName = buffer;
     
     block = buffer + tableName.size() + 1;
     size -= tableName.size() + 1;
 
+
+    m_block = new char[size];
+    memcpy(m_block, block, size);
+
+    delete [] buffer;
+
     payload p;
     p.tableName = tableName;
     p.blockId = blockId;
-    p.data = block;
+    p.data = m_block;
     p.size = size;
      
     m_payload = p;
-    m_block = m_payload.data;
     m_size = size;
     m_blockType = ANTICACHEDB_NVM;
-    std::string payload_str(m_payload.data, m_size);
+    //std::string payload_str(m_payload.data, m_size);
     
-    VOLT_INFO("NVMAntiCacheBlock #%d from table: %s [size=%ld / payload=%ld = '%s']",
-              blockId, m_payload.tableName.c_str(), m_size, m_payload.size, payload_str.c_str());
-    */
+    VOLT_INFO("NVMAntiCacheBlock #%d from table: %s [size=%ld / payload=%ld]",
+              blockId, m_payload.tableName.c_str(), m_size, m_payload.size);
+    
 }
 
 NVMAntiCacheBlock::~NVMAntiCacheBlock() {
@@ -166,16 +171,15 @@ void NVMAntiCacheDB::initializeDB() {
     close(nvm_fd); // can safely close file now, mmap creates new reference
     
     // write out NULL characters to ensure entire file has been fetchted from memory
-    /*
+    
     for(int i = 0; i < m_maxDBSize; i++)
     {
         m_NVMBlocks[i] = '\0'; 
     }
-    */
+    
 }
 void NVMAntiCacheDB::shutdownDB() { 
   fclose(nvm_file);
-
   #ifdef ANTICACHE_DRAM 
       delete [] m_NVMBlocks;
   #endif 
@@ -196,7 +200,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
                 m_ACID, blockId, size);
         throw FullBackingStoreException(((int32_t)m_ACID << 16) & blockId, 0);
     }
-    /*
+    
     char* block = getNVMBlock(m_blockIndex); 
     long bufsize; 
     char* buffer = new char [tableName.size() + 1 + size];
@@ -205,25 +209,26 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     memcpy(buffer, tableName.c_str(), bufsize);
     memcpy(buffer + bufsize, data, size);
     bufsize += size;
-    memcpy(block, buffer, bufsize);                      
+    memcpy(block, buffer, bufsize); 
+    delete[] buffer;
     //memcpy(block, data, size);
 
     //m_NVMBlocks[m_blockIndex] = new char[size]; 
     //memcpy(m_NVMBlocks[m_blockIndex], data, size); 
-    */
     
-    char* block = getNVMBlock(m_blockIndex);
-    memcpy(block, data, size);
+    
+    //char* block = getNVMBlock(m_blockIndex);
+    //memcpy(block, data, size);
 
-    VOLT_INFO("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, m_blockIndex, size); 
+    VOLT_INFO("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, m_blockIndex, bufsize); 
 
-    printf("--------------------------------------------------------------------\n");
+    /*printf("--------------------------------------------------------------------\n");
     for (int i = 0; i < 200; i++) {
         printf("%X", block[i]);
     }
     printf("--------------------------------------------------------------------\n");
-
-    m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(m_blockIndex, static_cast<int32_t>(size))));
+    */
+    m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(m_blockIndex, static_cast<int32_t>(bufsize))));
     m_blockIndex++; 
     
     pushBlockLRU(blockId);
@@ -250,22 +255,22 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
     char* block = new char[blockSize];
     memcpy(block, block_ptr, blockSize); 
     
-    VOLT_DEBUG("data from buffer before writing to block");
+    /*VOLT_DEBUG("data from buffer before writing to block");
     for (int i = 0; i < 100; i++) {
         printf("%X", block[i]);
     }
     printf("\n");
- 
+    */
     AntiCacheBlock* anticache_block = new NVMAntiCacheBlock(blockId, block, blockSize);
 
-    memcpy(block, anticache_block->getData(), anticache_block->getSize());
+    //memcpy(block, anticache_block->getData(), anticache_block->getSize());
    
-    VOLT_DEBUG("data from block after creation, before return");
+    /*VOLT_DEBUG("data from block after creation, before return");
     for (int i = 0; i < 100; i++) {
         printf("%X", block[i]);
     }
     printf("\n");
-
+    */
     freeNVMBlock(blockId); 
 
     m_blockMap.erase(itr); 

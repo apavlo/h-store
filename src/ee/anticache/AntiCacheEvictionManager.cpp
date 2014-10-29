@@ -1186,12 +1186,12 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
         VOLT_INFO("Block Size = %ld / Table = %s", value->getSize(), table->name().c_str());
         ReferenceSerializeInput in(unevicted_tuples, value->getSize());
         
-        for (int i = 0; i < 200; i++) {
+        /*for (int i = 0; i < 200; i++) {
             printf( "%X", unevicted_tuples[i]);
         }
         cout << "\n";
         VOLT_DEBUG("serializer unread size: %d", (int)in.numBytesNotYetRead());
-
+        */
         // Read in all the block meta-data
         int num_tables = in.readInt();
         VOLT_DEBUG("num tables is %d", num_tables);
