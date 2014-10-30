@@ -362,6 +362,60 @@ public class TestAntiCacheMultiLevel extends BaseTestCase {
     }
 
     @Test
+    public void testMultipleReadMultipleEvict() throws Exception {
+        this.loadData(10000);
+        
+        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+        assertEquals(1, results.length);
+        System.err.println(VoltTableUtil.format(results));
+
+		results[0].advanceRow(); 
+        for (String col : statsFields) {
+            int idx = results[0].getColumnIndex(col);
+            assertEquals(0, results[0].getLong(idx));    
+        } // FOR
+        System.err.println(StringUtil.repeat("=", 100));
+        
+        // Evict five blocks, forcing one to spill over
+        VoltTable evictResult = null;
+        for (int i = 0; i < 5; i++) {
+            if (i > 0) {
+                System.err.println(StringUtil.repeat("-", 100));
+                ThreadUtil.sleep(1000);
+            }
+            System.err.println("Eviction #" + i);
+            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024*1024, 1);
+            System.err.println(VoltTableUtil.format(evictResult));
+            assertNotNull(evictResult);
+            assertEquals(1, evictResult.getRowCount());
+            assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
+            evictResult.resetRowPosition();
+            boolean adv = evictResult.advanceRow();
+            assertTrue(adv);
+        } // FOR
+        
+        // Read back everything.        
+        Procedure proc = this.getProcedure("GetRecord"); // Special Single-Stmt Proc
+        for (int i = 1; i < 10000; i++) {
+            long expected = i;
+            ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
+            assertEquals(Status.OK, cresponse.getStatus());
+            
+            VoltTable mergeresults[] = cresponse.getResults();
+            assertEquals(1, mergeresults.length);
+            boolean adv = mergeresults[0].advanceRow();
+            assertTrue(adv);
+            assertEquals(expected, mergeresults[0].getLong(0));
+        } // FOR
+        
+        AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
+        assertNotNull(profiler);
+        // Since we are block-merging, we should only get 
+        // five block exceptions.
+        assertEquals(5, profiler.evictedaccess_history.size());
+    }
+
+    @Test
     public void testReadNonExistentBlock() throws Exception {
         int block_ids[] = new int[]{ 1111 };
         int tuple_offsets[] = new int[]{0}; 
@@ -375,5 +429,5 @@ public class TestAntiCacheMultiLevel extends BaseTestCase {
             System.err.println(ex);
         }
         assertTrue(failed);
-    }   
+    }  
 }
