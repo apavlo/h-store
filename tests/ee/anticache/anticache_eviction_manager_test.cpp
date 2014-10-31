@@ -236,6 +236,8 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
 
     string tableNameLRU("LRU Table");
     string payloadLRU("LRU Test payload");
+
+    VOLT_DEBUG("migrating LRU block..."); 
     
     int16_t blockIdLRU = nvmdb->nextBlockId();
     nvmdb->writeBlock(tableNameLRU,
@@ -257,7 +259,7 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     _new_block_id = (int16_t) (newBlockId & 0x0000FFFF);
 
     berkeleyblock = berkeleydb->readBlock(_new_block_id);
-    //VOLT_INFO("tableName: %s berkeleyblock name: %s\n", tableName.c_str(), berkeleyblock->getTableName().c_str());
+    VOLT_INFO("tableName: %s berkeleyblock name: %s\n", tableName.c_str(), berkeleyblock->getTableName().c_str());
     
     //ASSERT_EQ(blockId, nvmblock->getBlockId());
     ASSERT_EQ(_new_block_id, berkeleyblock->getBlockId());
@@ -478,21 +480,19 @@ TEST_F(AntiCacheEvictionManagerTest, DeleteMultipleTuples)
     VOLT_INFO("%d == %d", num_tuples, m_table->getNumTuplesInEvictionChain());
     ASSERT_EQ(num_tuples, m_table->getNumTuplesInEvictionChain()); 
         
-        int num_tuples_deleted = 0; 
-        TableIterator itr(m_table); 
-        while(itr.hasNext())
-        {
-                itr.next(tuple); 
+    int num_tuples_deleted = 0; 
+    TableIterator itr(m_table); 
+    while(itr.hasNext())  {
+        itr.next(tuple); 
                 
-                if(rand() % 2 == 0)  // delete each tuple with probability .5
-                {
+        if(rand() % 2 == 0) { // delete each tuple with probability .5
             m_table->deleteTuple(tuple, true); 
             ++num_tuples_deleted; 
-                }
         }
+    }
         
 
-        ASSERT_EQ((num_tuples - num_tuples_deleted), m_table->getNumTuplesInEvictionChain());
+    ASSERT_EQ((num_tuples - num_tuples_deleted), m_table->getNumTuplesInEvictionChain());
     
     cleanupTable();
 }

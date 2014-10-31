@@ -58,7 +58,9 @@ TEST_F(AntiCacheDBTest, BerkeleyNextBlockId) {
     } // FOR
     delete anticache;
 }
-
+/* 
+ *
+ * I dno't think this test is relevent anymore -MJG
 TEST_F(AntiCacheDBTest, NVMNextBlockId) {
     ChTempDir tempdir;
     AntiCacheDB* anticache = new NVMAntiCacheDB(NULL, ".", BLOCK_SIZE, MAX_SIZE);
@@ -71,7 +73,7 @@ TEST_F(AntiCacheDBTest, NVMNextBlockId) {
     } // FOR
     delete anticache;
 }
-
+*/
 
 // This is based off of the code from Yi Wang
 // http://cxwangyi.wordpress.com/2010/10/10/how-to-use-berkeley-db/
