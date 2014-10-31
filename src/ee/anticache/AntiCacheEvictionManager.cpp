@@ -82,6 +82,7 @@ AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
     //TupleSchema::freeTupleSchema(evictedSchema);
 
     m_numdbs = 0;
+    m_migrate = false;
 }
 
 AntiCacheEvictionManager::~AntiCacheEvictionManager() {
@@ -550,7 +551,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     // For now use the single AntiCacheDB from PersistentTable but in the future, this 
     // method to get the AntiCacheDB will have to choose which AntiCacheDB from to
     // evict to
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, true));
+    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
     int tuple_length = -1;
     bool needs_flush = false;
 
@@ -764,7 +765,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
  //             evictedTable->name().c_str(), evictedTable->schema()->debug().c_str());
 
     // get the AntiCacheDB instance from the executorContext
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, true));
+    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
     int tuple_length = -1;
     bool needs_flush = false;
 
@@ -1260,7 +1261,7 @@ int AntiCacheEvictionManager::chooseDB(long blockSize) {
 
 int AntiCacheEvictionManager::chooseDB(long blockSize, bool migrate) {
     AntiCacheDB* acdb;
-
+    
     if (migrate) {
         for (int i = 0; i < m_numdbs - 1; i++) {
             acdb = m_db_lookup[i];
@@ -1443,6 +1444,9 @@ int16_t AntiCacheEvictionManager::addAntiCacheDB(AntiCacheDB* acdb) {
     m_db_lookup[m_numdbs] = acdb;
     acid = m_numdbs;
     m_numdbs++;
+    if (m_numdbs > 1) {
+        m_migrate = true;
+    }
     return acid;
 }
 

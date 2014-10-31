@@ -115,7 +115,7 @@ protected:
     AntiCacheDB* m_db_lookup[MAX_DBS];
     int16_t m_numdbs;
     TupleSchema* m_evicted_schema;
-    
+    bool m_migrate;
     //std::map<int16_t, AntiCacheDB*> m_db_lookup_table;
     
 }; // AntiCacheEvictionManager class
