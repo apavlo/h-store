@@ -1153,7 +1153,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
      */
     int16_t _block_id = (int16_t)(block_id & 0x0000FFFF);
     int16_t ACID = (int16_t)((block_id & 0xFFFF0000) >> 16);
-    VOLT_INFO("block_id: %d ACID: %d _block_id: %d\n", block_id, ACID, _block_id);
+    VOLT_DEBUG("block_id: %d ACID: %d _block_id: %d\n", block_id, ACID, _block_id);
 
     AntiCacheDB* antiCacheDB = m_db_lookup[ACID]; 
     
@@ -1268,21 +1268,22 @@ int AntiCacheEvictionManager::chooseDB(long blockSize, bool migrate) {
             // first let's check if the block fits. If it doesn't... I don't know, keep
             // going
             if (acdb->getBlockSize() < blockSize) {
-                VOLT_DEBUG("blockSize %ld larger than database %d's block size %ld.",
+                VOLT_WARN("blockSize %ld larger than database %d's block size %ld.",
                         blockSize, i, acdb->getBlockSize());
                 continue;
             }
 
             if (acdb->getFreeBlocks() < 1) {
-                VOLT_INFO("AntiCacheDB ACID: %d has %d free blocks", i, acdb->getFreeBlocks());
+                VOLT_DEBUG("AntiCacheDB ACID: %d has %d free blocks", i, acdb->getFreeBlocks());
                 VOLT_DEBUG("maxBlocks: %d maxDBSize: %ld numBlocks %d",
                     acdb->getMaxBlocks(), acdb->getMaxDBSize(), acdb->getNumBlocks());
                 AntiCacheDB* dst_acdb = m_db_lookup[i+1];
                 int32_t new_block_id = migrateLRUBlock(acdb, dst_acdb);
                 if (new_block_id == -1) {
+                    // If we fail to migrate, an exception should have been thrown 
+                    // before this so this should never happen. But ya never know
                     VOLT_ERROR("Failed to migrate! Shouldn't get here");
                 }
-
             }
             return acdb->getACID();
         }
@@ -1318,7 +1319,7 @@ int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* ds
     int16_t _block_id = (int16_t)(block_id & 0x0000FFFF);
     AntiCacheDB* srcDB = m_db_lookup[acid];
 
-    VOLT_DEBUG("source: block_id: %x _block_id: %x acid: %x",
+    VOLT_TRACE("source: block_id: %x _block_id: %x acid: %x",
             block_id, _block_id, acid);
     AntiCacheBlock* block = srcDB->readBlock(_block_id);    
     //VOLT_DEBUG("oldname: %s\n", block->getTableName().c_str());
@@ -1400,7 +1401,7 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
     new_acid = dstDB->getACID();
     new_block_id = (int32_t) _new_block_id;
     new_block_id = new_block_id | (new_acid << 16);
-    VOLT_INFO("new_block_id: %x _new_block_id: %x new_acid: %x",
+    VOLT_DEBUG("new_block_id: %x _new_block_id: %x new_acid: %x",
             new_block_id, _new_block_id, new_acid);
 
     std::string tableName = block->getTableName();
@@ -1414,7 +1415,7 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
             while (it.next(tuple)) {
                 if ((int32_t)ValuePeeker::peekInteger(tuple.getNValue(0)) == block_id) {
                     tuple.setNValue(0, ValueFactory::getIntegerValue(new_block_id));
-                    VOLT_DEBUG("Updating tuple blockid from %8x to %8x", block_id, new_block_id);
+                    VOLT_TRACE("Updating tuple blockid from %8x to %8x", block_id, new_block_id);
                 }
             }
         } else {
