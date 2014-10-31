@@ -76,10 +76,11 @@ class NVMAntiCacheDB : public AntiCacheDB {
         /**
          * NVM constants
          */
+        /* I don't think these are used anymore -MJG
         static const off_t NVM_FILE_SIZE = 1073741824/2; 
         static const int NVM_BLOCK_SIZE = 524288 + 1000; 
         static const int MMAP_PAGE_SIZE = 2 * 1024 * 1024; 
-        
+        */
         FILE* nvm_file;
         char* m_NVMBlocks; 
         int nvm_fd; 
@@ -103,7 +104,7 @@ class NVMAntiCacheDB : public AntiCacheDB {
         char* getNVMBlock(int index); 
 
         /**
-         *    Adds the index to the free block list. 
+         *  Adds the index to the free block list. 
          */
         void freeNVMBlock(int index);
 

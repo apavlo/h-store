@@ -201,7 +201,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
         throw FullBackingStoreException(((int32_t)m_ACID << 16) & blockId, 0);
     }
     int index = (int)blockId;
-    VOLT_DEBUG("block index: %d", index);
+    VOLT_TRACE("block index: %d", index);
     char* block = getNVMBlock(index); 
     long bufsize; 
     char* buffer = new char [tableName.size() + 1 + size];
@@ -236,7 +236,7 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
 
     int blockIndex = itr->second.first; 
     int blockSize = itr->second.second;
-    VOLT_DEBUG("Reading NVM block: ID = %d, index = %d, size = %d", blockId, blockIndex, blockSize);
+    VOLT_INFO("Reading NVM block: ID = %d, index = %d, size = %d", blockId, blockIndex, blockSize);
    
     char* block_ptr = getNVMBlock(blockIndex);
     char* block = new char[blockSize];
@@ -264,10 +264,9 @@ char* NVMAntiCacheDB::getNVMBlock(int index) {
 int NVMAntiCacheDB::getFreeNVMBlockIndex() {
   
     int free_index = 0; 
-    VOLT_DEBUG("m_NVMBlockFreeList.size() = %d", (int)m_NVMBlockFreeList.size());
     if(m_NVMBlockFreeList.size() > 0) {
         free_index = m_NVMBlockFreeList.back(); 
-        VOLT_DEBUG("popping %d from list of size: %d", free_index, (int)m_NVMBlockFreeList.size());
+        VOLT_TRACE("popping %d from list of size: %d", free_index, (int)m_NVMBlockFreeList.size());
         m_NVMBlockFreeList.pop_back(); 
     } else {
         if (m_nextFreeBlock == getMaxBlocks()) {
@@ -282,9 +281,8 @@ int NVMAntiCacheDB::getFreeNVMBlockIndex() {
 }
 
 void NVMAntiCacheDB::freeNVMBlock(int index) {
-    VOLT_DEBUG("adding index %d to free list", index);
     m_NVMBlockFreeList.push_back(index); 
-    VOLT_DEBUG("list size: %d  back: %d", (int)m_NVMBlockFreeList.size(), m_NVMBlockFreeList.back());
+    VOLT_TRACE("list size: %d  back: %d", (int)m_NVMBlockFreeList.size(), m_NVMBlockFreeList.back());
     //m_blockIndex--; 
 }
 }
