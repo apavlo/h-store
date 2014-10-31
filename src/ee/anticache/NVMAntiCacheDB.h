@@ -56,6 +56,10 @@ class NVMAntiCacheDB : public AntiCacheDB {
 
         void initializeDB();
 
+        inline int16_t nextBlockId() {
+            return (int16_t)getFreeNVMBlockIndex(); 
+        }
+
         AntiCacheBlock* readBlock(int16_t blockId);
 
         void shutdownDB();

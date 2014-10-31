@@ -550,7 +550,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     // For now use the single AntiCacheDB from PersistentTable but in the future, this 
     // method to get the AntiCacheDB will have to choose which AntiCacheDB from to
     // evict to
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size));
+    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, true));
     int tuple_length = -1;
     bool needs_flush = false;
 
@@ -577,7 +577,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
 
         // create a new evicted table tuple based on the schema for the source tuple
         TableTuple evicted_tuple = evictedTable->tempTuple();
-        VOLT_DEBUG("Setting %s tuple blockId at offset %d", evictedTable->name().c_str(), 0);
+        VOLT_DEBUG("Setting %s tuple blockId %8x at offset %d", evictedTable->name().c_str(), block_id,0);
         evicted_tuple.setNValue(0, ValueFactory::getIntegerValue(block_id));   // Set the ID for this block
         evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(0));          // set the tuple offset of this block
 
@@ -620,7 +620,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                           table->getTupleID(tuple.address()), table->name().c_str());
                 continue;
             }
-            VOLT_DEBUG("Evicting Tuple: %s", tuple.debug(table->name()).c_str());
+            VOLT_TRACE("Evicting Tuple: %s", tuple.debug(table->name()).c_str());
             //tuple.setEvictedTrue();
 
             // Populate the evicted_tuple with the block id and tuple offset
@@ -646,7 +646,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             table->deleteTupleStorage(tuple);
 
             num_tuples_evicted++;
-            VOLT_DEBUG("Added new evicted %s tuple to block #%x [tuplesEvicted=%d]",
+            VOLT_DEBUG("Added new evicted %s tuple to block #%8x [tuplesEvicted=%d]",
                        table->name().c_str(), block_id, num_tuples_evicted);
 
         } // WHILE
@@ -679,7 +679,6 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             // TODO: make this look like
             // block.flush();
             //  antiCacheDB->writeBlock(block);
-
             antiCacheDB->writeBlock(table->name(),
                                     _block_id,
                                     num_tuples_evicted,
@@ -765,7 +764,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
  //             evictedTable->name().c_str(), evictedTable->schema()->debug().c_str());
 
     // get the AntiCacheDB instance from the executorContext
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size));
+    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, true));
     int tuple_length = -1;
     bool needs_flush = false;
 
@@ -1256,6 +1255,44 @@ int AntiCacheEvictionManager::chooseDB(long blockSize) {
 }
 
 /*
+ * A version of chooseDB that initiates an LRU migrate to the next lower level
+ */
+
+int AntiCacheEvictionManager::chooseDB(long blockSize, bool migrate) {
+    AntiCacheDB* acdb;
+
+    if (migrate) {
+        for (int i = 0; i < m_numdbs - 1; i++) {
+            acdb = m_db_lookup[i];
+            
+            // first let's check if the block fits. If it doesn't... I don't know, keep
+            // going
+            if (acdb->getBlockSize() < blockSize) {
+                VOLT_DEBUG("blockSize %ld larger than database %d's block size %ld.",
+                        blockSize, i, acdb->getBlockSize());
+                continue;
+            }
+
+            if (acdb->getFreeBlocks() < 1) {
+                VOLT_INFO("AntiCacheDB ACID: %d has %d free blocks", i, acdb->getFreeBlocks());
+                VOLT_DEBUG("maxBlocks: %d maxDBSize: %ld numBlocks %d",
+                    acdb->getMaxBlocks(), acdb->getMaxDBSize(), acdb->getNumBlocks());
+                AntiCacheDB* dst_acdb = m_db_lookup[i+1];
+                int32_t new_block_id = migrateLRUBlock(acdb, dst_acdb);
+                if (new_block_id == -1) {
+                    VOLT_ERROR("Failed to migrate! Shouldn't get here");
+                }
+
+            }
+            return acdb->getACID();
+        }
+    } else { // Just find a new place for it in a lower tier, no migration
+        return chooseDB(blockSize);
+    }
+    throwFatalException("Cannot find free space for migrate");
+    return -1;
+}
+/*
  * Function to move a block between DBs. This will take a source and destination and 
  * return the new blockId. It first checks to see if there is room in the destination
  * AntiCacheDB. If there is an error, the function will return -1. 
@@ -1298,7 +1335,28 @@ int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* ds
     new_block_id = new_block_id | (new_acid << 16);
     VOLT_DEBUG("block_id: %x _block_id: %x acid: %x new_block_id: %x _new_block_id: %x new_acid: %x",
             block_id, _block_id, acid, new_block_id, _new_block_id, new_acid);
-        
+
+    std::string tableName = block->getTableName();
+    PersistentTable *table = dynamic_cast<PersistentTable*>(m_engine->getTable(tableName));
+    if (table) {
+        EvictedTable *etable = dynamic_cast<EvictedTable*>(table->getEvictedTable());
+        if (etable) {
+            TableTuple tuple(etable->m_schema);
+
+            voltdb::TableIterator it(etable);
+            while (it.next(tuple)) {
+                if ((int32_t)ValuePeeker::peekInteger(tuple.getNValue(0)) == block_id) {
+                    tuple.setNValue(0, ValueFactory::getIntegerValue(new_block_id));
+                    VOLT_DEBUG("Updating tuple blockid from %8x to %8x", block_id, new_block_id);
+                }
+            }
+        } else {
+            VOLT_WARN("No evicted table! If this is an EE test, shouldn't be a problem");
+        }
+    } else {
+        VOLT_WARN("No persistent table! If this is an EE test, shouldn't be a problem");
+    }
+
     delete block;
     return new_block_id;
 }
@@ -1316,25 +1374,59 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
     int16_t _new_block_id = -1;
     int16_t new_acid;
     int32_t new_block_id = 0;
+
     if (dstDB->getFreeBlocks() == 0) {
         return (int32_t) _new_block_id;
     }
 
+
     AntiCacheBlock* block = srcDB->getLRUBlock();
+    int32_t block_id = block->getBlockId();
     _new_block_id = dstDB->nextBlockId();
+    
+    VOLT_DEBUG("block_id: %8x _new_block_id: %8x", block_id, _new_block_id);
+
+    // if we don't get a new block_id, we can at least try to write it back
+    // then throw an exception. at this point, it's probably best for it to be fatal
+    if (_new_block_id == -1) {
+        _new_block_id = srcDB->nextBlockId();
+        srcDB->writeBlock(block->getTableName(), _new_block_id, 0, block->getData(), block->getSize());
+        VOLT_ERROR("No room in the destination backing store!");
+        throw FullBackingStoreException((int32_t)_new_block_id, -1);
+    }
     
     dstDB->writeBlock(block->getTableName(), _new_block_id, 0, block->getData(), block->getSize());
     
-    // MJG TODO!!!: We can't just delete this block willy nilly if we can't get a new_block_id. 
-    // Have to do something better than this. XXX
-    delete block;
-
     new_acid = dstDB->getACID();
     new_block_id = (int32_t) _new_block_id;
     new_block_id = new_block_id | (new_acid << 16);
     VOLT_INFO("new_block_id: %x _new_block_id: %x new_acid: %x",
             new_block_id, _new_block_id, new_acid);
 
+    std::string tableName = block->getTableName();
+    PersistentTable *table = dynamic_cast<PersistentTable*>(m_engine->getTable(tableName));
+    if (table) {
+        EvictedTable *etable = dynamic_cast<EvictedTable*>(table->getEvictedTable());
+        if (etable) {
+            TableTuple tuple(etable->m_schema);
+
+            voltdb::TableIterator it(etable);
+            while (it.next(tuple)) {
+                if ((int32_t)ValuePeeker::peekInteger(tuple.getNValue(0)) == block_id) {
+                    tuple.setNValue(0, ValueFactory::getIntegerValue(new_block_id));
+                    VOLT_DEBUG("Updating tuple blockid from %8x to %8x", block_id, new_block_id);
+                }
+            }
+        } else {
+            VOLT_WARN("No evicted table! If this is an EE test, shouldn't be a problem");
+        }
+    } else {
+        VOLT_WARN("No persistent table! If this is an EE test, shouldn't be a problem");
+    }
+
+    // MJG TODO!!!: We can't just delete this block willy nilly if we can't get a new_block_id. 
+    // Have to do something better than this. XXX
+    delete block;
 
     return new_block_id;
 }

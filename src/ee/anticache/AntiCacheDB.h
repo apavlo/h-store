@@ -99,6 +99,7 @@ class AntiCacheBlock {
 class AntiCacheDB {
         
     public: 
+       
         AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize, long maxSize);
         virtual ~AntiCacheDB();
 
@@ -123,11 +124,8 @@ class AntiCacheDB {
 
         /**
          * Return the next BlockId to use in the anti-cache database
-         * This is guaranteed to be unique per partition
          */
-        inline int16_t nextBlockId() {
-            return (++m_nextBlockId);
-        }
+        virtual int16_t nextBlockId() = 0;
         /**
          * Return the AntiCacheDBType of the database
          */

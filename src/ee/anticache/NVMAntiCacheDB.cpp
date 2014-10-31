@@ -97,7 +97,7 @@ void NVMAntiCacheDB::initializeDB() {
     char partition_str[50];
 
     m_blockIndex = 0; 
-
+    m_nextFreeBlock = 0;
     // TODO: Make DRAM based store a separate type
     #ifdef ANTICACHE_DRAM
         VOLT_INFO("Allocating anti-cache in DRAM."); 
@@ -200,8 +200,9 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
                 m_ACID, blockId, size);
         throw FullBackingStoreException(((int32_t)m_ACID << 16) & blockId, 0);
     }
-    
-    char* block = getNVMBlock(m_blockIndex); 
+    int index = (int)blockId;
+    VOLT_DEBUG("block index: %d", index);
+    char* block = getNVMBlock(index); 
     long bufsize; 
     char* buffer = new char [tableName.size() + 1 + size];
     memset(buffer, 0, tableName.size() + 1 + size);
@@ -211,25 +212,11 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     bufsize += size;
     memcpy(block, buffer, bufsize); 
     delete[] buffer;
-    //memcpy(block, data, size);
 
-    //m_NVMBlocks[m_blockIndex] = new char[size]; 
-    //memcpy(m_NVMBlocks[m_blockIndex], data, size); 
-    
-    
-    //char* block = getNVMBlock(m_blockIndex);
-    //memcpy(block, data, size);
+    VOLT_INFO("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, index, bufsize); 
 
-    VOLT_INFO("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, m_blockIndex, bufsize); 
-
-    /*printf("--------------------------------------------------------------------\n");
-    for (int i = 0; i < 200; i++) {
-        printf("%X", block[i]);
-    }
-    printf("--------------------------------------------------------------------\n");
-    */
-    m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(m_blockIndex, static_cast<int32_t>(bufsize))));
-    m_blockIndex++; 
+    m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(index, static_cast<int32_t>(bufsize))));
+    m_nextFreeBlock++; 
     
     pushBlockLRU(blockId);
 }
@@ -255,33 +242,13 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
     char* block = new char[blockSize];
     memcpy(block, block_ptr, blockSize); 
     
-    /*VOLT_DEBUG("data from buffer before writing to block");
-    for (int i = 0; i < 100; i++) {
-        printf("%X", block[i]);
-    }
-    printf("\n");
-    */
     AntiCacheBlock* anticache_block = new NVMAntiCacheBlock(blockId, block, blockSize);
 
-    //memcpy(block, anticache_block->getData(), anticache_block->getSize());
-   
-    /*VOLT_DEBUG("data from block after creation, before return");
-    for (int i = 0; i < 100; i++) {
-        printf("%X", block[i]);
-    }
-    printf("\n");
-    */
     freeNVMBlock(blockId); 
 
     m_blockMap.erase(itr); 
-    //delete[] block;
 
     removeBlockLRU(blockId);
-    /*uint16_t rm_block = removeBlockLRU(blockId);
-    if (rm_block != blockId) {
-        VOLT_ERROR("LRU rm_block id: %d  and blockId %d not equal!", rm_block, blockId);
-    }
-*/
     return (anticache_block);
 }
 
@@ -297,15 +264,17 @@ char* NVMAntiCacheDB::getNVMBlock(int index) {
 int NVMAntiCacheDB::getFreeNVMBlockIndex() {
   
     int free_index = 0; 
-    if(m_NVMBlockFreeList.size() > 0)
-    {
+    VOLT_DEBUG("m_NVMBlockFreeList.size() = %d", (int)m_NVMBlockFreeList.size());
+    if(m_NVMBlockFreeList.size() > 0) {
         free_index = m_NVMBlockFreeList.back(); 
-    m_NVMBlockFreeList.pop_back(); 
-    }
-    else 
-    {
-        free_index = m_nextFreeBlock;
-        m_nextFreeBlock++;  
+        VOLT_DEBUG("popping %d from list of size: %d", free_index, (int)m_NVMBlockFreeList.size());
+        m_NVMBlockFreeList.pop_back(); 
+    } else {
+        if (m_nextFreeBlock == getMaxBlocks()) {
+            throw FullBackingStoreException(0, m_nextFreeBlock);
+        } else {
+            free_index = m_nextFreeBlock;
+        }
     }
   
     //int free_index = m_blockIndex++; 
@@ -313,7 +282,9 @@ int NVMAntiCacheDB::getFreeNVMBlockIndex() {
 }
 
 void NVMAntiCacheDB::freeNVMBlock(int index) {
+    VOLT_DEBUG("adding index %d to free list", index);
     m_NVMBlockFreeList.push_back(index); 
+    VOLT_DEBUG("list size: %d  back: %d", (int)m_NVMBlockFreeList.size(), m_NVMBlockFreeList.back());
     //m_blockIndex--; 
 }
 }

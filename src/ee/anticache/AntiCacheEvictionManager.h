@@ -68,6 +68,7 @@ public:
 
     int chooseDB();
     int chooseDB(long blockSize);
+    int chooseDB(long blockSize, bool migrate);
 
     int32_t migrateBlock(int32_t blockId, AntiCacheDB* dstDB); 
     int32_t migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheDB* dstDB); 

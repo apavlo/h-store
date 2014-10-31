@@ -82,6 +82,9 @@ class BerkeleyAntiCacheDB : public AntiCacheDB {
         BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize, long maxSize);
         ~BerkeleyAntiCacheDB(); 
 
+        inline int16_t nextBlockId() {
+            return (++m_nextBlockId);
+        }
         void initializeDB();
 
         AntiCacheBlock* readBlock(int16_t blockId);
