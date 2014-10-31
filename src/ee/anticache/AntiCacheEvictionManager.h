@@ -115,6 +115,10 @@ protected:
     AntiCacheDB* m_db_lookup[MAX_DBS];
     int16_t m_numdbs;
     TupleSchema* m_evicted_schema;
+
+    // this determines whether we try to automatically migrate blocks upon
+    // encountering a full AntiCacheDB. As of now, it is set to tru when 
+    // m_numdbs > 1;
     bool m_migrate;
     //std::map<int16_t, AntiCacheDB*> m_db_lookup_table;
     

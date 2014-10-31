@@ -1178,10 +1178,11 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
         // allocate the memory for this block
         char* unevicted_tuples = new char[value->getSize()];
         memcpy(unevicted_tuples, value->getData(), value->getSize());
+        /*
         for (int i = 0; i < 200; i++) {
             printf( "%X", unevicted_tuples[i]);
         }
-        cout << "\n";
+        cout << "\n";*/
         VOLT_INFO("***************** READ EVICTED BLOCK %d *****************", _block_id);
         VOLT_INFO("Block Size = %ld / Table = %s", value->getSize(), table->name().c_str());
         ReferenceSerializeInput in(unevicted_tuples, value->getSize());
