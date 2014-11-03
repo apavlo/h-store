@@ -49,6 +49,7 @@ import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.NotImplementedException;
+import org.voltdb.types.AntiCacheDBType;
 
 import edu.brown.hstore.HStore;
 import edu.brown.hstore.PartitionExecutor;
@@ -1478,12 +1479,17 @@ public class ExecutionEngineIPC extends ExecutionEngine {
     }
     
     @Override
-    public void antiCacheInitialize(File dbFilePath, long blockSize) throws EEException {
+    public void antiCacheInitialize(File dbFilePath, AntiCacheDBType dbType, long blockSize, long maxSize) throws EEException {
         throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
     }
 
     @Override
-    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
+    public void antiCacheAddDB(File dbFilePath, AntiCacheDBType dbType, long blockSize, long maxSize) throws EEException {
+        throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
+    }
+
+    @Override
+    public void antiCacheReadBlocks(Table catalog_tbl, int[] block_ids, int[] tuple_offsets) {
         throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
     }
 

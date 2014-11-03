@@ -48,17 +48,74 @@ AntiCacheBlock::AntiCacheBlock(int16_t blockId) {
 
   }
    
-AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
+AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize, long maxSize) :
     m_executorContext(ctx),
     m_dbDir(db_dir),
-    m_blockSize(blockSize),
     m_nextBlockId(0),
-    m_totalBlocks(0) {
+    m_blockSize(blockSize),
+    m_totalBlocks(0)
+    { 
+        // MJG: TODO: HACK: Come up with a better way to make a maxsize when one isn't given
+        if (maxSize == -1) {
+            m_maxDBSize = 1000*blockSize;
+        } else {
+            m_maxDBSize = maxSize;
+        }
         
 }
 
 AntiCacheDB::~AntiCacheDB() {
 }
+
+AntiCacheBlock* AntiCacheDB::getLRUBlock() {
+    uint16_t lru_block_id;
+    AntiCacheBlock* lru_block;
+
+    if (m_block_lru.empty()) {
+        VOLT_ERROR("LRU Blocklist Empty!");
+        throw UnknownBlockAccessException(0);
+    } else {
+        lru_block_id = m_block_lru.front();
+        //m_block_lru.pop_front();
+        lru_block = readBlock(lru_block_id);
+        m_totalBlocks--;
+        return lru_block;
+    }
+}
+
+void AntiCacheDB::removeBlockLRU(uint16_t blockId) {
+    std::deque<uint16_t>::iterator it;
+    bool found = false;
+           
+    
+    for (it = m_block_lru.begin(); it != m_block_lru.end(); ++it) {
+        if (*it == blockId) {
+            VOLT_INFO("Found block id %d == blockId %d", *it, blockId);
+            m_block_lru.erase(it);
+            found = true;
+            m_totalBlocks--;
+            break;
+        }
+    }
+
+    if (!found) {
+        VOLT_ERROR("Found block but didn't find blockId %d in LRU!", blockId);
+        //throw UnknownBlockAccessException(blockId);
+    }
+}
+
+void AntiCacheDB::pushBlockLRU(uint16_t blockId) {
+    VOLT_INFO("Pushing blockId %d into LRU", blockId);
+    m_block_lru.push_back(blockId);
+    m_totalBlocks++;
+}
+
+uint16_t AntiCacheDB::popBlockLRU() {
+    uint16_t blockId = m_block_lru.front();
+    m_block_lru.pop_front();
+    return blockId;
+}
+
 
 }
 

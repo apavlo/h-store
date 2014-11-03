@@ -33,7 +33,7 @@ class BerkeleyDBBlock{
 public:
     ~BerkeleyDBBlock();
 
-    inline void initialize(long blockSize, std::vector<std::string> tableNames, int16_t blockId, int numTuplesEvicted){
+    inline void initialize(long blockSize, std::vector<std::string> tableNames, int32_t blockId, int numTuplesEvicted){
         DefaultTupleSerializer serializer;
         // buffer used for serializing a single tuple
         serialized_data = new char[blockSize];
@@ -79,12 +79,15 @@ private:
 
 class BerkeleyAntiCacheDB : public AntiCacheDB {
     public:
-        BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
+        BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize, long maxSize);
         ~BerkeleyAntiCacheDB(); 
 
+        inline int16_t nextBlockId() {
+            return (++m_nextBlockId);
+        }
         void initializeDB();
 
-        AntiCacheBlock* readBlock(std::string tableName, int16_t blockId);
+        AntiCacheBlock* readBlock(int16_t blockId);
 
         void shutdownDB();
 

@@ -31,6 +31,7 @@ import org.voltdb.exceptions.EEException;
 import org.voltdb.export.ExportProtoMessage;
 import org.voltdb.utils.NotImplementedException;
 import org.voltdb.utils.DBBPool.BBContainer;
+import org.voltdb.types.AntiCacheDBType;
 
 public class MockExecutionEngine extends ExecutionEngine {
 
@@ -199,11 +200,16 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
     
     @Override
-    public void antiCacheInitialize(File dbFilePath, long blockSize) throws EEException {
+    public void antiCacheInitialize(File dbFilePath, AntiCacheDBType dbType, long blockSize, long maxSize) throws EEException {
         // TODO Auto-generated method stub
     }
+    
     @Override
-    public void antiCacheReadBlocks(Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
+    public void antiCacheAddDB(File dbFilePath, AntiCacheDBType dbType, long blockSize, long maxSize) throws EEException {
+    }
+
+    @Override
+    public void antiCacheReadBlocks(Table catalog_tbl, int[] block_ids, int[] tuple_offsets) {
         // TODO Auto-generated method stub
     }
     @Override

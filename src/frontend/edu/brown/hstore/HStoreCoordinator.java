@@ -855,8 +855,8 @@ public class HStoreCoordinator implements Shutdownable {
 			ts.setNewTransactionId(request.getNewTransactionId());
 			int partition = request.getPartitionId();
 			Table catalog_tbl = hstore_site.getCatalogContext().getTableById(request.getTableId());
-			short[] block_ids = new short[request.getBlockIdsList().size()];
-			for(int i = 0; i < request.getBlockIdsList().size(); i++) block_ids[i] = (short) request.getBlockIds(i);
+			int[] block_ids = new int[request.getBlockIdsList().size()];
+			for(int i = 0; i < request.getBlockIdsList().size(); i++) block_ids[i] = (int) request.getBlockIds(i);
 
 			int [] tuple_offsets = new int[request.getTupleOffsetsList().size()];
 			for(int i = 0; i < request.getTupleOffsetsList().size(); i++) tuple_offsets[i] = request.getTupleOffsets(i);
@@ -1356,7 +1356,7 @@ public class HStoreCoordinator implements Shutdownable {
      * @param txn 
      * @return 
      */
-    public void sendUnevictDataMessage(int remote_site_id, LocalTransaction txn, int partition_id, Table catalog_tbl, short[] block_ids, int[] tuple_offsets) {
+    public void sendUnevictDataMessage(int remote_site_id, LocalTransaction txn, int partition_id, Table catalog_tbl, int[] block_ids, int[] tuple_offsets) {
     	 Builder builder = UnevictDataRequest.newBuilder()
                                     .setSenderSite(this.local_site_id)
                                     .setTransactionId(txn.getOldTransactionId())

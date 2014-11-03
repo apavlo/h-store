@@ -42,20 +42,25 @@ class NVMAntiCacheBlock : public AntiCacheBlock {
     friend class AntiCacheDB;
 
     public:
-        ~NVMAntiCacheBlock() {};
+        ~NVMAntiCacheBlock();
 
     private:
         NVMAntiCacheBlock(int16_t blockId, char* block, long size);
+        //std::string m_tableName;
 }; // CLASS
 
 class NVMAntiCacheDB : public AntiCacheDB {
     public:
-        NVMAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
-        ~NVMAntiCacheDB() {};
+        NVMAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize, long maxSize);
+        ~NVMAntiCacheDB();
 
         void initializeDB();
 
-        AntiCacheBlock* readBlock(std::string tableName, int16_t blockId);
+        inline int16_t nextBlockId() {
+            return (int16_t)getFreeNVMBlockIndex(); 
+        }
+
+        AntiCacheBlock* readBlock(int16_t blockId);
 
         void shutdownDB();
 
@@ -71,14 +76,15 @@ class NVMAntiCacheDB : public AntiCacheDB {
         /**
          * NVM constants
          */
+        /* I don't think these are used anymore -MJG
         static const off_t NVM_FILE_SIZE = 1073741824/2; 
         static const int NVM_BLOCK_SIZE = 524288 + 1000; 
         static const int MMAP_PAGE_SIZE = 2 * 1024 * 1024; 
-        
+        */
         FILE* nvm_file;
         char* m_NVMBlocks; 
         int nvm_fd; 
-
+        int m_blockIndex;
 
         int m_nextFreeBlock; 
         
@@ -98,7 +104,7 @@ class NVMAntiCacheDB : public AntiCacheDB {
         char* getNVMBlock(int index); 
 
         /**
-         *    Adds the index to the free block list. 
+         *  Adds the index to the free block list. 
          */
         void freeNVMBlock(int index);
 

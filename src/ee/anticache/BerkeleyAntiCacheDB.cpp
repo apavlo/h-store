@@ -40,16 +40,16 @@ BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) :
     m_payload = p;
     
     m_block = m_payload.data;
-        
-    VOLT_DEBUG("AntiCacheBlock #%d [size=%ld / payload=%ld]",
-              blockId, m_size, m_payload.size);
+	    
+    VOLT_DEBUG("BerkeleyAntiCacheBlock #%d from table: %s [size=%ld / payload=%ld = '%s']",
+              blockId, m_payload.tableName.c_str(), m_size, m_payload.size, m_payload.data);
     //VOLT_INFO("data from getBlock %s", getData());
     m_blockType = ANTICACHEDB_BERKELEY;
 }
 
 BerkeleyAntiCacheBlock::~BerkeleyAntiCacheBlock() {
     if(m_blockId > 0 && m_buf != NULL) {
-        delete m_buf;
+        free(m_buf);
     }
 }
 
@@ -57,8 +57,8 @@ BerkeleyDBBlock::~BerkeleyDBBlock() {
     delete [] serialized_data;
 }
 
-BerkeleyAntiCacheDB::BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize) :
-    AntiCacheDB(ctx, db_dir, blockSize) {
+BerkeleyAntiCacheDB::BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize, long maxSize) :
+    AntiCacheDB(ctx, db_dir, blockSize, maxSize) {
 
     m_dbType = ANTICACHEDB_BERKELEY;
     initializeDB();
@@ -82,7 +82,7 @@ void BerkeleyAntiCacheDB::initializeDB() {
         // allocate and initialize Berkeley DB database env
         m_dbEnv = new DbEnv(0); 
         m_dbEnv->open(m_dbDir.c_str(), env_flags, 0); 
-
+        VOLT_INFO("created BerkeleyDB: %s\n", m_dbDir.c_str());
         // allocate and initialize new Berkeley DB instance
         m_db = new Db(m_dbEnv, 0); 
         m_db->open(NULL, ANTICACHE_DB_NAME, NULL, DB_HASH, DB_CREATE, 0); 
@@ -163,11 +163,13 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
                blockId, tupleCount, size);
     // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);
+    
+    pushBlockLRU(blockId);
 
     delete [] databuf_;
 }
 
-AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(std::string tableName, int16_t blockId) {
+AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(int16_t blockId) {
     Dbt key;
     key.set_data(&blockId);
     key.set_size(sizeof(blockId));
@@ -175,7 +177,7 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(std::string tableName, int16_t bl
     Dbt value;
     value.set_flags(DB_DBT_MALLOC);
     
-    VOLT_DEBUG("Reading evicted block with id %d", blockId);
+    VOLT_INFO("Reading evicted block with id %d", blockId);
     
     int ret_value = m_db->get(NULL, &key, &value, 0);
 
@@ -191,6 +193,13 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(std::string tableName, int16_t bl
     }
     
     AntiCacheBlock* block = new BerkeleyAntiCacheBlock(blockId, value);
+    
+    removeBlockLRU(blockId);
+    /*uint16_t rm_block = removeBlockLRU(blockId);
+    if (rm_block != blockId) {
+        VOLT_ERROR("LRU rm_block id: %d  and blockId %d not equal!", rm_block, blockId);
+    }
+ */
     return (block);
 }
 

@@ -267,7 +267,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
     @Test
     public void testQueueingOfTransaction() throws Exception {
     	AntiCacheManager manager = hstore_sites[0].getAntiCacheManager();
-        short block_ids[] = new short[]{ 1111 };
+        int block_ids[] = new int[]{ 1111 };
         int tuple_offsets[] = new int[]{0};
         int partition_id = 0;
         this.hstore_conf.site.anticache_profiling = false;
@@ -289,7 +289,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
     	};
     	hstore_sites[0].getCoordinator().setUnevictCallback(callback);
     	AntiCacheManager manager = hstore_sites[0].getAntiCacheManager();
-        short block_ids[] = new short[]{ 1111 };
+        int block_ids[] = new int[]{ 1111 };
         int tuple_offsets[] = new int[]{0};
          // different from the base partition. This means the exception was 
         // thrown by a remote site
@@ -331,7 +331,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         };
         
     	AntiCacheManager manager = hstore_sites[0].getAntiCacheManager();
-        short block_ids[] = new short[]{ 1111 };
+        int block_ids[] = new int[]{ 1111 };
         int tuple_offsets[] = new int[]{0};
          // different from the base partition. This means the exception was 
         // thrown by a remote site
@@ -351,7 +351,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
 
     @Test
     public void testProcessingOfQueuedDistributedTransaction() throws Exception {
-        short block_ids[] = new short[]{ 1111 };
+        int block_ids[] = new int[]{ 1111 };
         int tuple_offsets[] = new int[]{0};
         this.hstore_conf.site.anticache_profiling = false;
         

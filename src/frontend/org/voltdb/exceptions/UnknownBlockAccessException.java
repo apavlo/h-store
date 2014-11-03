@@ -15,7 +15,7 @@ public class UnknownBlockAccessException extends SerializableException {
 
     public static final long serialVersionUID = 0L;
 
-    public final short block_id;
+    public final int block_id;
     
     /**
      * 
@@ -25,7 +25,7 @@ public class UnknownBlockAccessException extends SerializableException {
         super(buffer);
         
         FastDeserializer fds = new FastDeserializer(buffer);
-        short _block_id;
+        int _block_id;
         try {
             _block_id = fds.readShort();
         } catch (IOException ex) {
@@ -37,7 +37,7 @@ public class UnknownBlockAccessException extends SerializableException {
     /**
      * Retrieve the block ids that the txn tried to access that generated this exception.
      */
-    public short getBlockId() {
+    public int getBlockId() {
         return (this.block_id);
     }
 
