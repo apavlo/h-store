@@ -620,7 +620,16 @@ public final class HStoreConf {
             experimental=true
         )
         public boolean anticache_enable;
-        
+
+        @ConfigProperty(
+            description="Enable multilevel anti-cachign feature. This requires that the system "+
+                        "is compiled with both ${site.anticache_enabled} and ${site.anticache_build "+
+                        "set to true.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean anticache_enable_multilevel;
+
         @ConfigProperty(
             description="Build the anti-cache feature when compiling the H-Store source code. " +
             		    "You probably always want to leave this flag enabled.",
@@ -653,8 +662,26 @@ public final class HStoreConf {
         public String anticache_dir;
 
         @ConfigProperty(
+            description="Configuration options for multilevel anticaching. Up to five " +
+                        "levels can be set up. The format is type,block_size,db_size; " +
+                        "The default is 'NVM,1M,64G;BERKELEY,1M,128G'.",
+            defaultString="NVM,1M,64G;BERKELEY,1M,128G",
+            experimental=true
+        )
+        public String anticache_levels;       
+
+
+        @ConfigProperty(
+            description="The directories used for multilevel anticaching databases.",
+            defaultString="/ac-level1;/ac-level2;/ac-level3;/ac-level4;/ac-level5",
+            experimental=true
+        )
+        public String anticache_multilevel_dirs;
+
+        @ConfigProperty(
             description="The size (in bytes) for the anti-cache's blocks on disk.",
-            defaultLong=262144, // 256kb
+            //defaultLong=262144, // 256kb
+            defaultLong=1048576, // 1MB
             experimental=true
         )
         public long anticache_block_size;
@@ -712,12 +739,13 @@ public final class HStoreConf {
         public boolean anticache_batching;
 
         @ConfigProperty(
-                description="Type of database to which tuples are evicted",
+                description="Type of database for the highest level eviction",
                 defaultString="BERKELEY",
                 experimental=true,
                 enumOptions="org.voltdb.types.AntiCacheDBType"
         )
         public String anticache_dbtype;
+       
         @ConfigProperty(
             description="Enable the anti-cache timestamps feature. This requires that the system " +
             		    "is compiled with ${site.anticache_enable} set to true.",

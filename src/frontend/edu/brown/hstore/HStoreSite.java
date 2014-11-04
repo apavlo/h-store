@@ -2669,7 +2669,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             
             EvictedTupleAccessException error = (EvictedTupleAccessException)orig_error;
-            short block_ids[] = error.getBlockIds();
+            int block_ids[] = error.getBlockIds();
             int tuple_offsets[] = error.getTupleOffsets();
 
             Table evicted_table = error.getTable(this.catalogContext.database);

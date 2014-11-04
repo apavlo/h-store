@@ -1457,7 +1457,9 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         jlong engine_ptr,
         jstring dbDir,
         jlong blockSize,
-        jint dbType) {
+        jint dbType,
+        jlong maxSize
+        ) {
     
     VOLT_DEBUG("nativeAntiCacheInitialize() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
@@ -1470,7 +1472,32 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         std::string dbDirString(dbDirChars);
         env->ReleaseStringUTFChars(dbDir, dbDirChars);
         
-        engine->antiCacheInitialize(dbDirString, static_cast<int64_t>(blockSize), static_cast<AntiCacheDBType>(dbType));
+        engine->antiCacheInitialize(dbDirString, static_cast<AntiCacheDBType>(dbType), static_cast<int64_t>(blockSize),static_cast<int64_t>(maxSize));
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheAddDB (
+        JNIEnv *env,
+        jobject obj,
+        jlong engine_ptr,
+        jstring dbDir,
+        jlong blockSize,
+        jint dbType,
+        jlong maxSize) {
+    VOLT_DEBUG("nativeAntiCacheAddDB() start");
+    VoltDBEngine *engine = castToEngine(engine_ptr);
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    if (engine == NULL) {
+        return org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    }
+    try {
+        const char *dbDirChars = env->GetStringUTFChars(dbDir, NULL);
+        std::string dbDirString(dbDirChars);
+        env->ReleaseStringUTFChars(dbDir, dbDirChars);
+        engine->antiCacheAddDB(dbDirString, static_cast<AntiCacheDBType>(dbType), static_cast<int64_t>(blockSize), static_cast<int64_t>(maxSize));
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }
@@ -1482,7 +1509,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         jobject obj,
         jlong engine_ptr,
         jint tableId,
-        jshortArray blockIdsArray,
+        jintArray blockIdsArray,
         jintArray offsetsArray) {
     
     int retval = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
@@ -1493,7 +1520,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     
     try {
         jsize numBlockIds = env->GetArrayLength(blockIdsArray);
-        jshort *_blockIds = env->GetShortArrayElements(blockIdsArray, NULL);
+        jint *_blockIds = env->GetIntArrayElements(blockIdsArray, NULL);
         jint *_tupleOffsets = env->GetIntArrayElements(offsetsArray, NULL); 
         if (_blockIds == NULL) {
             VOLT_ERROR("No evicted blockIds were given to the EE");
@@ -1505,7 +1532,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         }
         
         // XXX: Is this necessary?
-        int16_t *blockIds = new int16_t[numBlockIds];
+        int32_t *blockIds = new int32_t[numBlockIds];
         for (int ii = 0; ii < numBlockIds; ii++) {
             blockIds[ii] = _blockIds[ii];
         } // FOR

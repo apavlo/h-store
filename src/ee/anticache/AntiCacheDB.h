@@ -31,7 +31,10 @@
 #include "common/debuglog.h"
 #include "common/types.h"
 #include "common/DefaultTupleSerializer.h"
+#include "anticache/UnknownBlockAccessException.h"
+#include "anticache/FullBackingStoreException.h"
 
+#include <deque>
 #include <map>
 #include <vector>
 
@@ -96,7 +99,8 @@ class AntiCacheBlock {
 class AntiCacheDB {
         
     public: 
-        AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize);
+       
+        AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize, long maxSize);
         virtual ~AntiCacheDB();
 
         /**
@@ -110,7 +114,7 @@ class AntiCacheDB {
         /**
          * Read a block and return its contents
          */
-        virtual AntiCacheBlock* readBlock(std::string tableName, int16_t blockId) = 0;
+        virtual AntiCacheBlock* readBlock(int16_t blockId) = 0;
 
 
         /**
@@ -120,28 +124,117 @@ class AntiCacheDB {
 
         /**
          * Return the next BlockId to use in the anti-cache database
-         * This is guaranteed to be unique per partition
          */
-        inline int16_t nextBlockId() {
-            return (++m_nextBlockId);
-        }
+        virtual int16_t nextBlockId() = 0;
         /**
          * Return the AntiCacheDBType of the database
          */
         inline AntiCacheDBType getDBType() {
             return m_dbType;
         }
+        /**
+         * Return the blockSize of stored blocks
+         */
+        inline long getBlockSize() {
+            return m_blockSize;
+        }
+        /**
+         * Return the number of blocks stored in the database
+         */
+        inline int getNumBlocks() {
+            return m_totalBlocks;
+        }
+        /**
+         * Return the maximum size of the database
+         */
+        inline long getMaxDBSize() {
+            return m_maxDBSize;
+        }
+        /**
+         * Return the maximum number of blocks that can be stored 
+         * in the database.
+         */
+        inline int getMaxBlocks() {
+            return (int)(m_maxDBSize/m_blockSize);
+        }
+        /**
+         * Return the number of free (available) blocks
+         */
+        inline int getFreeBlocks() {
+            return getMaxBlocks()-getNumBlocks();
+        }
+        /**
+         * Return the LRU block from the database. This *removes* the block
+         * from the database. If you take it, it's yours, it exists nowhere else.
+         * If a migrate or merge fails, you have to write it back. 
+         *
+         * It also updates removes the blockId from the LRU deque.
+         */
+        AntiCacheBlock* getLRUBlock();       
+
+        /**
+         * Removes a blockId from the LRU queue. This is used when reading a
+         * specific block.
+         */
+        void removeBlockLRU(uint16_t blockId);
+        
+        /** 
+         * Adds a blockId to the LRU deque.
+         */
+        void pushBlockLRU(uint16_t blockId);
+
+        /**
+         * Pops and returns the LRU blockID from the deque. This isn't a 
+         * peek. When this function finishes, the block is in the database
+         * but the blockId is no longer in the LRU. This shouldn't necessarily
+         * be fatal, but it should be avoided.
+         */
+        inline uint16_t popBlockLRU();
+
+        /**
+         * Set the AntiCacheID number. This should be done on initialization and
+         * should also match the the level in VoltDBEngine/executorcontext
+         */
+        inline void setACID(int16_t ACID) {
+            m_ACID = ACID;
+        }
+        
+        /**
+         * Return the AntiCacheID number.
+         */
+        inline int16_t getACID() {
+            return m_ACID;
+        }
+
+        /**
+         * return true if we should stall false if we need to abort
+         */
+        inline bool stallForData() {
+            return m_stall;
+        }
+
+
     protected:
         ExecutorContext *m_executorContext;
         string m_dbDir;
 
-        long m_blockSize;
         int16_t m_nextBlockId;
+        int16_t m_ACID;
+        long m_blockSize;
         int m_partitionId; 
         int m_totalBlocks; 
+        
+        bool m_stall;
 
         AntiCacheDBType m_dbType;
-        
+        long m_maxDBSize;
+
+        /* we need to test whether a deque or list is better. If we push/pop more than we
+         * remove, this is better. otherwise, let's use a list
+         */
+
+        std::deque<uint16_t> m_block_lru;
+
         /*
          * DB specific method of shutting down the database on destructor call
          */

@@ -55,6 +55,8 @@ BASE_ARGS=( \
     "-Dsite.exec_postprocessing_threads=true" \
     "-Dsite.anticache_profiling=${ENABLE_ANTICACHE}" \
     "-Dsite.anticache_eviction_distribution=even" \
+    "-Dclient.anticache_dbtype=BERKELEY" \
+    "-Dclient.anticache_timestamps=true" \
     
 #    "-Dsite.queue_allow_decrease=true" \
 #    "-Dsite.queue_allow_increase=true" \

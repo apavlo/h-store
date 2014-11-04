@@ -18,7 +18,7 @@ public class EvictedTupleAccessException extends SerializableException {
     public static final long serialVersionUID = 0L;
 
     public final int table_id;
-    public final short[] block_ids;
+    public final int[] block_ids;
     public final int[] tuple_offsets;
     public int partition_id;
     
@@ -33,10 +33,10 @@ public class EvictedTupleAccessException extends SerializableException {
         final int num_blocks = buffer.getShort();
         assert(num_blocks > 0) :
             "Unexpected non-negative block count '" + num_blocks + "'";
-        this.block_ids = new short[num_blocks];
+        this.block_ids = new int[num_blocks];
         this.tuple_offsets = new int[num_blocks];
         for (int i = 0; i < this.block_ids.length; i++) {
-            this.block_ids[i] = buffer.getShort();
+            this.block_ids[i] = buffer.getInt();
         } // FOR
         for (int i = 0; i < this.tuple_offsets.length; i++) {
             this.tuple_offsets[i] = buffer.getInt();
@@ -55,7 +55,7 @@ public class EvictedTupleAccessException extends SerializableException {
     /**
      * Retrieve the block ids that the txn tried to access that generated this exception.
      */
-    public short[] getBlockIds() {
+    public int[] getBlockIds() {
         return (this.block_ids);
     }
     
@@ -84,10 +84,10 @@ public class EvictedTupleAccessException extends SerializableException {
     protected int p_getSerializedSize() {
         // 4 bytes for tableId
         // 2 bytes for # of block_ids 
-        // (2 bytes * # of block_ids)
+        // (4 bytes * # of block_ids)
         // (4 bytes * # of tuple offsets)
     	// 4 bytes for partition id
-        return (4 + 2 + (2 * this.block_ids.length) + (4 * this.tuple_offsets.length) + 4);
+        return (4 + 2 + (4 * this.block_ids.length) + (4 * this.tuple_offsets.length) + 4);
     }
 
     /**
@@ -99,7 +99,7 @@ public class EvictedTupleAccessException extends SerializableException {
         b.putInt(this.table_id);
         b.putShort((short)this.block_ids.length);
         for (int i = 0; i < this.block_ids.length; i++) {
-            b.putShort(this.block_ids[i]);
+            b.putInt(this.block_ids[i]);
         } // FOR
         
         for(int i = 0; i < this.tuple_offsets.length; i++) {

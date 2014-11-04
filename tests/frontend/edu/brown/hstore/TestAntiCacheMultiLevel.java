@@ -35,7 +35,7 @@ import edu.brown.utils.ThreadUtil;
  * @author pavlo
  * @author jdebrabant
  */
-public class TestAntiCacheManager extends BaseTestCase {
+public class TestAntiCacheMultiLevel extends BaseTestCase {
     
     private static final int NUM_PARTITIONS = 1;
     private static final int NUM_TUPLES = 10;
@@ -83,10 +83,13 @@ public class TestAntiCacheManager extends BaseTestCase {
         this.hstore_conf = HStoreConf.singleton();
         this.hstore_conf.site.status_enable = false;
         this.hstore_conf.site.anticache_enable = true;
+        this.hstore_conf.site.anticache_enable_multilevel = true;
         this.hstore_conf.site.anticache_profiling = true;
         this.hstore_conf.site.anticache_check_interval = Integer.MAX_VALUE;
-        this.hstore_conf.site.anticache_dir = this.anticache_dir.getAbsolutePath();
-        this.hstore_conf.site.anticache_dbtype = "BERKELEY";
+        this.hstore_conf.site.anticache_levels = "NVM,1M,4M;BERKELEY,1M,8M";
+        //this.hstore_conf.site.anticache_levels = "BERKELEY,1M,4M;BERKELEY,1M,8M";
+        //this.hstore_conf.site.anticache_levels = "NVM,1M,4M;";
+        //this.hstore_conf.site.anticache_levels = "BERKELEY,1M,4M;";
         
         this.hstore_site = createHStoreSite(catalog_site, hstore_conf);
         this.executor = hstore_site.getPartitionExecutor(0);
@@ -108,11 +111,11 @@ public class TestAntiCacheManager extends BaseTestCase {
     // UTILITY METHODS
     // --------------------------------------------------------------------------------------------
     
-    private void loadData() throws Exception {
+    private void loadData(int tuples) throws Exception {
         // Load in a bunch of dummy data for this table
         VoltTable vt = CatalogUtil.getVoltTable(catalog_tbl);
         assertNotNull(vt);
-        for (int i = 0; i < NUM_TUPLES; i++) {
+        for (int i = 0; i < tuples; i++) {
             Object row[] = VoltTableUtil.getRandomRow(catalog_tbl);
             row[0] = i;
             vt.addRow(row);
@@ -137,7 +140,7 @@ public class TestAntiCacheManager extends BaseTestCase {
 
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
-        VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 500, 1);
+        VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024, 1);
 
         System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(evictResult));
@@ -159,7 +162,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     @Test
     public void testStats() throws Exception {
         boolean adv;
-        this.loadData();
+        this.loadData(10);
         
         String writtenFields[] = new String[statsFields.length];
         String readFields[] = new String[statsFields.length];
@@ -241,7 +244,7 @@ public class TestAntiCacheManager extends BaseTestCase {
 
     @Test
     public void testReadEvictedTuples() throws Exception {
-        this.loadData();
+        this.loadData(10);
         
         // We should have all of our tuples evicted
         VoltTable evictResult = this.evictData();
@@ -273,7 +276,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         
     @Test
     public void testMultipleReadEvictedTuples() throws Exception {
-        this.loadData();
+        this.loadData(10);
         
         // We should have all of our tuples evicted
         VoltTable evictResult = this.evictData();
@@ -302,7 +305,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     
     @Test
     public void testEvictTuples() throws Exception {
-        this.loadData();
+        this.loadData(10);
         VoltTable evictResult = this.evictData();
 		evictResult.advanceRow(); 
 
@@ -326,7 +329,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     @Test
     public void testEvictTuplesMultiple() throws Exception {
         // Just checks whether we can call evictBlock multiple times
-        this.loadData();
+        this.loadData(10000);
 
         VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
         assertEquals(1, results.length);
@@ -347,7 +350,7 @@ public class TestAntiCacheManager extends BaseTestCase {
                 ThreadUtil.sleep(1000);
             }
             System.err.println("Eviction #" + i);
-            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 512, 1);
+            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024*1024, 1);
             System.err.println(VoltTableUtil.format(evictResult));
             assertNotNull(evictResult);
             assertEquals(1, evictResult.getRowCount());
@@ -356,6 +359,60 @@ public class TestAntiCacheManager extends BaseTestCase {
             boolean adv = evictResult.advanceRow();
             assertTrue(adv);
         } // FOR
+    }
+
+    @Test
+    public void testMultipleReadMultipleEvict() throws Exception {
+        this.loadData(10000);
+        
+        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+        assertEquals(1, results.length);
+        System.err.println(VoltTableUtil.format(results));
+
+		results[0].advanceRow(); 
+        for (String col : statsFields) {
+            int idx = results[0].getColumnIndex(col);
+            assertEquals(0, results[0].getLong(idx));    
+        } // FOR
+        System.err.println(StringUtil.repeat("=", 100));
+        
+        // Evict five blocks, forcing one to spill over
+        VoltTable evictResult = null;
+        for (int i = 0; i < 5; i++) {
+            if (i > 0) {
+                System.err.println(StringUtil.repeat("-", 100));
+                ThreadUtil.sleep(1000);
+            }
+            System.err.println("Eviction #" + i);
+            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024*1024, 1);
+            System.err.println(VoltTableUtil.format(evictResult));
+            assertNotNull(evictResult);
+            assertEquals(1, evictResult.getRowCount());
+            assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
+            evictResult.resetRowPosition();
+            boolean adv = evictResult.advanceRow();
+            assertTrue(adv);
+        } // FOR
+        
+        // Read back everything.        
+        Procedure proc = this.getProcedure("GetRecord"); // Special Single-Stmt Proc
+        for (int i = 1; i < 10000; i++) {
+            long expected = i;
+            ClientResponse cresponse = this.client.callProcedure(proc.getName(), expected);
+            assertEquals(Status.OK, cresponse.getStatus());
+            
+            VoltTable mergeresults[] = cresponse.getResults();
+            assertEquals(1, mergeresults.length);
+            boolean adv = mergeresults[0].advanceRow();
+            assertTrue(adv);
+            assertEquals(expected, mergeresults[0].getLong(0));
+        } // FOR
+        
+        AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
+        assertNotNull(profiler);
+        // Since we are block-merging, we should only get 
+        // five block exceptions.
+        assertEquals(5, profiler.evictedaccess_history.size());
     }
 
     @Test
@@ -372,5 +429,5 @@ public class TestAntiCacheManager extends BaseTestCase {
             System.err.println(ex);
         }
         assertTrue(failed);
-    }   
+    }  
 }

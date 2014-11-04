@@ -130,7 +130,7 @@ TEST_F(TupleSchemaTest, CreateEvictedTupleSchema) {
     TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema();
     // fprintf(stdout, "\nEVICTED TABLE SCHEMA\n%s\n", evictedSchema->debug().c_str());
     ASSERT_EQ(2, evictedSchema->columnCount());
-    ASSERT_EQ(VALUE_TYPE_SMALLINT, evictedSchema->columnType(0));
+    ASSERT_EQ(VALUE_TYPE_INTEGER, evictedSchema->columnType(0));
     ASSERT_EQ(VALUE_TYPE_INTEGER, evictedSchema->columnType(1));
     
     TupleSchema::freeTupleSchema(evictedSchema);

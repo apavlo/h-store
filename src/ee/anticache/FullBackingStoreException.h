@@ -23,8 +23,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef EVICTEDTUPLEACCESSEXCEPTION_H_
-#define EVICTEDTUPLEACCESSEXCEPTION_H_
+#ifndef FULLBACKINGSTOREEXCEPTION_H_
+#define FULLBACKINGSTOREEXCEPTION_H_
 
 #include <stdint.h>
 #include <string>
@@ -33,11 +33,11 @@
 namespace voltdb {
 class ReferenceSerializeOutput;
 
-class EvictedTupleAccessException : public SerializableEEException {
+class FullBackingStoreException: public SerializableEEException {
     public:
 
-        EvictedTupleAccessException(int tableId, int numBlockIds, int32_t blockIds[], int32_t tupleKeys[]);
-        virtual ~EvictedTupleAccessException() {}
+        FullBackingStoreException(uint32_t srcBlockId, uint32_t dstBlockId); 
+        virtual ~FullBackingStoreException() {}
         
         static std::string ERROR_MSG;
         
@@ -45,12 +45,9 @@ class EvictedTupleAccessException : public SerializableEEException {
         void p_serialize(ReferenceSerializeOutput *output);
         
     private:
-        const int m_tableId;
-        const int m_numBlockIds;
-        const int32_t *m_blockIds;
-        const int32_t *m_tupleKeys;
-        const int m_partitionId;
+        const uint32_t m_src_blockId;
+        const uint32_t m_dst_blockId;
 };
 }
 
-#endif /* EVICTEDTUPLEACCESSEXCEPTION_H_ */
+#endif /* FULLBACKINGSTOREEXCEPTION_H_ */

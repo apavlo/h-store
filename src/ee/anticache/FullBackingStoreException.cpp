@@ -23,34 +23,24 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef EVICTEDTUPLEACCESSEXCEPTION_H_
-#define EVICTEDTUPLEACCESSEXCEPTION_H_
-
-#include <stdint.h>
-#include <string>
+#include "anticache/FullBackingStoreException.h"
 #include "common/SerializableEEException.h"
+#include "common/serializeio.h"
+#include <iostream>
 
-namespace voltdb {
-class ReferenceSerializeOutput;
+using namespace voltdb;
 
-class EvictedTupleAccessException : public SerializableEEException {
-    public:
+std::string FullBackingStoreException::ERROR_MSG = std::string("Backing store full");
 
-        EvictedTupleAccessException(int tableId, int numBlockIds, int32_t blockIds[], int32_t tupleKeys[]);
-        virtual ~EvictedTupleAccessException() {}
-        
-        static std::string ERROR_MSG;
-        
-    protected:
-        void p_serialize(ReferenceSerializeOutput *output);
-        
-    private:
-        const int m_tableId;
-        const int m_numBlockIds;
-        const int32_t *m_blockIds;
-        const int32_t *m_tupleKeys;
-        const int m_partitionId;
-};
+FullBackingStoreException::FullBackingStoreException(uint32_t srcBlockId, uint32_t dstBlockId) :
+    SerializableEEException(VOLT_EE_EXCEPTION_TYPE_UNKNOWN_BLOCK, FullBackingStoreException::ERROR_MSG),
+        m_src_blockId(srcBlockId), 
+        m_dst_blockId(dstBlockId) {
+    
+    // Nothing to see, nothing to do...
 }
 
-#endif /* EVICTEDTUPLEACCESSEXCEPTION_H_ */
+void FullBackingStoreException::p_serialize(ReferenceSerializeOutput *output) {
+    output->writeInt(m_src_blockId);
+    output->writeInt(m_dst_blockId);
+}

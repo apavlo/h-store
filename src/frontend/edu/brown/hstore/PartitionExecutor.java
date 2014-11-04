@@ -102,6 +102,7 @@ import org.voltdb.jni.ExecutionEngineJNI;
 import org.voltdb.jni.MockExecutionEngine;
 import org.voltdb.messaging.FastDeserializer;
 import org.voltdb.messaging.FastSerializer;
+import org.voltdb.types.AntiCacheDBType;
 import org.voltdb.types.SpecExecSchedulerPolicyType;
 import org.voltdb.types.SpeculationConflictCheckerType;
 import org.voltdb.types.SpeculationType;
@@ -183,7 +184,6 @@ import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringBoxUtil;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
-
 /**
  * The main executor of transactional work in the system for a single partition.
  * Controls running stored procedures and manages the execution engine's running of plan
@@ -589,7 +589,28 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             return (this._sitesToNotify != null && this._sitesToNotify.isEmpty() == false);
         }
     }
-    
+    /**
+     * Parse a string for size. Units accepted are K, M, G, T. Format is 4G.
+     * @param size
+     */
+    private long parseSize(String size) {
+        String unit = size.substring(size.length() - 1);
+        long Size = Long.valueOf(size.substring(0, size.length() - 1));
+        if (unit.equals("K")) {
+            Size = Size * 1024;
+        } else if (unit.equals("M")) {
+            Size = Size * 1024*1024;
+        } else if (unit.equals("G")) {
+            Size = Size * 1024*1024*1024;
+        } else if (unit.equals("T")) {
+            Size = Size * 1024*1024*1024*1024;
+        } else {
+            //Throw error
+        }
+        return Size;
+    }
+
+ 
     // ----------------------------------------------------------------------------
     // PROFILING OBJECTS
     // ----------------------------------------------------------------------------
@@ -790,13 +811,44 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                                 this.site.getHost().getId(),
                                                 "localhost");
                 
-                // Initialize Anti-Cache
+               // Initialize Anti-Cache
                 if (hstore_conf.site.anticache_enable) {
-                    File acFile = AntiCacheManager.getDatabaseDir(this);
-                    long blockSize = hstore_conf.site.anticache_block_size;
-                    eeTemp.antiCacheInitialize(acFile, blockSize);
+                    if (!hstore_conf.site.anticache_enable_multilevel) {
+                        File acFile = AntiCacheManager.getDatabaseDir(this, 0);
+                        long blockSize = hstore_conf.site.anticache_block_size;
+                        AntiCacheDBType dbType = AntiCacheDBType.get(hstore_conf.site.anticache_dbtype);
+
+                        // XXX: MJG: TODO: We've got to get a sane value for maxSize. -1 is no bueno.
+                        eeTemp.antiCacheInitialize(acFile, dbType, blockSize, -1);
+                    } else {
+                    // if we are using multilevel, ignore single config options and parse string
+                        String config = hstore_conf.site.anticache_levels;
+                        String delims = "[;]";
+                        String[] levels = config.split(delims);
+
+                        for (int i = 0; i < levels.length; i++) {
+                            delims = "[,]";
+                            String[] opts = levels[i].split(delims); 
+                            AntiCacheDBType dbType = AntiCacheDBType.get(opts[0]);
+                            
+                            String blockstr = opts[1];
+                            long blockSize = parseSize(blockstr);
+
+                            String maxstr = opts[2];
+                            long maxSize = parseSize(maxstr);
+                            
+                            File acFile = AntiCacheManager.getDatabaseDir(this, i);
+                            LOG.debug(String.format("Creating AntiCacheDB type: %d blocksize: %d maxsize: %d @ %s", 
+                                        dbType.ordinal(), blockSize, maxSize, acFile.getAbsolutePath()));
+                            if (i == 0) {
+                                eeTemp.antiCacheInitialize(acFile, dbType, blockSize, maxSize);
+                            } else {
+                                eeTemp.antiCacheAddDB(acFile, dbType, blockSize, maxSize);
+                        
+                            }
+                        }
+                    }      
                 }
-                              
                 
                 // Initialize STORAGE_MMAP
                 if (hstore_conf.site.storage_mmap) {
@@ -855,7 +907,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         int num_sites = this.catalogContext.numberOfSites;
         this.tmp_transactionRequestBuilders = new TransactionWorkRequestBuilder[num_sites];
     }
-    
+
+       
     /**
      * Link this PartitionExecutor with its parent HStoreSite
      * This will initialize the references the various components shared among the PartitionExecutors 

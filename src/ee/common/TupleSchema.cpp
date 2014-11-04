@@ -147,9 +147,9 @@ TupleSchema* TupleSchema::createEvictedTupleSchema() {
     std::vector<int32_t> columnSizes(2);
     std::vector<bool> allowNull(2);
     
-    // create a schema containing a single column for the block_id
-    columnTypes[0] = VALUE_TYPE_SMALLINT; 
-    columnSizes[0] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_SMALLINT));
+    // create a schema containing a single column for the block_id (32b blockid)
+    columnTypes[0] = VALUE_TYPE_INTEGER; 
+    columnSizes[0] = static_cast<int32_t>(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
     allowNull[0] = false;
     
     columnTypes[1] = VALUE_TYPE_INTEGER;

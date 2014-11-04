@@ -349,13 +349,17 @@ enum RecoveryMsgType {
 // -----------------------------------------------------------------
 enum AntiCacheDBType {
     /*
+     * No AntiCacheDB (primarily for second and third level DBs)
+     */
+    ANTICACHEDB_NONE = 0,
+    /*
      * BerkeleyDB
      */
-    ANTICACHEDB_BERKELEY = 0,
+    ANTICACHEDB_BERKELEY = 1,
     /*
      * NVM file-based store
      */
-    ANTICACHEDB_NVM = 1
+    ANTICACHEDB_NVM = 2
 };
 
 // ------------------------------------------------------------------
