@@ -665,7 +665,7 @@ public final class HStoreConf {
             description="Configuration options for multilevel anticaching. Up to five " +
                         "levels can be set up. The format is type,block_size,db_size; " +
                         "The default is 'NVM,1M,64G;BERKELEY,1M,128G'.",
-            defaultString="NVM,1M,64G;BERKELEY,1M,128G",
+            defaultString="NVM,256K,64G;BERKELEY,256K,128G",
             experimental=true
         )
         public String anticache_levels;       
@@ -679,7 +679,9 @@ public final class HStoreConf {
         public String anticache_multilevel_dirs;
 
         @ConfigProperty(
-            description="The size (in bytes) for the anti-cache's blocks on disk.",
+            description="The size (in bytes) for the anti-cache's blocks on disk." +
+                        "WARNING: this seem to be buggy/broken. Please leave the default " +
+                        "value of 256KB (262144) unless you know what you're doing.",
             defaultLong=262144, // 256kb
             //defaultLong=1048576, // 1MB
             experimental=true
