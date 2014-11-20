@@ -940,20 +940,20 @@ public class BenchmarkController {
         }
         
         // Memory Stats Output
-        if (hstore_conf.client.output_memory != null && hstore_conf.client.output_memory.isEmpty() == false) {
-            if (hstore_conf.client.output_memory.equalsIgnoreCase("true")) {
+        if (hstore_conf.client.output_memory_stats != null && hstore_conf.client.output_memory_stats.isEmpty() == false) {
+            if (hstore_conf.client.output_memory_stats.equalsIgnoreCase("true")) {
                 LOG.warn("The HStoreConf parameter 'hstore_conf.client.output_memory' should be a file path, not a boolean value");
             }
-            File f = new File(hstore_conf.client.output_memory);
+            File f = new File(hstore_conf.client.output_memory_stats);
             this.registerInterest(new MemoryStatsPrinter(this.getClientConnection(), f));
         }
         
         // Table Stats Output
-        if (hstore_conf.client.output_table_stats_periodically != null && hstore_conf.client.output_table_stats_periodically.isEmpty() == false) {
-            if (hstore_conf.client.output_table_stats_periodically.equalsIgnoreCase("true")) {
-                LOG.warn("The HStoreConf parameter 'hstore_conf.client.output_table_stats_periodically' should be a file path, not a boolean value");
+        if (hstore_conf.client.output_table_stats != null && hstore_conf.client.output_table_stats.isEmpty() == false) {
+            if (hstore_conf.client.output_table_stats.equalsIgnoreCase("true")) {
+                LOG.warn("The HStoreConf parameter 'hstore_conf.client.output_table_stats' should be a file path, not a boolean value");
             }
-            File f = new File(hstore_conf.client.output_table_stats_periodically);
+            File f = new File(hstore_conf.client.output_table_stats);
             this.registerInterest(new TableStatsPrinter(this.getClientConnection(), f));
         }
 
