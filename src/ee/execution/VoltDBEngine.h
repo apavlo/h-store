@@ -504,6 +504,12 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         bool updateCatalogDatabaseReference();
 
         void printReport();
+        
+        // HACK: PAVLO 2014-11-20
+        // This is needed so that we can fix index stats collection
+        inline CatalogId computeIndexStatsId(const CatalogId tableId, const CatalogId indexId) const {
+            return static_cast<CatalogId>(indexId | tableId<<16);
+        }
 
 
         /**

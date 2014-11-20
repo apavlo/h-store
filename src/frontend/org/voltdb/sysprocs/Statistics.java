@@ -259,50 +259,15 @@ public class Statistics extends VoltSystemProcedure {
                 int ii = 0;
                 for (Table table : tables) {
                     tableGuids[ii++] = table.getRelativeIndex();
-                    System.err.println("TABLE ID: " + table.getRelativeIndex());
+                    // System.err.println("TABLE ID: " + table.getRelativeIndex());
                 }
-
-                /* This part is a test version for add every index's m_relativeIndex to ids.
-                // create an array of the tables for which statistics are required.
-                // pass this to EE owned by the execution site running this plan fragment.
-                CatalogMap<Table> tables = context.getDatabase().getTables();
-                CatalogMap<Index> indexes;
-                ArrayList<Integer> catalogIds = new ArrayList<Integer>();
-
-                //HashSet<Integer> tableIds = new HashSet<Integer>();
-                //Integer tableId;
-
-                for (Table table : tables) {
-                    indexes = table.getIndexes();
-                    //tableId = table.getRelativeIndex();
-                    //if (tableIds.contains(tableId)) continue;
-                    //tableIds.add(tableId);
-                    for (Index index: indexes) {
-                        catalogIds.add(index.getRelativeIndex());
-                        //System.err.println("INDEX ID: " + index.getRelativeIndex());
-                    }
-                }
-
-                int[] indexIds = new int[catalogIds.size()];
-                int ii = 0;
-                for (Integer n : catalogIds) {
-                    //indexIds[ii] = ii + 1;
-                    //ii++;
-                    //System.err.println("INDEX ID: " + ii);
-                    indexIds[ii++] = n; 
-                }
-                VoltTable result = executor.getExecutionEngine().getStats(
-                            SysProcSelector.INDEX,
-                            indexIds, 
-                            interval,
-                            now)[0];
-                }*/
 
                 VoltTable result = executor.getExecutionEngine().getStats(
                             SysProcSelector.INDEX,
                             tableGuids,
                             interval,
                             now)[0];
+                // System.err.println(VoltTableUtil.format(result));
                 return new DependencySet(DEP_indexData, result);
             }
             case SysProcFragmentId.PF_indexAggregator: {

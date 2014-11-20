@@ -1,6 +1,5 @@
 package org.voltdb.regressionsuites;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -14,11 +13,10 @@ import org.voltdb.VoltType;
 import org.voltdb.benchmark.tpcc.TPCCConstants;
 import org.voltdb.benchmark.tpcc.TPCCProjectBuilder;
 import org.voltdb.benchmark.tpcc.procedures.neworder;
-import org.voltdb.client.Client;
-import org.voltdb.client.ClientResponse;
-import org.voltdb.utils.VoltTableUtil;
 import org.voltdb.catalog.Index;
 import org.voltdb.catalog.Table;
+import org.voltdb.client.Client;
+import org.voltdb.client.ClientResponse;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.utils.StringUtil;
@@ -177,6 +175,7 @@ public class TestStatsSuite extends RegressionSuite {
 
             for (Index idx : tbl.getIndexes()) {
                 result.resetRowPosition();
+                boolean found = false;
                 while (result.advanceRow()) {
                     String idxName = result.getString("INDEX_NAME");
                     String tblName = result.getString("TABLE_NAME");
@@ -187,9 +186,15 @@ public class TestStatsSuite extends RegressionSuite {
                         //System.err.println(tblName + "------" + entryCount + "-------" + idxName + "------" + idxType + "---------" + memoryEstimate);
                         assert(memoryEstimate > 0) :
                             String.format("Unexpected zero memory estimate for index %s.%s", tblName, idxName);
+                        found = true;
                     }
                 } // WHILE
+                // Make sure that we got all the indexes for the table.
+                assert(found) :
+                        String.format("Did not get index stats for %s.%s",
+                                      tbl.getName(), idx.getName());
             } // FOR
+            
         } // FOR
     }
 
