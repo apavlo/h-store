@@ -163,16 +163,24 @@ public class TestStatsSuite extends RegressionSuite {
         Client client = this.getClient();
         RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
 
+        // Get the row count per table per partition
+        // We need this so we can check that the indexes have the proper number of entries
+        Map<String, Map<Integer, Long>> rowCounts = RegressionSuiteUtil.getRowCountPerPartition(client);
+        assertEquals(rowCounts.toString(), catalogContext.getDataTables().size(), rowCounts.size());
+//        System.err.println(StringUtil.formatMaps(rowCounts));
+        
+        // Loop through each table and make sure that each index reports back at least
+        // some amount of data.
         ClientResponse cresponse = RegressionSuiteUtil.getStats(client, SysProcSelector.INDEX);
         assertNotNull(cresponse);
         assertEquals(Status.OK, cresponse.getStatus());
-
-        // Loop through each table and make sure that each index reports back at least
-        // some amount of data.
         VoltTable result = cresponse.getResults()[0];
         for (Table tbl : catalogContext.getDataTables()) {
             if (tbl.getIndexes().isEmpty()) continue;
 
+            Map<Integer, Long> expected = rowCounts.get(tbl.getName());
+            assertNotNull(tbl.toString(), expected);
+            
             for (Index idx : tbl.getIndexes()) {
                 result.resetRowPosition();
                 boolean found = false;
@@ -180,6 +188,7 @@ public class TestStatsSuite extends RegressionSuite {
                     String idxName = result.getString("INDEX_NAME");
                     String tblName = result.getString("TABLE_NAME");
                     String idxType = result.getString("INDEX_TYPE");
+                    int partitionId = (int)result.getLong("PARTITION_ID");
                     long entryCount= result.getLong("ENTRY_COUNT");
                     if (tbl.getName().equalsIgnoreCase(tblName) && idx.getName().equalsIgnoreCase(idxName)) {
                         long memoryEstimate = result.getLong("MEMORY_ESTIMATE");
@@ -187,18 +196,21 @@ public class TestStatsSuite extends RegressionSuite {
                         assert(memoryEstimate > 0) :
                             String.format("Unexpected zero memory estimate for index %s.%s", tblName, idxName);
                         found = true;
+                        
+                        // Check whether the entry count is correct if it's a unique index
+                        if (idx.getUnique()) {
+                            Long expectedCnt = expected.get(partitionId);
+                            assertNotNull(String.format("TABLE:%s PARTITION:%d", tbl.getName(), partitionId), expectedCnt);
+                            assertEquals(idx.fullName(), expectedCnt.longValue(), entryCount);
+                        }
                     }
                 } // WHILE
                 // Make sure that we got all the indexes for the table.
-                assert(found) :
-                        String.format("Did not get index stats for %s.%s",
-                                      tbl.getName(), idx.getName());
+                assert(found) : "Did not get index stats for " + idx.fullName();
             } // FOR
-            
         } // FOR
     }
-
-
+    
     public static Test suite() {
         // the suite made here will all be using the tests from this class
         MultiConfigSuiteBuilder builder = new MultiConfigSuiteBuilder(TestStatsSuite.class);
