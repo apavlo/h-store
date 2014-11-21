@@ -17,6 +17,7 @@ import org.voltdb.catalog.Index;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
+import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.utils.StringUtil;
@@ -48,8 +49,59 @@ public class TestStatsSuite extends RegressionSuite {
         } // WHILE
         assertEquals(expected, total);
     }
+    
+    private void checkIndexEntryCount(Client client, CatalogContext catalogContext, boolean checkMemory) throws Exception {
+        // Get the row count per table per partition
+        // We need this so we can check that the indexes have the proper number of entries
+        Map<String, Map<Integer, Long>> rowCounts = RegressionSuiteUtil.getRowCountPerPartition(client);
+        assertEquals(rowCounts.toString(), catalogContext.getDataTables().size(), rowCounts.size());
+//        System.err.println(StringUtil.formatMaps(rowCounts));
+        
+        // Loop through each table and make sure that each index reports back at least
+        // some amount of data.
+        ClientResponse cresponse = RegressionSuiteUtil.getStats(client, SysProcSelector.INDEX);
+        assertNotNull(cresponse);
+        assertEquals(Status.OK, cresponse.getStatus());
+        VoltTable result = cresponse.getResults()[0];
+        for (Table tbl : catalogContext.getDataTables()) {
+            if (tbl.getIndexes().isEmpty()) continue;
 
-
+            Map<Integer, Long> expected = rowCounts.get(tbl.getName());
+            assertNotNull(tbl.toString(), expected);
+            
+            for (Index idx : tbl.getIndexes()) {
+                result.resetRowPosition();
+                boolean found = false;
+                while (result.advanceRow()) {
+                    String idxName = result.getString("INDEX_NAME");
+                    String tblName = result.getString("TABLE_NAME");
+                    String idxType = result.getString("INDEX_TYPE");
+                    int partitionId = (int)result.getLong("PARTITION_ID");
+                    long entryCount= result.getLong("ENTRY_COUNT");
+                    if (tbl.getName().equalsIgnoreCase(tblName) && idx.getName().equalsIgnoreCase(idxName)) {
+                        long memoryEstimate = result.getLong("MEMORY_ESTIMATE");
+                        //System.err.println(tblName + "------" + entryCount + "-------" + idxName + "------" + idxType + "---------" + memoryEstimate);
+                        
+                        if (checkMemory) {
+                            assert(memoryEstimate > 0) :
+                                String.format("Unexpected zero memory estimate for index %s.%s", tblName, idxName);
+                        }
+                        found = true;
+                        
+                        // Check whether the entry count is correct if it's a unique index
+                        if (idx.getUnique()) {
+                            Long expectedCnt = expected.get(partitionId);
+                            assertNotNull(String.format("TABLE:%s PARTITION:%d", tbl.getName(), partitionId), expectedCnt);
+                            assertEquals(idx.fullName(), expectedCnt.longValue(), entryCount);
+                        }
+                    }
+                } // WHILE
+                // Make sure that we got all the indexes for the table.
+                assert(found) : "Did not get index stats for " + idx.fullName();
+            } // FOR
+        } // FOR
+    }
+    
     /**
      * testTupleAccessCountIndex
      */
@@ -162,53 +214,34 @@ public class TestStatsSuite extends RegressionSuite {
         CatalogContext catalogContext = this.getCatalogContext();
         Client client = this.getClient();
         RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
-
-        // Get the row count per table per partition
-        // We need this so we can check that the indexes have the proper number of entries
-        Map<String, Map<Integer, Long>> rowCounts = RegressionSuiteUtil.getRowCountPerPartition(client);
-        assertEquals(rowCounts.toString(), catalogContext.getDataTables().size(), rowCounts.size());
-//        System.err.println(StringUtil.formatMaps(rowCounts));
+        this.checkIndexEntryCount(client, catalogContext, true);
+    }
+    
+    /**
+     * testIndexStatsAfterDelete
+     */
+    public void testIndexStatsAfterDelete() throws Exception {
+        CatalogContext catalogContext = this.getCatalogContext();
+        Client client = this.getClient();
+        RegressionSuiteUtil.initializeTPCCDatabase(catalogContext, client);
         
-        // Loop through each table and make sure that each index reports back at least
-        // some amount of data.
-        ClientResponse cresponse = RegressionSuiteUtil.getStats(client, SysProcSelector.INDEX);
-        assertNotNull(cresponse);
-        assertEquals(Status.OK, cresponse.getStatus());
-        VoltTable result = cresponse.getResults()[0];
+        // Delete all of the tuples from each table and check to make sure the index stats are still valid
         for (Table tbl : catalogContext.getDataTables()) {
-            if (tbl.getIndexes().isEmpty()) continue;
-
-            Map<Integer, Long> expected = rowCounts.get(tbl.getName());
-            assertNotNull(tbl.toString(), expected);
-            
-            for (Index idx : tbl.getIndexes()) {
-                result.resetRowPosition();
-                boolean found = false;
-                while (result.advanceRow()) {
-                    String idxName = result.getString("INDEX_NAME");
-                    String tblName = result.getString("TABLE_NAME");
-                    String idxType = result.getString("INDEX_TYPE");
-                    int partitionId = (int)result.getLong("PARTITION_ID");
-                    long entryCount= result.getLong("ENTRY_COUNT");
-                    if (tbl.getName().equalsIgnoreCase(tblName) && idx.getName().equalsIgnoreCase(idxName)) {
-                        long memoryEstimate = result.getLong("MEMORY_ESTIMATE");
-                        //System.err.println(tblName + "------" + entryCount + "-------" + idxName + "------" + idxType + "---------" + memoryEstimate);
-                        assert(memoryEstimate > 0) :
-                            String.format("Unexpected zero memory estimate for index %s.%s", tblName, idxName);
-                        found = true;
-                        
-                        // Check whether the entry count is correct if it's a unique index
-                        if (idx.getUnique()) {
-                            Long expectedCnt = expected.get(partitionId);
-                            assertNotNull(String.format("TABLE:%s PARTITION:%d", tbl.getName(), partitionId), expectedCnt);
-                            assertEquals(idx.fullName(), expectedCnt.longValue(), entryCount);
-                        }
-                    }
-                } // WHILE
-                // Make sure that we got all the indexes for the table.
-                assert(found) : "Did not get index stats for " + idx.fullName();
-            } // FOR
+            // long numRows = RegressionSuiteUtil.getRowCount(client, tbl);
+            String sql = String.format("DELETE FROM %s", tbl.getName());
+            RegressionSuiteUtil.sql(client, sql);
         } // FOR
+        
+        // Then insert one tuple back for each table
+        for (Table tbl : catalogContext.getDataTables()) {
+            RegressionSuiteUtil.loadRandomData(client, tbl, getRandom(), 1);
+            assertEquals(tbl.getName(), 1, RegressionSuiteUtil.getRowCount(client, tbl));
+        } // FOR
+        
+        // Then check to make sure the counts are correct
+        // FIXME: We should really be check memory usage here but we're not!!
+        this.checkIndexEntryCount(client, catalogContext, false);
+
     }
     
     public static Test suite() {
