@@ -1872,7 +1872,7 @@ public final class HStoreConf {
             defaultNull=true,
             experimental=false
         )
-        public String output_memory;
+        public String output_memory_stats;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
@@ -2013,15 +2013,6 @@ public final class HStoreConf {
         )
         public String output_table_stats;
 
-        @ConfigProperty(
-                description="Defines the path where the BenchmarkController will dump a CSV containing " +
-                            "the memory stats information about the cluster periodically. This will periodically invoke " +
-                            "the @Statistics system stored procedure to collect SysProcSelector.TABLE data.",
-                defaultNull=true,
-                experimental=false
-            )
-        public String output_table_stats_periodically;
-        
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
                         "transaction counter stats. This will contain information about how the " +
