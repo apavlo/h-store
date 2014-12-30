@@ -17,6 +17,10 @@
     </sequential>
 </macrodef>
 
+<tstamp>
+    <format property="TODAY" pattern="yyyy-MM-dd HH:mm:ss" />
+</tstamp>
+
 <!-- PATHS AND PROPERTIES -->
 
 <!-- make environment var foo available as env.foo -->
