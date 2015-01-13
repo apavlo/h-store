@@ -53,7 +53,9 @@ public abstract class YCSBUtil {
 
     // taken from tpcc.RandomGenerator
     public static String randomString(int minimum_length, int maximum_length, char base, int numCharacters) {
-        int length = (int)number(minimum_length, maximum_length);
+        int length = (int)(minimum_length == maximum_length ?
+                                minimum_length :
+                                number(minimum_length, maximum_length));
         byte baseByte = (byte) base;
         byte[] bytes = new byte[length];
         for (int i = 0; i < length; ++i) {
@@ -65,7 +67,7 @@ public abstract class YCSBUtil {
     // taken from tpcc.RandomGenerator
     public static long number(long minimum, long maximum) {
         assert minimum <= maximum;
-        long value = Math.abs(rand.nextLong()) % (maximum - minimum + 1) + minimum;
+        long value = Math.abs(rand.nextInt()) % (maximum - minimum + 1) + minimum;
         assert minimum <= value && value <= maximum;
         return value;
     }
