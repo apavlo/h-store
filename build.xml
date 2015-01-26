@@ -1931,14 +1931,14 @@ UTILITIES
     <java fork="yes" failonerror="true" classname="edu.brown.catalog.CatalogInfo">
         <jvmarg value="-Dlog4j.configuration=${basedir}/log4j.properties"/>
         <arg value="catalog.jar=${jar}" />
-        <arg value="workload=${workload}" />
-        <arg value="workload.removedupes=true" />
-        <arg value="workload.xactlimit=${limit}" />
-        <arg value="workload.xactoffset=${offset}" />
-        <arg value="workload.sampling=${sampling}" />
-        <arg value="workload.procexclude=${exclude}" />
-        <arg value="workload.procinclude=${include}" />
-        <arg value="workload.procinclude.multiplier=${multiplier}" />
+<!--         <arg value="workload=${workload}" /> -->
+<!--         <arg value="workload.removedupes=true" /> -->
+<!--         <arg value="workload.xactlimit=${limit}" /> -->
+<!--         <arg value="workload.xactoffset=${offset}" /> -->
+<!--         <arg value="workload.sampling=${sampling}" /> -->
+<!--         <arg value="workload.procexclude=${exclude}" /> -->
+<!--         <arg value="workload.procinclude=${include}" /> -->
+<!--         <arg value="workload.procinclude.multiplier=${multiplier}" /> -->
         <classpath refid='project.classpath' />
         <assertions><enable /></assertions>
     </java>
