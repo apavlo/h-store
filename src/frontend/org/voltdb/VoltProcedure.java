@@ -216,7 +216,7 @@ public abstract class VoltProcedure implements Poolable {
     protected final LocalTransaction getTransactionState() {
         return this.localTxnState;
     }
-    
+
     /**
      * Main initialization method
      * @param executor
@@ -1489,19 +1489,26 @@ public abstract class VoltProcedure implements Poolable {
         m_statusString = statusString;
     }
 
+    public void addCallback(EventObserver<ClientResponse> observer) {
+        if (observable == null) {
+            observable = new EventObservable<ClientResponse>();
+        }
+        observable.addObserver(observer);
+    }
+    public void deleteCallback(EventObserver<ClientResponse> observer) {
+        observable.deleteObserver(observer);
+    }
+
     // ----------------------------------------------------------------------------
     // DEBUG METHODS
     // ----------------------------------------------------------------------------
     
     public class Debug implements DebugContext {
         public void registerCallback(EventObserver<ClientResponse> observer) {
-            if (VoltProcedure.this.observable == null) {
-                VoltProcedure.this.observable = new EventObservable<ClientResponse>();
-            }
-            VoltProcedure.this.observable.addObserver(observer);
+            addCallback(observer);
         }
         public void unregisterCallback(EventObserver<ClientResponse> observer) {
-            VoltProcedure.this.observable.deleteObserver(observer);
+            deleteCallback(observer);
         }
         /**
          * Allow sysprocs to update m_currentTxnState manually. User procedures are

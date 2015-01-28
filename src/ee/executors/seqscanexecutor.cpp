@@ -214,13 +214,21 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
 
         int tuple_ctr = 0;
         while (iterator.next(tuple)) {
-            target_table->updateTupleAccessCount();
+            #ifdef ANTICACHE
+            if (isMarkedToEvict(*target_table, tuple)) {
+              VOLT_ERROR("Failed to sequentially scan tuple from table '%s': tuple already marked as to be evicted",
+                          target_table->name().c_str());
+              return false;
+            }
+            #endif
             
+            target_table->updateTupleAccessCount();
+
             // Read/Write Set Tracking
             if (tracker != NULL) {
                 tracker->markTupleRead(target_table, &tuple);
             }
-            
+
             // No tuple that we find here should *ever* be evicted!!
             #ifdef ANTICACHE
             assert(tuple.isEvicted() == false);

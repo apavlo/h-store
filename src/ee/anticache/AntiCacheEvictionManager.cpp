@@ -83,6 +83,10 @@ AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
 
     m_numdbs = 0;
     m_migrate = false;
+
+    m_evictionInfo.prepared = false;
+    m_evictionInfo.prepareTxnId = -1;
+    m_evictionInfo.tracker = NULL;
 }
 
 AntiCacheEvictionManager::~AntiCacheEvictionManager() {
@@ -501,6 +505,202 @@ bool AntiCacheEvictionManager::removeTupleSingleLinkedList(PersistentTable* tabl
     return false; 
 }
 #endif
+
+bool AntiCacheEvictionManager::isEvictionPrepared() const {
+    return m_evictionInfo.prepared;
+}
+
+bool AntiCacheEvictionManager::isMarkedToEvict(const PersistentTable &table, const TableTuple &tuple) const {
+    assert(isEvictionPrepared());
+    assert(m_evictionInfo.tracker);
+    return m_evictionInfo.tracker->isMarkedTuple(table, tuple);
+}
+
+int64_t AntiCacheEvictionManager::getEvictionPrepareTxnId() const {
+    assert(isEvictionPrepared());
+    return m_evictionInfo.prepareTxnId;
+}
+
+void AntiCacheEvictionManager::evictBlockPrepareInit(int64_t prepareTxnId) {
+    assert(!isEvictionPrepared());
+    EvictionInfo info;
+    info.prepared = true;
+    info.prepareTxnId = prepareTxnId;
+    info.tracker = m_engine->initializeAntiCacheEvictionTrackerOf(prepareTxnId);
+
+    m_evictionInfo = info;
+}
+
+void AntiCacheEvictionManager::evictBlockPrepare(int64_t prepareTxnId, PersistentTable *table, long blockSize, int numBlocks) {
+    assert(isEvictionPrepared());
+    assert(getEvictionPrepareTxnId() == prepareTxnId);
+    if (evictBlockToDiskPrepare(table, blockSize, numBlocks) == false) {
+        throwFatalException("Failed to prepare eviction from table '%s'", table->name().c_str());
+    }
+}
+
+void AntiCacheEvictionManager::evictBlockPrepareInBatch(int64_t prepareTxnId, PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks) {
+    assert(isEvictionPrepared());
+    assert(getEvictionPrepareTxnId() == prepareTxnId);
+    if (evictBlockToDiskPrepareInBatch(table, childTable, blockSize, numBlocks) == false) {
+        throwFatalException("Failed to prepare eviction in batch from table '%s', child table '%s'", table->name().c_str(), childTable->name().c_str());
+    }
+}
+
+void AntiCacheEvictionManager::evictBlockWork(int64_t prepareTxnId, PersistentTable *table, long blockSize, int numBlocks) {
+    assert(isEvictionPrepared());
+    assert(getEvictionPrepareTxnId() == prepareTxnId);
+    // TODO: evict from tracker
+    evictBlock(table, blockSize, numBlocks);
+}
+
+void AntiCacheEvictionManager::evictBlockWorkInBatch(int64_t prepareTxnId, PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks) {
+    assert(isEvictionPrepared());
+    assert(getEvictionPrepareTxnId() == prepareTxnId);
+    // TODO: evict from tracker
+    evictBlockInBatch(table, childTable, blockSize, numBlocks);
+}
+
+void AntiCacheEvictionManager::evictBlockFinish(int64_t prepareTxnId) {
+    assert(isEvictionPrepared());
+    assert(getEvictionPrepareTxnId() == prepareTxnId);
+    EvictionInfo info;
+    info.prepared = false;
+    info.prepareTxnId = -1;
+    info.tracker = NULL;
+    m_evictionInfo = info;
+}
+
+bool AntiCacheEvictionManager::evictBlockToDiskPrepare(PersistentTable *table, const long block_size, int num_blocks) {
+    int tuple_length = -1;
+
+    #ifdef VOLT_INFO_ENABLED
+    int active_tuple_count = (int)table->activeTupleCount();
+    #endif
+
+    // Iterate through the table and pluck out tuples to put in our block
+    TableTuple tuple(table->m_schema);
+    EvictionIterator evict_itr(table);
+#ifdef ANTICACHE_TIMESTAMPS
+    evict_itr.reserve((int64_t)block_size * num_blocks);
+#endif
+
+    for(int i = 0; i < num_blocks; i++)
+    {
+        size_t blockSerializedSize = 0;
+
+        VOLT_DEBUG("Starting evictable tuple iterator for %s", table->name().c_str());
+        while (evict_itr.hasNext() && (blockSerializedSize + MAX_EVICTED_TUPLE_SIZE < block_size)) {
+            if (!evict_itr.next(tuple)) {
+                break;
+            }
+
+            // If this is the first tuple, then we need to allocate all of the memory and
+            // what not that we're going to need
+            if (tuple_length == -1) {
+                tuple_length = tuple.tupleLength();
+            }
+
+            if (!tuple.isEvicted()) {
+                m_evictionInfo.tracker->markTupleWritten(table, &tuple);
+                blockSerializedSize += tuple.maxExportSerializationSize();
+            }
+        }
+    }
+
+    return true;
+}
+
+bool AntiCacheEvictionManager::evictBlockToDiskPrepareInBatch(PersistentTable *table, PersistentTable *childTable, const long block_size, int num_blocks) {
+    int tuple_length = -1;
+
+    TableIndex * pkeyIndex = table->primaryKeyIndex();
+    int columnIndex = pkeyIndex->getColumnIndices().front();
+    TableIndex * foreignKeyIndex = childTable->allIndexes().at(1); // Fix get the foreign key index
+
+    // Iterate through the table and pluck out tuples to put in our block
+    TableTuple tuple(table->m_schema);
+    EvictionIterator evict_itr(table);
+
+    for(int i = 0; i < num_blocks; i++)
+    {
+        size_t blockSerializedSize = 0;
+
+        VOLT_DEBUG("Starting evictable tuple iterator for %s", table->name().c_str());
+        std::vector<TableTuple> childTuplesToBeEvicted;
+        int childTuplesSize = 0;
+        while (evict_itr.hasNext()) {
+            if(!evict_itr.next(tuple))
+                break;
+
+            // If this is the first tuple, then we need to allocate all of the memory and
+            // what not that we're going to need
+            if (tuple_length == -1) {
+                tuple_length = tuple.tupleLength();
+            }
+
+            // value of the foreign key column
+            int64_t pkeyValue = ValuePeeker::peekBigInt(tuple.getNValue(columnIndex));
+            vector<ValueType> keyColumnTypes(1, VALUE_TYPE_BIGINT);
+            vector<int32_t> keyColumnLengths(1, NValue::getTupleStorageSize(VALUE_TYPE_BIGINT));
+            vector<bool> keyColumnAllowNull(1, true);
+            TupleSchema* keySchema =
+                TupleSchema::createTupleSchema(keyColumnTypes,
+                        keyColumnLengths,
+                        keyColumnAllowNull,
+                        true);
+            TableTuple searchkey(keySchema);
+            searchkey.move(new char[searchkey.tupleLength()]);
+            searchkey.setNValue(0, ValueFactory::getBigIntValue(pkeyValue));
+            bool found = foreignKeyIndex->moveToKey(&searchkey);
+
+            TableTuple childTuple(childTable->m_schema);
+            std::vector<TableTuple> buffer;
+            bool nomore = false;
+            if(found){
+                while (!(childTuple = foreignKeyIndex->nextValueAtKey()).isNullTuple())
+                {
+                    childTuplesSize += MAX_EVICTED_TUPLE_SIZE;
+                    if(blockSerializedSize + MAX_EVICTED_TUPLE_SIZE + childTuplesSize >= block_size){
+                        nomore = true;
+                        break;
+                    }
+                    buffer.push_back(childTuple);
+                }
+            }
+            if(nomore){
+                break;
+            }
+            for (std::vector<TableTuple>::iterator it = buffer.begin() ; it != buffer.end(); ++it){
+                childTuplesToBeEvicted.push_back(*it);
+            }
+            if(blockSerializedSize + MAX_EVICTED_TUPLE_SIZE + childTuplesSize >= block_size){
+                break;
+            }
+
+            if (tuple.isEvicted()) {
+                continue;
+            }
+
+            m_evictionInfo.tracker->markTupleWritten(table, &tuple);
+            blockSerializedSize += tuple.maxExportSerializationSize();
+
+            if(blockSerializedSize + childTuplesSize >= block_size){
+                break;
+            }
+        } 
+
+        for (std::vector<TableTuple>::iterator it = childTuplesToBeEvicted.begin() ; it != childTuplesToBeEvicted.end(); ++it){
+            TableTuple childTuple(childTable->m_schema);
+            childTuple = *it;
+
+            m_evictionInfo.tracker->markTupleWritten(childTable, &childTuple);
+            blockSerializedSize += childTuple.maxExportSerializationSize();
+        }
+    }
+
+    return true;
+}
 
 Table* AntiCacheEvictionManager::evictBlock(PersistentTable *table, long blockSize, int numBlocks) {
     int32_t lastTuplesEvicted = table->getTuplesEvicted();

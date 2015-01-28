@@ -12,7 +12,7 @@ import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.sysprocs.EvictTuples;
+import org.voltdb.sysprocs.EvictTuplesPrepare;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
@@ -105,7 +105,7 @@ public class TestUsersSuite extends RegressionSuite {
 
     private Map<Integer, VoltTable> evictData(Client client) throws Exception {
 //      System.err.printf("Evicting data..."); 
-      String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
+      String procName = VoltSystemProcedure.procCallName(EvictTuplesPrepare.class);
       CatalogContext catalogContext = this.getCatalogContext();
       String tableNames[] = { UsersConstants.TABLENAME_USERS };
       LatchableProcedureCallback callback = new LatchableProcedureCallback(1);

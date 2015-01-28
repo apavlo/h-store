@@ -44,7 +44,6 @@ import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -883,6 +882,59 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     }
 
     @Override
+    public void antiCacheEvictBlockPrepareInit(Long prepareTxnId) {
+        if (!m_anticache) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        deserializer.clear();
+
+        // TODO: error condition?
+        nativeAntiCacheEvictBlockPrepareInit(pointer, prepareTxnId);
+    }
+
+    @Override
+    public VoltTable antiCacheEvictBlockPrepare(Long prepareTxnId, Table catalog_tbl, long block_size, int num_blocks) {
+        if (!m_anticache) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        deserializer.clear();
+
+        final int numResults = nativeAntiCacheEvictBlockPrepare(
+                pointer, prepareTxnId, catalog_tbl.getRelativeIndex(), block_size,
+                num_blocks);
+        if (numResults == -1) {
+            LOG.error("Unexpected error in antiCacheEvictBlock for table " + catalog_tbl.getName());
+            throwExceptionForError(ERRORCODE_ERROR);
+        }
+        try {
+            deserializer.readInt();
+            VoltTable results[] = new VoltTable[numResults];
+            for (int i = 0; i < numResults;  i++) {
+                VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
+                results[i] = (VoltTable) deserializer.readObject(resultTable, this);
+            }
+            return results[0];
+        } catch (IOException e) {
+            LOG.error("Failed to deserialze result table for antiCacheEvictBlock" + e);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
+    }
+
+    @Override
+    public void anticacheEvictBlockFinish(Long prepareTxnId) {
+        if (!m_anticache) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        deserializer.clear();
+
+        // TODO: error condition?
+        nativeAntiCacheEvictBlockFinish(pointer, prepareTxnId);
+    }
+
+    @Override
 	public VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl,
 			Table childTable, long block_size, int num_blocks) {
         if (m_anticache == false) {
@@ -909,7 +961,93 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
         }
 	}
-    
+
+    @Override
+    public VoltTable antiCacheEvictBlockPrepareInBatch(Long prepareTxnId, Table catalog_tbl,
+                                                       Table childTable,
+                                                       long block_size,
+                                                       int num_blocks) {
+        if (!m_anticache) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        deserializer.clear();
+
+        int numResults = nativeAntiCacheEvictBlockPrepareInBatch(
+                pointer, prepareTxnId, catalog_tbl.getRelativeIndex(), childTable.getRelativeIndex(), block_size,
+                num_blocks);
+        if (numResults == -1) {
+            LOG.error("Unexpected error in antiCacheEvictBlockPrepareInBatch for table " + catalog_tbl.getName());
+            throwExceptionForError(ERRORCODE_ERROR);
+        }
+        try {
+            deserializer.readInt();
+            VoltTable[] results = new VoltTable[numResults];
+            for (int i = 9; i < numResults; i++) {
+                VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
+                results[i] = (VoltTable) deserializer.readObject(resultTable, this);
+            }
+            return results[0];
+        } catch (IOException e) {
+            LOG.error("Failed to deserialze result table for antiCacheEvictBlockPrepareInBatch" + e);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
+    }
+
+    @Override
+    public VoltTable antiCacheEvictBlockWork(Long prepareTxnId, Table table, long blockSize, int numBlock) {
+        if (!m_anticache) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        deserializer.clear();
+
+        final int numResults = nativeAntiCacheEvictBlockWork(pointer, prepareTxnId, table.getRelativeIndex(), blockSize, numBlock);
+        if (numResults == -1) {
+            LOG.error("Unexpected error in antiCacheEvictBlock for table " + table.getName());
+            throwExceptionForError(ERRORCODE_ERROR);
+        }
+        try {
+            deserializer.readInt();//Ignore the length of the result tables
+            final VoltTable results[] = new VoltTable[numResults];
+            for (int ii = 0; ii < numResults; ii++) {
+                final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
+                results[ii] = (VoltTable)deserializer.readObject(resultTable, this);
+            }
+            return results[0];
+        } catch (final IOException ex) {
+            LOG.error("Failed to deserialze result table for antiCacheEvictBlock" + ex);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
+    }
+
+    @Override
+    public VoltTable antiCacheEvictBlockWorkInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks) {
+        if (!m_anticache) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        deserializer.clear();
+
+        final int numResults = nativeAntiCacheEvictBlockWorkInBatch(pointer, prepareTxnId, catalog_tbl.getRelativeIndex(), childTable.getRelativeIndex(), block_size, num_blocks);
+        if (numResults == -1) {
+            LOG.error("Unexpected error in antiCacheEvictBlockInBatch for table " + catalog_tbl.getName());
+            throwExceptionForError(ERRORCODE_ERROR);
+        }
+        try {
+            deserializer.readInt();//Ignore the length of the result tables
+            final VoltTable results[] = new VoltTable[numResults];
+            for (int ii = 0; ii < numResults; ii++) {
+                final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
+                results[ii] = (VoltTable)deserializer.readObject(resultTable, this);
+            }
+            return results[0];
+        } catch (final IOException ex) {
+            LOG.error("Failed to deserialze result table for antiCacheEvictBlock" + ex);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
+    }
+
     @Override
     public void antiCacheMergeBlocks(Table catalog_tbl) {
         assert(m_anticache);

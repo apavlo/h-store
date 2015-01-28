@@ -12,7 +12,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.client.ProcedureCallback;
-import org.voltdb.sysprocs.EvictTuples;
+import org.voltdb.sysprocs.EvictTuplesPrepare;
 
 /**
  * Special thread to execute the @EvictTuples sysproc and update
@@ -25,7 +25,7 @@ public class PeriodicEvictionThread implements Runnable, ProcedureCallback {
     private final CatalogContext catalogContext;
     private final Client client;
     
-    private final String procName = "@" + EvictTuples.class.getSimpleName();
+    private final String procName = "@" + EvictTuplesPrepare.class.getSimpleName();
     private final String tableNames[];
     private final long evictionSize[];
     private final Collection<BenchmarkInterest> printers;

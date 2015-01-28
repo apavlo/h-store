@@ -830,7 +830,21 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @return TODO
      */
     public abstract VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size, int num_blocks);
-    
+
+    public abstract void antiCacheEvictBlockPrepareInit(Long prepareTxnId);
+    public abstract VoltTable antiCacheEvictBlockPrepare(Long prepareTxnId, Table catalog_tbl, long block_size, int num_blocks);
+    public abstract VoltTable antiCacheEvictBlockPrepareInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks);
+    public abstract VoltTable antiCacheEvictBlockWork(Long prepareTxnId, Table table, long blockSize, int numBlock);
+    public abstract VoltTable antiCacheEvictBlockWorkInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks);
+    public abstract void anticacheEvictBlockFinish(Long prepareTxnId);
+
+    protected native int nativeAntiCacheEvictBlockPrepareInit(long enginePtr, long prepareTxnId);
+    protected native int nativeAntiCacheEvictBlockPrepare(long enginePtr, long prepareTxnId, int tableId, long blockSize, int num_blocks);
+    protected native int nativeAntiCacheEvictBlockPrepareInBatch(long enginePtr, long prepareTxnId, int tableId, int childTableId, long blockSize, int num_blocks);
+    protected native int nativeAntiCacheEvictBlockWork(long enginePtr, long prepareTxnId, int tableId, long blockSize, int num_blocks);
+    protected native int nativeAntiCacheEvictBlockWorkInBatch(long enginePtr, long prepareTxnId, int tableId, int childTableId, long blockSize, int num_blocks);
+    protected native int nativeAntiCacheEvictBlockFinish(long enginePtr, long prepareTxnId);
+
     /**
      * Forcibly tell the EE that it needs to evict a certain number of bytes
      * for a table in batch. 
@@ -839,7 +853,8 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param block_size The number of bytes to evict from the target table
      */
     public abstract VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl, Table childTable, long block_size, int num_blocks);
-    
+
+
     /**
      * Instruct the EE to merge in the unevicted blocks into the table's regular data.
      * This is a blocking call and should only be executed when there is no other transaction

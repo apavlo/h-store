@@ -55,6 +55,10 @@ class ReadWriteTracker {
         
         void markTupleRead(Table *table, TableTuple *tuple);
         void markTupleWritten(Table *table, TableTuple *tuple);
+
+        bool isMarkedTuple(const Table &table, const TableTuple &tuple) const;
+        bool isMarkedTupleRead(const Table &table, const TableTuple &tuple) const;
+        bool isMarkedTupleWritten(const Table &table, const TableTuple &tuple) const;
         
         void clear();
         
@@ -63,6 +67,7 @@ class ReadWriteTracker {
         
     private:
         void insertTuple(boost::unordered_map<std::string, RowOffsets*> *map, Table *table, TableTuple *tuple);
+        bool hasTuple(const boost::unordered_map<std::string, RowOffsets*> &map, const Table &table, const TableTuple &tuple) const;
         std::vector<std::string> getTableNames(boost::unordered_map<std::string, RowOffsets*> *map) const;
         
         int64_t txnId;

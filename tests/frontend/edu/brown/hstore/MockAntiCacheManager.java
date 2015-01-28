@@ -1,9 +1,5 @@
 package edu.brown.hstore;
 
-import org.voltdb.catalog.Table;
-
-import edu.brown.hstore.txns.RemoteTransaction;
-
 public class MockAntiCacheManager extends AntiCacheManager{
 
 	protected MockAntiCacheManager(HStoreSite hstore_site) {

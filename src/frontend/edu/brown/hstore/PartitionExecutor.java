@@ -2547,6 +2547,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         try {
             this.currentVoltProc = volt_proc;
             ts.markControlCodeExecuted();
+            // if volt_proc is EvictTuples, first blocking call prepare, then asynchronously call evict with a callback that queues a finish.
             cresponse = volt_proc.call(ts, ts.getProcedureParameters().toArray()); // Blocking...
         // VoltProcedure.call() should handle any exceptions thrown by the transaction
         // If we get anything out here then that's bad news

@@ -112,6 +112,7 @@ class ReferenceSerializeOutput;
 class PlanNodeFragment;
 class ExecutorContext;
 class RecoveryProtoMsg;
+class ReadWriteTracker;
 
 /**
  * Represents an Execution Engine which holds catalog objects (i.e. table) and executes
@@ -301,6 +302,8 @@ class __attribute__((visibility("default"))) VoltDBEngine {
 //         std::vector<std::string> trackingTablesRead(int64_t txnId);
 //         std::vector<std::string> trackingTablesWritten(int64_t txnId);
         int trackingTupleSet(int64_t txnId, bool writes);
+
+        ReadWriteTracker* initializeAntiCacheEvictionTrackerOf(int64_t prepareTxnId) const;
         
         // -------------------------------------------------
         // ANTI-CACHE FUNCTIONS
@@ -311,6 +314,14 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         void antiCacheAddDB(std::string dbDir, AntiCacheDBType dbType, long blockSize, long maxSize) const;
 
         int antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t blockIds[], int32_t tupleOffsets[]);
+
+        int antiCacheEvictBlockPrepareInit(int64_t prepareTxnId);
+        int antiCacheEvictBlockPrepare(int64_t prepareTxnId, int32_t tableId, long blockSize, int numBlocks);
+        int antiCacheEvictBlockPrepareInBatch(int64_t prepareTxnId, int32_t tableId, int32_t childTableId, long blockSize, int numBlocks);
+        int antiCacheEvictBlockWork(int64_t prepareTxnId, int32_t tableId, long blockSize, int numBlocks);
+        int antiCacheEvictBlockWorkInBatch(int64_t prepareTxnId, int32_t tableId, int32_t childTableId, long blockSize, int numBlocks);
+        int antiCacheEvictBlockFinish(int64_t prepareTxnId);
+
         int antiCacheEvictBlock(int32_t tableId, long blockSize, int numBlocks);
         int antiCacheEvictBlockInBatch(int32_t tableId, int32_t childTableId, long blockSize, int numBlocks);
         int antiCacheMergeBlocks(int32_t tableId);

@@ -1503,6 +1503,36 @@ public class ExecutionEngineIPC extends ExecutionEngine {
         throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
     }
 
+    @Override
+    public void antiCacheEvictBlockPrepareInit(Long prepareTxnId) {
+        throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
+    }
+
+    @Override
+    public VoltTable antiCacheEvictBlockPrepare(Long prepareTxnId, Table catalog_tbl, long block_size, int num_blocks) {
+        throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
+    }
+
+    @Override
+    public VoltTable antiCacheEvictBlockPrepareInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks) {
+        throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
+    }
+
+    @Override
+    public VoltTable antiCacheEvictBlockWork(Long prepareTxnId, Table table, long blockSize, int numBlock) {
+        throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
+    }
+
+    @Override
+    public VoltTable antiCacheEvictBlockWorkInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks) {
+        throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
+    }
+
+    @Override
+    public void anticacheEvictBlockFinish(Long prepareTxnId) {
+        throw new NotImplementedException("Anti-Caching is disabled for IPC ExecutionEngine");
+    }
+
 
     @Override
     public VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl, Table child_tbl, long block_size, int num_blocks) {

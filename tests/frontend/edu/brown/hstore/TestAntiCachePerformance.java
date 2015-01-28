@@ -8,10 +8,7 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
 import org.voltdb.CatalogContext;
-import org.voltdb.sysprocs.EvictTuples;
-import org.voltdb.sysprocs.EvictHistory;
-import org.voltdb.sysprocs.EvictedAccessHistory;
-import org.voltdb.sysprocs.Statistics; 
+import org.voltdb.sysprocs.*;
 
 import org.voltdb.VoltSystemProcedure;
 
@@ -146,7 +143,7 @@ public class TestAntiCachePerformance extends BaseTestCase {
 //        System.err.printf("Evicting data...");
         long start, stop;
 
-        String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
+        String procName = VoltSystemProcedure.procCallName(EvictTuplesPrepare.class);
         CatalogContext catalogContext = this.getCatalogContext();
         String tableNames[] = { TARGET_TABLE };
         LatchableProcedureCallback callback = new LatchableProcedureCallback(catalogContext.numberOfPartitions);

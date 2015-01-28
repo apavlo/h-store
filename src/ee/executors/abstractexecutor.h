@@ -101,6 +101,16 @@ class AbstractExecutor {
         this->force_send_tuple_count = false;
     }
 
+#ifdef ANTICACHE
+    bool isMarkedToEvict(const PersistentTable& table, const TableTuple& tuple) {
+        AntiCacheEvictionManager* antiCacheManager = executor_context->getAntiCacheEvictionManager();
+        if (antiCacheManager != NULL && antiCacheManager->isEvictionPrepared() && antiCacheManager->isMarkedToEvict(table, tuple)) {
+            return true;
+        }
+        return false;
+    }
+#endif
+
     /** Concrete executor classes implement initialization in p_init() */
     virtual bool p_init(AbstractPlanNode*, const catalog::Database *catalog_db, int* tempTableMemoryInBytes) = 0;
 

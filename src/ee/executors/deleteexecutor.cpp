@@ -165,11 +165,21 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
         //
         void *targetAddress = m_inputTuple.getNValue(0).castAsAddress();
         m_targetTuple.move(targetAddress);
+
+
+        #ifdef ANTICACHE
+        if (isMarkedToEvict(*m_targetTable, m_targetTuple)) {
+            VOLT_ERROR("Failed to delete tuple from table '%s': tuple already marked as to be evicted",
+                       m_targetTable->name().c_str());
+            return false;
+        }
+        #endif
         
         // Read/Write Set Tracking
         if (tracker != NULL) {
             tracker->markTupleWritten(m_targetTable, &m_targetTuple);
         }
+
 
         #ifdef ARIES
         if(m_engine->isARIESEnabled()){

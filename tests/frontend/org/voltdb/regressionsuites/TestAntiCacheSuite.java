@@ -13,11 +13,7 @@ import org.voltdb.VoltSystemProcedure;
 import org.voltdb.VoltTable;
 import org.voltdb.client.Client;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.sysprocs.AdHoc;
-import org.voltdb.sysprocs.EvictHistory;
-import org.voltdb.sysprocs.EvictTuples;
-import org.voltdb.sysprocs.EvictedAccessHistory;
-import org.voltdb.sysprocs.Statistics;
+import org.voltdb.sysprocs.*;
 import org.voltdb.utils.VoltTableUtil;
 
 import edu.brown.HStoreSiteTestUtil.LatchableProcedureCallback;
@@ -99,7 +95,7 @@ public class TestAntiCacheSuite extends RegressionSuite {
     
     private Map<Integer, VoltTable> evictData(Client client) throws Exception {
 //        System.err.printf("Evicting data..."); 
-        String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
+        String procName = VoltSystemProcedure.procCallName(EvictTuplesPrepare.class);
         CatalogContext catalogContext = this.getCatalogContext();
         String tableNames[] = { VoterConstants.TABLENAME_VOTES };
         LatchableProcedureCallback callback = new LatchableProcedureCallback(catalogContext.numberOfPartitions);

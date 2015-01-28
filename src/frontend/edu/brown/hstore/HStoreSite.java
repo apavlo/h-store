@@ -2682,9 +2682,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (orig_ts.getBasePartition() != error.getPartitionId() && !this.isLocalPartition(error.getPartitionId())) {
                 new_ts.setOldTransactionId(orig_ts.getTransactionId());
             }
-            this.anticacheManager.queue(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
-            
-            
+            this.anticacheManager.queueUneviction(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
         }
             
         // -------------------------------

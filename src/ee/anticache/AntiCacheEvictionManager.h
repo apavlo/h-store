@@ -29,6 +29,7 @@
 
 #include "catalog/table.h"
 #include "storage/TupleIterator.h"
+#include "storage/ReadWriteTracker.h"
 #include "anticache/EvictionIterator.h"
 #include "common/tabletuple.h"
 #include "execution/VoltDBEngine.h"
@@ -56,6 +57,20 @@ public:
     bool updateTuple(PersistentTable* table, TableTuple* tuple, bool is_insert);
     bool updateUnevictedTuple(PersistentTable* table, TableTuple* tuple);
     bool removeTuple(PersistentTable* table, TableTuple* tuple); 
+
+    bool isEvictionPrepared() const;
+    bool isMarkedToEvict(const PersistentTable &table, const TableTuple &tuple) const;
+    int64_t getEvictionPrepareTxnId() const;
+
+    void evictBlockPrepareInit(int64_t prepareTxnId);
+    void evictBlockPrepare(int64_t prepareTxnId, PersistentTable *table, long blockSize, int numBlocks);
+    void evictBlockPrepareInBatch(int64_t prepareTxnId, PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks);
+    void evictBlockWork(int64_t prepareTxnId, PersistentTable *table, long blockSize, int numBlocks);
+    void evictBlockWorkInBatch(int64_t prepareTxnId, PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks);
+    void evictBlockFinish(int64_t prepareTxnId);
+
+    bool evictBlockToDiskPrepare(PersistentTable *table, const long block_size, int num_blocks);
+    bool evictBlockToDiskPrepareInBatch(PersistentTable *table, PersistentTable *childTable, const long block_size, int num_blocks);
 
     Table* evictBlock(PersistentTable *table, long blockSize, int numBlocks);
     bool evictBlockToDisk(PersistentTable *table, const long block_size, int num_blocks);
@@ -121,7 +136,13 @@ protected:
     // m_numdbs > 1;
     bool m_migrate;
     //std::map<int16_t, AntiCacheDB*> m_db_lookup_table;
-    
+
+    struct EvictionInfo {
+      bool prepared;
+      int64_t prepareTxnId;
+      ReadWriteTracker* tracker;
+    };
+    EvictionInfo m_evictionInfo;
 }; // AntiCacheEvictionManager class
 
 

@@ -79,11 +79,39 @@ void ReadWriteTracker::markTupleWritten(Table *table, TableTuple *tuple) {
     this->insertTuple(&this->writes, table, tuple);
 }
 
+bool ReadWriteTracker::isMarkedTuple(const Table &table, const TableTuple &tuple) const {
+    return isMarkedTupleRead(table, tuple) || isMarkedTupleWritten(table, tuple);
+}
+
+bool ReadWriteTracker::isMarkedTupleRead(const Table &table, const TableTuple &tuple) const {
+    return hasTuple(reads, table, tuple);
+}
+
+bool ReadWriteTracker::isMarkedTupleWritten(const Table &table, const TableTuple &tuple) const {
+    return hasTuple(writes, table, tuple);
+}
+
+bool ReadWriteTracker::hasTuple(const boost::unordered_map<std::string, RowOffsets*> &map, const Table &table, const TableTuple &tuple) const {
+    boost::unordered_map<std::string,RowOffsets*>::const_iterator tableNameIter = map.find(table.name());
+    if (tableNameIter == map.end()) {
+      return false;
+    } 
+
+    RowOffsets *offsets = tableNameIter->second;
+    uint32_t tupleId = table.getTupleID(tuple.address());
+    RowOffsets::const_iterator tupleIdIter = offsets->find(tupleId);
+    if (tupleIdIter == offsets->end()) {
+      return false;
+    }
+
+    return true;
+}
+
 std::vector<std::string> ReadWriteTracker::getTableNames(boost::unordered_map<std::string, RowOffsets*> *map) const {
-    std::vector<std::string> tableNames;
-    tableNames.reserve(map->size());
-    boost::unordered_map<std::string, RowOffsets*>::const_iterator iter = map->begin();
-    while (iter != map->end()) {
+  std::vector<std::string> tableNames;
+  tableNames.reserve(map->size());
+  boost::unordered_map<std::string, RowOffsets*>::const_iterator iter = map->begin();
+  while (iter != map->end()) {
         tableNames.push_back(iter->first);
         iter++;
     } // FOR

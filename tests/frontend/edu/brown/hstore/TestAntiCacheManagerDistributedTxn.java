@@ -14,11 +14,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
-import org.voltdb.client.ClientResponse;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.utils.VoltTableUtil;
 
@@ -29,7 +26,6 @@ import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -273,7 +269,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         this.hstore_conf.site.anticache_profiling = false;
         LocalTransaction txn = MockHStoreSite.makeLocalTransaction(hstore_sites[0]);
 
-        assertTrue(manager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
+        assertTrue(manager.queueUneviction(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
 
     }
   
@@ -298,7 +294,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
 	txn.setOldTransactionId(txn.getTransactionId()); //workaround
         int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
 
-        assertTrue(manager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
+        assertTrue(manager.queueUneviction(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
         latch.await();
 
     }
@@ -385,7 +381,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         txn.setUnevictCallback(callback);
         int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
         MockAntiCacheManager remotemanager = (MockAntiCacheManager) hstore_sites[1].getAntiCacheManager();
-        assertTrue(remotemanager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
+        assertTrue(remotemanager.queueUneviction(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
         remotemanager.processQueue(); // force to process the queued item
         
         // block till the remote site executes the callback notifying that its done

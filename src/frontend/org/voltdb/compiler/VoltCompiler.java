@@ -82,29 +82,7 @@ import org.voltdb.compiler.projectfile.SnapshotType;
 import org.voltdb.compiler.projectfile.UsersType;
 import org.voltdb.compiler.projectfile.VerticalpartitionsType.Verticalpartition;
 import org.voltdb.planner.VerticalPartitionPlanner;
-import org.voltdb.sysprocs.AdHoc;
-import org.voltdb.sysprocs.EvictHistory;
-import org.voltdb.sysprocs.EvictTuples;
-import org.voltdb.sysprocs.DatabaseDump;
-import org.voltdb.sysprocs.EvictedAccessHistory;
-import org.voltdb.sysprocs.ExecutorStatus;
-import org.voltdb.sysprocs.GarbageCollection;
-import org.voltdb.sysprocs.GetCatalog;
-import org.voltdb.sysprocs.GetConfiguration;
-import org.voltdb.sysprocs.LoadMultipartitionTable;
-import org.voltdb.sysprocs.NoOp;
-import org.voltdb.sysprocs.MarkovUpdate;
-import org.voltdb.sysprocs.Quiesce;
-import org.voltdb.sysprocs.ResetProfiling;
-import org.voltdb.sysprocs.SetConfiguration;
-import org.voltdb.sysprocs.Shutdown;
-import org.voltdb.sysprocs.Sleep;
-import org.voltdb.sysprocs.SnapshotDelete;
-import org.voltdb.sysprocs.SnapshotRestore;
-import org.voltdb.sysprocs.SnapshotSave;
-import org.voltdb.sysprocs.SnapshotScan;
-import org.voltdb.sysprocs.SnapshotStatus;
-import org.voltdb.sysprocs.Statistics;
+import org.voltdb.sysprocs.*;
 import org.voltdb.types.IndexType;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.JarReader;
@@ -1305,7 +1283,7 @@ public class VoltCompiler {
             {Statistics.class,                      true,       false},
             
             // Anti-Cache Operations
-            {EvictTuples.class,                     false,      false},
+            {EvictTuplesPrepare.class,              false,      false},
             {EvictHistory.class,                    true,       true},
             {EvictedAccessHistory.class,            true,       true},
          

@@ -861,7 +861,7 @@ public class HStoreCoordinator implements Shutdownable {
 			int [] tuple_offsets = new int[request.getTupleOffsetsList().size()];
 			for(int i = 0; i < request.getTupleOffsetsList().size(); i++) tuple_offsets[i] = request.getTupleOffsets(i);
 
-			hstore_site.getAntiCacheManager().queue(ts, partition, catalog_tbl, block_ids, tuple_offsets);
+			hstore_site.getAntiCacheManager().queueUneviction(ts, partition, catalog_tbl, block_ids, tuple_offsets);
 		}
 
     } // END CLASS
