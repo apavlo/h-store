@@ -86,14 +86,21 @@ if __name__ == '__main__':
         os.chdir(args["path"])
         cmd = "svn %(svn_options)s update" % args
         LOG.info(cmd)
-        output = subprocess.check_output(cmd, shell=True)
-        print output
+        try:
+            output = subprocess.check_output(cmd, shell=True)
+            print output
+        except:
+            # Check whether we need to upgrade the repo
+            if output.find("You need to upgrade the working copy") != -1:
+                LOG.info("Upgrading repository...")
+                upgrade_cmd = "svn %(svn_options)s upgrade" % args
+                subprocess.check_call(upgrade_cmd, shell=True)
+                LOG.info(upgrade_cmd)
         
-        # Check whether we need to upgrade the repo
-        if output.find("You need to upgrade the working copy") != -1:
-            upgrade_cmd = "svn %(svn_options)s upgrade" % args
-            subprocess.check_call(upgrade_cmd, shell=True)
-            subprocess.check_call(cmd, shell=True)
+                LOG.info(cmd)
+                subprocess.check_call(cmd, shell=True)
+            else:
+                raise
     ## IF
 
         
