@@ -1,6 +1,8 @@
 package org.voltdb.regressionsuites;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 import org.voltdb.CatalogContext;
@@ -84,6 +86,25 @@ public abstract class RegressionSuiteUtil {
             throw new IllegalArgumentException("Invalid table '" + tbl + "'");
         }
         return (count);
+    }
+    
+    public static Map<String, Map<Integer, Long>> getRowCountPerPartition(Client client) throws Exception {
+        ClientResponse statsResponse = RegressionSuiteUtil.getStats(client, SysProcSelector.TABLE);
+        assert(Status.OK == statsResponse.getStatus());
+        VoltTable statsResult = statsResponse.getResults()[0];
+        Map<String, Map<Integer, Long>> rowCounts = new HashMap<String, Map<Integer,Long>>();
+        while (statsResult.advanceRow()) {
+            String tableName = statsResult.getString("TABLE_NAME");
+            int partition = (int)statsResult.getLong("PARTITION_ID");
+            long tupleCount = statsResult.getLong("TUPLE_COUNT");
+            Map<Integer, Long> cnts = rowCounts.get(tableName);
+            if (cnts == null) {
+                cnts = new HashMap<Integer, Long>();
+                rowCounts.put(tableName, cnts);
+            }
+            cnts.put(partition, tupleCount);
+        } // WHILE
+        return (rowCounts);
     }
     
     /**

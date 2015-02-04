@@ -820,11 +820,23 @@ bool VoltDBEngine::rebuildTableCollections() {
 
             // add all of the indexes to the stats source
             std::vector<TableIndex*> tindexes = tcd->getTable()->allIndexes();
+            CatalogId tableId = static_cast<CatalogId>(catTable->relativeIndex());
             for (int i = 0; i < tindexes.size(); i++) {
                 TableIndex *index = tindexes[i];
+                // Pay attention here because this is important!
+                // Because the relative indexes for the catalog objects are based on
+                // their parent object, that means that we can't use the indexes' relativeIndex
+                // field to uniquely identify them because they are overwritten for 
+                // each table. So this means that we have to generate a composite
+                // key of the table's relativeIndex + index's relativeIndex so that can
+                // uniquely identify them. The Java layer doesn't need to know
+                // about this hot mess!
+                CatalogId indexId = computeIndexStatsId(tableId, static_cast<CatalogId>(i+1));
+                VOLT_DEBUG("CREATE IndexStats: %s.%s -> %d\n",
+                           tcd->getTable()->name().c_str(), index->getName().c_str(), indexId);
                 getStatsManager().registerStatsSource(
                         STATISTICS_SELECTOR_TYPE_INDEX,
-                        catTable->relativeIndex(), index->getIndexStats());
+                        indexId, index->getIndexStats());
             }
         }
         cdIt++;
@@ -1217,16 +1229,18 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
         bool interval, int64_t now) {
     Table *resultTable = NULL;
     vector<CatalogId> locatorIds;
-
-    for (int ii = 0; ii < numLocators; ii++) {
-        CatalogId locator = static_cast<CatalogId>(locators[ii]);
-        locatorIds.push_back(locator);
-    }
     size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
 
     try {
         switch (selector) {
-        case STATISTICS_SELECTOR_TYPE_TABLE:
+        // -------------------------------------------------
+        // TABLE STATS
+        // -------------------------------------------------
+        case STATISTICS_SELECTOR_TYPE_TABLE: {
+            for (int ii = 0; ii < numLocators; ii++) {
+                CatalogId locator = static_cast<CatalogId>(locators[ii]);
+                locatorIds.push_back(locator);
+            }
             for (int ii = 0; ii < numLocators; ii++) {
                 CatalogId locator = static_cast<CatalogId>(locators[ii]);
                 if (m_tables.find(locator) == m_tables.end()) {
@@ -1244,24 +1258,47 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                     (StatisticsSelectorType) selector, locatorIds, interval,
                     now);
             break;
-        case STATISTICS_SELECTOR_TYPE_INDEX:
+        }
+        // -------------------------------------------------
+        // INDEX STATS
+        // -------------------------------------------------
+        case STATISTICS_SELECTOR_TYPE_INDEX: {
+            // HACK: Pavlo 2014-11-20
+            // Ok here's what's going to happen in this mofo.
+            // We normally don't have globally unique index ids, since we're using the
+            // the relative indexes. So we'll create a composite key of the table's relativeIndex +
+            // the index's relativeIndex
             for (int ii = 0; ii < numLocators; ii++) {
-                CatalogId locator = static_cast<CatalogId>(locators[ii]);
-                if (m_tables.find(locator) == m_tables.end()) {
+                CatalogId tableId = static_cast<CatalogId>(locators[ii]);
+                if (m_tables.find(tableId) == m_tables.end()) {
                     char message[256];
                     snprintf(message, 256,
                             "getStats() called with selector %d, and"
                                     " an invalid locator %d that does not correspond to"
-                                    " a table", selector, locator);
+                                    " a table", selector, tableId);
                     throw SerializableEEException(
                             VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION, message);
                 }
-            }
+                
+                // Create the composite keys for this table
+                catalog::Table *catTable = m_database->tables().get(m_tables[tableId]->name());
+                
+                map<string, catalog::Index*>::const_iterator idx_iterator;
+                for (idx_iterator = catTable->indexes().begin();
+                        idx_iterator != catTable->indexes().end(); idx_iterator++) {
+                    catalog::Index *catIndex = idx_iterator->second;
+                    CatalogId indexId = computeIndexStatsId(catTable->relativeIndex(), catIndex->relativeIndex());
+                    locatorIds.push_back(indexId);
+                    VOLT_DEBUG("FETCH IndexStats: %s.%s -> %d\n",
+                               catTable->name().c_str(), catIndex->name().c_str(), indexId);
+                } // FOR
+            } // FOR
 
             resultTable = m_statsManager.getStats(
                     (StatisticsSelectorType) selector, locatorIds, interval,
                     now);
             break;
+        }
         default:
             char message[256];
             snprintf(message, 256,

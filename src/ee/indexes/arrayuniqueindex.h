@@ -56,7 +56,7 @@ class ArrayUniqueIndex : public TableIndex {
 
         bool checkForIndexChange(const TableTuple *lhs, const TableTuple *rhs);
 
-        size_t getSize() const { return 0; }
+        size_t getSize() const { return (num_entries_); }
         int64_t getMemoryEstimate() const {
             return sizeof(void*) * ARRAY_INDEX_INITIAL_SIZE;
         }
@@ -68,6 +68,7 @@ class ArrayUniqueIndex : public TableIndex {
         void **entries_;
         int32_t allocated_entries_;
         int32_t match_i_;
+        int32_t num_entries_;
 };
 
 }

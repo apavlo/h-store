@@ -65,7 +65,7 @@
 <arg value="client.output_results_json=${client.output_results_json}" />
 <arg value="client.output_csv=${client.output_csv}" />
 <arg value="client.output_results_csv=${client.output_results_csv}" />
-<arg value="client.output_memory=${client.output_memory}" />
+<arg value="client.output_memory_stats=${client.output_memory_stats}" />
 <arg value="client.output_responses=${client.output_responses}" />
 <arg value="client.output_exec_profiling=${client.output_exec_profiling}" />
 <arg value="client.output_queue_profiling=${client.output_queue_profiling}" />
@@ -81,7 +81,6 @@
 <arg value="client.output_planner_profiling_combine=${client.output_planner_profiling_combine}" />
 <arg value="client.output_markov_profiling=${client.output_markov_profiling}" />
 <arg value="client.output_table_stats=${client.output_table_stats}" />
-<arg value="client.output_table_stats_periodically=${client.output_table_stats_periodically}" />
 <arg value="client.output_txn_counters=${client.output_txn_counters}" />
 <arg value="client.output_txn_counters_combine=${client.output_txn_counters_combine}" />
 <arg value="client.profiling=${client.profiling}" />

@@ -28,7 +28,7 @@
 namespace voltdb {
 
 
-ArrayUniqueIndex::ArrayUniqueIndex(const TableIndexScheme &scheme) : TableIndex(scheme) {
+ArrayUniqueIndex::ArrayUniqueIndex(const TableIndexScheme &scheme) : TableIndex(scheme), num_entries_(0) {
     assert(colCount_ == 1);
     assert((column_types_[0] == VALUE_TYPE_TINYINT) || (column_types_[0] == VALUE_TYPE_SMALLINT) ||
         (column_types_[0] == VALUE_TYPE_INTEGER) || (column_types_[0] == VALUE_TYPE_BIGINT));
@@ -51,6 +51,7 @@ bool ArrayUniqueIndex::addEntry(const TableTuple *tuple) {
         return false;
     entries_[key] = static_cast<void*>(const_cast<TableTuple*>(tuple)->address());
     ++m_inserts;
+    ++num_entries_;
     return true;
 }
 
@@ -59,6 +60,10 @@ bool ArrayUniqueIndex::deleteEntry(const TableTuple *tuple) {
     assert((key < ARRAY_INDEX_INITIAL_SIZE) && (key >= 0));
 
     //VOLT_DEBUG("Deleting entry %lld", key);
+    if (entries_[key] != NULL) {
+        --num_entries_;
+        assert(num_entries_ >= 0);
+    }
     entries_[key] = NULL;
     ++m_deletes;
     return true; //deleted
