@@ -69,7 +69,7 @@ namespace voltdb
  
  */
     
-AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine, ExecutorContext& executorContext) {
+AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
     
     // Initialize readBlocks table
     m_engine = engine;
@@ -87,8 +87,6 @@ AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine, E
     m_evictionInfo.prepared = false;
     m_evictionInfo.prepareTxnId = -1;
     m_evictionInfo.tracker = NULL;
-
-    m_trackersManager = new ReadWriteTrackerManager(&executorContext);
 }
 
 AntiCacheEvictionManager::~AntiCacheEvictionManager() {
@@ -100,7 +98,6 @@ AntiCacheEvictionManager::~AntiCacheEvictionManager() {
     //for (i = 1; i <= m_numdbs; i++) {
     //    delete m_db_lookup[i];
     //}
-    delete m_trackersManager;
 }
 
 void AntiCacheEvictionManager::initEvictResultTable() {
@@ -529,8 +526,7 @@ void AntiCacheEvictionManager::evictBlockPrepareInit(int64_t prepareTxnId) {
     EvictionInfo info;
     info.prepared = true;
     info.prepareTxnId = prepareTxnId;
-    assert(m_trackersManager);
-    info.tracker = m_trackersManager->enableTracking(prepareTxnId);
+    info.tracker = m_engine->antiCacheCreateEvictionTrackerOf(prepareTxnId);
 
     m_evictionInfo = info;
 }
@@ -631,7 +627,7 @@ void AntiCacheEvictionManager::evictBlockFinish(int64_t prepareTxnId) {
     info.prepareTxnId = -1;
     info.tracker = NULL;
     m_evictionInfo = info;
-    m_trackersManager->removeTracker(prepareTxnId);
+    m_engine->antiCacheRemoveEvictionTrackerOf(prepareTxnId);
 }
 
 bool AntiCacheEvictionManager::evictBlockToDiskPrepare(PersistentTable *table, const long block_size, int num_blocks) {

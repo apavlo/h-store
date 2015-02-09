@@ -320,6 +320,9 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         int antiCacheEvictBlockWorkInBatch(int64_t prepareTxnId, int32_t tableId, int32_t childTableId, long blockSize, int numBlocks);
         int antiCacheEvictBlockFinish(int64_t prepareTxnId);
 
+        ReadWriteTracker* antiCacheCreateEvictionTrackerOf(int64_t prepareTxnId) const;
+        void antiCacheRemoveEvictionTrackerOf(int64_t prepareTxnId) const;
+
         int antiCacheEvictBlock(int32_t tableId, long blockSize, int numBlocks);
         int antiCacheEvictBlockInBatch(int32_t tableId, int32_t childTableId, long blockSize, int numBlocks);
         int antiCacheMergeBlocks(int32_t tableId);

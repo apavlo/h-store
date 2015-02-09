@@ -2212,6 +2212,20 @@ int VoltDBEngine::antiCacheEvictBlockFinish(int64_t prepareTxnId) {
     return ENGINE_ERRORCODE_SUCCESS;
 }
 
+ReadWriteTracker* VoltDBEngine::antiCacheCreateEvictionTrackerOf(int64_t prepareTxnId) const {
+    ReadWriteTrackerManager* evictionTrackersManager = m_executorContext->getEvictionTrackersManager();
+    assert(evictionTrackersManager);
+    ReadWriteTracker* result = evictionTrackersManager->enableTracking(prepareTxnId);
+    assert(result);
+    return result;
+}
+
+void VoltDBEngine::antiCacheRemoveEvictionTrackerOf(int64_t prepareTxnId) const {
+    ReadWriteTrackerManager* evictionTrackersManager = m_executorContext->getEvictionTrackersManager();
+    assert(evictionTrackersManager);
+    evictionTrackersManager->removeTracker(prepareTxnId);
+}
+
 /**
  * Somebody wants us to forcibly evict a certain number of bytes from the given table.
  * This is likely only used for testing...

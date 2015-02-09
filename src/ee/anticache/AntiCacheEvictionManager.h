@@ -51,7 +51,7 @@ class EvictionIterator;
 class AntiCacheEvictionManager {
         
 public: 
-    AntiCacheEvictionManager(const VoltDBEngine *engine, ExecutorContext& executorContext);
+    AntiCacheEvictionManager(const VoltDBEngine *engine);
     ~AntiCacheEvictionManager();
     
     bool updateTuple(PersistentTable* table, TableTuple* tuple, bool is_insert);
@@ -143,9 +143,6 @@ protected:
       ReadWriteTracker* tracker;
     };
     EvictionInfo m_evictionInfo;
-
-    ReadWriteTrackerManager* m_trackersManager;
-
 }; // AntiCacheEvictionManager class
 
 
