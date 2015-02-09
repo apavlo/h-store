@@ -1284,6 +1284,7 @@ public class VoltCompiler {
             
             // Anti-Cache Operations
             {EvictTuplesPrepare.class,              false,      false},
+            {EvictTuplesFinish.class,              false,      false},
             {EvictTuples.class,              false,      false},
             {EvictHistory.class,                    true,       true},
             {EvictedAccessHistory.class,            true,       true},
