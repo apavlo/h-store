@@ -143,7 +143,7 @@ public class TestAntiCachePerformance extends BaseTestCase {
 //        System.err.printf("Evicting data...");
         long start, stop;
 
-        String procName = VoltSystemProcedure.procCallName(EvictTuplesPrepare.class);
+        String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
         CatalogContext catalogContext = this.getCatalogContext();
         String tableNames[] = { TARGET_TABLE };
         LatchableProcedureCallback callback = new LatchableProcedureCallback(catalogContext.numberOfPartitions);

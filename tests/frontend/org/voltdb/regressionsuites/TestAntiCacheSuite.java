@@ -95,7 +95,7 @@ public class TestAntiCacheSuite extends RegressionSuite {
     
     private Map<Integer, VoltTable> evictData(Client client) throws Exception {
 //        System.err.printf("Evicting data..."); 
-        String procName = VoltSystemProcedure.procCallName(EvictTuplesPrepare.class);
+        String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
         CatalogContext catalogContext = this.getCatalogContext();
         String tableNames[] = { VoterConstants.TABLENAME_VOTES };
         LatchableProcedureCallback callback = new LatchableProcedureCallback(catalogContext.numberOfPartitions);
