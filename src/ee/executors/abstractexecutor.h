@@ -103,9 +103,12 @@ class AbstractExecutor {
 
 #ifdef ANTICACHE
     bool isMarkedToEvict(const PersistentTable& table, const TableTuple& tuple) {
-        AntiCacheEvictionManager* antiCacheManager = executor_context->getAntiCacheEvictionManager();
-        if (antiCacheManager != NULL && antiCacheManager->isEvictionPrepared() && antiCacheManager->isMarkedToEvict(table, tuple)) {
-            return true;
+        if (executor_context->isAntiCacheEnabled()) {
+          AntiCacheEvictionManager* antiCacheManager = executor_context->getAntiCacheEvictionManager();
+          assert(antiCacheManager);
+          if (antiCacheManager->hasInitEvictionPreparation() && antiCacheManager->isMarkedToEvict(table, tuple)) {
+              return true;
+          }
         }
         return false;
     }

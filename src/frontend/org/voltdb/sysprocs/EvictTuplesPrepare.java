@@ -19,6 +19,10 @@ import static org.voltdb.VoltTable.ColumnInfo;
 /**
  * Created by sam on 1/12/15.
  */
+@ProcInfo(
+        partitionParam = 0,
+        singlePartition = true
+)
 public class EvictTuplesPrepare extends VoltSystemProcedure {
 
     private static final Logger LOG = Logger.getLogger(EvictTuplesPrepare.class);

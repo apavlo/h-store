@@ -69,7 +69,7 @@ namespace voltdb
  
  */
     
-AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
+AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine, ExecutorContext& executorContext) {
     
     // Initialize readBlocks table
     m_engine = engine;
@@ -87,6 +87,8 @@ AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
     m_evictionInfo.prepared = false;
     m_evictionInfo.prepareTxnId = -1;
     m_evictionInfo.tracker = NULL;
+
+    m_trackersManager = new ReadWriteTrackerManager(&executorContext);
 }
 
 AntiCacheEvictionManager::~AntiCacheEvictionManager() {
@@ -98,6 +100,7 @@ AntiCacheEvictionManager::~AntiCacheEvictionManager() {
     //for (i = 1; i <= m_numdbs; i++) {
     //    delete m_db_lookup[i];
     //}
+    delete m_trackersManager;
 }
 
 void AntiCacheEvictionManager::initEvictResultTable() {
@@ -506,69 +509,129 @@ bool AntiCacheEvictionManager::removeTupleSingleLinkedList(PersistentTable* tabl
 }
 #endif
 
-bool AntiCacheEvictionManager::isEvictionPrepared() const {
+bool AntiCacheEvictionManager::hasInitEvictionPreparation() const {
     return m_evictionInfo.prepared;
 }
 
 bool AntiCacheEvictionManager::isMarkedToEvict(const PersistentTable &table, const TableTuple &tuple) const {
-    assert(isEvictionPrepared());
+    assert(hasInitEvictionPreparation());
     assert(m_evictionInfo.tracker);
     return m_evictionInfo.tracker->isMarkedTuple(table, tuple);
 }
 
 int64_t AntiCacheEvictionManager::getEvictionPrepareTxnId() const {
-    assert(isEvictionPrepared());
+    assert(hasInitEvictionPreparation());
     return m_evictionInfo.prepareTxnId;
 }
 
 void AntiCacheEvictionManager::evictBlockPrepareInit(int64_t prepareTxnId) {
-    assert(!isEvictionPrepared());
+    assert(!hasInitEvictionPreparation());
     EvictionInfo info;
     info.prepared = true;
     info.prepareTxnId = prepareTxnId;
-    info.tracker = m_engine->initializeAntiCacheEvictionTrackerOf(prepareTxnId);
+    assert(m_trackersManager);
+    info.tracker = m_trackersManager->enableTracking(prepareTxnId);
 
     m_evictionInfo = info;
 }
 
-void AntiCacheEvictionManager::evictBlockPrepare(int64_t prepareTxnId, PersistentTable *table, long blockSize, int numBlocks) {
-    assert(isEvictionPrepared());
+Table* AntiCacheEvictionManager::evictBlockPrepare(int64_t prepareTxnId, PersistentTable *table, long blockSize, int numBlocks) {
+    assert(hasInitEvictionPreparation());
     assert(getEvictionPrepareTxnId() == prepareTxnId);
+
+    int32_t lastTuplesEvicted = table->getTuplesEvicted();
+    int32_t lastBlocksEvicted = table->getBlocksEvicted();
+    int64_t lastBytesEvicted  = table->getBytesEvicted();
+    
+    // TODO: update table evicted data stats. But this change depends on changing evictBlockToDiskInBatch to directly get tuples from anticache's read/write set tracker. For now, the returned evicted data stats will be zero.
     if (evictBlockToDiskPrepare(table, blockSize, numBlocks) == false) {
         throwFatalException("Failed to prepare eviction from table '%s'", table->name().c_str());
     }
+
+    int32_t tuplesEvicted = table->getTuplesEvicted() - lastTuplesEvicted;
+    int32_t blocksEvicted = table->getBlocksEvicted() - lastBlocksEvicted; 
+    int64_t bytesEvicted = table->getBytesEvicted() - lastBytesEvicted;
+    
+    m_evictResultTable->deleteAllTuples(false);
+    TableTuple tuple = m_evictResultTable->tempTuple();
+    
+    int idx = 0;
+    tuple.setNValue(idx++, ValueFactory::getStringValue(table->name()));
+    tuple.setNValue(idx++, ValueFactory::getIntegerValue(static_cast<int32_t>(tuplesEvicted)));
+    tuple.setNValue(idx++, ValueFactory::getIntegerValue(static_cast<int32_t>(blocksEvicted)));
+    tuple.setNValue(idx++, ValueFactory::getBigIntValue(static_cast<int32_t>(bytesEvicted)));
+    m_evictResultTable->insertTuple(tuple);
+    
+    return (m_evictResultTable);
 }
 
-void AntiCacheEvictionManager::evictBlockPrepareInBatch(int64_t prepareTxnId, PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks) {
-    assert(isEvictionPrepared());
+Table* AntiCacheEvictionManager::evictBlockPrepareInBatch(int64_t prepareTxnId, PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks) {
+    assert(hasInitEvictionPreparation());
     assert(getEvictionPrepareTxnId() == prepareTxnId);
+
+    int32_t lastTuplesEvicted = table->getTuplesEvicted();
+    int32_t lastBlocksEvicted = table->getBlocksEvicted();
+    int64_t lastBytesEvicted  = table->getBytesEvicted();
+    int32_t childLastTuplesEvicted = childTable->getTuplesEvicted();
+    int32_t childLastBlocksEvicted = childTable->getBlocksEvicted();
+    int64_t childLastBytesEvicted  = childTable->getBytesEvicted();
+
+    // TODO: update table evicted data stats. But this change depends on changing evictBlockToDiskInBatch to directly get tuples from anticache's read/write set tracker. For now, the returned evicted data stats will be zero.
     if (evictBlockToDiskPrepareInBatch(table, childTable, blockSize, numBlocks) == false) {
         throwFatalException("Failed to prepare eviction in batch from table '%s', child table '%s'", table->name().c_str(), childTable->name().c_str());
     }
+
+    int32_t tuplesEvicted = table->getTuplesEvicted() - lastTuplesEvicted;
+    int32_t blocksEvicted = table->getBlocksEvicted() - lastBlocksEvicted;
+    int64_t bytesEvicted = table->getBytesEvicted() - lastBytesEvicted;
+
+    m_evictResultTable->deleteAllTuples(false);
+    TableTuple tuple = m_evictResultTable->tempTuple();
+
+    int idx = 0;
+    tuple.setNValue(idx++, ValueFactory::getStringValue(table->name()));
+    tuple.setNValue(idx++, ValueFactory::getIntegerValue(static_cast<int32_t>(tuplesEvicted)));
+    tuple.setNValue(idx++, ValueFactory::getIntegerValue(static_cast<int32_t>(blocksEvicted)));
+    tuple.setNValue(idx++, ValueFactory::getBigIntValue(static_cast<int32_t>(bytesEvicted)));
+    m_evictResultTable->insertTuple(tuple);
+
+    int32_t childTuplesEvicted = childTable->getTuplesEvicted() - childLastTuplesEvicted;
+    int32_t childBlocksEvicted = childTable->getBlocksEvicted() - childLastBlocksEvicted;
+    int64_t childBytesEvicted = childTable->getBytesEvicted() - childLastBytesEvicted;
+
+    idx = 0;
+    tuple.setNValue(idx++, ValueFactory::getStringValue(childTable->name()));
+    tuple.setNValue(idx++, ValueFactory::getIntegerValue(static_cast<int32_t>(childTuplesEvicted)));
+    tuple.setNValue(idx++, ValueFactory::getIntegerValue(static_cast<int32_t>(childBlocksEvicted)));
+    tuple.setNValue(idx++, ValueFactory::getBigIntValue(static_cast<int32_t>(childBytesEvicted)));
+    m_evictResultTable->insertTuple(tuple);
+
+    return (m_evictResultTable);
 }
 
-void AntiCacheEvictionManager::evictBlockWork(int64_t prepareTxnId, PersistentTable *table, long blockSize, int numBlocks) {
-    assert(isEvictionPrepared());
+Table* AntiCacheEvictionManager::evictBlockWork(int64_t prepareTxnId, PersistentTable *table, long blockSize, int numBlocks) {
+    assert(hasInitEvictionPreparation());
     assert(getEvictionPrepareTxnId() == prepareTxnId);
     // TODO: evict from tracker
-    evictBlock(table, blockSize, numBlocks);
+    return evictBlock(table, blockSize, numBlocks);
 }
 
-void AntiCacheEvictionManager::evictBlockWorkInBatch(int64_t prepareTxnId, PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks) {
-    assert(isEvictionPrepared());
+Table* AntiCacheEvictionManager::evictBlockWorkInBatch(int64_t prepareTxnId, PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks) {
+    assert(hasInitEvictionPreparation());
     assert(getEvictionPrepareTxnId() == prepareTxnId);
     // TODO: evict from tracker
-    evictBlockInBatch(table, childTable, blockSize, numBlocks);
+    return evictBlockInBatch(table, childTable, blockSize, numBlocks);
 }
 
 void AntiCacheEvictionManager::evictBlockFinish(int64_t prepareTxnId) {
-    assert(isEvictionPrepared());
+    assert(hasInitEvictionPreparation());
     assert(getEvictionPrepareTxnId() == prepareTxnId);
     EvictionInfo info;
     info.prepared = false;
     info.prepareTxnId = -1;
     info.tracker = NULL;
     m_evictionInfo = info;
+    m_trackersManager->removeTracker(prepareTxnId);
 }
 
 bool AntiCacheEvictionManager::evictBlockToDiskPrepare(PersistentTable *table, const long block_size, int num_blocks) {

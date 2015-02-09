@@ -303,8 +303,6 @@ class __attribute__((visibility("default"))) VoltDBEngine {
 //         std::vector<std::string> trackingTablesWritten(int64_t txnId);
         int trackingTupleSet(int64_t txnId, bool writes);
 
-        ReadWriteTracker* initializeAntiCacheEvictionTrackerOf(int64_t prepareTxnId) const;
-        
         // -------------------------------------------------
         // ANTI-CACHE FUNCTIONS
         // -------------------------------------------------
@@ -326,6 +324,8 @@ class __attribute__((visibility("default"))) VoltDBEngine {
         int antiCacheEvictBlockInBatch(int32_t tableId, int32_t childTableId, long blockSize, int numBlocks);
         int antiCacheMergeBlocks(int32_t tableId);
         void antiCacheResetEvictedTupleTracker();
+        
+        void assertEvictionPreparedFor(int64_t prepareTxnId, const std::string& operation) const;
         #endif
 
         // -------------------------------------------------

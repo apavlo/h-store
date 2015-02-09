@@ -95,7 +95,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 
     private final BBContainer antiCacheUtilityBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 10);
     private ByteBuffer antiCacheUtilityBuffer = antiCacheUtilityBufferOrigin.b;
-    
+    private FastDeserializer antiCacheUtilityBufferDeserializer = new FastDeserializer(antiCacheUtilityBufferOrigin.b);
+
     /**
      * Java cache for read/write tracking sets
      */
@@ -887,7 +888,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
-        deserializer.clear();
+        antiCacheUtilityBufferDeserializer.clear();
 
         // TODO: error condition?
         nativeAntiCacheEvictBlockPrepareInit(pointer, prepareTxnId);
@@ -899,7 +900,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
-        deserializer.clear();
+        antiCacheUtilityBufferDeserializer.clear();
 
         final int numResults = nativeAntiCacheEvictBlockPrepare(
                 pointer, prepareTxnId, catalog_tbl.getRelativeIndex(), block_size,
@@ -909,11 +910,11 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             throwExceptionForError(ERRORCODE_ERROR);
         }
         try {
-            deserializer.readInt();
+            antiCacheUtilityBufferDeserializer.readInt();
             VoltTable results[] = new VoltTable[numResults];
             for (int i = 0; i < numResults;  i++) {
                 VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
-                results[i] = (VoltTable) deserializer.readObject(resultTable, this);
+                results[i] = (VoltTable) antiCacheUtilityBufferDeserializer.readObject(resultTable, this);
             }
             return results[0];
         } catch (IOException e) {
@@ -928,7 +929,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
-        deserializer.clear();
+        antiCacheUtilityBufferDeserializer.clear();
 
         // TODO: error condition?
         nativeAntiCacheEvictBlockFinish(pointer, prepareTxnId);
@@ -971,7 +972,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
-        deserializer.clear();
+        antiCacheUtilityBufferDeserializer.clear();
 
         int numResults = nativeAntiCacheEvictBlockPrepareInBatch(
                 pointer, prepareTxnId, catalog_tbl.getRelativeIndex(), childTable.getRelativeIndex(), block_size,
@@ -981,11 +982,11 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             throwExceptionForError(ERRORCODE_ERROR);
         }
         try {
-            deserializer.readInt();
+            antiCacheUtilityBufferDeserializer.readInt();
             VoltTable[] results = new VoltTable[numResults];
             for (int i = 9; i < numResults; i++) {
                 VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
-                results[i] = (VoltTable) deserializer.readObject(resultTable, this);
+                results[i] = (VoltTable) antiCacheUtilityBufferDeserializer.readObject(resultTable, this);
             }
             return results[0];
         } catch (IOException e) {
@@ -1000,7 +1001,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
-        deserializer.clear();
+        antiCacheUtilityBufferDeserializer.clear();
 
         final int numResults = nativeAntiCacheEvictBlockWork(pointer, prepareTxnId, table.getRelativeIndex(), blockSize, numBlock);
         if (numResults == -1) {
@@ -1008,11 +1009,11 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             throwExceptionForError(ERRORCODE_ERROR);
         }
         try {
-            deserializer.readInt();//Ignore the length of the result tables
+            antiCacheUtilityBufferDeserializer.readInt();//Ignore the length of the result tables
             final VoltTable results[] = new VoltTable[numResults];
             for (int ii = 0; ii < numResults; ii++) {
                 final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
-                results[ii] = (VoltTable)deserializer.readObject(resultTable, this);
+                results[ii] = (VoltTable) antiCacheUtilityBufferDeserializer.readObject(resultTable, this);
             }
             return results[0];
         } catch (final IOException ex) {
@@ -1027,7 +1028,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
-        deserializer.clear();
+        antiCacheUtilityBufferDeserializer.clear();
 
         final int numResults = nativeAntiCacheEvictBlockWorkInBatch(pointer, prepareTxnId, catalog_tbl.getRelativeIndex(), childTable.getRelativeIndex(), block_size, num_blocks);
         if (numResults == -1) {
@@ -1039,7 +1040,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             final VoltTable results[] = new VoltTable[numResults];
             for (int ii = 0; ii < numResults; ii++) {
                 final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
-                results[ii] = (VoltTable)deserializer.readObject(resultTable, this);
+                results[ii] = (VoltTable) antiCacheUtilityBufferDeserializer.readObject(resultTable, this);
             }
             return results[0];
         } catch (final IOException ex) {

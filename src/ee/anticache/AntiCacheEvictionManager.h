@@ -51,22 +51,22 @@ class EvictionIterator;
 class AntiCacheEvictionManager {
         
 public: 
-    AntiCacheEvictionManager(const VoltDBEngine *engine);
+    AntiCacheEvictionManager(const VoltDBEngine *engine, ExecutorContext& executorContext);
     ~AntiCacheEvictionManager();
     
     bool updateTuple(PersistentTable* table, TableTuple* tuple, bool is_insert);
     bool updateUnevictedTuple(PersistentTable* table, TableTuple* tuple);
     bool removeTuple(PersistentTable* table, TableTuple* tuple); 
 
-    bool isEvictionPrepared() const;
+    bool hasInitEvictionPreparation() const;
     bool isMarkedToEvict(const PersistentTable &table, const TableTuple &tuple) const;
     int64_t getEvictionPrepareTxnId() const;
 
     void evictBlockPrepareInit(int64_t prepareTxnId);
-    void evictBlockPrepare(int64_t prepareTxnId, PersistentTable *table, long blockSize, int numBlocks);
-    void evictBlockPrepareInBatch(int64_t prepareTxnId, PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks);
-    void evictBlockWork(int64_t prepareTxnId, PersistentTable *table, long blockSize, int numBlocks);
-    void evictBlockWorkInBatch(int64_t prepareTxnId, PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks);
+    Table* evictBlockPrepare(int64_t prepareTxnId, PersistentTable *table, long blockSize, int numBlocks);
+    Table* evictBlockPrepareInBatch(int64_t prepareTxnId, PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks);
+    Table* evictBlockWork(int64_t prepareTxnId, PersistentTable *table, long blockSize, int numBlocks);
+    Table* evictBlockWorkInBatch(int64_t prepareTxnId, PersistentTable *table, PersistentTable *childTable, long blockSize, int numBlocks);
     void evictBlockFinish(int64_t prepareTxnId);
 
     bool evictBlockToDiskPrepare(PersistentTable *table, const long block_size, int num_blocks);
@@ -143,6 +143,9 @@ protected:
       ReadWriteTracker* tracker;
     };
     EvictionInfo m_evictionInfo;
+
+    ReadWriteTrackerManager* m_trackersManager;
+
 }; // AntiCacheEvictionManager class
 
 

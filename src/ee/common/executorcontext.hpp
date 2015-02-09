@@ -229,7 +229,7 @@ namespace voltdb {
             assert(m_antiCacheEnabled == false);
             m_antiCacheEnabled = true;
             m_levels = 0;
-            m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
+            m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine, *this);
             addAntiCacheDB(dbDir, blockSize, dbType, maxSize);
         }
 

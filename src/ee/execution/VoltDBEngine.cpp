@@ -1971,11 +1971,6 @@ int VoltDBEngine::trackingTupleSet(int64_t txnId, bool writes) {
     return (ENGINE_ERRORCODE_ERROR);
 }
 
-ReadWriteTracker* VoltDBEngine::initializeAntiCacheEvictionTrackerOf(int64_t prepareTxnId) const {
-    ReadWriteTrackerManager *trackerMgr = m_executorContext->getTrackerManager();
-    return trackerMgr->enableTracking(prepareTxnId);
-}
-
 // std::vector<std::string> VoltDBEngine::trackingTablesRead(int64_t txnId) {
 //     if (m_executorContext->isTrackingEnabled()) {
 //         ReadWriteTracker *tracker = m_executorContext->getTrackerManager(txnId);
@@ -2055,118 +2050,165 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
 }
 
 int VoltDBEngine::antiCacheEvictBlockPrepareInit(int64_t prepareTxnId) {
-    AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
-    if (antiCacheManager->isEvictionPrepared()) {
-        VOLT_ERROR("antiCacheEvictBlockPrepareInit: failed to initiate preparation in transaction %ld, because another transaction %ld has done so", prepareTxnId, antiCacheManager->getEvictionPrepareTxnId());
-        // TODO unexpected eviction exception.
-        //resetAntiCacheUtilityOutputBuffer();
-        //e.serialize(getAntiCacheUtilityOutputSerializer());
-        //return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
-        throwFatalException("Unexpected exception in eviction prepareInit");
+    try {
+        AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+        assert(antiCacheManager);
+        assert(!antiCacheManager->hasInitEvictionPreparation());
+        antiCacheManager->evictBlockPrepareInit(prepareTxnId);
+    } catch (SerializableEEException &e) {
+        VOLT_ERROR("antiCacheEvictBlockPrepareInit");
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
     }
-    antiCacheManager->evictBlockPrepareInit(prepareTxnId);
+
     return ENGINE_ERRORCODE_SUCCESS;
 }
+
+void VoltDBEngine::assertEvictionPreparedFor(int64_t prepareTxnId, const string& operation) const {
+    AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+    assert(antiCacheManager);
+    if (!antiCacheManager->hasInitEvictionPreparation()) {
+        VOLT_ERROR("Failed in %s: Eviction is not prepared yet for transaction %ld", operation.c_str(), prepareTxnId);
+        throwFatalException("Unexpected exception in eviction prepareInit");
+    }
+
+    if (antiCacheManager->getEvictionPrepareTxnId() != prepareTxnId) {
+        VOLT_ERROR("Failed in %s: Eviction is prepared but not for transaction %ld, because another transaction %ld has done so", operation.c_str(), prepareTxnId, antiCacheManager->getEvictionPrepareTxnId());
+        throwFatalException("Unexpected exception in eviction prepareInit");
+    }
+}
+
 
 int VoltDBEngine::antiCacheEvictBlockPrepare(int64_t prepareTxnId, int32_t tableId, long blockSize, int numBlocks) {
     AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
 
-    if (!antiCacheManager->isEvictionPrepared()) {
-        VOLT_ERROR("antiCacheEvictBlockPrepare: preparation has not been initiated");
-        // TODO unexpected eviction exception.
-        //resetAntiCacheUtilityOutputBuffer();
-        //e.serialize(getAntiCacheUtilityOutputSerializer());
-        //return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
-        throwFatalException("Unexpected exception in eviction prepare");
+    try {
+        assertEvictionPreparedFor(prepareTxnId, "EvictBlockPrepare");
+        PersistentTable *table = dynamic_cast<PersistentTable*>(getTable(tableId));
+        if (table == NULL) {
+          throwFatalException("Invalid table id %d", tableId);
+        }
+
+        size_t lengthPosition = m_antiCacheUtilityOutput.reserveBytes(sizeof(int32_t));
+        Table *resultTable = antiCacheManager->evictBlockPrepare(prepareTxnId, table, blockSize, numBlocks);
+        if (resultTable) {
+          resultTable->serializeTo(m_antiCacheUtilityOutput);
+          m_antiCacheUtilityOutput.writeIntAt(lengthPosition, static_cast<int32_t>(m_antiCacheUtilityOutput.size() - sizeof(int32_t)));
+          return ENGINE_ERRORCODE_ERROR; // Why? This is copied from existing code snippet e.g. at antiCacheEvictBlock().
+        }
+    } catch (SerializableEEException &e) {
+        VOLT_ERROR("antiCacheEvictBlockPrepare");
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
     }
 
-    PersistentTable *table = dynamic_cast<PersistentTable*>(getTable(tableId));
-    if (table == NULL) {
-        throwFatalException("Invalid table id %d", tableId);
-    }
-
-    antiCacheManager->evictBlockPrepare(prepareTxnId, table, blockSize, numBlocks);
     return ENGINE_ERRORCODE_SUCCESS;
 }
 
 int VoltDBEngine::antiCacheEvictBlockPrepareInBatch(int64_t prepareTxnId, int32_t tableId, int32_t childTableId, long blockSize, int numBlocks) {
-    AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
-    if (!antiCacheManager->isEvictionPrepared()) {
-        VOLT_ERROR("antiCacheEvictBlockPrepare: preparation has not been initiated");
-        // TODO unexpected eviction exception.
-        //resetAntiCacheUtilityOutputBuffer();
-        //e.serialize(getAntiCacheUtilityOutputSerializer());
-        //return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
-        throwFatalException("Unexpected exception in eviction prepare");
+    try {
+        AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+        assert(antiCacheManager);
+        assertEvictionPreparedFor(prepareTxnId, "EvictBlockPrepareInBatch");
+        PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
+        PersistentTable *childTable = dynamic_cast<PersistentTable*>(this->getTable(childTableId));
+        if (table == NULL) {
+            throwFatalException("Invalid table id %d", tableId);
+        }
+        if (childTable == NULL) {
+            throwFatalException("Invalid table id %d", childTableId);
+        }
+
+        size_t lengthPosition = m_antiCacheUtilityOutput.reserveBytes(sizeof(int32_t));
+        Table *resultTable = antiCacheManager->evictBlockPrepareInBatch(prepareTxnId, table, childTable, blockSize, numBlocks);
+        if (resultTable) {
+          resultTable->serializeTo(m_antiCacheUtilityOutput);
+          m_antiCacheUtilityOutput.writeIntAt(lengthPosition, static_cast<int32_t>(m_antiCacheUtilityOutput.size() - sizeof(int32_t)));
+          return ENGINE_ERRORCODE_ERROR; // Why? This is copied from existing code snippet e.g. at antiCacheEvictBlock().
+        }
+    } catch (SerializableEEException &e) {
+        VOLT_ERROR("antiCacheEvictBlockPrepareInBatch");
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
     }
 
-    PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
-    PersistentTable *childTable = dynamic_cast<PersistentTable*>(this->getTable(childTableId));
-    if (table == NULL) {
-        throwFatalException("Invalid table id %d", tableId);
-    }
-    if (childTable == NULL) {
-        throwFatalException("Invalid table id %d", childTableId);
-    }
-
-    antiCacheManager->evictBlockPrepareInBatch(prepareTxnId, table, childTable, blockSize, numBlocks);
     return ENGINE_ERRORCODE_SUCCESS;
 }
 
 int VoltDBEngine::antiCacheEvictBlockWork(int64_t prepareTxnId, int32_t tableId, long blockSize, int numBlocks) {
-    AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
-    if (!antiCacheManager->isEvictionPrepared()) {
-        VOLT_ERROR("antiCacheEvictBlockPrepare: preparation has not been initiated");
-        // TODO unexpected eviction exception.
-        //resetAntiCacheUtilityOutputBuffer();
-        //e.serialize(getAntiCacheUtilityOutputSerializer());
-        //return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
-        throwFatalException("Unexpected exception in eviction work");
-    }
-    
-    PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
-    if (table == NULL) {
-        throwFatalException("Invalid table id %d", tableId);
-    }
+    try {
+        AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+        assert(antiCacheManager);
+        assertEvictionPreparedFor(prepareTxnId, "EvictBlockWork");
+        
+        PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
+        if (table == NULL) {
+            throwFatalException("Invalid table id %d", tableId);
+        }
 
-    antiCacheManager->evictBlockWork(prepareTxnId, table, blockSize, numBlocks);
+        size_t lengthPosition = m_antiCacheUtilityOutput.reserveBytes(sizeof(int32_t));
+        Table *resultTable = antiCacheManager->evictBlockWork(prepareTxnId, table, blockSize, numBlocks);
+        if (resultTable) {
+          resultTable->serializeTo(m_antiCacheUtilityOutput);
+          m_antiCacheUtilityOutput.writeIntAt(lengthPosition, static_cast<int32_t>(m_antiCacheUtilityOutput.size() - sizeof(int32_t)));
+          return ENGINE_ERRORCODE_ERROR; // Why? This is copied from existing code snippet e.g. at antiCacheEvictBlock().
+        }
+    } catch (SerializableEEException &e) {
+        VOLT_ERROR("antiCacheEvictBlockPrepareInit");
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
+    }
     return ENGINE_ERRORCODE_SUCCESS;
 }
 
 int VoltDBEngine::antiCacheEvictBlockWorkInBatch(int64_t prepareTxnId, int32_t tableId, int32_t childTableId, long blockSize, int numBlocks) {
-    AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
-    if (!antiCacheManager->isEvictionPrepared()) {
-        VOLT_ERROR("antiCacheEvictBlockPrepare: preparation has not been initiated");
-        // TODO: unepxected eviction exception
-        //return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
-        throwFatalException("Unexpected exception in eviction work");
-    }
+    try {
+        AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+        assert(antiCacheManager);
+        assertEvictionPreparedFor(prepareTxnId, "EvictBlockWorkInBatch");
 
-    PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
-    PersistentTable *childTable = dynamic_cast<PersistentTable*>(this->getTable(childTableId));
-    if (table == NULL) {
-        throwFatalException("Invalid table id %d", tableId);
-    }
-    if (childTable == NULL) {
-        throwFatalException("Invalid table id %d", childTableId);
-    }
+        PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
+        PersistentTable *childTable = dynamic_cast<PersistentTable*>(this->getTable(childTableId));
+        if (table == NULL) {
+            throwFatalException("Invalid table id %d", tableId);
+        }
+        if (childTable == NULL) {
+            throwFatalException("Invalid table id %d", childTableId);
+        }
 
-    antiCacheManager->evictBlockWorkInBatch(prepareTxnId, table, childTable, blockSize, numBlocks);
+        size_t lengthPosition = m_antiCacheUtilityOutput.reserveBytes(sizeof(int32_t));
+        Table *resultTable = antiCacheManager->evictBlockWorkInBatch(prepareTxnId, table, childTable, blockSize, numBlocks);
+        if (resultTable) {
+          resultTable->serializeTo(m_antiCacheUtilityOutput);
+          m_antiCacheUtilityOutput.writeIntAt(lengthPosition, static_cast<int32_t>(m_antiCacheUtilityOutput.size() - sizeof(int32_t)));
+          return ENGINE_ERRORCODE_ERROR; // Why? This is copied from existing code snippet e.g. at antiCacheEvictBlock().
+        }
+    } catch (SerializableEEException &e) {
+        VOLT_ERROR("antiCacheEvictBlockPrepareInit");
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
+    }
     return ENGINE_ERRORCODE_SUCCESS;
 }
 
 int VoltDBEngine::antiCacheEvictBlockFinish(int64_t prepareTxnId) {
-    AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
-    if (!antiCacheManager->isEvictionPrepared()) {
-        VOLT_ERROR("antiCacheEvictBlockPrepare: preparation has not been initiated");
-        // TODO: unexpected eviction exception.
-        //resetAntiCacheUtilityOutputBuffer();
-        //e.serialize(getAntiCacheUtilityOutputSerializer());
-        //return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
-        throwFatalException("Unexpected exception in eviction work");
-    }
+    try {
+        AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+        assert(antiCacheManager);
+        assertEvictionPreparedFor(prepareTxnId, "EvictBlockFinish");
 
-    antiCacheManager->evictBlockFinish(prepareTxnId);
+        antiCacheManager->evictBlockFinish(prepareTxnId);
+    } catch (SerializableEEException &e) {
+        VOLT_ERROR("antiCacheEvictBlockPrepareInit");
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
+    }
     return ENGINE_ERRORCODE_SUCCESS;
 }
 

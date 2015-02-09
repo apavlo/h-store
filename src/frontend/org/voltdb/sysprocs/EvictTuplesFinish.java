@@ -3,10 +3,7 @@ package org.voltdb.sysprocs;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.logging.LoggerUtil;
 import org.apache.log4j.Logger;
-import org.voltdb.DependencySet;
-import org.voltdb.ParameterSet;
-import org.voltdb.VoltSystemProcedure;
-import org.voltdb.VoltTable;
+import org.voltdb.*;
 import org.voltdb.jni.ExecutionEngine;
 
 import java.util.List;
@@ -15,6 +12,10 @@ import java.util.Map;
 /**
  * Created by sam on 1/22/15.
  */
+@ProcInfo(
+        partitionParam = 0,
+        singlePartition = true
+)
 public class EvictTuplesFinish extends VoltSystemProcedure {
 
     private static final Logger LOG = Logger.getLogger(EvictTuplesFinish.class);
