@@ -572,7 +572,11 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
         // get the LS16B and send that to the antiCacheDB
         int16_t _block_id = antiCacheDB->nextBlockId();
 
-        int32_t block_id = (int32_t)antiCacheDB->getACID();
+        // find out whether this tier blocks and set a flag (bit 19)
+        // then shift 3b for the ACID (8 levels)
+        // then shift 16b for the tier-unique block id (TUID)
+        int32_t block_id = antiCacheDB->isBlocking();
+        block_id = ((block_id << 3) | (int32_t)antiCacheDB->getACID());
         block_id = ((block_id << 16) | (int32_t)_block_id); 
 
 
@@ -807,7 +811,12 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
    //     this->printLRUChain(childTable, 4, true);
         // get a unique block id from the executorContext
         int16_t _block_id = antiCacheDB->nextBlockId();
-        int32_t block_id = ((antiCacheDB->getACID() << 16) | _block_id);
+        // find out whether this tier blocks and set a flag (bit 19)
+        // then shift 3b for the ACID (8 levels)
+        // then shift 16b for the tier-unique block id (TUID)
+        int32_t block_id = antiCacheDB->isBlocking();
+        block_id = ((block_id << 3) | (int32_t)antiCacheDB->getACID());
+        block_id = ((block_id << 16) | (int32_t)_block_id); 
 
         // create a new evicted table tuple based on the schema for the source tuple
         TableTuple evicted_tuple = evictedTable->tempTuple();
@@ -1153,11 +1162,17 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
      * Finds the AntiCacheDB* instance associated with the needed block_id
      */
     int16_t _block_id = (int16_t)(block_id & 0x0000FFFF);
-    int16_t ACID = (int16_t)((block_id & 0xFFFF0000) >> 16);
-    VOLT_DEBUG("block_id: %d ACID: %d _block_id: %d\n", block_id, ACID, _block_id);
+    int16_t ACID = (int16_t)((block_id & 0x00070000) >> 16);
+    bool blocking = (bool)((block_id & 0x00080000) >> 19);
+    VOLT_DEBUG("block_id: %d ACID: %d _block_id: %d blocking: %d\n", block_id, ACID, _block_id, (int)blocking);
 
     AntiCacheDB* antiCacheDB = m_db_lookup[ACID]; 
-    
+
+    // garbage, remove later MJG
+    if (blocking != antiCacheDB->isBlocking()) {
+        VOLT_WARN("blocking != antiCacheDB->isBlocking(). Investigate!");
+    }
+
     /*std::map<int16_t, AntiCacheDB*>::iterator it = m_db_lookup_table.find(block_id);
     if (it == m_db_lookup_table.end()) {
         VOLT_WARN("Block %d not found in db_lookup_table.", it->first);
@@ -1317,12 +1332,18 @@ int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* ds
         return _new_block_id;
     }
     
-    int16_t acid = (int16_t)((block_id & 0xFFFF0000) >> 16);
+    int16_t acid = (int16_t)((block_id & 0x00070000) >> 16);
+    bool blocking = (bool)((block_id & 0x00080000) >> 19);
     int16_t _block_id = (int16_t)(block_id & 0x0000FFFF);
     AntiCacheDB* srcDB = m_db_lookup[acid];
 
-    VOLT_TRACE("source: block_id: %x _block_id: %x acid: %x",
-            block_id, _block_id, acid);
+    // garbage. remove later MJG
+    if (blocking != srcDB->isBlocking()) {
+        VOLT_WARN("blocking != srcDB->isBlocking(). Investigate!");
+    }
+
+    VOLT_TRACE("source: block_id: %x _block_id: %x acid: %x blocking: %d",
+            block_id, _block_id, acid, (int)blocking);
     AntiCacheBlock* block = srcDB->readBlock(_block_id);    
     //VOLT_DEBUG("oldname: %s\n", block->getTableName().c_str());
     _new_block_id = dstDB->nextBlockId();
@@ -1336,8 +1357,10 @@ int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* ds
 
     new_block_id = (int32_t) _new_block_id;
     new_block_id = new_block_id | (new_acid << 16);
-    VOLT_DEBUG("block_id: %x _block_id: %x acid: %x new_block_id: %x _new_block_id: %x new_acid: %x",
-            block_id, _block_id, acid, new_block_id, _new_block_id, new_acid);
+    new_block_id = new_block_id | (dstDB->isBlocking() << 19);
+
+    VOLT_DEBUG("block_id: %x _block_id: %x acid: %x blocking: %d new_block_id: %x _new_block_id: %x new_acid: %x new_blocking: %d",
+            block_id, _block_id, acid, srcDB->isBlocking(), new_block_id, _new_block_id, new_acid, dstDB->isBlocking());
 
     std::string tableName = block->getTableName();
     PersistentTable *table = dynamic_cast<PersistentTable*>(m_engine->getTable(tableName));
@@ -1403,8 +1426,9 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
     new_acid = dstDB->getACID();
     new_block_id = (int32_t) _new_block_id;
     new_block_id = new_block_id | (new_acid << 16);
-    VOLT_DEBUG("new_block_id: %x _new_block_id: %x new_acid: %x",
-            new_block_id, _new_block_id, new_acid);
+    new_block_id = new_block_id | (dstDB->isBlocking() << 19);
+    VOLT_DEBUG("new_block_id: %x _new_block_id: %x new_acid: %x blocking: %d",
+            new_block_id, _new_block_id, new_acid, dstDB->isBlocking());
 
     std::string tableName = block->getTableName();
     PersistentTable *table = dynamic_cast<PersistentTable*>(m_engine->getTable(tableName));
