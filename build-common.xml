@@ -183,6 +183,7 @@
 <arg value="site.txn_client_debug=${site.txn_client_debug}" />
 <arg value="site.txn_profiling=${site.txn_profiling}" />
 <arg value="site.txn_profiling_sample=${site.txn_profiling_sample}" />
+<arg value="site.txn_profiling_dump=${site.txn_profiling_dump}" />
 <arg value="site.txn_counters=${site.txn_counters}" />
 <arg value="site.txn_incoming_delay=${site.txn_incoming_delay}" />
 <arg value="site.txn_restart_limit=${site.txn_restart_limit}" />

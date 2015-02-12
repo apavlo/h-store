@@ -40,7 +40,6 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltTable;
 import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Statement;
-import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.types.SpeculationType;
 import org.voltdb.utils.EstTime;

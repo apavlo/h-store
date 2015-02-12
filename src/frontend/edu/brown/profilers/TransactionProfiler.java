@@ -680,8 +680,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * Disable all profiling for this transaction
      */
     public void disableProfiling() {
-        if (debug.val)
-            LOG.debug("Disabling transaction profiling");
+        if (trace.val) LOG.trace("Disabling transaction profiling");
         this.disabled = true;
     }
 
@@ -689,8 +688,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * Enable profiling for this transaction This should only be invoked before the txn starts
      */
     public void enableProfiling() {
-        if (debug.val)
-            LOG.debug("Enabling transaction profiling");
+        if (trace.val) LOG.trace("Enabling transaction profiling");
         this.disabled = false;
     }
 
@@ -735,7 +733,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public boolean isInitialized() {
         return true;
     }
-
+    
     @Override
     public Map<String, Object> debugMap() {
         Map<String, Object> m = super.debugMap();

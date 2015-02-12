@@ -987,6 +987,16 @@ public final class HStoreConf {
         public double txn_profiling_sample;
         
         @ConfigProperty(
+            description="If this is set to true, then each HStoreSite will write out a CSV file on its " +
+            		    "local filesystem that contains a dump of the runtime profiling information for " +
+            		    "each transaction. Check the site log for the output name of each file. " +
+                        "Note that the the ${site.txn_profiling} parameter must also be enabled.",
+            defaultBoolean=false,
+            experimental=false
+        )
+        public boolean txn_profiling_dump;
+        
+        @ConfigProperty(
             description="Enable transaction execution mode counting. This will cause the HStoreSite to keep " +
                         "track of various properties about tranasctions, such as the number that were speculatively " +
                         "executed or had to be restarted.",

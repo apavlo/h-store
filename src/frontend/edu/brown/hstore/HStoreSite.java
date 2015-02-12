@@ -122,6 +122,7 @@ import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.hstore.util.MapReduceHelperThread;
 import edu.brown.hstore.util.TransactionCounter;
+import edu.brown.hstore.util.TransactionProfilerDumper;
 import edu.brown.interfaces.Configurable;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.interfaces.Shutdownable;
@@ -418,6 +419,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
      * Profiler
      */
     private HStoreSiteProfiler profiler = new HStoreSiteProfiler();
+
+    /**
+     * Transaction Profiler Dumper!
+     */
+    private TransactionProfilerDumper txn_profiler_dumper;
     
     // ----------------------------------------------------------------------------
     // CACHED STRINGS
@@ -762,6 +768,16 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         
         this.initPeriodicWorks();
         
+        // Transaction Profile CSV Dumper
+        if (hstore_conf.site.txn_profiling && hstore_conf.site.txn_profiling_dump) {
+            File csvFile = new File(hstore_conf.global.log_dir +
+                                    File.separator +
+                                    this.getSiteName().toLowerCase() +
+                                    "-profiler.csv");
+            this.txn_profiler_dumper = new TransactionProfilerDumper(csvFile);
+            LOG.info(String.format("Transaction profile data will be written to '%s'", csvFile));
+        }
+        
         // Add in our shutdown hook
         // Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
         
@@ -916,6 +932,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     /**
      * Thread that is periodically executed to take snapshots
      */
+    @SuppressWarnings("unused")
     private final ExceptionHandlingRunnable snapshotter = new ExceptionHandlingRunnable() {
         @Override
         public void runImpl() {
@@ -1763,6 +1780,14 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             this.hstore_coordinator.shutdown();
         }
         
+        if (this.txn_profiler_dumper != null) {
+            try {
+                this.txn_profiler_dumper.close();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+        
         if (this.voltNetwork != null) {
             try {
                 this.voltNetwork.shutdown();
@@ -2184,7 +2209,6 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
             // We will want to delete this transaction after we reject it if it is a single-partition txn
             // Otherwise we will let the normal distributed transaction process clean things up
-            LOG.info("the reject happened here!!!");
             this.transactionReject(ts, status);
             if (singlePartitioned) this.queueDeleteTransaction(ts.getTransactionId(), status);
         }        
@@ -3063,6 +3087,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             }
         }
         
+        if (hstore_conf.site.txn_profiling && hstore_conf.site.txn_profiling_dump &&
+            this.txn_profiler_dumper != null && ts.profiler != null) { //  && ts.profiler.isDisabled() == false) {
+            this.txn_profiler_dumper.writeRow(ts);
+        }
+        
         // Update additional transaction profiling counters
         if (hstore_conf.site.txn_counters) {
             // Speculative Execution Counters
@@ -3087,6 +3116,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                     case SP3_REMOTE:
                         TransactionCounter.SPECULATIVE_SP3_REMOTE.inc(catalog_proc);
                         break;
+                    default:
+                        throw new RuntimeException("Unexpected " + ts.getSpeculationType());
                 } // SWITCH
             }
             
