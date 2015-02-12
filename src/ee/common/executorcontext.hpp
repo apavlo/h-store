@@ -225,21 +225,21 @@ namespace voltdb {
          * The input parameter is the directory where our disk-based storage
          * will write out evicted blocks of tuples for this partition
          */
-        void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize, AntiCacheDBType dbType, long maxSize) {
+        void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize, AntiCacheDBType dbType, bool blocking, long maxSize) {
             assert(m_antiCacheEnabled == false);
             m_antiCacheEnabled = true;
             m_levels = 0;
             m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
-            addAntiCacheDB(dbDir, blockSize, dbType, maxSize);
+            addAntiCacheDB(dbDir, blockSize, dbType, blocking, maxSize);
         }
 
-        void addAntiCacheDB(std::string &dbDir, long blockSize, AntiCacheDBType dbType, long maxSize) {
+        void addAntiCacheDB(std::string &dbDir, long blockSize, AntiCacheDBType dbType, bool blocking, long maxSize) {
             assert(m_antiCacheEnabled == true);
             m_dbType[m_levels] = dbType;
             // MJG: need a better error return (throw exception?) 
             if (dbType == ANTICACHEDB_BERKELEY) {
                 m_antiCacheDB[m_levels] = new BerkeleyAntiCacheDB(this, dbDir, blockSize, maxSize);
-//                m_antiCacheEvictionManager->addAntiCacheDB(new BerkeleyAntiCacheDB(this, dbDir, blockSize, maxSize));
+//              m_antiCacheEvictionManager->addAntiCacheDB(new BerkeleyAntiCacheDB(this, dbDir, blockSize, maxSize));
             } else if (dbType == ANTICACHEDB_NVM) {
                 m_antiCacheDB[m_levels] = new NVMAntiCacheDB(this, dbDir, blockSize, maxSize);
                 //m_antiCacheEvictionManager->addAntiCacheDB(new NVMAntiCacheDB(this, dbDir, blockSize, maxSize));
@@ -247,6 +247,7 @@ namespace voltdb {
                 VOLT_ERROR("Invalid AntiCacheDBType: %d! Aborting...", (int)dbType);
                 assert(m_antiCacheEnabled == false);
             }  
+            m_antiCacheDB[m_levels]->setBlocking(blocking);
             m_antiCacheEvictionManager->addAntiCacheDB(m_antiCacheDB[m_levels]);
             m_levels++;
         }

@@ -777,7 +777,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     // ----------------------------------------------------------------------------
 
     @Override
-    public void antiCacheInitialize(File dbDir, AntiCacheDBType dbType, long blockSize, long maxSize) throws EEException {
+    public void antiCacheInitialize(File dbDir, AntiCacheDBType dbType, boolean blocking, long blockSize, long maxSize) throws EEException {
         assert(m_anticache == false);
 
         // TODO: Switch to LOG.debug
@@ -789,15 +789,15 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             LOG.debug(String.format("AntiCacheDBType: %d", dbType.ordinal()));
         }
       
-        final int errorCode = nativeAntiCacheInitialize(this.pointer, dbDir.getAbsolutePath(), blockSize, dbType.ordinal(), maxSize);
+        final int errorCode = nativeAntiCacheInitialize(this.pointer, dbDir.getAbsolutePath(), blockSize, dbType.ordinal(), blocking,  maxSize);
         checkErrorCode(errorCode);
         m_anticache = true;
     }
 
     @Override
-    public void antiCacheAddDB(File dbDir, AntiCacheDBType dbType, long blockSize, long maxSize) throws EEException {
+    public void antiCacheAddDB(File dbDir, AntiCacheDBType dbType, boolean blocking, long blockSize, long maxSize) throws EEException {
         assert(m_anticache == true);
-        final int errorCode = nativeAntiCacheAddDB(this.pointer, dbDir.getAbsolutePath(), blockSize, dbType.ordinal(), maxSize);
+        final int errorCode = nativeAntiCacheAddDB(this.pointer, dbDir.getAbsolutePath(), blockSize, dbType.ordinal(), blocking, maxSize);
         checkErrorCode(errorCode);
     }
 

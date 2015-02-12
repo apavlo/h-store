@@ -663,9 +663,9 @@ public final class HStoreConf {
 
         @ConfigProperty(
             description="Configuration options for multilevel anticaching. Up to five " +
-                        "levels can be set up. The format is type,block_size,db_size; " +
-                        "The default is 'NVM,1M,64G;BERKELEY,1M,128G'.",
-            defaultString="NVM,256K,64G;BERKELEY,256K,128G",
+                        "levels can be set up. The format is type,blocking,block_size,db_size; " +
+                        "The default is 'NVM,true,256K,64G;BERKELEY,false,256K,128G'.",
+            defaultString="NVM,true,256K,64G;BERKELEY,false,256K,128G",
             experimental=true
         )
         public String anticache_levels;       
@@ -747,6 +747,13 @@ public final class HStoreConf {
                 enumOptions="org.voltdb.types.AntiCacheDBType"
         )
         public String anticache_dbtype;
+
+        @ConfigProperty(
+                description="Top level database blocks for evictions",
+                defaultBoolean=false,
+                experimental=true
+        )
+        public boolean anticache_db_blocks;
        
         @ConfigProperty(
             description="Enable the anti-cache timestamps feature. This requires that the system " +

@@ -207,12 +207,18 @@ class AntiCacheDB {
         }
 
         /**
-         * return true if we should stall false if we need to abort
+         * return true if we block to fetch a block, false if we abort and issue a merge
          */
-        inline bool stallForData() {
-            return m_stall;
+        inline bool isBlocking() {
+            return m_blocking;
         }
-
+        
+        /**
+         * Set whether we block or abort
+         */
+        inline void setBlocking(bool blocking) {
+            m_blocking = blocking;
+        }
 
     protected:
         ExecutorContext *m_executorContext;
@@ -224,7 +230,7 @@ class AntiCacheDB {
         int m_partitionId; 
         int m_totalBlocks; 
         
-        bool m_stall;
+        bool m_blocking;
 
         AntiCacheDBType m_dbType;
         long m_maxDBSize;

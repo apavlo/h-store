@@ -817,9 +817,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         File acFile = AntiCacheManager.getDatabaseDir(this, 0);
                         long blockSize = hstore_conf.site.anticache_block_size;
                         AntiCacheDBType dbType = AntiCacheDBType.get(hstore_conf.site.anticache_dbtype);
-
+                        boolean blocking = hstore_conf.site.anticache_db_blocks;
                         // XXX: MJG: TODO: We've got to get a sane value for maxSize. -1 is no bueno.
-                        eeTemp.antiCacheInitialize(acFile, dbType, blockSize, -1);
+                        eeTemp.antiCacheInitialize(acFile, dbType, blocking, blockSize, -1);
                     } else {
                     // if we are using multilevel, ignore single config options and parse string
                         String config = hstore_conf.site.anticache_levels;
@@ -831,19 +831,22 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             String[] opts = levels[i].split(delims); 
                             AntiCacheDBType dbType = AntiCacheDBType.get(opts[0]);
                             
-                            String blockstr = opts[1];
+                            String blockingstr = opts[1];
+                            boolean blocking = Boolean.parseBoolean(blockingstr);
+
+                            String blockstr = opts[2];
                             long blockSize = parseSize(blockstr);
 
-                            String maxstr = opts[2];
+                            String maxstr = opts[3];
                             long maxSize = parseSize(maxstr);
                             
                             File acFile = AntiCacheManager.getDatabaseDir(this, i);
-                            LOG.debug(String.format("Creating AntiCacheDB type: %d blocksize: %d maxsize: %d @ %s", 
-                                        dbType.ordinal(), blockSize, maxSize, acFile.getAbsolutePath()));
+                            LOG.debug(String.format("Creating AntiCacheDB type: %d blocking: %s blocksize: %d maxsize: %d @ %s", 
+                                        dbType.ordinal(), blockingstr, blockSize, maxSize, acFile.getAbsolutePath()));
                             if (i == 0) {
-                                eeTemp.antiCacheInitialize(acFile, dbType, blockSize, maxSize);
+                                eeTemp.antiCacheInitialize(acFile, dbType, blocking, blockSize, maxSize);
                             } else {
-                                eeTemp.antiCacheAddDB(acFile, dbType, blockSize, maxSize);
+                                eeTemp.antiCacheAddDB(acFile, dbType, blocking, blockSize, maxSize);
                         
                             }
                         }
