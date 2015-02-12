@@ -159,7 +159,7 @@ class CV : public AE {
         if (m_jsontype == 0)
             json.push_back(json_spirit::Pair("VALUE", json_spirit::Value(m_stringValue)));
         else if (m_jsontype == 1)
-            json.push_back(json_spirit::Pair("VALUE", json_spirit::Value(m_intValue)));
+            json.push_back(json_spirit::Pair("VALUE", json_spirit::Value(static_cast<boost::int64_t>(m_intValue))));
         else if (m_jsontype == 2)
             json.push_back(json_spirit::Pair("VALUE", json_spirit::Value(m_doubleValue)));
     }
