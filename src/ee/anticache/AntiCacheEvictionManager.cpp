@@ -836,7 +836,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
         tableNames.push_back(childTable->name());
         BerkeleyDBBlock block;
         block.initialize(block_size, tableNames,
-                block_id,
+                _block_id,
                 num_tuples_evicted);
         int initSize = block.getSerializedSize();
 
@@ -1164,7 +1164,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
     int16_t _block_id = (int16_t)(block_id & 0x0000FFFF);
     int16_t ACID = (int16_t)((block_id & 0x00070000) >> 16);
     bool blocking = (bool)((block_id & 0x00080000) >> 19);
-    VOLT_DEBUG("block_id: %d ACID: %d _block_id: %d blocking: %d\n", block_id, ACID, _block_id, (int)blocking);
+    VOLT_DEBUG("block_id: %8x ACID: %d _block_id: %d blocking: %d\n", block_id, ACID, _block_id, (int)blocking);
 
     AntiCacheDB* antiCacheDB = m_db_lookup[ACID]; 
 
@@ -1370,12 +1370,15 @@ int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* ds
             TableTuple tuple(etable->m_schema);
 
             voltdb::TableIterator it(etable);
+            unsigned int updated = 0;
             while (it.next(tuple)) {
                 if ((int32_t)ValuePeeker::peekInteger(tuple.getNValue(0)) == block_id) {
                     tuple.setNValue(0, ValueFactory::getIntegerValue(new_block_id));
                     VOLT_DEBUG("Updating tuple blockid from %8x to %8x", block_id, new_block_id);
+                    ++updated;
                 }
             }
+            VOLT_INFO("updated %u migrated tuples [#%8x -> #%8x]", updated, block_id, new_block_id);
         } else {
             VOLT_WARN("No evicted table! If this is an EE test, shouldn't be a problem");
         }
@@ -1407,7 +1410,10 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
 
 
     AntiCacheBlock* block = srcDB->getLRUBlock();
-    int32_t block_id = block->getBlockId();
+    int16_t _block_id = block->getBlockId();
+    int32_t block_id = (int32_t)_block_id;
+    block_id = (srcDB->getACID() << 16) | block_id;
+    block_id = (srcDB->isBlocking() << 19) | block_id;
     _new_block_id = dstDB->nextBlockId();
     
     VOLT_DEBUG("block_id: %8x _new_block_id: %8x", block_id, _new_block_id);
@@ -1438,12 +1444,15 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
             TableTuple tuple(etable->m_schema);
 
             voltdb::TableIterator it(etable);
+            unsigned int updated = 0;
             while (it.next(tuple)) {
                 if ((int32_t)ValuePeeker::peekInteger(tuple.getNValue(0)) == block_id) {
                     tuple.setNValue(0, ValueFactory::getIntegerValue(new_block_id));
+                    ++updated;
                     VOLT_TRACE("Updating tuple blockid from %8x to %8x", block_id, new_block_id);
                 }
             }
+            VOLT_DEBUG("updated %u migrated tuples [#%8x -> #%8x]", updated, block_id, new_block_id);
         } else {
             VOLT_WARN("No evicted table! If this is an EE test, shouldn't be a problem");
         }
