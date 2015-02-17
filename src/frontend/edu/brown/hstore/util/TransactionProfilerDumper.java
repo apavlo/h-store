@@ -65,6 +65,7 @@ public class TransactionProfilerDumper {
         List<Object> row = new ArrayList<Object>();
         row.add("TXNID");
         row.add("PROCEDURE_NAME");
+        row.add("BASE_PARTITION");
         row.add("DURATION");
         row.add("STATUS");
         row.add("RESTART_COUNTER");
@@ -87,7 +88,7 @@ public class TransactionProfilerDumper {
         this.flush();
     }
         
-    public synchronized void writeRow(LocalTransaction ts) {
+    public void writeRow(LocalTransaction ts) {
         if (debug.val) LOG.debug("Writing profile information for " + ts);
         
         List<Object> row = new ArrayList<Object>();
@@ -97,6 +98,9 @@ public class TransactionProfilerDumper {
         
         // Procedure Name
         row.add(ts.getProcedure().getName());
+        
+        // Base Partition
+        row.add(ts.getBasePartition());
         
         // Duration
         row.add(EstTime.currentTimeMillis() - ts.getInitiateTime());
@@ -124,8 +128,10 @@ public class TransactionProfilerDumper {
         for (Object obj : row) {
             ret[i++] = (obj == null ? "null" : obj.toString());
         } // FOR
-        this.writer.writeNext(ret);
-        // this.flush();
+        
+        synchronized (this) {
+            this.writer.writeNext(ret);
+        } // SYNCH
     }
     
 }
