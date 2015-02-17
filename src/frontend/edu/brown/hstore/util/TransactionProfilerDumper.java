@@ -63,20 +63,31 @@ public class TransactionProfilerDumper {
                       this.getClass().getSimpleName(), this.outputFile));
         
         List<Object> row = new ArrayList<Object>();
+        
+        // Base Information
         row.add("TXNID");
         row.add("PROCEDURE_NAME");
-        row.add("BASE_PARTITION");
-        row.add("DURATION");
-        row.add("STATUS");
-        row.add("RESTART_COUNTER");
-        row.add("PREDICT_SINGLEPARTITION");
+        
+        // Execution Information
+        row.add("EXEC_DURATION");
+        row.add("EXEC_STATUS");
+        row.add("EXEC_BASE_PARTITION");
+        row.add("EXEC_NUM_PARTITIONS");
+        row.add("EXEC_SYSPROC");
+        row.add("EXEC_SPECULATIVE");
+        row.add("EXEC_MAPREDUCE");
+        row.add("EXEC_RESTART_COUNTER");
+        
+        // Prediction Information
+        row.add("PREDICT_NUM_PARTITIONS");
         row.add("PREDICT_ABORTABLE");
         row.add("PREDICT_READONLY");
         
+        // Profiler Information
         if (HStoreConf.singleton().site.txn_profiling) {
             TransactionProfiler profiler = new TransactionProfiler();
             for (ProfileMeasurement pm : profiler.getProfileMeasurements()) {
-                row.add(pm.getName());
+                row.add("PROFILE_" + pm.getName());
             }
         }
         
@@ -98,21 +109,33 @@ public class TransactionProfilerDumper {
         
         // Procedure Name
         row.add(ts.getProcedure().getName());
-        
-        // Base Partition
-        row.add(ts.getBasePartition());
-        
+
         // Duration
         row.add(EstTime.currentTimeMillis() - ts.getInitiateTime());
         
         // Status
         row.add(ts.getStatus());
         
+        // Base Partition
+        row.add(ts.getBasePartition());
+        
+        // # of Touched Partitions
+        row.add(ts.getTouchedPartitions().getValueCount());
+
+        // Is SysProc
+        row.add(ts.isSysProc());
+        
+        // Is Speculative
+        row.add(ts.isSpeculative());
+        
+        // Is MapReduce
+        row.add(ts.isMapReduce());
+        
         // Restart Counter
         row.add(ts.getRestartCounter());
         
         // Predict Flags
-        row.add(ts.isPredictSinglePartition());
+        row.add(ts.getPredictTouchedPartitions().size());
         row.add(ts.isPredictAbortable());
         row.add(ts.isPredictReadOnly());
         
