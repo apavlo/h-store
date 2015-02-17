@@ -9,15 +9,21 @@ import org.voltdb.catalog.Table;
 import edu.brown.api.BenchmarkComponent;
 import edu.brown.api.Loader;
 import edu.brown.catalog.CatalogUtil;
+import edu.brown.logging.LoggerUtil;
+import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
 public class ArticlesLoader extends Loader{
     private static final Logger LOG = Logger.getLogger(ArticlesLoader.class);
-    private static final boolean d = LOG.isDebugEnabled();
+    private static final LoggerBoolean debug = new LoggerBoolean();
+    private static final LoggerBoolean trace = new LoggerBoolean();
+    static {
+        LoggerUtil.attachObserver(LOG, debug, trace);
+    }
 
     private long articlesSize;
-	private long usersSize;
-	private long maxComments;
-	private HashMap<Long, Long> articleToCommentMap;
+    private long usersSize;
+    private long maxComments;
+    private HashMap<Long, Long> articleToCommentMap;
     public static void main(String[] args) {
         BenchmarkComponent.main(ArticlesLoader.class, args, true);
     }
@@ -32,28 +38,28 @@ public class ArticlesLoader extends Loader{
 
     @Override
     public void load() {
-        if (d) LOG.debug("Starting ArticlesLoader");
+        if (debug.val) LOG.debug("Starting ArticlesLoader");
         final Database catalog_db = this.getCatalogContext().database;
 
-        if (d) LOG.debug("Start loading " + ArticlesConstants.TABLENAME_ARTICLES);
+        if (debug.val) LOG.debug("Start loading " + ArticlesConstants.TABLENAME_ARTICLES);
         Table catalog_tbl = catalog_db.getTables().get(ArticlesConstants.TABLENAME_ARTICLES);
         genArticles(catalog_tbl);
-        if (d) LOG.debug("Finished loading " + ArticlesConstants.TABLENAME_ARTICLES);
+        if (debug.val) LOG.debug("Finished loading " + ArticlesConstants.TABLENAME_ARTICLES);
                 
-        if (d) LOG.debug("Start loading " + ArticlesConstants.TABLENAME_USERS);
+        if (debug.val) LOG.debug("Start loading " + ArticlesConstants.TABLENAME_USERS);
         catalog_tbl = catalog_db.getTables().get(ArticlesConstants.TABLENAME_USERS);
         genUsers(catalog_tbl);
-        if (d) LOG.debug("Finished loading " + ArticlesConstants.TABLENAME_USERS);
+        if (debug.val) LOG.debug("Finished loading " + ArticlesConstants.TABLENAME_USERS);
 
         try {
-			Thread.sleep(60000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-        if (d) LOG.debug("Start loading " + ArticlesConstants.TABLENAME_COMMENTS);
+            Thread.sleep(60000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        if (debug.val) LOG.debug("Start loading " + ArticlesConstants.TABLENAME_COMMENTS);
         Table catalog_spe = catalog_db.getTables().get(ArticlesConstants.TABLENAME_COMMENTS);
         genComments(catalog_spe);
-        if (d) LOG.debug("Finished loading " + ArticlesConstants.TABLENAME_COMMENTS);
+        if (debug.val) LOG.debug("Finished loading " + ArticlesConstants.TABLENAME_COMMENTS);
 
     }
 
@@ -95,7 +101,7 @@ public class ArticlesLoader extends Loader{
             total++;
 
             if (table.getRowCount() >= ArticlesConstants.BATCH_SIZE) {
-                if (d) LOG.debug(String.format("%s: %6d / %d",
+                if (debug.val) LOG.debug(String.format("%s: %6d / %d",
                                  ArticlesConstants.TABLENAME_ARTICLES, total, this.articlesSize));
                 loadVoltTable(ArticlesConstants.TABLENAME_ARTICLES, table);
                 table.clearRowData();
@@ -103,8 +109,8 @@ public class ArticlesLoader extends Loader{
             }
         } // FOR
         if (table.getRowCount() > 0) {
-            if (d) LOG.debug(String.format("%s: %6d / %d",
-            		ArticlesConstants.TABLENAME_ARTICLES, total, this.articlesSize));
+            if (debug.val) LOG.debug(String.format("%s: %6d / %d",
+                    ArticlesConstants.TABLENAME_ARTICLES, total, this.articlesSize));
             loadVoltTable(ArticlesConstants.TABLENAME_ARTICLES, table);
             table.clearRowData();
             assert(table.getRowCount() == 0);
@@ -135,15 +141,15 @@ public class ArticlesLoader extends Loader{
                 table.addRow(row);
                 total++;
             if (table.getRowCount() >= ArticlesConstants.BATCH_SIZE) {
-                if (d) LOG.debug(String.format("%s: %6d / %d",
-                		ArticlesConstants.TABLENAME_USERS, total, usersSize));
+                if (debug.val) LOG.debug(String.format("%s: %6d / %d",
+                        ArticlesConstants.TABLENAME_USERS, total, usersSize));
                 loadVoltTable(ArticlesConstants.TABLENAME_USERS, table);
                 table.clearRowData();
             }
         } // WHILE
         if (table.getRowCount() > 0) {
-            if (d) LOG.debug(String.format("%s: %6d / %d",
-            		ArticlesConstants.TABLENAME_USERS, total, usersSize));
+            if (debug.val) LOG.debug(String.format("%s: %6d / %d",
+                    ArticlesConstants.TABLENAME_USERS, total, usersSize));
             loadVoltTable(ArticlesConstants.TABLENAME_USERS, table);
             table.clearRowData();
         }
@@ -154,18 +160,18 @@ public class ArticlesLoader extends Loader{
      */
     void genComments(Table catalog_comments) {
 
-    	/*
-    	 *  -- c_id            Comment's ID
-			-- a_id            Article's ID
-			-- u_id            User's ID
-			-- c_text            Actual comment text
-    	 * */
+        /*
+         *  -- c_id            Comment's ID
+            -- a_id            Article's ID
+            -- u_id            User's ID
+            -- c_text            Actual comment text
+         * */
         VoltTable speTbl = CatalogUtil.getVoltTable(catalog_comments);
 
         long speTotal = 0;
         for (long a_id = 0; a_id < this.articlesSize; a_id++) {
-        	Long numComments = this.articleToCommentMap.get(a_id);
-        	for (long i = 0 ; i < numComments; i++){
+            Long numComments = this.articleToCommentMap.get(a_id);
+            for (long i = 0 ; i < numComments; i++){
                 Object row_spe[] = new Object[speTbl.getColumnCount()];
                 row_spe[0] = a_id*ArticlesConstants.MAX_COMMENTS_PER_ARTICLE+i;
                 row_spe[1] = a_id; // random number from the article id
@@ -184,22 +190,22 @@ public class ArticlesLoader extends Loader{
                 row_spe[13] = ArticlesUtil.astring(8, 8); // comment
                 
                 speTbl.addRow(row_spe);
-                speTotal++;        		
+                speTotal++;                
                 if (speTbl.getRowCount() >= ArticlesConstants.BATCH_SIZE) {
-                    if (d) LOG.debug(String.format("%s: %d", ArticlesConstants.TABLENAME_COMMENTS, speTotal));
+                    if (debug.val) LOG.debug(String.format("%s: %d", ArticlesConstants.TABLENAME_COMMENTS, speTotal));
                     loadVoltTable(ArticlesConstants.TABLENAME_COMMENTS, speTbl);
                     speTbl.clearRowData();
                     assert(speTbl.getRowCount() == 0);
                 }
-        	}
+            }
         } // WHILE
         if (speTbl.getRowCount() > 0) {
-            if (d) LOG.debug(String.format("%s: %d", ArticlesConstants.TABLENAME_COMMENTS, speTotal));
+            if (debug.val) LOG.debug(String.format("%s: %d", ArticlesConstants.TABLENAME_COMMENTS, speTotal));
             loadVoltTable(ArticlesConstants.TABLENAME_COMMENTS, speTbl);
             speTbl.clearRowData();
             assert(speTbl.getRowCount() == 0);
         }
     }
-	 	 
-	}
+          
+    }
 

@@ -6,10 +6,10 @@ public abstract class ArticlesConstants {
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
     // ----------------------------------------------------------------
 
-	public static final int FREQUENCY_GET_ARTICLE = 35; 
-	public static final int FREQUENCY_ADD_COMMENT = 20;
-	public static final int FREQUENCY_GET_COMMENTS = 35;
-	public static final int FREQUENCY_UPDATE_USER_INFO = 10;
+    public static final int FREQUENCY_GET_ARTICLE = 35; 
+    public static final int FREQUENCY_ADD_COMMENT = 20;
+    public static final int FREQUENCY_GET_COMMENTS = 35;
+    public static final int FREQUENCY_UPDATE_USER_INFO = 10;
 
     // ----------------------------------------------------------------
     // TABLE NAMES
@@ -27,6 +27,6 @@ public abstract class ArticlesConstants {
                                                 TABLENAME_USERS,
                                                 TABLENAME_COMMENTS
                                                 };
-	public static final long MAX_COMMENTS_PER_ARTICLE = 5;
-	public static final int COMMENTS_NUM_COLUMNS = 0;
+    public static final long MAX_COMMENTS_PER_ARTICLE = 5;
+    public static final int COMMENTS_NUM_COLUMNS = 0;
 }
