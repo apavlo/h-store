@@ -24,6 +24,26 @@ public class ArticlesClient extends BenchmarkComponent {
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
+    
+    public static enum Transaction {
+        GET_ARTICLE("Get Article", ArticlesConstants.FREQUENCY_GET_ARTICLE),
+        GET_COMMENTS("Get Comments", ArticlesConstants.FREQUENCY_GET_COMMENTS),
+        ADD_COMMENT("Add Comment", ArticlesConstants.FREQUENCY_ADD_COMMENT),
+        UPDATE_USER("Update User Info", ArticlesConstants.FREQUENCY_UPDATE_USER_INFO);
+    
+        /**
+         * Constructor
+         */
+        private Transaction(String displayName, int weight) {
+            this.displayName = displayName;
+            this.callName = displayName.replace(" ", "");
+            this.weight = weight;
+        }
+          
+        public final String displayName;
+        public final String callName;
+        public final int weight; // probability (in terms of percentage) the transaction gets executed
+    } // TRANSCTION ENUM
         
     int run_count = 0;
     private FlatHistogram<Transaction> txnWeights;
@@ -50,26 +70,6 @@ public class ArticlesClient extends BenchmarkComponent {
 
         this.txnWeights = new FlatHistogram<Transaction>(this.rand_gen, txns);
     }
-        
-    public static enum Transaction {
-        GET_ARTICLE("Get Article", ArticlesConstants.FREQUENCY_GET_ARTICLE),
-        GET_COMMENTS("Get Comments", ArticlesConstants.FREQUENCY_GET_COMMENTS),
-        ADD_COMMENT("Add Comment", ArticlesConstants.FREQUENCY_ADD_COMMENT),
-        UPDATE_USER("Update User Info", ArticlesConstants.FREQUENCY_UPDATE_USER_INFO);
-
-        /**
-         * Constructor
-         */
-        private Transaction(String displayName, int weight) {
-            this.displayName = displayName;
-            this.callName = displayName.replace(" ", "");
-            this.weight = weight;
-        }
-          
-        public final String displayName;
-        public final String callName;
-        public final int weight; // probability (in terms of percentage) the transaction gets executed
-    } // TRANSCTION ENUM
 
     @Override
     protected boolean runOnce() throws IOException {
@@ -81,9 +81,7 @@ public class ArticlesClient extends BenchmarkComponent {
             case GET_ARTICLE:
             case GET_COMMENTS: {
                 //long articlesSize = Math.round(ArticlesConstants.ARTICLES_SIZE * this.getScaleFactor());
-                params = new Object[]{
-                        ((Random) this.readRecord).nextInt()
-                };
+                params = new Object[]{ ((Random) this.readRecord).nextInt() };
                 break;
             }
             case ADD_COMMENT: {

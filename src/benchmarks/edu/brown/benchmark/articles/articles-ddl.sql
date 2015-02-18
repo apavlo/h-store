@@ -69,7 +69,7 @@ CREATE TABLE ARTICLES (
 -- c_text    Actual comment text
 -- ================================================================
 CREATE TABLE COMMENTS (
-    c_id    BIGINT NOT NULL,
+    c_id    BIGINT NOT NULL UNIQUE,
     c_a_id    BIGINT NOT NULL REFERENCES ARTICLES (a_id),
     c_u_id    BIGINT NOT NULL REFERENCES USERS (u_id),
     c_text    VARCHAR(100),
