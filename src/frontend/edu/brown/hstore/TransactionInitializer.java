@@ -344,7 +344,7 @@ public class TransactionInitializer {
                 // the original profiler information the original txn.
                 // new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
                 new_ts.profiler.setSingledPartitioned(predict_touchedPartitions.size() == 1); 
-                LOG.info(new_ts + " => " + new_ts.profiler);
+                if (trace.val) LOG.trace(new_ts + " => " + new_ts.profiler);
             }
         }
         else if (new_ts.profiler != null) {
