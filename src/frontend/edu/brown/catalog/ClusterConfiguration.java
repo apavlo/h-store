@@ -13,6 +13,7 @@ import org.apache.commons.collections15.set.ListOrderedSet;
 import org.apache.log4j.Logger;
 import org.voltdb.compiler.ClusterConfig;
 
+import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.HStoreThreadManager;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -42,6 +43,9 @@ public class ClusterConfiguration extends ClusterConfig {
 
     private final Set<Integer> all_partitions = new HashSet<Integer>();
 
+    private int proc_port;
+    private int messenger_port;
+    
     /**
      * PartitionConfiguration
      */
@@ -65,6 +69,7 @@ public class ClusterConfiguration extends ClusterConfig {
     
     public ClusterConfiguration(String hostname_format, int num_hosts, int num_sites_per_host, int num_partitions_per_site) {
         super();
+        this.setProcPort(HStoreConstants.DEFAULT_PORT);
         
         int siteid = 0;
         int partitionid = 0;
@@ -109,7 +114,19 @@ public class ClusterConfiguration extends ClusterConfig {
         this.host_sites.clear();
         this.all_partitions.clear();
     }
-
+    
+    public int getProcPort() {
+        return this.proc_port;
+    }
+    public int getMessengerPort() {
+        return this.messenger_port;
+    }
+    
+    public void setProcPort(int port) {
+        this.proc_port = port;
+        this.messenger_port = this.proc_port + HStoreConstants.MESSENGER_PORT_OFFSET;
+    }
+    
     @Override
     public boolean validate() {
         return (this.host_sites.isEmpty() == false);

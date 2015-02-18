@@ -976,6 +976,7 @@ TEST CASES
             <jvmarg value="-XX:+HeapDumpOnOutOfMemoryError"/>
 
             <env key="ENABLE_JAR_REUSE" value="${junit.reusejars}"/>
+            <env key="JENKINS_JOB_NAME" value="${jenkins.jobname}"/>
             <env key="VOLTDB_BUILD_DIR" value="${build.dir}"/>
             <env key="TEST_DIR" value="${build.testobjects.dir}" />
             <env key="VOLT_REGRESSIONS" value="${regressions}" />

@@ -100,8 +100,8 @@ public abstract class FixCatalog {
             catalog_host.setIpaddr(host);
             LOG.debug("Created new host " + catalog_host + " on node '" + host + "'");
 
-            int proc_port = HStoreConstants.DEFAULT_PORT;
-            int messenger_port = proc_port + HStoreConstants.MESSENGER_PORT_OFFSET;
+            int proc_port = cc.getProcPort();
+            int messenger_port = cc.getMessengerPort();
 
             // Now create the sites for this host
             for (Integer siteid : cc.getSites(host)) {

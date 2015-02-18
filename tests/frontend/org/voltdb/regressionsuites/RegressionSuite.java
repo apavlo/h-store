@@ -31,6 +31,7 @@ import java.util.Random;
 
 import junit.framework.TestCase;
 
+import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
 import org.voltdb.catalog.Catalog;
 import org.voltdb.client.Client;
@@ -52,7 +53,8 @@ import edu.brown.rand.DefaultRandomGenerator;
  *
  */
 public class RegressionSuite extends TestCase {
-
+    private static final Logger LOG = Logger.getLogger(RegressionSuite.class);
+    
     static {
         // log4j Hack
         LoggerUtil.setupLogging();
@@ -61,6 +63,7 @@ public class RegressionSuite extends TestCase {
     VoltServerConfig m_config;
     protected String m_username = "default";
     protected String m_password = "password";
+    protected int m_defaultPort = HStoreConstants.DEFAULT_PORT;
     private final ArrayList<Client> m_clients = new ArrayList<Client>();
     private final ArrayList<SocketChannel> m_clientChannels = new ArrayList<SocketChannel>();
     private final DefaultRandomGenerator random = new DefaultRandomGenerator();
@@ -80,6 +83,17 @@ public class RegressionSuite extends TestCase {
     @Override
     public void setUp() {
         LoggerUtil.setupLogging();
+        
+        // Hack to override the default port numbers. This is necessary so that we can run multiple
+        // tests at the same time on the test server
+        if (System.getenv("JENKINS_JOB_NAME") != null) {
+            String jobName = System.getenv("JENKINS_JOB_NAME");
+            m_defaultPort = 1025 + (jobName.hashCode() % 10000);
+            LOG.info("JENKINS_JOB_NAME => " + jobName);
+            LOG.info("DEFAULT PORT # => " + m_defaultPort);
+            assert(m_defaultPort > 1024);
+        }
+        
         m_config.startUp();
     }
 
