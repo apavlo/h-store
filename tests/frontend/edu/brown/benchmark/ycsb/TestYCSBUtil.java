@@ -18,7 +18,7 @@ public class TestYCSBUtil extends BaseTestCase {
     
     public void testGenParams() throws Exception {
         ProfileMeasurement pm = new ProfileMeasurement("params");
-        for (int ctr = 0; ctr < 100000; ctr++) {
+        for (int ctr = 0; ctr < 1000000; ctr++) {
             pm.start();
             String fields[] = new String[YCSBConstants.NUM_COLUMNS];
             for (int i = 0; i < fields.length; i++) {
