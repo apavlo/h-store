@@ -2,6 +2,7 @@ package edu.brown.statistics;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -150,6 +151,58 @@ public abstract class HistogramUtil {
         return (total);
     }
 
+    /**
+     * Return the percentile of the values within the histogram
+     * @param h
+     * @return
+     */
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    public static <T extends Number> double[] percentile(Histogram<T> h, int[] percentiles) {
+        List list = new ArrayList(h.values());
+        Collections.sort(list);
+        List<T> typedList = new ArrayList<T>(list);  
+        List<T> values = new ArrayList<T>();
+        for(T t : typedList){
+            Long count = h.get(t);
+            for (int i = 0; i< count; i++) {
+                values.add(t);
+            }
+        }
+        double[] res = new double[percentiles.length]; 
+        for(int i =0 ; i < percentiles.length; i++){
+            int percentile = percentiles[i];
+            if (percentile > 100) {
+                percentile = 100;
+            }
+            if (percentile < 1) {
+                percentile = 1;
+            }
+            if (values.size()==0) {
+                res[i] = Double.NaN;
+            }
+            else if (values.size()==1){
+                res[i] = values.get(0).doubleValue();
+            }
+            else{
+                double position = percentile * (values.size()-1)/ 100.0;
+                if (position < 1){
+                    res[i] = values.get(0).doubleValue();
+                }
+                else if(position >= values.size()-1){
+                    res[i] = values.get(values.size()-1).doubleValue();
+                }
+                else{
+                    Double floor = Math.floor(position);
+                    double d = position - floor;
+                    double v1 = (values.get(floor.intValue())).doubleValue();
+                    double v2 = (values.get(floor.intValue()+1)).doubleValue();
+                    res[i] = (v1 + d * (v2-v1));
+                }                
+            }
+        }
+        return res;
+    }
+    
     public static <T extends Number> double stdev(Histogram<T> h) {
         double values[] = new double[h.getSampleCount()];
         int idx = 0;
