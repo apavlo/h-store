@@ -78,6 +78,12 @@ public class TransactionProfilerDumper {
         row.add("EXEC_MAPREDUCE");
         row.add("EXEC_RESTART_COUNTER");
         
+        // Query Exec Information
+        row.add("QUERY_BATCHES");
+        row.add("QUERY_TOTAL_COUNT");
+        row.add("QUERY_REMOTE_COUNT");
+        row.add("QUERY_PREFETCH_COUNT");
+        
         // Prediction Information
         row.add("PREDICT_NUM_PARTITIONS");
         row.add("PREDICT_ABORTABLE");
@@ -101,8 +107,12 @@ public class TransactionProfilerDumper {
         
     public void writeRow(LocalTransaction ts) {
         if (debug.val) LOG.debug("Writing profile information for " + ts);
-        
+        HStoreConf hstore_conf = HStoreConf.singleton();
         List<Object> row = new ArrayList<Object>();
+        
+        // ---------------------------------------------------------------
+        // TXN EXEC INFO
+        // ---------------------------------------------------------------
         
         // TxnId
         row.add(ts.getTransactionId());
@@ -134,7 +144,32 @@ public class TransactionProfilerDumper {
         // Restart Counter
         row.add(ts.getRestartCounter());
         
-        // Predict Flags
+        // ---------------------------------------------------------------
+        // QUERY INFO
+        // ---------------------------------------------------------------
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) {
+            // # of query batches
+            row.add(ts.profiler.getBatchCount());
+            // # of queries
+            row.add(ts.profiler.getQueryCount());
+            // # of remote queries
+            row.add(ts.profiler.getRemoteQueryCount());
+            // # of prefetch queries
+            row.add(ts.profiler.getPrefetchQueryCount());
+        } else {
+            // # of query batches
+            row.add(null);
+            // # of queries
+            row.add(null);
+            // # of remote queries
+            row.add(null);
+            // # of prefetch queries
+            row.add(null);
+        }
+        
+        // ---------------------------------------------------------------
+        // PREDICT INFO
+        // ---------------------------------------------------------------
         row.add(ts.getPredictTouchedPartitions().size());
         row.add(ts.isPredictAbortable());
         row.add(ts.isPredictReadOnly());

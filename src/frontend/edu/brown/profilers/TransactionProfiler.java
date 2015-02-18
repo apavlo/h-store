@@ -92,7 +92,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * transaction was stalled. Note that only distributed transactions 
      * will have speculative txns interleaved with it.
      */
-    private int num_speculative = 0;
+//    private int num_speculative = 0;
     
     /**
      * Early 2PC Optimization Partitions
@@ -601,9 +601,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public void addPrefetchUnusedQuery(int num_queries) {
         this.num_prefetched_unused += num_queries;
     }
-    public void addSpeculativeTransaction(int num_txns) {
-        this.num_speculative += num_txns;
-    }
+//    public void addSpeculativeTransaction(int num_txns) {
+//        this.num_speculative += num_txns;
+//    }
     
     public int getBatchCount() {
         return (this.num_batches);
@@ -620,9 +620,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public int getPrefetchQueryUnusedCount() {
         return (this.num_prefetched_unused);
     }
-    public int getSpeculativeTransactionCount() {
-        return (this.num_speculative);
-    }
+//    public int getSpeculativeTransactionCount() {
+//        return (this.num_speculative);
+//    }
     
     // ---------------------------------------------------------------
     // UTILITY METHODS
@@ -673,7 +673,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         this.num_remote_queries = 0;
         this.num_prefetched = 0;
         this.num_prefetched_unused = 0;
-        this.num_speculative = 0;
+//        this.num_speculative = 0;
     }
 
     /**
@@ -743,7 +743,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         m.put("# of Remote Queries", this.num_queries);
         m.put("# of Prefetched Queries", this.num_prefetched);
         m.put("# of Unused Prefetched Queries", this.num_prefetched_unused);
-        m.put("# of Speculative Txns", this.num_speculative);
+//        m.put("# of Speculative Txns", this.num_speculative);
 
         // HISTORY
         String history = "";
