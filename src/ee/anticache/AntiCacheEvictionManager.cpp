@@ -80,7 +80,8 @@ AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
     m_evicted_schema = TupleSchema::createEvictedTupleSchema();
     m_evicted_tuple = new TableTuple(m_evicted_schema);
     //TupleSchema::freeTupleSchema(evictedSchema);
-
+    
+    m_blockable_accesses = true;
     m_numdbs = 0;
     m_migrate = false;
 }
@@ -1660,6 +1661,9 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     int32_t block_id = peeker.peekInteger(m_evicted_tuple->getNValue(0));
     VOLT_DEBUG("Got blockId: %d", block_id);
     // Updated internal tracking info
+    if (m_blockable_accesses && !(block_id & 0x00080000)) {
+        m_blockable_accesses = false;
+    }
     m_evicted_tables.push_back(catalogTable);
     m_evicted_block_ids.push_back(block_id); 
     m_evicted_offsets.push_back(tuple_id);
@@ -1697,7 +1701,44 @@ void AntiCacheEvictionManager::throwEvictedAccessException() {
     
     // HACK
     catalog::Table *catalogTable = m_evicted_tables.front();
+
+    // MJG: If we have only blockable merges, let's skip throwing the exception and just merge here
+    // The process from above is:
+    // 1. transaction sees tuples need to be fetched
+    // 2. method to call exception is called
+    // 3. if tuples are in blocking tier, instead of actually throwing the exception,
+    //    read the block and merge the tuples
+    // 4. don't throw exception, just return and continue transaction as if nothing has happened
+    // 5. ???
+    // 6. success
+
+    if (hasBlockableEvictedAccesses()) {
+        VOLT_INFO("We've only got blocks in blockable tier, so let's block and merge");
+        VOLT_INFO("Preparing to read %d evicted blocks", num_blocks);
+        PersistentTable *table = dynamic_cast<PersistentTable*>(catalogTable); 
+        if (table == NULL) 
+            VOLT_ERROR("bad table, prepare for massive failure");
+
+        bool final_result = true;
+        try {
+            for(int i = 0; i < num_blocks; i++) {
+                final_result = readEvictedBlock(table, block_ids[i], tuple_ids[i]) && final_result;
+            }
+        } catch (SerializableEEException &e) {
+            VOLT_ERROR("blocking read failed to read %d blocks for table '%s'\n%s",
+                    num_blocks, table->name().c_str(), e.message().c_str());
+        }
+        VOLT_INFO("We've read blocks, now lets merge them");
+        try {
+            mergeUnevictedTuples(table);
+        } catch (SerializableEEException &e) {
+            VOLT_INFO("failed to merge blocks for table %s", table->name().c_str());
+        }
+        VOLT_INFO("blocking merge (possibly?) successful, don't throw exception, just return");
+        return;           
+    }
         
+
     // Do we really want to throw this here?
     // FIXME We need to support multiple tables in the exception data
     VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d) "
