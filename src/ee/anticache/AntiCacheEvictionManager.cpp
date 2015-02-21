@@ -1702,6 +1702,38 @@ void AntiCacheEvictionManager::throwEvictedAccessException() {
     // HACK
     catalog::Table *catalogTable = m_evicted_tables.front();
 
+    // Do we really want to throw this here?
+    // FIXME We need to support multiple tables in the exception data
+    VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d) "
+              "[num_blocks=%d / num_tuples=%d]",
+              catalogTable->name().c_str(), catalogTable->relativeIndex(),
+              num_blocks, num_tuples);
+    throw EvictedTupleAccessException(catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
+}
+
+bool AntiCacheEvictionManager::nonBlockingMerge() {
+
+    int num_block_ids = static_cast<int>(m_evicted_block_ids.size()); 
+    assert(num_block_ids > 0); 
+    int32_t* block_ids = new int32_t[num_block_ids];
+    int32_t* tuple_ids = new int32_t[num_block_ids];
+
+    // copy the block ids into an array 
+    int num_blocks = 0; 
+    for(vector<int32_t>::iterator itr = m_evicted_block_ids.begin(); itr != m_evicted_block_ids.end(); ++itr) {
+        VOLT_DEBUG("Marking block %d as being needed for uneviction", *itr); 
+        block_ids[num_blocks++] = *itr; 
+    }
+
+    // copy the tuple offsets into an array
+    int num_tuples = 0; 
+    for(vector<int32_t>::iterator itr = m_evicted_offsets.begin(); itr != m_evicted_offsets.end(); ++itr) {
+        VOLT_DEBUG("Marking tuple %d from %s as being needed for uneviction", *itr, m_evicted_tables[num_tuples]->name().c_str()); 
+        tuple_ids[num_tuples++] = *itr;
+    }
+     // HACK
+    catalog::Table *catalogTable = m_evicted_tables.front();
+
     // MJG: If we have only blockable merges, let's skip throwing the exception and just merge here
     // The process from above is:
     // 1. transaction sees tuples need to be fetched
@@ -1715,10 +1747,13 @@ void AntiCacheEvictionManager::throwEvictedAccessException() {
     if (hasBlockableEvictedAccesses()) {
         VOLT_INFO("We've only got blocks in blockable tier, so let's block and merge");
         VOLT_INFO("Preparing to read %d evicted blocks", num_blocks);
-        PersistentTable *table = dynamic_cast<PersistentTable*>(catalogTable); 
-        if (table == NULL) 
+        PersistentTable *table = dynamic_cast<PersistentTable*>(m_engine->getTable(catalogTable->relativeIndex())); 
+        
+        if (table == NULL) { 
             VOLT_ERROR("bad table, prepare for massive failure");
-
+            throw EvictedTupleAccessException(catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
+        }
+        
         bool final_result = true;
         try {
             for(int i = 0; i < num_blocks; i++) {
@@ -1735,19 +1770,10 @@ void AntiCacheEvictionManager::throwEvictedAccessException() {
             VOLT_INFO("failed to merge blocks for table %s", table->name().c_str());
         }
         VOLT_INFO("blocking merge (possibly?) successful, don't throw exception, just return");
-        return;           
+        return true;           
     }
-        
-
-    // Do we really want to throw this here?
-    // FIXME We need to support multiple tables in the exception data
-    VOLT_INFO("Throwing EvictedTupleAccessException for table %s (%d) "
-              "[num_blocks=%d / num_tuples=%d]",
-              catalogTable->name().c_str(), catalogTable->relativeIndex(),
-              num_blocks, num_tuples);
-    throw EvictedTupleAccessException(catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
-}
-
+    return false;
+}     
 
 #ifndef ANTICACHE_TIMESTAMPS
 

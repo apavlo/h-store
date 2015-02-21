@@ -312,7 +312,15 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
         
         // throw exception indicating evicted blocks are needed
         if (hasEvictedTable && eviction_manager->hasEvictedAccesses()) {
-            eviction_manager->throwEvictedAccessException();
+            // MJG: 2014-02-20
+            // If we can merge now, let's merge
+            // TODO: possibly an alternate codepath that simply looks through all the tuples
+            // for evicted tuples and then see if we have any non-blockable accesses
+            if (eviction_manager->hasBlockableEvictedAccesses()) {
+                eviction_manager->nonBlockingMerge();
+            } else {
+                eviction_manager->throwEvictedAccessException();
+            } 
         }
         #endif
     }
