@@ -321,7 +321,7 @@ public class TransactionInitializer {
     }
     
     /**
-     * Create a new LocalTransaction handle from a restart txn
+     * Create a new LocalTransaction handle from a restarted txn
      * @param orig_ts
      * @param base_partition
      * @param predict_touchedPartitions
@@ -343,7 +343,8 @@ public class TransactionInitializer {
                 // Since we're restarting the txn, we should probably include
                 // the original profiler information the original txn.
                 // new_ts.profiler.startTransaction(ProfileMeasurement.getTime());
-                new_ts.profiler.setSingledPartitioned(predict_touchedPartitions.size() == 1);                
+                new_ts.profiler.setSingledPartitioned(predict_touchedPartitions.size() == 1); 
+                if (trace.val) LOG.trace(new_ts + " => " + new_ts.profiler);
             }
         }
         else if (new_ts.profiler != null) {
@@ -542,14 +543,14 @@ public class TransactionInitializer {
      * @return
      */
     private boolean setupTransactionProfiler(LocalTransaction ts, boolean sysproc) {
-        if (hstore_conf.site.txn_profiling &&
-                sysproc == false &&
-                this.rng.nextDouble() < hstore_conf.site.txn_profiling_sample) {
+        if (hstore_conf.site.txn_profiling && sysproc == false &&
+            (hstore_conf.site.txn_profiling_sample >= 1 || this.rng.nextDouble() < hstore_conf.site.txn_profiling_sample)) {
             if (ts.profiler == null) {
                 ts.setProfiler(new TransactionProfiler());
             }
             ts.profiler.enableProfiling();
             ts.profiler.startTransaction(ProfileMeasurement.getTime());
+            
             return (true);
         } else if (ts.profiler != null) {
             ts.profiler.disableProfiling();
@@ -589,7 +590,8 @@ public class TransactionInitializer {
         
         // Setup TransactionProfiler
         if (hstore_conf.site.txn_profiling) {
-            this.setupTransactionProfiler(ts, this.isSysProc[procId]);
+            boolean ret = this.setupTransactionProfiler(ts, this.isSysProc[procId]);
+            if (trace.val && ret) LOG.trace("Enabling profiling for new txn " + ts);
         }
         
         // -------------------------------
@@ -781,8 +783,10 @@ public class TransactionInitializer {
                 params,
                 client_callback);
         if (t_state != null) ts.setEstimatorState(t_state);
-        if (hstore_conf.site.txn_profiling && ts.profiler != null) 
+        if (hstore_conf.site.txn_profiling && ts.profiler != null) {
             ts.profiler.setSingledPartitioned(ts.isPredictSinglePartition());
+//            LOG.info("Profiling is enabled for " + ts);
+        }
         
         if (debug.val) {
             Map<String, Object> m = new LinkedHashMap<String, Object>();

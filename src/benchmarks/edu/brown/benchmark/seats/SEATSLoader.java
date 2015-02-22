@@ -1446,7 +1446,7 @@ public class SEATSLoader extends Loader {
             TimestampType flight_date = flightInfo.depart_time;
             returning_customers.clear();
             Set<ReturnFlight> returns = this.airport_returns.get(flightInfo.depart_airport);
-            if (!returns.isEmpty()) {
+            if (returns != null && !returns.isEmpty()) {
                 for (ReturnFlight return_flight : returns) {
                     if (return_flight.getReturnDate().compareTo(flight_date) > 0) break;
                     if (return_flight.getReturnAirportId() == profile.getAirportId(flightInfo.arrive_airport)) {
@@ -1454,6 +1454,8 @@ public class SEATSLoader extends Loader {
                     }
                 } // FOR
                 if (!returning_customers.isEmpty()) returns.removeAll(returning_customers);
+            } else if (returns == null) {
+                LOG.warn(String.format("Null return flights for departing airport '%s'", flightInfo.depart_airport));
             }
         }
         

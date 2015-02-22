@@ -62,6 +62,9 @@ public class ResultsPrinter implements BenchmarkInterest {
         "%8s ms",
     };
     
+
+    public static final int[] percentiles = { 50, 95, 99 };
+    
     private static final String RESULT_FORMAT = "%.2f";
     private static final String SPACER = "  ";
     
@@ -231,6 +234,7 @@ public class ResultsPrinter implements BenchmarkInterest {
         // INTERVAL LATENCY
         Histogram<Integer> lastLatencies = results.getLastTotalLatencies();
         double intervalLatency = HistogramUtil.sum(lastLatencies) / (double)lastLatencies.getSampleCount();
+//        double[] intervalPerLatency = HistogramUtil.percentile(lastLatencies, percentiles);
         
         // TOTAL LATENCY
         Histogram<Integer> allLatencies = results.getAllTotalLatencies();        
@@ -250,9 +254,12 @@ public class ResultsPrinter implements BenchmarkInterest {
         sb.append("\n" + SPACER + SPACER);
         sb.append(String.format("Completed %d txns at a rate of " + RESULT_FORMAT + " txns/s",
                                 txnDelta, txnDelta / (double)(results.getIntervalDuration()) * 1000d));
-        sb.append(String.format(" with " + RESULT_FORMAT + " ms avg latency", intervalLatency));
+        sb.append(String.format(" with " + RESULT_FORMAT + " ms avg latency", intervalLatency));        
+//        sb.append("\n" + SPACER);
+//        sb.append(String.format(" Percentile Latencies 50: " + RESULT_FORMAT + "(ms) Latencies 95: " 
+//                    + RESULT_FORMAT + "(ms) Latencies 99: " + RESULT_FORMAT + "(ms)", intervalPerLatency[0],intervalPerLatency[1], intervalPerLatency[2]));        
         
-        sb.append("\n" + SPACER);
+        sb.append("\n" + SPACER);        
         sb.append("Since the benchmark began:");
         sb.append("\n" + SPACER + SPACER);
         sb.append(String.format("Completed %d txns at a rate of " + RESULT_FORMAT + " txns/s",

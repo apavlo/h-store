@@ -21,6 +21,7 @@ import edu.brown.statistics.HistogramUtil;
 public class CSVResultsPrinter implements BenchmarkInterest {
     private static final Logger LOG = Logger.getLogger(CSVResultsPrinter.class);
 
+    public static final int[] percentiles = { 50, 95, 99 };
     public static final ColumnInfo COLUMNS[] = {
         new ColumnInfo("INTERVAL", VoltType.INTEGER),
         new ColumnInfo("ELAPSED", VoltType.BIGINT),
@@ -29,6 +30,10 @@ public class CSVResultsPrinter implements BenchmarkInterest {
         new ColumnInfo("THROUGHPUT", VoltType.FLOAT),
         new ColumnInfo("LATENCY", VoltType.FLOAT),
         new ColumnInfo("EVICTING", VoltType.INTEGER),
+        new ColumnInfo("LATENCY_50", VoltType.FLOAT),
+        new ColumnInfo("LATENCY_95", VoltType.FLOAT),
+        new ColumnInfo("LATENCY_99", VoltType.FLOAT),
+
     };
 
     private final List<Object[]> results = new ArrayList<Object[]>(); 
@@ -85,7 +90,10 @@ public class CSVResultsPrinter implements BenchmarkInterest {
         // INTERVAL LATENCY
         Histogram<Integer> lastLatencies = br.getLastSinglePartitionLatencies();
         double intervalLatency = HistogramUtil.sum(lastLatencies) / (double)lastLatencies.getSampleCount();
-        
+        double[] latencies = HistogramUtil.percentile(lastLatencies, percentiles);
+        double intervalLatency_50 = latencies[0];
+        double intervalLatency_95 = latencies[1];
+        double intervalLatency_99 = latencies[2];
         Object row[] = {
             this.intervalCounter++,
             br.getElapsedTime(),
@@ -94,6 +102,9 @@ public class CSVResultsPrinter implements BenchmarkInterest {
             intervalThroughput,
             intervalLatency,
             0,
+            intervalLatency_50,
+            intervalLatency_95,
+            intervalLatency_99
         };
         this.results.add(row);
         

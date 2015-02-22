@@ -13,17 +13,15 @@ public class TestWorkloadAnalyzer extends BaseTestCase {
 
 		Workload workload;
 		File workload_file = this.getWorkloadFile(ProjectType.AUCTIONMARK);
-		workload = new Workload(catalog);
-		((Workload) workload).load(workload_file, catalog_db, null);
+		workload = new Workload(catalogContext.catalog);
+		((Workload) workload).load(workload_file, catalogContext.database, null);
 		assert (workload.getTransactionCount() > 0) : "No transaction loaded from workload";
 
-		WorkloadAnalyzer analyzer = new WorkloadAnalyzer(this.getDatabase(),
-				workload);
+		WorkloadAnalyzer analyzer = new WorkloadAnalyzer(this.getDatabase(), workload);
 		int result = analyzer.getCountOfGroupingsPossible();
 
 		assertNotNull(result);
-		assertTrue(result > 2000);
-		
+		assertTrue("Result: " + result, result > 2000);
 	}
 
 }
