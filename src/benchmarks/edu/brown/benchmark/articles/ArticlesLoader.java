@@ -49,22 +49,17 @@ public class ArticlesLoader extends Loader {
 
         if (debug.val) LOG.debug("Start loading " + ArticlesConstants.TABLENAME_ARTICLES);
         Table catalog_tbl = catalog_db.getTables().get(ArticlesConstants.TABLENAME_ARTICLES);
-        genArticles(catalog_tbl);
+        this.genArticles(catalog_tbl);
         if (debug.val) LOG.debug("Finished loading " + ArticlesConstants.TABLENAME_ARTICLES);
                 
         if (debug.val) LOG.debug("Start loading " + ArticlesConstants.TABLENAME_USERS);
         catalog_tbl = catalog_db.getTables().get(ArticlesConstants.TABLENAME_USERS);
-        genUsers(catalog_tbl);
+        this.genUsers(catalog_tbl);
         if (debug.val) LOG.debug("Finished loading " + ArticlesConstants.TABLENAME_USERS);
 
-        try {
-            Thread.sleep(60000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
         if (debug.val) LOG.debug("Start loading " + ArticlesConstants.TABLENAME_COMMENTS);
         Table catalog_spe = catalog_db.getTables().get(ArticlesConstants.TABLENAME_COMMENTS);
-        genComments(catalog_spe);
+        this.genComments(catalog_spe);
         if (debug.val) LOG.debug("Finished loading " + ArticlesConstants.TABLENAME_COMMENTS);
 
     }
