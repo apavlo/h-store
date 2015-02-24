@@ -68,7 +68,9 @@ public abstract class YCSBUtil {
     public static long number(long minimum, long maximum) {
         assert minimum <= maximum;
         long value = Math.abs(rand.nextInt()) % (maximum - minimum + 1) + minimum;
-        assert minimum <= value && value <= maximum;
+        assert(minimum <= value && value <= maximum) :
+            String.format("Unexpected invalid random number '%d' [min=%d / max=%d]",
+                          value, minimum, maximum);
         return value;
     }
 }
