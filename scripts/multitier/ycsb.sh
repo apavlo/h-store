@@ -44,7 +44,7 @@ for skew in 0.8 1.01 1.1 1.2; do
         sed -i '$ d' "properties/benchmarks/ycsb.properties"
         echo "skew_factor = $skew" >> "properties/benchmarks/ycsb.properties"
 
-        ANTICACHE_BLOCK_SIZE=1048576
+        ANTICACHE_BLOCK_SIZE=262144
         ANTICACHE_THRESHOLD=.5
 
         BASE_ARGS=( \
