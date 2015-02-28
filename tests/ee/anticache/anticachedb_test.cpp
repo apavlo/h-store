@@ -199,11 +199,29 @@ TEST_F(AntiCacheDBTest, BerkeleyCheckCapacity) {
     ASSERT_EQ(anticache->getMaxDBSize(), BLOCK_SIZE*10);
     ASSERT_EQ(anticache->getNumBlocks(), 1);
     ASSERT_EQ(anticache->getFreeBlocks(), 9);
+
+    ASSERT_EQ(anticache->getBlocksEvicted(), 1);
+    ASSERT_EQ(anticache->getBytesEvicted(), static_cast<int32_t>(payload.size()+1));
     
     AntiCacheBlock* block = anticache->readBlock(blockId);
     
     ASSERT_EQ(anticache->getNumBlocks(), 0);
     ASSERT_EQ(anticache->getFreeBlocks(), 10);
+
+    ASSERT_EQ(anticache->getBlocksUnevicted(), 1);
+    ASSERT_EQ(anticache->getBytesUnevicted(), static_cast<int32_t>(payload.size()+1));
+    
+    anticache->clearBlocksEvicted();
+    anticache->clearBytesEvicted();
+    anticache->clearBytesUnevicted();
+    anticache->clearBlocksUnevicted();
+
+    ASSERT_EQ(anticache->getBlocksUnevicted(), 0);
+    ASSERT_EQ(anticache->getBytesUnevicted(), 0);
+
+    ASSERT_EQ(anticache->getBlocksEvicted(), 0);
+    ASSERT_EQ(anticache->getBytesEvicted(), 0);
+
     delete block;
     delete anticache;
 }
@@ -225,12 +243,30 @@ TEST_F(AntiCacheDBTest, NVMCheckCapacity) {
     ASSERT_EQ(anticache->getMaxDBSize(), BLOCK_SIZE*10);
     ASSERT_EQ(anticache->getNumBlocks(), 1);
     ASSERT_EQ(anticache->getFreeBlocks(), 9);
+
+    ASSERT_EQ(anticache->getBlocksEvicted(), 1);
+    ASSERT_EQ(anticache->getBytesEvicted(), static_cast<int32_t>(tableName.size() + 1 + payload.size()+1));
     
     AntiCacheBlock* block = anticache->readBlock(blockId);
     
     ASSERT_EQ(anticache->getNumBlocks(), 0);
     ASSERT_EQ(anticache->getFreeBlocks(), 10);
-    delete block;
+ 
+    ASSERT_EQ(anticache->getBlocksUnevicted(), 1);
+    ASSERT_EQ(anticache->getBytesUnevicted(), static_cast<int32_t>(tableName.size() + 1 + payload.size()+1));
+    
+    anticache->clearBlocksEvicted();
+    anticache->clearBytesEvicted();
+    anticache->clearBytesUnevicted();
+    anticache->clearBlocksUnevicted();
+
+    ASSERT_EQ(anticache->getBlocksUnevicted(), 0);
+    ASSERT_EQ(anticache->getBytesUnevicted(), 0);
+
+    ASSERT_EQ(anticache->getBlocksEvicted(), 0);
+    ASSERT_EQ(anticache->getBytesEvicted(), 0);
+
+   delete block;
     delete anticache;
 }
 

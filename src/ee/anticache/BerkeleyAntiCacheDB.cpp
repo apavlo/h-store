@@ -26,7 +26,7 @@ BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) :
     long bufLen_ = sizeof(int16_t);
     std::string tableName = m_buf + bufLen_;
     bufLen_ += tableName.size()+1;
-    long size = *((long *)(m_buf+bufLen_));
+    int32_t size = *((int32_t *)(m_buf+bufLen_));
     bufLen_+=sizeof(long);
     char * data = m_buf + bufLen_;
     bufLen_ += size;
@@ -164,6 +164,10 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);
     
+    m_blocksEvicted++;
+    m_bytesEvicted += static_cast<int32_t>(size);
+
+
     pushBlockLRU(blockId);
 
     delete [] databuf_;
@@ -194,6 +198,8 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(int16_t blockId) {
     
     AntiCacheBlock* block = new BerkeleyAntiCacheBlock(blockId, value);
     
+    m_blocksUnevicted++;
+    m_bytesUnevicted += static_cast<int32_t>( block->getSize());
     removeBlockLRU(blockId);
     /*uint16_t rm_block = removeBlockLRU(blockId);
     if (rm_block != blockId) {

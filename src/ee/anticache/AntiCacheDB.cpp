@@ -61,6 +61,10 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSiz
         } else {
             m_maxDBSize = maxSize;
         }
+        m_bytesEvicted = 0;
+        m_blocksEvicted = 0;
+        m_bytesUnevicted = 0;
+        m_blocksUnevicted = 0;
         
 }
 

@@ -66,7 +66,7 @@ class AntiCacheBlock {
             return (m_payload.tableName);
         }
 
-        inline long getSize() const {
+        inline int32_t getSize() const {
             return m_size;
         }
         inline char* getData() const {
@@ -89,7 +89,7 @@ class AntiCacheBlock {
         AntiCacheBlock(int16_t blockId);
         int16_t m_blockId;
         payload m_payload;
-        long m_size;
+        int32_t m_size;
         char * m_block;
         char * m_buf;
         // probably should be changed to a final/const
@@ -145,7 +145,7 @@ class AntiCacheDB {
             return m_totalBlocks;
         }
         /**
-         * Return the maximum size of the database
+         * Return the maximum size of the database in bytes
          */
         inline long getMaxDBSize() {
             return m_maxDBSize;
@@ -220,6 +220,63 @@ class AntiCacheDB {
             m_blocking = blocking;
         }
 
+        /*
+         * return current count of evicted blocks
+         */
+        inline int32_t getBlocksEvicted() {
+            return m_blocksEvicted;
+        }
+        
+        /* 
+         * clear current count of evicted blocks
+         */
+        inline void clearBlocksEvicted() {
+            m_blocksEvicted = 0;
+        }
+        
+        /*
+         * return current count of evicted bytes
+         */
+
+        inline int32_t getBytesEvicted() {
+            return m_bytesEvicted;
+        }
+
+        /*
+         * clear current count of evicted bytes
+         */
+        inline void clearBytesEvicted() {
+            m_bytesEvicted = 0;
+        }
+        
+        /* 
+         * return current count of unevicted blocks
+         */
+        inline int32_t getBlocksUnevicted() {
+            return m_blocksUnevicted;
+        }
+
+        /*
+         * clear current count of unevicted blocks
+         */
+        inline void clearBlocksUnevicted() {
+            m_blocksUnevicted = 0;
+        }
+
+        /* 
+         * return current count of unevicted bytes
+         */
+        inline int32_t getBytesUnevicted() {
+            return m_bytesUnevicted;
+        }
+
+        /*
+         * clear current couont of unevicted bytes
+         */
+        inline void clearBytesUnevicted() {
+            m_bytesUnevicted = 0;
+        }
+
     protected:
         ExecutorContext *m_executorContext;
         string m_dbDir;
@@ -230,11 +287,22 @@ class AntiCacheDB {
         int m_partitionId; 
         int m_totalBlocks; 
         
+
         bool m_blocking;
 
         AntiCacheDBType m_dbType;
         long m_maxDBSize;
 
+        /*
+         * stats
+         */
+        int32_t m_bytesEvicted;
+        int32_t m_blocksEvicted;
+        int32_t m_bytesUnevicted;
+        int32_t m_blocksUnevicted;
+
+
+        
         /* we need to test whether a deque or list is better. If we push/pop more than we
          * remove, this is better. otherwise, let's use a list
          */

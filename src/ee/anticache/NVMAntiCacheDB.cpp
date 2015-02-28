@@ -67,7 +67,7 @@ NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) :
     p.size = size;
      
     m_payload = p;
-    m_size = size;
+    m_size = static_cast<int32_t>(size);
     m_blockType = ANTICACHEDB_NVM;
     //std::string payload_str(m_payload.data, m_size);
     
@@ -215,6 +215,9 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
 
     VOLT_INFO("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, index, bufsize); 
 
+    m_bytesEvicted += static_cast<int32_t>(bufsize);
+    m_blocksEvicted++;
+
     m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(index, static_cast<int32_t>(bufsize))));
     m_nextFreeBlock++; 
     
@@ -249,6 +252,10 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
     m_blockMap.erase(itr); 
 
     removeBlockLRU(blockId);
+
+    m_bytesUnevicted += blockSize;
+    m_blocksUnevicted++;
+
     return (anticache_block);
 }
 
