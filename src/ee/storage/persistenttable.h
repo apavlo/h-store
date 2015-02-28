@@ -315,7 +315,7 @@ void clearUnevictedBlocks(int i);
 
     void updateStringMemory(int tupleStringMemorySize);
     
-    void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address);
+    void setEntryToNewAddressForAllIndexes(const TableTuple *tuple, const void* address, const void* oldAddress);
 
 protected:
     virtual void allocateNextBlock();

@@ -530,7 +530,7 @@ TEST_F(AntiCacheEvictionManagerTest, UpdateIndexPerformance)
             itr1.next(tuple);
             for(int j = 0; j < i+1; j++)
             {
-                m_table->setEntryToNewAddressForAllIndexes(&tuple, NULL);
+                m_table->setEntryToNewAddressForAllIndexes(&tuple, NULL, (m_table->lookupTuple(tuple)).address());
             }
             
             if(++iterations == 1000)
@@ -701,7 +701,7 @@ TEST_F(AntiCacheEvictionManagerTest, UpdateIndexPerformance)
             itr1.next(tuple);
             for(int j = 0; j < i+1; j++)
             {
-                m_table->setEntryToNewAddressForAllIndexes(&tuple, NULL);
+                m_table->setEntryToNewAddressForAllIndexes(&tuple, NULL, (m_table->lookupTuple(tuple)).address());
             }
 
             if(++iterations == 1000)
