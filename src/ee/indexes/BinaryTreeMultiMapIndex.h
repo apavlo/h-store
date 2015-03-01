@@ -116,7 +116,7 @@ public:
         return (deleted && inserted);
     }
     
-    bool setEntryToNewAddress(const TableTuple *tuple, const void* address) {
+    bool setEntryToNewAddress(const TableTuple *tuple, const void* address, const void *oldAddress) {
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         ++m_updates; 
         
@@ -128,7 +128,7 @@ public:
         {
 //            VOLT_INFO("iteration %d", i++);
             
-//            if (key_iter.first->second == tuple->address()) {
+            if (key_iter.first->second == oldAddress) {
                 m_entries->erase(key_iter.first);
                 
                 //std::pair<typename MapType::iterator, bool> retval = m_entries->insert(std::pair<KeyType, const void*>(m_tmp1, address));
@@ -136,7 +136,7 @@ public:
 
                 m_entries->insert(std::pair<KeyType, const void*>(m_tmp1, address));
                 return true;
-//            }
+            }
         }
         
         VOLT_INFO("Tuple not found.");

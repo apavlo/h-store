@@ -87,6 +87,7 @@ public:
         m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_INTEGER);
         m_primaryKeyIndexSchemaTypes.push_back(voltdb::VALUE_TYPE_INTEGER);
         m_tableSchemaTypes.push_back(voltdb::VALUE_TYPE_INTEGER);
+        m_secondaryIndexSchemaTypes.push_back(voltdb::VALUE_TYPE_INTEGER);
         
         m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::VALUE_TYPE_INTEGER));
         m_primaryKeyIndexSchemaColumnSizes.push_back(voltdb::VALUE_TYPE_INTEGER);
@@ -99,6 +100,7 @@ public:
         m_primaryKeyIndexSchemaAllowNull.push_back(false);
         
         m_primaryKeyIndexColumns.push_back(0);
+        m_secondaryIndexColumns.push_back(1);
         
     };
    
@@ -119,23 +121,31 @@ public:
                                                                          m_primaryKeyIndexSchemaColumnSizes,
                                                                          m_primaryKeyIndexSchemaAllowNull,
                                                                          allowInlineStrings);
-        voltdb::TableIndexScheme indexScheme = voltdb::TableIndexScheme("primaryKeyIndex",
+        voltdb::TableIndexScheme primaryKeyIndexScheme = voltdb::TableIndexScheme("primaryKeyIndex",
                                                                          voltdb::BALANCED_TREE_INDEX,
                                                                          m_primaryKeyIndexColumns,
                                                                          m_primaryKeyIndexSchemaTypes,
                                                                          true, false, m_tableSchema);
+        voltdb::TableIndexScheme secondaryIndexScheme = voltdb::TableIndexScheme("secondaryIndex",
+                                                                         voltdb::BALANCED_TREE_INDEX,
+                                                                         m_secondaryIndexColumns,
+                                                                         m_secondaryIndexSchemaTypes,
+                                                                         false, false, m_tableSchema);
 
 //           voltdb::TableIndexScheme indexScheme = voltdb::TableIndexScheme("primaryKeyIndex",
 //                                                                        voltdb::HASH_TABLE_INDEX,
 //                                                                        m_primaryKeyIndexColumns,
 //                                                                        m_primaryKeyIndexSchemaTypes,
 //                                                                        true, false, m_tableSchema);
-        indexScheme.keySchema = m_primaryKeyIndexSchema;
+        primaryKeyIndexScheme.keySchema = m_primaryKeyIndexSchema;
+        secondaryIndexScheme.keySchema = m_primaryKeyIndexSchema;
         std::vector<voltdb::TableIndexScheme> indexes;
+        indexes.push_back(primaryKeyIndexScheme);
+        indexes.push_back(secondaryIndexScheme);
         
         m_table = dynamic_cast<voltdb::PersistentTable*>(voltdb::TableFactory::getPersistentTable
                                                          (0, m_engine->getExecutorContext(), "Foo",
-                                                          m_tableSchema, &m_columnNames[0], indexScheme, indexes, 0,
+                                                          m_tableSchema, &m_columnNames[0], indexes, 0,
                                                           false, false));
                 
         TupleSchema *evictedSchema = TupleSchema::createEvictedTupleSchema();
@@ -175,6 +185,10 @@ public:
     std::vector<int32_t> m_primaryKeyIndexSchemaColumnSizes;
     std::vector<bool> m_primaryKeyIndexSchemaAllowNull;
     std::vector<int> m_primaryKeyIndexColumns;
+    std::vector<voltdb::ValueType> m_secondaryIndexSchemaTypes;
+    std::vector<int32_t> m_secondaryIndexSchemaColumnSizes;
+    std::vector<bool> m_secondaryIndexSchemaAllowNull;
+    std::vector<int> m_secondaryIndexColumns;
 
     ChTempDir tempdir;
     
@@ -331,7 +345,6 @@ TEST_F(AntiCacheEvictionManagerTest, FullBackingStore) {
     delete nvmdb;
     delete acem;
 }
-
 
 
  
@@ -497,57 +510,6 @@ TEST_F(AntiCacheEvictionManagerTest, DeleteMultipleTuples)
     cleanupTable();
 }
 
-TEST_F(AntiCacheEvictionManagerTest, UpdateIndexPerformance)
-{
-    int num_tuples = 100000;
-    int num_index_updates = 8;
-    
-    struct timeval start, end;
-    
-    long  seconds, useconds;
-    double mtime; 
-
-    initTable(true); 
-      
-    TableTuple tuple = m_table->tempTuple();
-
-    int iterations = 0;
-    
-    for(int i = 0; i < num_tuples; i++) // insert tuples
-    {
-        tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
-        tuple.setNValue(1, ValueFactory::getIntegerValue(rand()));
-        m_table->insertTuple(tuple);
-    }
-    
-    for(int i = 0; i < num_index_updates; i++)
-    {
-        TableIterator itr1(m_table);
-        iterations = 0; 
-        gettimeofday(&start, NULL);
-        while(itr1.hasNext())
-        {
-            itr1.next(tuple);
-            for(int j = 0; j < i+1; j++)
-            {
-                m_table->setEntryToNewAddressForAllIndexes(&tuple, NULL);
-            }
-            
-            if(++iterations == 1000)
-                break; 
-        }
-        gettimeofday(&end, NULL);
-        
-        seconds  = end.tv_sec  - start.tv_sec;
-        useconds = end.tv_usec - start.tv_usec;
-        mtime = (double)((seconds) * 1000 + useconds/1000);
-        
-        VOLT_INFO("total time for 1000 index updates: %f milliseconds", mtime);
-    }
-    
-    cleanupTable();
-}
-
 //TEST_F(AntiCacheEvictionManagerTest, EvictBlockPerformanceTest)
 //{
 //    int num_tuples = 100000;
@@ -667,11 +629,59 @@ TEST_F(AntiCacheEvictionManagerTest, TestEvictionOrder)
     cleanupTable();
 }
 
-// still couldn't pass
+#endif
+TEST_F(AntiCacheEvictionManagerTest, TestSetEntryToNewAddress)
+{
+    int num_tuples = 20;
+
+    initTable(true); 
+
+    TableTuple tuple = m_table->tempTuple();
+
+    int iterations = 0;
+
+    for(int i = 0; i < num_tuples / 2; i++) // insert tuples
+    {
+        tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+        tuple.setNValue(1, ValueFactory::getIntegerValue(0));
+        m_table->insertTuple(tuple);
+        tuple.setNValue(0, ValueFactory::getIntegerValue(m_tuplesInserted++));
+        tuple.setNValue(1, ValueFactory::getIntegerValue(1));
+        m_table->insertTuple(tuple);
+    }
+
+    TableIterator itr1(m_table);
+    iterations = 0; 
+
+    itr1.next(tuple);
+
+    void* oldAddress = tuple.address();
+    
+    m_table->setEntryToNewAddressForAllIndexes(&tuple, (void*)0xdeadbeaf, oldAddress);
+
+    std::vector <TableIndex*> allIndexes = m_table->allIndexes();
+    for (int i = 0; i < allIndexes.size(); ++i) {
+        int cnt = 0;
+
+        allIndexes[i]->moveToTuple(&tuple);
+        const void* address;
+
+        // check to see whether we set the tuple and only that tuple to new address
+        // for both primaryKey and secondary indexes
+        while ((address = (allIndexes[i]->nextValueAtKey()).address())) {
+            ASSERT_NE(address, oldAddress);
+            if (address == (void*)0xdeadbeaf)
+                cnt++;
+        }
+        ASSERT_EQ(cnt, 1);
+    }
+
+    cleanupTable();
+}
+
 TEST_F(AntiCacheEvictionManagerTest, UpdateIndexPerformance)
 {
     int num_tuples = 100000;
-    int num_index_updates = 8;
 
     struct timeval start, end;
 
@@ -691,35 +701,28 @@ TEST_F(AntiCacheEvictionManagerTest, UpdateIndexPerformance)
         m_table->insertTuple(tuple);
     }
 
-    for(int i = 0; i < num_index_updates; i++)
+    TableIterator itr1(m_table);
+    iterations = 0; 
+    gettimeofday(&start, NULL);
+    while(itr1.hasNext())
     {
-        TableIterator itr1(m_table);
-        iterations = 0; 
-        gettimeofday(&start, NULL);
-        while(itr1.hasNext())
-        {
-            itr1.next(tuple);
-            for(int j = 0; j < i+1; j++)
-            {
-                m_table->setEntryToNewAddressForAllIndexes(&tuple, NULL);
-            }
+        itr1.next(tuple);
+        m_table->setEntryToNewAddressForAllIndexes(&tuple, NULL, (m_table->lookupTuple(tuple)).address());
 
-            if(++iterations == 1000)
-                break; 
-        }
-        gettimeofday(&end, NULL);
-
-        seconds  = end.tv_sec  - start.tv_sec;
-        useconds = end.tv_usec - start.tv_usec;
-        mtime = (double)((seconds) * 1000 + useconds/1000);
-
-        VOLT_INFO("total time for 1000 index updates: %f milliseconds", mtime);
+        if(++iterations == 1000)
+            break; 
     }
+    gettimeofday(&end, NULL);
+
+    seconds  = end.tv_sec  - start.tv_sec;
+    useconds = end.tv_usec - start.tv_usec;
+    mtime = (double)((seconds) * 1000 + useconds/1000);
+
+    VOLT_INFO("total time for 1000 index updates: %f milliseconds", mtime);
 
     cleanupTable();
 }
 
-#endif
 
 int main() {
     return TestSuite::globalInstance()->runAll();

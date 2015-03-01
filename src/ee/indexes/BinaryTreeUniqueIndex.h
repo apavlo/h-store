@@ -109,7 +109,7 @@ public:
         return (deleted && inserted);
     }
     
-    bool setEntryToNewAddress(const TableTuple *tuple, const void* address) {        
+    bool setEntryToNewAddress(const TableTuple *tuple, const void* address, const void *oldAddress) {
         // set the key from the tuple
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         ++m_updates; 
