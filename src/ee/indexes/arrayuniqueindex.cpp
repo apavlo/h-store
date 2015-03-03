@@ -83,7 +83,7 @@ bool ArrayUniqueIndex::replaceEntry(const TableTuple *oldTupleValue, const Table
     return true;
 }
     
-bool ArrayUniqueIndex::setEntryToNewAddress(const TableTuple *tuple, const void* address)
+bool ArrayUniqueIndex::setEntryToNewAddress(const TableTuple *tuple, const void* address, const void* oldAddress)
 {
     int32_t key = ValuePeeker::peekAsInteger(tuple->getNValue(column_indices_[0]));
     

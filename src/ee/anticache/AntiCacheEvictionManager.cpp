@@ -642,7 +642,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             const void* evicted_tuple_address = static_cast<EvictedTable*>(evictedTable)->insertEvictedTuple(evicted_tuple);
             VOLT_TRACE("block address is %p", evicted_tuple_address);
             // Change all of the indexes to point to our new evicted tuple
-            table->setEntryToNewAddressForAllIndexes(&tuple, evicted_tuple_address);
+            table->setEntryToNewAddressForAllIndexes(&tuple, evicted_tuple_address, tuple.address());
 
             block.addTuple(tuple);
 
@@ -931,7 +931,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             const void* evicted_tuple_address = static_cast<EvictedTable*>(evictedTable)->insertEvictedTuple(evicted_tuple);
 
             // Change all of the indexes to point to our new evicted tuple
-            table->setEntryToNewAddressForAllIndexes(&tuple, evicted_tuple_address);
+            table->setEntryToNewAddressForAllIndexes(&tuple, evicted_tuple_address, tuple.address());
 
             block.addTuple(tuple);
 
@@ -975,7 +975,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
             const void* evicted_tuple_address = static_cast<EvictedTable*>(child_evictedTable)->insertEvictedTuple(child_evicted_tuple);
 
             // Change all of the indexes to point to our new evicted tuple
-            childTable->setEntryToNewAddressForAllIndexes(&childTuple, evicted_tuple_address);
+            childTable->setEntryToNewAddressForAllIndexes(&childTuple, evicted_tuple_address, childTuple.address());
 
             //VOLT_INFO("tuple foreign key id %d", ValuePeeker::peekAsInteger(childTuple.getNValue(foreignKeyIndexColumn)));
             VOLT_INFO("EvictedTuple: %s", childTuple.debug(childTable->name()).c_str());

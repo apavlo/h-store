@@ -146,7 +146,7 @@ public:
     virtual bool replaceEntry(const TableTuple *oldTupleValue,
                               const TableTuple *newTupleValue) = 0;
     
-    virtual bool setEntryToNewAddress(const TableTuple *tuple, const void* address) = 0; 
+    virtual bool setEntryToNewAddress(const TableTuple *tuple, const void* address, const void* oldAddress) = 0; 
     
     
     /**

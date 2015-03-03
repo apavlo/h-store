@@ -123,11 +123,11 @@ public class TestAntiCacheBatching extends BaseTestCase {
             row[0] = i;
             vt.addRow(row);
             Object childRow[] = VoltTableUtil.getRandomRow(child_tbl); // 1 comment per article
-            childRow[0] = i; // c_id
+            childRow[0] = 0; // c_id
             childRow[1] = i; // c_a_id
             childTable.addRow(childRow);
             childRow = VoltTableUtil.getRandomRow(child_tbl); // 1 comment per article
-            childRow[0] = i; // c_id
+            childRow[0] = 1; // c_id
             childRow[1] = i; // c_a_id
             childTable.addRow(childRow);
 
