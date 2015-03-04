@@ -238,7 +238,7 @@ class AntiCacheDB {
          * return current count of evicted bytes
          */
 
-        inline int32_t getBytesEvicted() {
+        inline int64_t getBytesEvicted() {
             return m_bytesEvicted;
         }
 
@@ -266,7 +266,7 @@ class AntiCacheDB {
         /* 
          * return current count of unevicted bytes
          */
-        inline int32_t getBytesUnevicted() {
+        inline int64_t getBytesUnevicted() {
             return m_bytesUnevicted;
         }
 
@@ -296,9 +296,9 @@ class AntiCacheDB {
         /*
          * stats
          */
-        int32_t m_bytesEvicted;
+        int64_t m_bytesEvicted;
         int32_t m_blocksEvicted;
-        int32_t m_bytesUnevicted;
+        int64_t m_bytesUnevicted;
         int32_t m_blocksUnevicted;
 
 
