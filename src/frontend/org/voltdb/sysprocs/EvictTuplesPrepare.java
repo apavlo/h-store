@@ -66,15 +66,6 @@ public class EvictTuplesPrepare extends VoltSystemProcedure {
         ExecutionEngine ee = executor.getExecutionEngine();
         assert(tableNames.length == blockSizes.length);
 
-        // PROFILER
-        AntiCacheManagerProfiler profiler = null;
-        long start = -1;
-        if (hstore_conf.site.anticache_profiling) {
-            start = System.currentTimeMillis();
-            profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(this.partitionId);
-            profiler.eviction_time.start();
-        }
-
         // Check Input
         if (tableNames.length == 0) {
             throw new VoltAbortException("No tables to evict were given");
@@ -87,7 +78,7 @@ public class EvictTuplesPrepare extends VoltSystemProcedure {
                 String msg = String.format("Unknown table '%s'", tableNames[i]);
                 throw new VoltAbortException(msg);
             }
-            else if (tables[i].getEvictable() == false) {
+            else if (!tables[i].getEvictable()) {
                 String msg = String.format("Trying to evict tuples from table '%s' but it is not marked as evictable", tables[i].getName());
                 throw new VoltAbortException(msg);
             }
@@ -108,59 +99,20 @@ public class EvictTuplesPrepare extends VoltSystemProcedure {
         // TODO: check error condition. throws EEException as in trackingEnable()?
         ee.antiCacheEvictBlockPrepareInit(prepareTxnId);
 
-        final VoltTable allResults = new VoltTable(ResultsColumns);
-        long totalTuplesEvicted = 0;
-        long totalBlocksEvicted = 0;
-        long totalBytesEvicted = 0;
         for (int i = 0; i < tableNames.length; i++) {
-            VoltTable vt;
             if (hstore_conf.site.anticache_batching){
                 if (childrenTableNames.length!=0 && !childrenTableNames[i].isEmpty()){
                     childTables[i] = catalogContext.database.getTables().getIgnoreCase(childrenTableNames[i]);
-                    vt = ee.antiCacheEvictBlockPrepareInBatch(prepareTxnId, tables[i], childTables[i], blockSizes[i], numBlocks[i]);
+                    ee.antiCacheEvictBlockPrepareInBatch(prepareTxnId, tables[i], childTables[i], blockSizes[i], numBlocks[i]);
                 } else {
-                    vt = ee.antiCacheEvictBlockPrepare(prepareTxnId, tables[i], blockSizes[i], numBlocks[i]);
+                    ee.antiCacheEvictBlockPrepare(prepareTxnId, tables[i], blockSizes[i], numBlocks[i]);
                 }
             }else{
-                vt = ee.antiCacheEvictBlockPrepare(prepareTxnId, tables[i], blockSizes[i], numBlocks[i]);
+                ee.antiCacheEvictBlockPrepare(prepareTxnId, tables[i], blockSizes[i], numBlocks[i]);
             }
-
-            boolean adv = vt.advanceRow();
-
-            if (!adv) {
-                String msg = String.format("antiCacheEvictBlock failed to return any rows.");
-                throw new VoltAbortException(msg);
-            }
-            long tuplesEvicted = vt.getLong("ANTICACHE_TUPLES_EVICTED");
-            long blocksEvicted = vt.getLong("ANTICACHE_BLOCKS_EVICTED");
-            long bytesEvicted = vt.getLong("ANTICACHE_BYTES_EVICTED");
-            Object row[] = {
-                    this.hstore_site.getSiteId(),
-                    this.hstore_site.getSiteName(),
-                    this.executor.getPartitionId(),
-                    vt.getString("TABLE_NAME"),
-                    tuplesEvicted,
-                    blocksEvicted,
-                    bytesEvicted,
-                    new TimestampType()
-            };
-            allResults.addRow(row);
-            totalTuplesEvicted += tuplesEvicted;
-            totalBlocksEvicted += blocksEvicted;
-            totalBytesEvicted += bytesEvicted;
         }
 
-        // PROFILER
-        if (profiler != null) {
-            EvictionHistory eh = new EvictionHistory(start,
-                    System.currentTimeMillis(),
-                    totalTuplesEvicted,
-                    totalBlocksEvicted,
-                    totalBytesEvicted);
-            profiler.eviction_history.add(eh);
-            profiler.eviction_time.stopIfStarted();
-        }
-
-        return new VoltTable[] { allResults };
+        //return new VoltTable[] {};
+        return null;
     }
 }

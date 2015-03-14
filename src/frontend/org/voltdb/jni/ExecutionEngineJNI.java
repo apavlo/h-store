@@ -890,37 +890,22 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         }
         antiCacheUtilityBufferDeserializer.clear();
 
-        // TODO: error condition?
-        nativeAntiCacheEvictBlockPrepareInit(pointer, prepareTxnId);
+        int errorCode = nativeAntiCacheEvictBlockPrepareInit(pointer, prepareTxnId);
+        checkErrorCode(errorCode);
     }
 
     @Override
-    public VoltTable antiCacheEvictBlockPrepare(Long prepareTxnId, Table catalog_tbl, long block_size, int num_blocks) {
+    public void antiCacheEvictBlockPrepare(Long prepareTxnId, Table catalog_tbl, long block_size, int num_blocks) {
         if (!m_anticache) {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
         antiCacheUtilityBufferDeserializer.clear();
 
-        final int numResults = nativeAntiCacheEvictBlockPrepare(
+        int errorCode = nativeAntiCacheEvictBlockPrepare(
                 pointer, prepareTxnId, catalog_tbl.getRelativeIndex(), block_size,
                 num_blocks);
-        if (numResults == -1) {
-            LOG.error("Unexpected error in antiCacheEvictBlock for table " + catalog_tbl.getName());
-            throwExceptionForError(ERRORCODE_ERROR);
-        }
-        try {
-            antiCacheUtilityBufferDeserializer.readInt();
-            VoltTable results[] = new VoltTable[numResults];
-            for (int i = 0; i < numResults;  i++) {
-                VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
-                results[i] = (VoltTable) antiCacheUtilityBufferDeserializer.readObject(resultTable, this);
-            }
-            return results[0];
-        } catch (IOException e) {
-            LOG.error("Failed to deserialze result table for antiCacheEvictBlock" + e);
-            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
-        }
+        checkErrorCode(errorCode);
     }
 
     @Override
@@ -931,8 +916,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
         }
         antiCacheUtilityBufferDeserializer.clear();
 
-        // TODO: error condition?
-        nativeAntiCacheEvictBlockFinish(pointer, prepareTxnId);
+        int errorCode = nativeAntiCacheEvictBlockFinish(pointer, prepareTxnId);
+        checkErrorCode(errorCode);
     }
 
     @Override
@@ -964,35 +949,20 @@ public class ExecutionEngineJNI extends ExecutionEngine {
 	}
 
     @Override
-    public VoltTable antiCacheEvictBlockPrepareInBatch(Long prepareTxnId, Table catalog_tbl,
-                                                       Table childTable,
-                                                       long block_size,
-                                                       int num_blocks) {
+    public void antiCacheEvictBlockPrepareInBatch(Long prepareTxnId, Table catalog_tbl,
+                                                  Table childTable,
+                                                  long block_size,
+                                                  int num_blocks) {
         if (!m_anticache) {
             String msg = "Trying to invoke anti-caching operation but feature is not enabled";
             throw new VoltProcedure.VoltAbortException(msg);
         }
         antiCacheUtilityBufferDeserializer.clear();
 
-        int numResults = nativeAntiCacheEvictBlockPrepareInBatch(
+        int errorCode = nativeAntiCacheEvictBlockPrepareInBatch(
                 pointer, prepareTxnId, catalog_tbl.getRelativeIndex(), childTable.getRelativeIndex(), block_size,
                 num_blocks);
-        if (numResults == -1) {
-            LOG.error("Unexpected error in antiCacheEvictBlockPrepareInBatch for table " + catalog_tbl.getName());
-            throwExceptionForError(ERRORCODE_ERROR);
-        }
-        try {
-            antiCacheUtilityBufferDeserializer.readInt();
-            VoltTable[] results = new VoltTable[numResults];
-            for (int i = 9; i < numResults; i++) {
-                VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
-                results[i] = (VoltTable) antiCacheUtilityBufferDeserializer.readObject(resultTable, this);
-            }
-            return results[0];
-        } catch (IOException e) {
-            LOG.error("Failed to deserialze result table for antiCacheEvictBlockPrepareInBatch" + e);
-            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
-        }
+        checkErrorCode(errorCode);
     }
 
     @Override

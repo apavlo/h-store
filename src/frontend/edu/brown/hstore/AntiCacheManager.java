@@ -16,11 +16,7 @@ import java.util.Set;
 import java.util.concurrent.*;
 
 import org.apache.log4j.Logger;
-import org.voltdb.CatalogContext;
-import org.voltdb.ClientResponseImpl;
-import org.voltdb.StoredProcedureInvocation;
-import org.voltdb.VoltSystemProcedure;
-import org.voltdb.VoltTable;
+import org.voltdb.*;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EvictedTupleAccessException;
@@ -30,6 +26,7 @@ import org.voltdb.messaging.FastSerializer;
 import org.voltdb.sysprocs.EvictTuplesFinish;
 import org.voltdb.sysprocs.EvictTuplesPrepare;
 import org.voltdb.types.AntiCacheEvictionPolicyType;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
 
 import com.google.protobuf.RpcCallback;
@@ -447,11 +444,22 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         evictionWorkExecutor.execute(evictionWorkFuture);
     }
 
-    private VoltTable doEvictionWork(int partitionId, long prepareTxnId) {
+    private void doEvictionWork(int partitionId, long prepareTxnId) {
         ExecutionEngine ee = hstore_site.getPartitionExecutor(partitionId).getExecutionEngine();
         EvictionParams params = partitionEvictionParams.get(partitionId);
 
         CatalogContext catalogContext = hstore_site.getCatalogContext();
+
+        long totalTuplesEvicted = 0;
+        long totalBlocksEvicted = 0;
+        long totalBytesEvicted = 0;
+        AntiCacheManagerProfiler profiler = null;
+        long start = -1;
+        if (hstore_conf.site.anticache_profiling) {
+            start = System.currentTimeMillis();
+            profiler = profilers[partitionId];
+            profiler.eviction_time.start();
+        }
 
         Table[] tables = new Table[params.tableNames.length];
         Table childTables[] = new Table[params.tableNames.length];
@@ -460,19 +468,40 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         }
 
         for (int i = 0; i < params.tableNames.length; i++) {
+            VoltTable vt;
             if (hstore_conf.site.anticache_batching) {
                 if (params.childrenTableNames.length!=0 && !params.childrenTableNames[i].isEmpty()) {
                     childTables[i] = catalogContext.database.getTables().getIgnoreCase(params.childrenTableNames[i]);
-                    ee.antiCacheEvictBlockWorkInBatch(prepareTxnId, tables[i], childTables[i], params.blockSizes[i], params.numBlocks[i]);
+                    vt = ee.antiCacheEvictBlockWorkInBatch(prepareTxnId, tables[i], childTables[i], params.blockSizes[i], params.numBlocks[i]);
                 } else {
-                    ee.antiCacheEvictBlockWork(prepareTxnId, tables[i], params.blockSizes[i], params.numBlocks[i]);
+                    vt = ee.antiCacheEvictBlockWork(prepareTxnId, tables[i], params.blockSizes[i], params.numBlocks[i]);
                 }
             } else {
-                ee.antiCacheEvictBlockWork(prepareTxnId, tables[i], params.blockSizes[i], params.numBlocks[i]);
+                vt = ee.antiCacheEvictBlockWork(prepareTxnId, tables[i], params.blockSizes[i], params.numBlocks[i]);
+            }
+
+            boolean hasRow = vt.advanceRow();
+            if (hasRow) {
+                totalTuplesEvicted += vt.getLong("ANTICACHE_TUPLES_EVICTED");
+                totalBlocksEvicted += vt.getLong("ANTICACHE_BLOCKS_EVICTED");
+                totalBytesEvicted += vt.getLong("ANTICACHE_BYTES_EVICTED");
+            } else {
+                String msg = String.format("antiCacheEvictBlock failed to return any rows.");
+                LOG.error(msg);
             }
         }
 
-        return null; // TODO
+        if (hstore_conf.site.anticache_profiling) {
+            AntiCacheManagerProfiler.EvictionHistory eh = new AntiCacheManagerProfiler.EvictionHistory(
+                    start,
+                    System.currentTimeMillis(),
+                    totalTuplesEvicted,
+                    totalBlocksEvicted,
+                    totalBytesEvicted);
+            assert profiler != null;
+            profiler.eviction_history.add(eh);
+            profiler.eviction_time.stopIfStarted();
+        }
     }
 
     private void submitEvictionFinish(int partitionId, long prepareTxnId) {

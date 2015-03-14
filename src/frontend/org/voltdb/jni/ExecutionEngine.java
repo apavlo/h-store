@@ -832,8 +832,8 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public abstract VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size, int num_blocks);
 
     public abstract void antiCacheEvictBlockPrepareInit(Long prepareTxnId);
-    public abstract VoltTable antiCacheEvictBlockPrepare(Long prepareTxnId, Table catalog_tbl, long block_size, int num_blocks);
-    public abstract VoltTable antiCacheEvictBlockPrepareInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks);
+    public abstract void antiCacheEvictBlockPrepare(Long prepareTxnId, Table catalog_tbl, long block_size, int num_blocks);
+    public abstract void antiCacheEvictBlockPrepareInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks);
     public abstract VoltTable antiCacheEvictBlockWork(Long prepareTxnId, Table table, long blockSize, int numBlock);
     public abstract VoltTable antiCacheEvictBlockWorkInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks);
     public abstract void anticacheEvictBlockFinish(Long prepareTxnId);

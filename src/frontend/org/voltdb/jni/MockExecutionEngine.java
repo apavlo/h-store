@@ -29,7 +29,6 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.export.ExportProtoMessage;
-import org.voltdb.utils.NotImplementedException;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.types.AntiCacheDBType;
 
@@ -229,15 +228,13 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
 
     @Override
-    public VoltTable antiCacheEvictBlockPrepare(Long prepareTxnId, Table catalog_tbl, long block_size, int num_blocks) {
+    public void antiCacheEvictBlockPrepare(Long prepareTxnId, Table catalog_tbl, long block_size, int num_blocks) {
         // TODO Auto-generated method stub
-        return null;
     }
 
     @Override
-    public VoltTable antiCacheEvictBlockPrepareInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks) {
+    public void antiCacheEvictBlockPrepareInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks) {
         // TODO Auto-generated method stub
-        return null;
     }
 
     @Override

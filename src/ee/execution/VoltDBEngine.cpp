@@ -2090,13 +2090,7 @@ int VoltDBEngine::antiCacheEvictBlockPrepare(int64_t prepareTxnId, int32_t table
           throwFatalException("Invalid table id %d", tableId);
         }
 
-        size_t lengthPosition = m_antiCacheUtilityOutput.reserveBytes(sizeof(int32_t));
-        Table *resultTable = antiCacheManager->evictBlockPrepare(prepareTxnId, table, blockSize, numBlocks);
-        if (resultTable) {
-          resultTable->serializeTo(m_antiCacheUtilityOutput);
-          m_antiCacheUtilityOutput.writeIntAt(lengthPosition, static_cast<int32_t>(m_antiCacheUtilityOutput.size() - sizeof(int32_t)));
-          return ENGINE_ERRORCODE_ERROR; // Why? This is copied from existing code snippet e.g. at antiCacheEvictBlock().
-        }
+        antiCacheManager->evictBlockPrepare(prepareTxnId, table, blockSize, numBlocks);
     } catch (SerializableEEException &e) {
         VOLT_ERROR("antiCacheEvictBlockPrepare");
         resetAntiCacheUtilityOutputBuffer();
@@ -2121,13 +2115,7 @@ int VoltDBEngine::antiCacheEvictBlockPrepareInBatch(int64_t prepareTxnId, int32_
             throwFatalException("Invalid table id %d", childTableId);
         }
 
-        size_t lengthPosition = m_antiCacheUtilityOutput.reserveBytes(sizeof(int32_t));
-        Table *resultTable = antiCacheManager->evictBlockPrepareInBatch(prepareTxnId, table, childTable, blockSize, numBlocks);
-        if (resultTable) {
-          resultTable->serializeTo(m_antiCacheUtilityOutput);
-          m_antiCacheUtilityOutput.writeIntAt(lengthPosition, static_cast<int32_t>(m_antiCacheUtilityOutput.size() - sizeof(int32_t)));
-          return ENGINE_ERRORCODE_ERROR; // Why? This is copied from existing code snippet e.g. at antiCacheEvictBlock().
-        }
+        antiCacheManager->evictBlockPrepareInBatch(prepareTxnId, table, childTable, blockSize, numBlocks);
     } catch (SerializableEEException &e) {
         VOLT_ERROR("antiCacheEvictBlockPrepareInBatch");
         resetAntiCacheUtilityOutputBuffer();
