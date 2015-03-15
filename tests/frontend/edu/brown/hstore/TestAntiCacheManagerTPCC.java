@@ -225,7 +225,7 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
         Future<VoltTable> evictFuture = executor.submit(new Callable<VoltTable>() {
             @Override
             public VoltTable call() throws Exception {
-                ThreadUtil.sleep(1000);
+                ThreadUtil.sleep(2000);
                 return doFinishEvictionData();
             }
         });
