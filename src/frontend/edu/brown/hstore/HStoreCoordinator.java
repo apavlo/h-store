@@ -107,6 +107,9 @@ import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
+import static edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest;
+import static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse;
+
 /**
  * 
  * @author pavlo
@@ -180,7 +183,7 @@ public class HStoreCoordinator implements Shutdownable {
     
     private final TransactionPrefetchCallback transactionPrefetch_callback;
     private final PrefetchQueryPlanner prefetchPlanner;
-    
+
     // ----------------------------------------------------------------------------
     // MESSENGER LISTENER THREAD
     // ----------------------------------------------------------------------------
@@ -274,6 +277,30 @@ public class HStoreCoordinator implements Shutdownable {
                 if (debug.val)
                     LOG.debug(String.format("transaction %d is being restarted", ts.getTransactionId()));
             	LocalInitQueueCallback initCallback = (LocalInitQueueCallback)ts.getInitCallback();
+                hstore_site.getCoordinator().transactionInit(ts, initCallback);
+            }
+        }
+    };
+
+    private RpcCallback<EvictionPreparedDataResponse> evictionPreparedCallback = new RpcCallback<EvictionPreparedDataResponse>() {
+        @Override
+        public void run(EvictionPreparedDataResponse response) {
+            if (response.getStatus() == Status.OK) {
+                if (trace.val)
+                    LOG.trace(String.format("%s %s -> %s [%s]",
+                            response.getClass().getSimpleName(),
+                            HStoreThreadManager.formatSiteName(response.getSenderSite()),
+                            HStoreThreadManager.formatSiteName(local_site_id),
+                            response.getStatus()));
+                long oldTxnId = response.getTransactionId();
+
+                LocalTransaction ts = hstore_site.getTransaction(oldTxnId);
+
+                assert(response.getSenderSite() != local_site_id);
+                hstore_site.getTransactionInitializer().resetTransactionId(ts, ts.getBasePartition());
+                if (debug.val)
+                    LOG.debug(String.format("transaction %d is being restarted", ts.getTransactionId()));
+                LocalInitQueueCallback initCallback = ts.getInitCallback();
                 hstore_site.getCoordinator().transactionInit(ts, initCallback);
             }
         }
@@ -864,6 +891,28 @@ public class HStoreCoordinator implements Shutdownable {
 			hstore_site.getAntiCacheManager().queueUneviction(ts, partition, catalog_tbl, block_ids, tuple_offsets);
 		}
 
+        @Override
+        public void evictionPreparedData(RpcController controller,
+                                         EvictionPreparedDataRequest request,
+                                         RpcCallback<EvictionPreparedDataResponse> done) {
+            LOG.info(String.format("Received %s from HStoreSite %s at HStoreSite %s",
+                    request.getClass().getSimpleName(),
+                    HStoreThreadManager.formatSiteName(request.getSenderSite()),
+                    HStoreThreadManager.formatSiteName(local_site_id)));
+
+            AbstractTransaction ts = hstore_site.getTransaction(request.getTransactionId());
+            System.out.println(hstore_site.getInflightTxns().size());
+            System.out.println(request.getTransactionId());
+            assert(ts!=null);
+            ts.setEvictionPreparedCallback(done);
+
+            ts.setNewTransactionId(request.getNewTransactionId());
+            int partition = request.getPartitionId();
+            Table catalog_tbl = hstore_site.getCatalogContext().getTableById(request.getTableId());
+
+            hstore_site.getAntiCacheManager().queueEvictionPreparedAccess(ts, partition, catalog_tbl);
+        }
+
     } // END CLASS
     
     
@@ -1386,7 +1435,31 @@ public class HStoreCoordinator implements Shutdownable {
             }
 
     }
-    
+
+    public void sendEvictionPreparedDataMessage(int remote_site_id, LocalTransaction txn, int partition_id, Table catalog_tbl) {
+        EvictionPreparedDataRequest request = EvictionPreparedDataRequest.newBuilder()
+                .setSenderSite(local_site_id)
+                .setTransactionId(txn.getOldTransactionId())
+                .setNewTransactionId(txn.getTransactionId())
+                .setPartitionId(partition_id)
+                .setTableId(catalog_tbl.getRelativeIndex())
+                .build();
+        try {
+            this.channels[remote_site_id].evictionPreparedData(new ProtoRpcController(), request, evictionPreparedCallback);
+            if (trace.val) {
+                LOG.trace(String.format("Sent unevict message request to remote hstore site %d from base site %d",
+                        remote_site_id, this.hstore_site.getSiteId()));
+                LOG.trace(String.format("Sent %s to %s",
+                        request.getClass().getSimpleName(),
+                        HStoreThreadManager.formatSiteName(remote_site_id)));
+            }
+        } catch (RuntimeException ex) {
+            // Silently ignore these errors...
+            ex.printStackTrace();
+        }
+    }
+
+
     // ----------------------------------------------------------------------------
     // TIME SYNCHRONZIATION
     // ----------------------------------------------------------------------------

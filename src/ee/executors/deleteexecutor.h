@@ -52,6 +52,7 @@
 #include "executors/abstractexecutor.h"
 #include "plannodes/deletenode.h"
 #include "execution/VoltDBEngine.h"
+#include "catalog/table.h"
 
 namespace voltdb {
 
@@ -70,6 +71,7 @@ class DeleteExecutor : public OperationExecutor {
             m_inputTable = NULL;
             m_targetTable = NULL;
             m_engine = engine;
+            m_catalogTable = NULL;
         }
         ~DeleteExecutor();
     protected:
@@ -85,6 +87,7 @@ class DeleteExecutor : public OperationExecutor {
 
         /** reference to the engine/context to store the number of modified tuples */
         VoltDBEngine* m_engine;
+        catalog::Table* m_catalogTable;
 };
 
 }

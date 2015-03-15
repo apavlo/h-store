@@ -518,11 +518,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
             !(m_tuple = m_index->nextValue()).isNullTuple()))
     {
         #ifdef ANTICACHE
-        if (isMarkedToEvict(*m_targetTable, m_tuple)) {
-          VOLT_ERROR("Failed to index scan tuple from table '%s': tuple already marked as to be evicted",
-                     m_targetTable->name().c_str());
-          return false;
-        }
+        checkEvictionPreparedAccess(*m_catalogTable, *m_targetTable, m_tuple);
         #endif
         
         m_targetTable->updateTupleAccessCount();

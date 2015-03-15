@@ -68,11 +68,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.compiler.AdHocPlannedStmt;
 import org.voltdb.compiler.AsyncCompilerResult;
 import org.voltdb.compiler.AsyncCompilerWorkThread;
-import org.voltdb.exceptions.ClientConnectionLostException;
-import org.voltdb.exceptions.EvictedTupleAccessException;
-import org.voltdb.exceptions.MispredictionException;
-import org.voltdb.exceptions.SerializableException;
-import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.exceptions.*;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.logging.VoltLogger;
 import org.voltdb.messaging.FastDeserializer;
@@ -2683,6 +2679,26 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 new_ts.setOldTransactionId(orig_ts.getTransactionId());
             }
             this.anticacheManager.queueUneviction(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
+
+        } else if (status == Status.ABORT_EVICTIONPREPAREDACCESS && orig_error instanceof EvictionPreparedTupleAccessException) {
+            if (this.anticacheManager == null) {
+                String message = "Got eviction notice but anti-caching is not enabled";
+                LOG.warn(message);
+                throw new ServerFaultException(message, orig_error, orig_ts.getTransactionId());
+            }
+            EvictionPreparedTupleAccessException error = (EvictionPreparedTupleAccessException) orig_error;
+            Table evicted_table = error.getTable(catalogContext.database);
+            new_ts.setPendingError(error, false);
+            if (debug.val) {
+                LOG.debug(String.format("Added aborted txn to %s queue. Eviction prepared access from %s (%d).",
+                          AntiCacheManager.class.getSimpleName(),
+                          evicted_table.getName(),
+                          evicted_table.getRelativeIndex()));
+            }
+            if (orig_ts.getBasePartition() != error.getPartitionId() && !this.isLocalPartition(error.getPartitionId())) {
+                new_ts.setOldTransactionId(orig_ts.getTransactionId());
+            }
+            anticacheManager.queueEvictionPreparedAccess(new_ts, error.getPartitionId(), evicted_table);
         }
             
         // -------------------------------

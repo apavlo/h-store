@@ -105,6 +105,8 @@ public:
     }
     void recordEvictedAccess(catalog::Table* catalogTable, TableTuple *tuple);
     void throwEvictedAccessException();
+
+    void throwEvictionPreparedAccessException(const catalog::Table& table, const TableTuple& tuple);
     
 protected:
     void initEvictResultTable();

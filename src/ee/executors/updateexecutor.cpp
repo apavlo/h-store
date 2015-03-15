@@ -84,6 +84,8 @@ bool UpdateExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Data
     assert(m_targetTable);
     assert(node->getTargetTable());
 
+    m_catalogTable = catalog_db->tables().get(m_targetTable->name());
+
     // Our output is just our input table (regardless if plan is single-sited or not)
     node->setOutputTable(node->getInputTables()[0]);
 
@@ -170,11 +172,7 @@ bool UpdateExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
         m_targetTuple.move(target_address);
         
         #ifdef ANTICACHE
-        if (isMarkedToEvict(*m_targetTable, m_targetTuple)) {
-            VOLT_ERROR("Failed to update tuple from table '%s': tuple already marked as to be evicted",
-                       m_targetTable->name().c_str());
-            return false;
-        }
+        checkEvictionPreparedAccess(*m_catalogTable, *m_targetTable, m_targetTuple);
         #endif
 
         // Read/Write Set Tracking

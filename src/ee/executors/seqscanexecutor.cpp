@@ -215,11 +215,7 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
         int tuple_ctr = 0;
         while (iterator.next(tuple)) {
             #ifdef ANTICACHE
-            if (isMarkedToEvict(*target_table, tuple)) {
-              VOLT_ERROR("Failed to sequentially scan tuple from table '%s': tuple already marked as to be evicted",
-                          target_table->name().c_str());
-              return false;
-            }
+            checkEvictionPreparedAccess(*m_catalogTable, *target_table, tuple);
             #endif
             
             target_table->updateTupleAccessCount();

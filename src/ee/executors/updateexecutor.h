@@ -51,6 +51,7 @@
 #include "common/tabletuple.h"
 #include "executors/abstractexecutor.h"
 #include "execution/VoltDBEngine.h"
+#include "catalog/table.h"
 
 namespace voltdb {
 
@@ -92,6 +93,8 @@ class UpdateExecutor : public OperationExecutor {
 
         /** reference to the engine/context to store the number of modified tuples */
         VoltDBEngine* m_engine;
+
+        catalog::Table* m_catalogTable;
 };
 
 }

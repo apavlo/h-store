@@ -51,6 +51,22 @@ class EvictedTupleAccessException : public SerializableEEException {
         const int32_t *m_tupleKeys;
         const int m_partitionId;
 };
+
+class EvictionPreparedTupleAccessException : public SerializableEEException {
+    public:
+
+        EvictionPreparedTupleAccessException(int tableId);
+        virtual ~EvictionPreparedTupleAccessException() {}
+        
+        static std::string ERROR_MSG;
+        
+    protected:
+        void p_serialize(ReferenceSerializeOutput *output);
+        
+    private:
+        const int m_tableId;
+        const int m_partitionId;
+};
 }
 
 #endif /* EVICTEDTUPLEACCESSEXCEPTION_H_ */

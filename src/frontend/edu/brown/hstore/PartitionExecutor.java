@@ -89,13 +89,7 @@ import org.voltdb.catalog.Procedure;
 import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.Table;
-import org.voltdb.exceptions.ConstraintFailureException;
-import org.voltdb.exceptions.EEException;
-import org.voltdb.exceptions.EvictedTupleAccessException;
-import org.voltdb.exceptions.MispredictionException;
-import org.voltdb.exceptions.SQLException;
-import org.voltdb.exceptions.SerializableException;
-import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.exceptions.*;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.jni.ExecutionEngineIPC;
 import org.voltdb.jni.ExecutionEngineJNI;
@@ -2375,6 +2369,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 if (error instanceof EvictedTupleAccessException){
                 	EvictedTupleAccessException evta = (EvictedTupleAccessException) error;
                     LOG.error(String.format("Evicted tuple access exception error has partition id set as %d", evta.getPartitionId()));                	
+                } else if (error instanceof EvictionPreparedTupleAccessException) {
+                    LOG.error(String.format("Evicted tuple access exception error has partition id set as %d", ((EvictionPreparedTupleAccessException)error).getPartitionId()));
                 }
                 ts.setPendingError(error, true);
             }
@@ -2790,6 +2786,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         } catch (EvictedTupleAccessException ex) {
             // XXX: What do we do if this is not a single-partition txn?
             status = Status.ABORT_EVICTEDACCESS;
+            error = ex;
+        } catch (EvictionPreparedTupleAccessException ex) {
+            status = Status.ABORT_EVICTIONPREPAREDACCESS;
             error = ex;
         } catch (ConstraintFailureException ex) {
         	LOG.info("Found the abort!!!"+ex);
@@ -3304,6 +3303,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         } catch (EvictedTupleAccessException ex) {
             if (debug.val) LOG.warn("Caught EvictedTupleAccessException.");
             ((EvictedTupleAccessException)ex).setPartitionId(this.partitionId);
+            error = ex;
+            throw ex;
+        } catch (EvictionPreparedTupleAccessException ex) {
+            if (debug.val) LOG.warn("Caught EvictionPrepareTupleAccessException.");
+            ex.setPartitionId(partitionId);
             error = ex;
             throw ex;
         } catch (SerializableException ex) {

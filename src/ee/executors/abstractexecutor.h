@@ -112,6 +112,14 @@ class AbstractExecutor {
         }
         return false;
     }
+
+    void checkEvictionPreparedAccess(const catalog::Table& catalogTable, const PersistentTable& storageTable, const TableTuple& tuple) {
+      if (isMarkedToEvict(storageTable, tuple)) {
+        AntiCacheEvictionManager* antiCacheManager = executor_context->getAntiCacheEvictionManager();
+        assert(antiCacheManager);
+        antiCacheManager->throwEvictionPreparedAccessException(catalogTable, tuple);
+      }
+    }
 #endif
 
     /** Concrete executor classes implement initialization in p_init() */

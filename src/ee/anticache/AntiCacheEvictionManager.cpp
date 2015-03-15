@@ -1895,6 +1895,13 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     VOLT_TRACE("Evicted Tuple Acccess: %s", m_evicted_tuple->debug(catalogTable->name()).c_str());
 }
 
+void AntiCacheEvictionManager::throwEvictionPreparedAccessException(const catalog::Table& table, const TableTuple& tuple) {
+  VOLT_INFO("Throwing EvictionPreparedTupleAccessException for table %s (%d)",
+            table.name().c_str(), 
+            table.relativeIndex());
+  throw EvictionPreparedTupleAccessException(table.relativeIndex());
+}
+
 void AntiCacheEvictionManager::throwEvictedAccessException() {
     // Do we really want to remove all the non-unique blockIds here?
     // m_evicted_block_ids.unique();
