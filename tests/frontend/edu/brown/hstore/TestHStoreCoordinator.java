@@ -30,6 +30,9 @@ import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.ProjectType;
 import edu.brown.utils.ThreadUtil;
 
+import static edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest;
+import static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse;
+
 /**
  * HStoreCoordinator Tests
  * @author pavlo
@@ -480,5 +483,46 @@ public class TestHStoreCoordinator extends BaseTestCase {
         assertEquals(1, responses.size());
     }    
 
+    @Test
+    public void testEvictionPreparedDataShouldInvokeSpecificedCallback() throws Exception {
+        final Map<Integer, String> responses = new HashMap<Integer, String>();
+
+        // We will block on this until we get responses from the remote site
+        final CountDownLatch latch = new CountDownLatch(1);
+
+        final RpcCallback<EvictionPreparedDataResponse> callback = new RpcCallback<EvictionPreparedDataResponse>() {
+            @Override
+            public void run(EvictionPreparedDataResponse parameter) {
+                int sender_site_id = parameter.getSenderSite();
+                String status = parameter.getStatus().name();
+                assertEquals("OK", status);
+                responses.put(sender_site_id, status );
+                StringBuilder sb = new StringBuilder();
+                sb.append("TestConnection Responses:\n");
+                for (java.util.Map.Entry<Integer, String> e : responses.entrySet()) {
+                    sb.append(String.format("  Partition %03d: %s\n", e.getKey(), e.getValue()));
+                } // FOR
+                System.err.println(sb.toString());
+                latch.countDown();
+            }
+        };
+
+        // The sender partition can just be our first partition that we have
+        final int sender_id = 0;
+        // Remote site
+        final int dest_id = 1;
+        final EvictionPreparedDataRequest request = EvictionPreparedDataRequest.newBuilder()
+                .setSenderSite(sender_id)
+                .setPartitionId(0)
+                .setTableId(99)
+                .setTransactionId(-1)
+                .setNewTransactionId(12)
+                .build();
+
+        hstore_sites[sender_id].getCoordinator().getChannel(dest_id).evictionPreparedData(new ProtoRpcController(), request, callback);
+        // BLOCK!
+        latch.await();
+        assertEquals(1, responses.size());
+    }
 
 }
