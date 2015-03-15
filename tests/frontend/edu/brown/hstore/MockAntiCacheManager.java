@@ -18,4 +18,8 @@ public class MockAntiCacheManager extends AntiCacheManager{
 		this.processingCallback(next);
 	}
 
+    public int getQueueSize() {
+        return queue.size();
+    }
+
 }

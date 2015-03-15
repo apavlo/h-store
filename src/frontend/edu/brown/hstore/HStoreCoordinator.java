@@ -536,6 +536,11 @@ public class HStoreCoordinator implements Shutdownable {
     public void setUnevictCallback(RpcCallback<UnevictDataResponse> callback){
     	this.unevictCallback = callback;
     }
+
+    public void setEvictionPreparedCallback(RpcCallback<EvictionPreparedDataResponse> callback) {
+        evictionPreparedCallback = callback;
+    }
+
     /**
      * Initialize all the network connections to remote
      *  

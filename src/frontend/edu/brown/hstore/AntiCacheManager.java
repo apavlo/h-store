@@ -5,12 +5,15 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
 import org.voltdb.*;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EvictedTupleAccessException;
+import org.voltdb.exceptions.EvictionPreparedTupleAccessException;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.messaging.FastSerializer;
@@ -57,7 +60,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
-    private Queue<EvictionPreparedAccessQueueEntry> evictionPreparedAccessTxns = new ArrayDeque<EvictionPreparedAccessQueueEntry>();
+    private Queue<EvictionPreparedAccessQueueEntry> evictionPreparedAccessTxns = new ConcurrentLinkedQueue<EvictionPreparedAccessQueueEntry>();
+    private AtomicBoolean isEvictionPreparing = new AtomicBoolean(false);
 
 //    public static long DEFAULT_MAX_MEMORY_SIZE_MB = 500;
 //    public static final long TOTAL_BYTES_TO_EVICT = 2400 * 1024 * 1024;
@@ -208,8 +212,29 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                     // check to see if we should start eviction
                     if (debug.val)
                         LOG.warn("Checking and evicting");
-                    if (hstore_conf.site.anticache_enable && checkEviction()) {
+                    if (hstore_conf.site.anticache_enable && (!isEvictionPreparing.get()) && checkEviction()) {
                         executeEviction();
+                    }
+                } catch (Throwable ex) {
+                    ex.printStackTrace();
+                }
+            }
+        }
+    };
+
+    private final ExceptionHandlingRunnable evictionPreparedAccessTxnsResubmitter = new ExceptionHandlingRunnable() {
+        @Override
+        public void runImpl() {
+            synchronized(AntiCacheManager.this) {
+                try {
+                    if (debug.val)
+                        LOG.warn("Checking resubmission of eviction-prepared-access txns.");
+                    while (hstore_conf.site.anticache_enable && (!isEvictionPreparing.get()) && (!evictionPreparedAccessTxns.isEmpty())) {
+                        try {
+                            EvictionPreparedAccessQueueEntry e = evictionPreparedAccessTxns.remove();
+                            resubmit(e);
+                        } catch (NoSuchElementException ignored) {
+                        }
                     }
                 } catch (Throwable ex) {
                     ex.printStackTrace();
@@ -269,7 +294,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private final RpcCallback<ClientResponseImpl> evictionFinishCallback = new RpcCallback<ClientResponseImpl>() {
         @Override
         public void run(ClientResponseImpl parameter) {
-            // TODO: do what?
+            isEvictionPreparing.set(false);
         }
     };
 
@@ -341,6 +366,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
     public Runnable getMemoryMonitorThread() {
         return this.memoryMonitor;
+    }
+
+    public Runnable getEvictionPreparedAccessTxnsResubmitter() {
+        return evictionPreparedAccessTxnsResubmitter;
     }
 
     // ----------------------------------------------------------------------------
@@ -449,7 +478,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     }
 
     private void process(EvictionPreparedAccessQueueEntry next) {
-        // TODO: one optimization would be to reschedule next only at the right time. For now, eagerly reschedule it.
+        evictionPreparedAccessTxns.add(next);
+    }
+
+    private void resubmit(EvictionPreparedAccessQueueEntry next) {
         assert(next.ts.isInitialized()) :
                 String.format("Unexpected uninitialized transaction handle: %s", next);
         if (next.partition != next.ts.getBasePartition()) { // distributed txn
@@ -461,11 +493,6 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         }
         if (debug.val)
             LOG.debug("Processing " + next);
-
-        // We need to get the EE handle for the partition that this txn
-        // needs to have read in some blocks from disk
-        PartitionExecutor executor = hstore_site.getPartitionExecutor(next.partition);
-        ExecutionEngine ee = executor.getExecutionEngine();
 
         if (next.ts instanceof LocalTransaction){
             hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
@@ -661,6 +688,17 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 hstore_site.getCoordinator().sendEvictionPreparedDataMessage(site_id, ts, partition, catalog_tbl);
                 return true;
             }
+
+            if (hstore_conf.site.anticache_profiling) {
+                assert(ts.getPendingError() != null) :
+                        String.format("Missing original %s for %s", EvictedTupleAccessException.class.getSimpleName(), ts);
+                assert(ts.getPendingError() instanceof EvictionPreparedTupleAccessException) :
+                        String.format("Unexpected error for %s: %s", ts, ts.getPendingError().getClass().getSimpleName());
+                profilers[partition].restarted_txns++;
+                profilers[partition].addEvictionPreparedAccess(ts, (EvictionPreparedTupleAccessException)ts.getPendingError());
+                LOG.debug("Restarting transaction " + String.format("%s",ts) + ", " + ts.getRestartCounter() + " total restarts.");
+                LOG.debug("Total Restarted Txns: " + profilers[partition].restarted_txns);
+            }
         }
 
         if (debug.val)
@@ -804,6 +842,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 throw new RuntimeException(ex);
             }
             this.pendingEvictions++;
+            assert(!isEvictionPreparing.get()) : "Should not have had eviction preparing already";
+            isEvictionPreparing.set(true);
             this.hstore_site.invocationProcess(b, evictionPrepareCallback);
         } 
     }

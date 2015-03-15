@@ -24,6 +24,7 @@ namespace voltdb {
 
 class ReferenceSerializeOutput;
 
+// TODO: Clean up this mess: currently these type values are used to "map" into ordinal indexes of the frontend exceptions, see SerializableException.java.
 enum VoltEEExceptionType {
     VOLT_EE_EXCEPTION_TYPE_NONE = 0,
     VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION = 1,
@@ -32,7 +33,7 @@ enum VoltEEExceptionType {
     VOLT_EE_EXCEPTION_TYPE_EVICTED_TUPLE = 4,
     VOLT_EE_EXCEPTION_TYPE_UNKNOWN_BLOCK = 5,
     VOLT_EE_EXCEPTION_TYPE_FULL_BACKING_STORE = 6,
-    VOLT_EE_EXCEPTION_TYPE_EVICTION_PREPARED_TUPLE = 7,
+    VOLT_EE_EXCEPTION_TYPE_EVICTION_PREPARED_TUPLE = 8,  
 };
 
 /*

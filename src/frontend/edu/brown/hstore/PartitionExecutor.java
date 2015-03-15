@@ -4470,7 +4470,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         // -------------------------------
         if (status == Status.ABORT_MISPREDICT ||
             status == Status.ABORT_SPECULATIVE ||
-            status == Status.ABORT_EVICTEDACCESS) {
+            status == Status.ABORT_EVICTEDACCESS ||
+            status == Status.ABORT_EVICTIONPREPAREDACCESS) {
             
             // If the txn was mispredicted, then we will pass the information over to the
             // HStoreSite so that it can re-execute the transaction. We want to do this 

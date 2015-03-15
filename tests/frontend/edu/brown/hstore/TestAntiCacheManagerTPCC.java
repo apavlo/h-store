@@ -2,6 +2,7 @@ package edu.brown.hstore;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.concurrent.*;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -39,10 +40,14 @@ import edu.brown.utils.ThreadUtil;
  * @author pavlo
  */
 public class TestAntiCacheManagerTPCC extends BaseTestCase {
-    
+
     private static final int NUM_PARTITIONS = 1;
     private static final int NUM_TUPLES = 1000;
     private static final String TARGET_TABLE = TPCCConstants.TABLENAME_ORDER_LINE;
+
+    private static final long PREPARE_TXN_ID = 33;
+    private static final long EVICT_BLOCK_SIZE = 1024 * 1024;
+    private static final int EVICT_NUM_BLOCKS = 1;
     
     private static final String SEQSCAN_PROCEDURE = "GetRecordNoLimit";
     private static final String SEQSCANLIMIT_PROCEDURE = "GetRecordWithLimit";
@@ -139,6 +144,25 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
         assertEquals(1, stats.length);
         System.err.println(VoltTableUtil.format(stats));
     }
+
+    private void prepareEvictionData() throws Exception {
+        ee.antiCacheEvictBlockPrepareInit(PREPARE_TXN_ID);
+        ee.antiCacheEvictBlockPrepare(PREPARE_TXN_ID, catalog_tbl, EVICT_BLOCK_SIZE, EVICT_NUM_BLOCKS);
+    }
+
+    private VoltTable doFinishEvictionData() throws Exception {
+        VoltTable evictResult = ee.antiCacheEvictBlockWork(PREPARE_TXN_ID, catalog_tbl, EVICT_BLOCK_SIZE, EVICT_NUM_BLOCKS);
+        ee.anticacheEvictBlockFinish(PREPARE_TXN_ID);
+
+        System.err.println("-------------------------------");
+        System.err.println(VoltTableUtil.format(evictResult));
+        assertNotNull(evictResult);
+        assertEquals(1, evictResult.getRowCount());
+        evictResult.resetRowPosition();
+        boolean adv = evictResult.advanceRow();
+        assertTrue(adv);
+        return (evictResult);
+    }
     
     private VoltTable evictData() throws Exception {
         VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
@@ -152,17 +176,12 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
         
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
-        VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024, 1);
+        //VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024, 1);
+        prepareEvictionData();
+        VoltTable evictResult = doFinishEvictionData();
 
-        System.err.println("-------------------------------");
-        System.err.println(VoltTableUtil.format(evictResult));
-        assertNotNull(evictResult);
-        assertEquals(1, evictResult.getRowCount());
         assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
-        evictResult.resetRowPosition();
-        boolean adv = evictResult.advanceRow();
-        assertTrue(adv);
-        return (evictResult);
+        return evictResult;
     }
     
     private void simpleScan(String  procName, int expected, boolean useLimit) throws Exception {
@@ -187,6 +206,55 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
 
         // Make sure that we tracked that we tried to touch evicted data
         assertEquals(1, this.profiler.evictedaccess_history.size());
+
+        // And then check to make sure that we get the correct number of rows back
+        VoltTable results[] = cresponse.getResults();
+        System.err.println(VoltTableUtil.format(results[0]));
+        assertEquals(1, results.length);
+        assertEquals(expected, results[0].getRowCount());
+    }
+
+    public void simpleScanWithEvictionPreparedAccess(String procName, final int expected, final boolean useLimit) throws Exception {
+        assert(expected <= NUM_TUPLES);
+        loadData();
+
+        // We should have all of our tuples evicted
+        prepareEvictionData();
+
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        Future<VoltTable> evictFuture = executor.submit(new Callable<VoltTable>() {
+            @Override
+            public VoltTable call() throws Exception {
+                ThreadUtil.sleep(1000);
+                return doFinishEvictionData();
+            }
+        });
+
+        // Now execute a query that needs to access data from this block
+        final Procedure proc = getProcedure(procName); // Special Single-Stmt Proc
+        Future<ClientResponse> procFuture = executor.submit(new Callable<ClientResponse>() {
+            @Override
+            public ClientResponse call() throws Exception {
+                if (useLimit) {
+                    return client.callProcedure(proc.getName(), expected);
+                } else {
+                    return client.callProcedure(proc.getName());
+                }
+            }
+        });
+
+        ClientResponse cresponse = procFuture.get(10, TimeUnit.SECONDS);
+        assertEquals(Status.OK, cresponse.getStatus());
+
+        // We should have all of our tuples evicted
+        VoltTable evictResult = evictFuture.get(10, TimeUnit.SECONDS);
+        long evicted = evictResult.getLong("ANTICACHE_TUPLES_EVICTED");
+        assertTrue("No tuples were evicted!\n"+evictResult, evicted > 0);
+        //System.err.println(VoltTableUtil.format(evictResult));
+
+        // Make sure that we tracked that we tried to touch evicted data
+        assertTrue(0 < profiler.evictionPreparedAccessHistory.size());
+
 
         // And then check to make sure that we get the correct number of rows back
         VoltTable results[] = cresponse.getResults();
@@ -242,26 +310,26 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
     /**
      * testSeqScanPlanValidate
      */
-    @Test
-    public void testSeqScanPlanValidate() throws Exception {
-        this.validateStmt(SEQSCAN_PROCEDURE, SeqScanPlanNode.class);
-    }
-    
-    /**
-     * testIndexScanPlanValidate
-     */
-    @Test
-    public void testIndexScanPlanValidate() throws Exception {
-        this.validateStmt(INDEXSCAN_PROCEDURE, IndexScanPlanNode.class);
-    }
-
-    /**
-     * testSeqScanReadOneEvictedTuple
-     */
-    @Test
-    public void testSeqScanNotLimit() throws Exception {
-        this.simpleScan(SEQSCAN_PROCEDURE, NUM_TUPLES, false);
-    }
+//    @Test
+//    public void testSeqScanPlanValidate() throws Exception {
+//        this.validateStmt(SEQSCAN_PROCEDURE, SeqScanPlanNode.class);
+//    }
+//
+//    /**
+//     * testIndexScanPlanValidate
+//     */
+//    @Test
+//    public void testIndexScanPlanValidate() throws Exception {
+//        this.validateStmt(INDEXSCAN_PROCEDURE, IndexScanPlanNode.class);
+//    }
+//
+//    /**
+//     * testSeqScanReadOneEvictedTuple
+//     */
+//    @Test
+//    public void testSeqScanNotLimit() throws Exception {
+//        this.simpleScan(SEQSCAN_PROCEDURE, NUM_TUPLES, false);
+//    }
     
     /**
      * testSeqScanReadOneEvictedTuple
@@ -270,112 +338,117 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
     public void testSeqScanReadOneEvictedTuple() throws Exception {
         this.simpleScan(SEQSCANLIMIT_PROCEDURE, 1, true);
     }
-    
-    /**
-     * testSeqScanReadMultipleEvictedTuples
-     */
+
     @Test
-    public void testSeqScanReadMultipleEvictedTuples() throws Exception {
-        this.simpleScan(SEQSCANLIMIT_PROCEDURE, 19, true); // Pick a screwy number
-    }
-        
-    /**
-     * testIndexScanReadOneEvictedTuple
-     */
-    @Test
-    public void testIndexScanReadOneEvictedTuple() throws Exception {
-        this.scanWithParams(INDEXSCAN_PROCEDURE, 1);
+    public void testSeqScanReadOneEvictionPreparedTuple() throws Exception {
+        simpleScanWithEvictionPreparedAccess(SEQSCANLIMIT_PROCEDURE, 1, true);
     }
     
-    /**
-     * testIndexScanReadMultipleEvictedTuples
-     */
-    @Test
-    public void testIndexScanReadMultipleEvictedTuples() throws Exception {
-        this.scanWithParams(INDEXSCAN_PROCEDURE, 13);
-    }
-    
-    /**
-     * testEvictTuples
-     */
-    @Test
-    public void testEvictTuples() throws Exception {
-        this.loadData();
-        VoltTable evictResult = this.evictData();
-		evictResult.advanceRow(); 
-
-        // Our stats should now come back with at least one block evicted
-        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
-        assertEquals(1, results.length);
-        System.err.println("-------------------------------");
-        System.err.println(VoltTableUtil.format(results));
-
-		results[0].advanceRow(); 
-        for (String col : statsFields) {
-            assertEquals(col, evictResult.getLong(col), results[0].getLong(col));
-            if (col == "ANTICACHE_BLOCKS_EVICTED") {
-                assertEquals(col, 1, results[0].getLong(col));
-            } else {
-                assertNotSame(col, 0, results[0].getLong(col));
-            }
-        } // FOR
-    }
-    
-    /**
-     * testMultipleEvictions
-     */
-    @Test
-    public void testEvictTuplesMultiple() throws Exception {
-        // Just checks whether we can call evictBlock multiple times
-        this.loadData();
-
-        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
-        assertEquals(1, results.length);
-        System.err.println(VoltTableUtil.format(results));
-
-		results[0].advanceRow(); 
-        for (String col : statsFields) {
-            int idx = results[0].getColumnIndex(col);
-            assertEquals(0, results[0].getLong(idx));    
-        } // FOR
-        System.err.println(StringUtil.repeat("=", 100));
-        
-        // Now force the EE to evict our boys out in multiple rounds
-        VoltTable evictResult = null;
-        for (int i = 0; i < 5; i++) {
-            if (i > 0) {
-                System.err.println(StringUtil.repeat("-", 100));
-                ThreadUtil.sleep(1000);
-            }
-            System.err.println("Eviction #" + i);
-            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 512, 1);
-            System.err.println(VoltTableUtil.format(evictResult));
-            assertNotNull(evictResult);
-            assertEquals(1, evictResult.getRowCount());
-            assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
-            evictResult.resetRowPosition();
-            boolean adv = evictResult.advanceRow();
-            assertTrue(adv);
-        } // FOR
-    }
-
-    /**
-     * testReadNonExistentBlock
-     */
-    @Test
-    public void testReadNonExistentBlock() throws Exception {
-        int block_ids[] = new int[]{ 1111 };
-        int offsets[] = new int[]{0};
-        boolean failed = false;
-        try {
-            ee.antiCacheReadBlocks(catalog_tbl, block_ids, offsets);
-        } catch (UnknownBlockAccessException ex) {
-            // This is what we want!
-            assertEquals(block_ids[0], ex.getBlockId());
-            failed = true;
-            System.err.println(ex);
-        }
-        assertTrue(failed);
-    }
+//    /**
+//     * testSeqScanReadMultipleEvictedTuples
+//     */
+//    @Test
+//    public void testSeqScanReadMultipleEvictedTuples() throws Exception {
+//        this.simpleScan(SEQSCANLIMIT_PROCEDURE, 19, true); // Pick a screwy number
+//    }
+//
+//    /**
+//     * testIndexScanReadOneEvictedTuple
+//     */
+//    @Test
+//    public void testIndexScanReadOneEvictedTuple() throws Exception {
+//        this.scanWithParams(INDEXSCAN_PROCEDURE, 1);
+//    }
+//
+//    /**
+//     * testIndexScanReadMultipleEvictedTuples
+//     */
+//    @Test
+//    public void testIndexScanReadMultipleEvictedTuples() throws Exception {
+//        this.scanWithParams(INDEXSCAN_PROCEDURE, 13);
+//    }
+//
+//    /**
+//     * testEvictTuples
+//     */
+//    @Test
+//    public void testEvictTuples() throws Exception {
+//        this.loadData();
+//        VoltTable evictResult = this.evictData();
+//		evictResult.advanceRow();
+//
+//        // Our stats should now come back with at least one block evicted
+//        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+//        assertEquals(1, results.length);
+//        System.err.println("-------------------------------");
+//        System.err.println(VoltTableUtil.format(results));
+//
+//		results[0].advanceRow();
+//        for (String col : statsFields) {
+//            assertEquals(col, evictResult.getLong(col), results[0].getLong(col));
+//            if (col == "ANTICACHE_BLOCKS_EVICTED") {
+//                assertEquals(col, 1, results[0].getLong(col));
+//            } else {
+//                assertNotSame(col, 0, results[0].getLong(col));
+//            }
+//        } // FOR
+//    }
+//
+//    /**
+//     * testMultipleEvictions
+//     */
+//    @Test
+//    public void testEvictTuplesMultiple() throws Exception {
+//        // Just checks whether we can call evictBlock multiple times
+//        this.loadData();
+//
+//        VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
+//        assertEquals(1, results.length);
+//        System.err.println(VoltTableUtil.format(results));
+//
+//		results[0].advanceRow();
+//        for (String col : statsFields) {
+//            int idx = results[0].getColumnIndex(col);
+//            assertEquals(0, results[0].getLong(idx));
+//        } // FOR
+//        System.err.println(StringUtil.repeat("=", 100));
+//
+//        // Now force the EE to evict our boys out in multiple rounds
+//        VoltTable evictResult = null;
+//        for (int i = 0; i < 5; i++) {
+//            if (i > 0) {
+//                System.err.println(StringUtil.repeat("-", 100));
+//                ThreadUtil.sleep(1000);
+//            }
+//            System.err.println("Eviction #" + i);
+//            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 512, 1);
+//            System.err.println(VoltTableUtil.format(evictResult));
+//            assertNotNull(evictResult);
+//            assertEquals(1, evictResult.getRowCount());
+//            assertNotSame(results[0].getColumnCount(), evictResult.getColumnCount());
+//            evictResult.resetRowPosition();
+//            boolean adv = evictResult.advanceRow();
+//            assertTrue(adv);
+//        } // FOR
+//    }
+//
+//    /**
+//     * testReadNonExistentBlock
+//     */
+//    @Test
+//    public void testReadNonExistentBlock() throws Exception {
+//        int block_ids[] = new int[]{ 1111 };
+//        int offsets[] = new int[]{0};
+//        boolean failed = false;
+//        try {
+//            ee.antiCacheReadBlocks(catalog_tbl, block_ids, offsets);
+//        } catch (UnknownBlockAccessException ex) {
+//            // This is what we want!
+//            assertEquals(block_ids[0], ex.getBlockId());
+//            failed = true;
+//            System.err.println(ex);
+//        }
+//        assertTrue(failed);
+//    }
 
 }

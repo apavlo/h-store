@@ -1056,6 +1056,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         hstore_conf.site.anticache_check_interval,
                         hstore_conf.site.anticache_check_interval,
                         TimeUnit.MILLISECONDS);
+                threadManager.schedulePeriodicWork(
+                        anticacheManager.getEvictionPreparedAccessTxnsResubmitter(),
+                        1001,
+                        1001,
+                        TimeUnit.MILLISECONDS);
             } else {
                 LOG.warn("There are no tables marked as evictable. Disabling anti-cache monitoring");
             }
@@ -2469,7 +2474,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.exec_db2_redirects && 
                  status != Status.ABORT_RESTART &&
                  status != Status.ABORT_SPECULATIVE &&
-                 status != Status.ABORT_EVICTEDACCESS) {
+                 status != Status.ABORT_EVICTEDACCESS &&
+                 status != Status.ABORT_EVICTIONPREPAREDACCESS) {
             // Figure out whether this transaction should be redirected based on what partitions it
             // tried to touch before it was aborted
             FastIntHistogram touched = orig_ts.getTouchedPartitions();
@@ -2578,6 +2584,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         PartitionSet predict_touchedPartitions = null;
         if (status == Status.ABORT_RESTART ||
             status == Status.ABORT_EVICTEDACCESS ||
+            status == Status.ABORT_EVICTIONPREPAREDACCESS ||
             status == Status.ABORT_SPECULATIVE) {
             
             predict_touchedPartitions = new PartitionSet(orig_ts.getPredictTouchedPartitions());
@@ -2748,7 +2755,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             "Missing ClientResponse for " + ts;
         assert(cresponse.getClientHandle() != -1) :
             "The client handle for " + ts + " was not set properly";
-        assert(status != Status.ABORT_MISPREDICT && status != Status.ABORT_EVICTEDACCESS) :
+        assert(status != Status.ABORT_MISPREDICT && status != Status.ABORT_EVICTEDACCESS && status != Status.ABORT_EVICTIONPREPAREDACCESS) :
             "Trying to send back a client response for " + ts + " but the status is " + status;
         
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostClient();
@@ -3026,6 +3033,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 case ABORT_MISPREDICT:
                 case ABORT_RESTART:
                 case ABORT_EVICTEDACCESS:
+                case ABORT_EVICTIONPREPAREDACCESS:
                 case ABORT_SPECULATIVE:
                     if (t_estimator != null) {
                         if (trace.val) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
@@ -3036,6 +3044,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 //if(ts.getRestartCounter()==0){
                                 TransactionCounter.EVICTEDACCESS.inc(catalog_proc);
                 //}
+                        } else if (status == Status.ABORT_EVICTIONPREPAREDACCESS) {
+                            TransactionCounter.EVICTIONPREPAREDACCESS.inc(catalog_proc);
                         }
                         else if (status == Status.ABORT_SPECULATIVE) {
                             TransactionCounter.ABORT_SPECULATIVE.inc(catalog_proc);
@@ -3109,6 +3119,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } else if (status != Status.ABORT_MISPREDICT &&
                        status != Status.ABORT_REJECT &&
                        status != Status.ABORT_EVICTEDACCESS &&
+                       status != Status.ABORT_EVICTIONPREPAREDACCESS &&
                        status != Status.ABORT_SPECULATIVE) {
                 (singlePartitioned ? TransactionCounter.SINGLE_PARTITION : TransactionCounter.MULTI_PARTITION).inc(catalog_proc);
                 

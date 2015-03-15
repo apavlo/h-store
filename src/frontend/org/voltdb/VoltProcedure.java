@@ -43,12 +43,7 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.exceptions.ConstraintFailureException;
-import org.voltdb.exceptions.EEException;
-import org.voltdb.exceptions.EvictedTupleAccessException;
-import org.voltdb.exceptions.MispredictionException;
-import org.voltdb.exceptions.SerializableException;
-import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.exceptions.*;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
@@ -663,6 +658,13 @@ public abstract class VoltProcedure implements Poolable {
             } else if (ex_class.equals(EvictedTupleAccessException.class)) {
                 if (debug.val) LOG.warn("Caught EvictedTupleAccessException for " + this.localTxnState);
                 this.status = Status.ABORT_EVICTEDACCESS;
+
+            // -------------------------------
+            // EvictionpreparedTupleAccessException
+            // -------------------------------
+            } else if (ex_class.equals(EvictionPreparedTupleAccessException.class)) {
+                if (debug.val) LOG.warn("Caught EvictionPreparedTupleAccessException for " + localTxnState);
+                status = Status.ABORT_EVICTIONPREPAREDACCESS;
 
             // -------------------------------
             // ConstraintFailureException

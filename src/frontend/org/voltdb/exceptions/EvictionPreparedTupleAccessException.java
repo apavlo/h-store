@@ -27,10 +27,10 @@ public class EvictionPreparedTupleAccessException extends SerializableException 
         return partitionId;
     }
     public void setPartitionId(int partitionId) {
-        assert(partitionId == HStoreConstants.NULL_PARTITION_ID) :
+        assert(this.partitionId == HStoreConstants.NULL_PARTITION_ID) :
                 String.format("Trying to set %s.partition_id more than once [orig=%d / new=%d]",
                         EvictedTupleAccessException.class.getName(),
-                        partitionId, partitionId);
+                        this.partitionId, partitionId);
         this.partitionId = partitionId;
     }
 
