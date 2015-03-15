@@ -1604,6 +1604,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     if (engine == NULL) {
         return result;
     }
+    engine->resetAntiCacheUtilityOutputBuffer();
 
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
     try {
@@ -1620,6 +1621,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
     if (engine == NULL) {
         return result;
     }
+    engine->resetAntiCacheUtilityOutputBuffer();
 
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
     try {

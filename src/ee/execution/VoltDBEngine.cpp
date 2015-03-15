@@ -2056,7 +2056,7 @@ int VoltDBEngine::antiCacheEvictBlockPrepareInit(int64_t prepareTxnId) {
         assert(!antiCacheManager->hasInitEvictionPreparation());
         antiCacheManager->evictBlockPrepareInit(prepareTxnId);
     } catch (SerializableEEException &e) {
-        VOLT_ERROR("antiCacheEvictBlockPrepareInit");
+        VOLT_ERROR("antiCacheEvictBlockPrepareInit: %s", e.message().c_str());
         resetAntiCacheUtilityOutputBuffer();
         e.serialize(getAntiCacheUtilityOutputSerializer());
         return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
@@ -2092,7 +2092,7 @@ int VoltDBEngine::antiCacheEvictBlockPrepare(int64_t prepareTxnId, int32_t table
 
         antiCacheManager->evictBlockPrepare(prepareTxnId, table, blockSize, numBlocks);
     } catch (SerializableEEException &e) {
-        VOLT_ERROR("antiCacheEvictBlockPrepare");
+        VOLT_ERROR("antiCacheEvictBlockPrepare: %s", e.message().c_str());
         resetAntiCacheUtilityOutputBuffer();
         e.serialize(getAntiCacheUtilityOutputSerializer());
         return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
@@ -2117,7 +2117,7 @@ int VoltDBEngine::antiCacheEvictBlockPrepareInBatch(int64_t prepareTxnId, int32_
 
         antiCacheManager->evictBlockPrepareInBatch(prepareTxnId, table, childTable, blockSize, numBlocks);
     } catch (SerializableEEException &e) {
-        VOLT_ERROR("antiCacheEvictBlockPrepareInBatch");
+        VOLT_ERROR("antiCacheEvictBlockPrepareInBatch: %s", e.message().c_str());
         resetAntiCacheUtilityOutputBuffer();
         e.serialize(getAntiCacheUtilityOutputSerializer());
         return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
@@ -2127,6 +2127,7 @@ int VoltDBEngine::antiCacheEvictBlockPrepareInBatch(int64_t prepareTxnId, int32_
 }
 
 int VoltDBEngine::antiCacheEvictBlockWork(int64_t prepareTxnId, int32_t tableId, long blockSize, int numBlocks) {
+    int numResults = 0;
     try {
         AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
         assert(antiCacheManager);
@@ -2142,18 +2143,21 @@ int VoltDBEngine::antiCacheEvictBlockWork(int64_t prepareTxnId, int32_t tableId,
         if (resultTable) {
           resultTable->serializeTo(m_antiCacheUtilityOutput);
           m_antiCacheUtilityOutput.writeIntAt(lengthPosition, static_cast<int32_t>(m_antiCacheUtilityOutput.size() - sizeof(int32_t)));
-          return ENGINE_ERRORCODE_ERROR; // Why? This is copied from existing code snippet e.g. at antiCacheEvictBlock().
+          numResults = 1;
+        } else {
+          numResults = 0;
         }
     } catch (SerializableEEException &e) {
-        VOLT_ERROR("antiCacheEvictBlockPrepareInit");
+        VOLT_ERROR("antiCacheEvictBlockWork: %s", e.message().c_str());
         resetAntiCacheUtilityOutputBuffer();
         e.serialize(getAntiCacheUtilityOutputSerializer());
         return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
     }
-    return ENGINE_ERRORCODE_SUCCESS;
+    return numResults;
 }
 
 int VoltDBEngine::antiCacheEvictBlockWorkInBatch(int64_t prepareTxnId, int32_t tableId, int32_t childTableId, long blockSize, int numBlocks) {
+    int numResults = 0;
     try {
         AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
         assert(antiCacheManager);
@@ -2173,15 +2177,17 @@ int VoltDBEngine::antiCacheEvictBlockWorkInBatch(int64_t prepareTxnId, int32_t t
         if (resultTable) {
           resultTable->serializeTo(m_antiCacheUtilityOutput);
           m_antiCacheUtilityOutput.writeIntAt(lengthPosition, static_cast<int32_t>(m_antiCacheUtilityOutput.size() - sizeof(int32_t)));
-          return ENGINE_ERRORCODE_ERROR; // Why? This is copied from existing code snippet e.g. at antiCacheEvictBlock().
+          numResults = 1;
+        } else {
+          numResults = 0;
         }
     } catch (SerializableEEException &e) {
-        VOLT_ERROR("antiCacheEvictBlockPrepareInit");
+        VOLT_ERROR("antiCacheEvictBlockWorkInBatch: %s", e.message().c_str());
         resetAntiCacheUtilityOutputBuffer();
         e.serialize(getAntiCacheUtilityOutputSerializer());
         return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
     }
-    return ENGINE_ERRORCODE_SUCCESS;
+    return numResults;
 }
 
 int VoltDBEngine::antiCacheEvictBlockFinish(int64_t prepareTxnId) {
@@ -2192,7 +2198,7 @@ int VoltDBEngine::antiCacheEvictBlockFinish(int64_t prepareTxnId) {
 
         antiCacheManager->evictBlockFinish(prepareTxnId);
     } catch (SerializableEEException &e) {
-        VOLT_ERROR("antiCacheEvictBlockPrepareInit");
+        VOLT_ERROR("antiCacheEvictBlockFinish: %s", e.message().c_str());
         resetAntiCacheUtilityOutputBuffer();
         e.serialize(getAntiCacheUtilityOutputSerializer());
         return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
