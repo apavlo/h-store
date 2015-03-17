@@ -27,7 +27,11 @@ import edu.brown.utils.FileUtil;
  * @author pavlo
  */
 public class TestAntiCacheMultiTable extends BaseTestCase {
-    
+
+    private static final long PREPARE_TXN_ID = 33;
+    private static final long EVICT_BLOCK_SIZE = 1024 * 1024;
+    private static final int EVICT_NUM_BLOCKS = 1;
+
     private static final int NUM_PARTITIONS = 1;
     private static final int NUM_TUPLES = 1000;
     private static final String TARGET_TABLES[] = {
@@ -154,7 +158,11 @@ public class TestAntiCacheMultiTable extends BaseTestCase {
         
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
-        VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024, 1);
+        //VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024, 1);
+        ee.antiCacheEvictBlockPrepareInit(PREPARE_TXN_ID);
+        ee.antiCacheEvictBlockPrepare(PREPARE_TXN_ID, catalog_tbl, EVICT_BLOCK_SIZE, EVICT_NUM_BLOCKS);
+        VoltTable evictResult = ee.antiCacheEvictBlockWork(PREPARE_TXN_ID, catalog_tbl, EVICT_BLOCK_SIZE, EVICT_NUM_BLOCKS);
+        ee.anticacheEvictBlockFinish(PREPARE_TXN_ID);
 
 //        System.err.println("-------------------------------");
 //        System.err.println(VoltTableUtil.format(evictResult));
