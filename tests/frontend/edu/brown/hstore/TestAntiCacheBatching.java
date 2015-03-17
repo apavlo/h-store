@@ -36,7 +36,11 @@ public class TestAntiCacheBatching extends BaseTestCase {
     private static final int NUM_TUPLES = 10;
     private static final String TARGET_TABLE = ArticlesConstants.TABLENAME_ARTICLES;
     private static final String CHILD_TABLE = ArticlesConstants.TABLENAME_COMMENTS;
-    
+
+    private static final long PREPARE_TXN_ID = 33;
+    private static final long EVICT_BLOCK_SIZE = 1024 * 500;
+    private static final int EVICT_NUM_BLOCKS = 1;
+
     private static final String statsFields[] = {
         "ANTICACHE_TUPLES_EVICTED",
         "ANTICACHE_BLOCKS_EVICTED",
@@ -156,7 +160,11 @@ public class TestAntiCacheBatching extends BaseTestCase {
 
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
-        VoltTable evictResult = this.ee.antiCacheEvictBlockInBatch(catalog_tbl, child_tbl, 1024 * 500, 1);
+        //VoltTable evictResult = this.ee.antiCacheEvictBlockInBatch(catalog_tbl, child_tbl, 1024 * 500, 1);
+        ee.antiCacheEvictBlockPrepareInit(PREPARE_TXN_ID);
+        ee.antiCacheEvictBlockPrepareInBatch(PREPARE_TXN_ID, catalog_tbl, child_tbl, EVICT_BLOCK_SIZE, EVICT_NUM_BLOCKS);
+        VoltTable evictResult = ee.antiCacheEvictBlockWorkInBatch(PREPARE_TXN_ID, catalog_tbl, child_tbl, EVICT_BLOCK_SIZE, EVICT_NUM_BLOCKS);
+        ee.anticacheEvictBlockFinish(PREPARE_TXN_ID);
 
         System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(evictResult));

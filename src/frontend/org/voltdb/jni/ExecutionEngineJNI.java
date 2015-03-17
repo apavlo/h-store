@@ -1006,7 +1006,7 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             throwExceptionForError(ERRORCODE_ERROR);
         }
         try {
-            deserializer.readInt();//Ignore the length of the result tables
+            antiCacheUtilityBufferDeserializer.readInt();//Ignore the length of the result tables
             final VoltTable results[] = new VoltTable[numResults];
             for (int ii = 0; ii < numResults; ii++) {
                 final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
