@@ -1711,7 +1711,7 @@ void AntiCacheEvictionManager::throwEvictedAccessException() {
     throw EvictedTupleAccessException(catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
 }
 
-bool AntiCacheEvictionManager::nonBlockingMerge() {
+bool AntiCacheEvictionManager::blockingMerge() {
 
     int num_block_ids = static_cast<int>(m_evicted_block_ids.size()); 
     assert(num_block_ids > 0); 
