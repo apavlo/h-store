@@ -238,7 +238,7 @@ namespace voltdb {
             m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
             addAntiCacheDB(dbDir, blockSize, dbType, blocking, maxSize);
             m_evictionTrackersManager = new ReadWriteTrackerManager(this);
-            addAntiCacheDB(dbDir, blockSize, dbType, maxSize);
+            addAntiCacheDB(dbDir, blockSize, dbType, blocking, maxSize);
         }
 
         void addAntiCacheDB(std::string &dbDir, long blockSize, AntiCacheDBType dbType, bool blocking, long maxSize) {
