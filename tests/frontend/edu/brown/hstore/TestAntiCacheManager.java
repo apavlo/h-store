@@ -40,6 +40,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     private static final int NUM_PARTITIONS = 1;
     private static final int NUM_TUPLES = 10;
     private static final String TARGET_TABLE = YCSBConstants.TABLE_NAME;
+    private static final long PREPARE_TXN_ID = 33;
 
     private String readBackTracker;
     
@@ -124,6 +125,32 @@ public class TestAntiCacheManager extends BaseTestCase {
         assertEquals(1, stats.length);
         System.err.println(VoltTableUtil.format(stats));
     }
+
+    private VoltTable asyncEvictData() throws Exception {
+        VoltTable results[] = ee.getStats(SysProcSelector.TABLE, locators, false, 0L);
+        assertEquals(1, results.length);
+        for (String col : statsFields) {
+            results[0].advanceRow();
+            int idx = results[0].getColumnIndex(col);
+            assertEquals(0, results[0].getLong(idx));
+        }
+
+        long blockSize = 1024 * 500;
+        int numBlocks = 1;
+        ee.antiCacheEvictBlockPrepareInit(PREPARE_TXN_ID);
+        ee.antiCacheEvictBlockPrepare(PREPARE_TXN_ID, catalog_tbl, blockSize, numBlocks);
+        VoltTable evictResult = ee.antiCacheEvictBlockWork(PREPARE_TXN_ID, catalog_tbl, blockSize, numBlocks);
+        ee.anticacheEvictBlockFinish(PREPARE_TXN_ID);
+
+        System.err.println("-------------------------------");
+        System.err.println(VoltTableUtil.format(evictResult));
+        assertNotNull(evictResult);
+        assertEquals(1, evictResult.getRowCount());
+        evictResult.resetRowPosition();
+        boolean adv = evictResult.advanceRow();
+        assertTrue(adv);
+        return evictResult;
+    }
     
     private VoltTable evictData() throws Exception {
         VoltTable results[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
@@ -169,7 +196,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         } // FOR
         
         // Evict some data
-        VoltTable evictResult = this.evictData();
+        VoltTable evictResult = asyncEvictData();
         
         // Check to make sure that our stats say that something was evicted
         VoltTable origStats[] = this.ee.getStats(SysProcSelector.TABLE, this.locators, false, 0L);
@@ -244,7 +271,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         this.loadData();
         
         // We should have all of our tuples evicted
-        VoltTable evictResult = this.evictData();
+        VoltTable evictResult = asyncEvictData();
         long evicted = evictResult.getLong("ANTICACHE_TUPLES_EVICTED");
         assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
         
@@ -276,7 +303,7 @@ public class TestAntiCacheManager extends BaseTestCase {
         this.loadData();
         
         // We should have all of our tuples evicted
-        VoltTable evictResult = this.evictData();
+        VoltTable evictResult = asyncEvictData();
         long evicted = evictResult.getLong("ANTICACHE_TUPLES_EVICTED");
         assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
         
@@ -303,7 +330,7 @@ public class TestAntiCacheManager extends BaseTestCase {
     @Test
     public void testEvictTuples() throws Exception {
         this.loadData();
-        VoltTable evictResult = this.evictData();
+        VoltTable evictResult = asyncEvictData();
 		evictResult.advanceRow(); 
 
         // Our stats should now come back with at least one block evicted

@@ -20,6 +20,7 @@ public final class Hstoreservice {
     ABORT_REJECT(7, 7),
     ABORT_EVICTEDACCESS(8, 8),
     ABORT_SPECULATIVE(9, 9),
+    ABORT_EVICTIONPREPAREDACCESS(10, 10),
     ;
     
     
@@ -37,6 +38,7 @@ public final class Hstoreservice {
         case 7: return ABORT_REJECT;
         case 8: return ABORT_EVICTEDACCESS;
         case 9: return ABORT_SPECULATIVE;
+        case 10: return ABORT_EVICTIONPREPAREDACCESS;
         default: return null;
       }
     }
@@ -67,7 +69,7 @@ public final class Hstoreservice {
     }
     
     private static final Status[] VALUES = {
-      OK, ABORT_USER, ABORT_GRACEFUL, ABORT_UNEXPECTED, ABORT_CONNECTION_LOST, ABORT_MISPREDICT, ABORT_RESTART, ABORT_REJECT, ABORT_EVICTEDACCESS, ABORT_SPECULATIVE, 
+      OK, ABORT_USER, ABORT_GRACEFUL, ABORT_UNEXPECTED, ABORT_CONNECTION_LOST, ABORT_MISPREDICT, ABORT_RESTART, ABORT_REJECT, ABORT_EVICTEDACCESS, ABORT_SPECULATIVE, ABORT_EVICTIONPREPAREDACCESS, 
     };
     public static Status valueOf(
         com.google.protobuf.Descriptors.EnumValueDescriptor desc) {
@@ -15450,6 +15452,866 @@ public final class Hstoreservice {
     // @@protoc_insertion_point(class_scope:edu.brown.hstore.UnevictDataResponse)
   }
   
+  public static final class EvictionPreparedDataRequest extends
+      com.google.protobuf.GeneratedMessage {
+    // Use EvictionPreparedDataRequest.newBuilder() to construct.
+    private EvictionPreparedDataRequest() {
+      initFields();
+    }
+    private EvictionPreparedDataRequest(boolean noInit) {}
+    
+    private static final EvictionPreparedDataRequest defaultInstance;
+    public static EvictionPreparedDataRequest getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public EvictionPreparedDataRequest getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return edu.brown.hstore.Hstoreservice.internal_static_edu_brown_hstore_EvictionPreparedDataRequest_descriptor;
+    }
+    
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return edu.brown.hstore.Hstoreservice.internal_static_edu_brown_hstore_EvictionPreparedDataRequest_fieldAccessorTable;
+    }
+    
+    // required int32 sender_site = 1;
+    public static final int SENDER_SITE_FIELD_NUMBER = 1;
+    private boolean hasSenderSite;
+    private int senderSite_ = 0;
+    public boolean hasSenderSite() { return hasSenderSite; }
+    public int getSenderSite() { return senderSite_; }
+    
+    // required int64 transaction_id = 2;
+    public static final int TRANSACTION_ID_FIELD_NUMBER = 2;
+    private boolean hasTransactionId;
+    private long transactionId_ = 0L;
+    public boolean hasTransactionId() { return hasTransactionId; }
+    public long getTransactionId() { return transactionId_; }
+    
+    // required int32 partition_id = 3;
+    public static final int PARTITION_ID_FIELD_NUMBER = 3;
+    private boolean hasPartitionId;
+    private int partitionId_ = 0;
+    public boolean hasPartitionId() { return hasPartitionId; }
+    public int getPartitionId() { return partitionId_; }
+    
+    // required int32 table_id = 4;
+    public static final int TABLE_ID_FIELD_NUMBER = 4;
+    private boolean hasTableId;
+    private int tableId_ = 0;
+    public boolean hasTableId() { return hasTableId; }
+    public int getTableId() { return tableId_; }
+    
+    // required int64 new_transaction_id = 5;
+    public static final int NEW_TRANSACTION_ID_FIELD_NUMBER = 5;
+    private boolean hasNewTransactionId;
+    private long newTransactionId_ = 0L;
+    public boolean hasNewTransactionId() { return hasNewTransactionId; }
+    public long getNewTransactionId() { return newTransactionId_; }
+    
+    private void initFields() {
+    }
+    public final boolean isInitialized() {
+      if (!hasSenderSite) return false;
+      if (!hasTransactionId) return false;
+      if (!hasPartitionId) return false;
+      if (!hasTableId) return false;
+      if (!hasNewTransactionId) return false;
+      return true;
+    }
+    
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (hasSenderSite()) {
+        output.writeInt32(1, getSenderSite());
+      }
+      if (hasTransactionId()) {
+        output.writeInt64(2, getTransactionId());
+      }
+      if (hasPartitionId()) {
+        output.writeInt32(3, getPartitionId());
+      }
+      if (hasTableId()) {
+        output.writeInt32(4, getTableId());
+      }
+      if (hasNewTransactionId()) {
+        output.writeInt64(5, getNewTransactionId());
+      }
+      getUnknownFields().writeTo(output);
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (hasSenderSite()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt32Size(1, getSenderSite());
+      }
+      if (hasTransactionId()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(2, getTransactionId());
+      }
+      if (hasPartitionId()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt32Size(3, getPartitionId());
+      }
+      if (hasTableId()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt32Size(4, getTableId());
+      }
+      if (hasNewTransactionId()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(5, getNewTransactionId());
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> {
+      private edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest result;
+      
+      // Construct using edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest.newBuilder()
+      private Builder() {}
+      
+      private static Builder create() {
+        Builder builder = new Builder();
+        builder.result = new edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest();
+        return builder;
+      }
+      
+      protected edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest internalGetResult() {
+        return result;
+      }
+      
+      public Builder clear() {
+        if (result == null) {
+          throw new IllegalStateException(
+            "Cannot call clear() after build().");
+        }
+        result = new edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest();
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(result);
+      }
+      
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest.getDescriptor();
+      }
+      
+      public edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest getDefaultInstanceForType() {
+        return edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest.getDefaultInstance();
+      }
+      
+      public boolean isInitialized() {
+        return result.isInitialized();
+      }
+      public edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest build() {
+        if (result != null && !isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return buildPartial();
+      }
+      
+      private edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest buildParsed()
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        if (!isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return buildPartial();
+      }
+      
+      public edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest buildPartial() {
+        if (result == null) {
+          throw new IllegalStateException(
+            "build() has already been called on this Builder.");
+        }
+        edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest returnMe = result;
+        result = null;
+        return returnMe;
+      }
+      
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest) {
+          return mergeFrom((edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+      
+      public Builder mergeFrom(edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest other) {
+        if (other == edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest.getDefaultInstance()) return this;
+        if (other.hasSenderSite()) {
+          setSenderSite(other.getSenderSite());
+        }
+        if (other.hasTransactionId()) {
+          setTransactionId(other.getTransactionId());
+        }
+        if (other.hasPartitionId()) {
+          setPartitionId(other.getPartitionId());
+        }
+        if (other.hasTableId()) {
+          setTableId(other.getTableId());
+        }
+        if (other.hasNewTransactionId()) {
+          setNewTransactionId(other.getNewTransactionId());
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        return this;
+      }
+      
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+          com.google.protobuf.UnknownFieldSet.newBuilder(
+            this.getUnknownFields());
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              this.setUnknownFields(unknownFields.build());
+              return this;
+            default: {
+              if (!parseUnknownField(input, unknownFields,
+                                     extensionRegistry, tag)) {
+                this.setUnknownFields(unknownFields.build());
+                return this;
+              }
+              break;
+            }
+            case 8: {
+              setSenderSite(input.readInt32());
+              break;
+            }
+            case 16: {
+              setTransactionId(input.readInt64());
+              break;
+            }
+            case 24: {
+              setPartitionId(input.readInt32());
+              break;
+            }
+            case 32: {
+              setTableId(input.readInt32());
+              break;
+            }
+            case 40: {
+              setNewTransactionId(input.readInt64());
+              break;
+            }
+          }
+        }
+      }
+      
+      
+      // required int32 sender_site = 1;
+      public boolean hasSenderSite() {
+        return result.hasSenderSite();
+      }
+      public int getSenderSite() {
+        return result.getSenderSite();
+      }
+      public Builder setSenderSite(int value) {
+        result.hasSenderSite = true;
+        result.senderSite_ = value;
+        return this;
+      }
+      public Builder clearSenderSite() {
+        result.hasSenderSite = false;
+        result.senderSite_ = 0;
+        return this;
+      }
+      
+      // required int64 transaction_id = 2;
+      public boolean hasTransactionId() {
+        return result.hasTransactionId();
+      }
+      public long getTransactionId() {
+        return result.getTransactionId();
+      }
+      public Builder setTransactionId(long value) {
+        result.hasTransactionId = true;
+        result.transactionId_ = value;
+        return this;
+      }
+      public Builder clearTransactionId() {
+        result.hasTransactionId = false;
+        result.transactionId_ = 0L;
+        return this;
+      }
+      
+      // required int32 partition_id = 3;
+      public boolean hasPartitionId() {
+        return result.hasPartitionId();
+      }
+      public int getPartitionId() {
+        return result.getPartitionId();
+      }
+      public Builder setPartitionId(int value) {
+        result.hasPartitionId = true;
+        result.partitionId_ = value;
+        return this;
+      }
+      public Builder clearPartitionId() {
+        result.hasPartitionId = false;
+        result.partitionId_ = 0;
+        return this;
+      }
+      
+      // required int32 table_id = 4;
+      public boolean hasTableId() {
+        return result.hasTableId();
+      }
+      public int getTableId() {
+        return result.getTableId();
+      }
+      public Builder setTableId(int value) {
+        result.hasTableId = true;
+        result.tableId_ = value;
+        return this;
+      }
+      public Builder clearTableId() {
+        result.hasTableId = false;
+        result.tableId_ = 0;
+        return this;
+      }
+      
+      // required int64 new_transaction_id = 5;
+      public boolean hasNewTransactionId() {
+        return result.hasNewTransactionId();
+      }
+      public long getNewTransactionId() {
+        return result.getNewTransactionId();
+      }
+      public Builder setNewTransactionId(long value) {
+        result.hasNewTransactionId = true;
+        result.newTransactionId_ = value;
+        return this;
+      }
+      public Builder clearNewTransactionId() {
+        result.hasNewTransactionId = false;
+        result.newTransactionId_ = 0L;
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:edu.brown.hstore.EvictionPreparedDataRequest)
+    }
+    
+    static {
+      defaultInstance = new EvictionPreparedDataRequest(true);
+      edu.brown.hstore.Hstoreservice.internalForceInit();
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:edu.brown.hstore.EvictionPreparedDataRequest)
+  }
+  
+  public static final class EvictionPreparedDataResponse extends
+      com.google.protobuf.GeneratedMessage {
+    // Use EvictionPreparedDataResponse.newBuilder() to construct.
+    private EvictionPreparedDataResponse() {
+      initFields();
+    }
+    private EvictionPreparedDataResponse(boolean noInit) {}
+    
+    private static final EvictionPreparedDataResponse defaultInstance;
+    public static EvictionPreparedDataResponse getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public EvictionPreparedDataResponse getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return edu.brown.hstore.Hstoreservice.internal_static_edu_brown_hstore_EvictionPreparedDataResponse_descriptor;
+    }
+    
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return edu.brown.hstore.Hstoreservice.internal_static_edu_brown_hstore_EvictionPreparedDataResponse_fieldAccessorTable;
+    }
+    
+    // required int32 sender_site = 1;
+    public static final int SENDER_SITE_FIELD_NUMBER = 1;
+    private boolean hasSenderSite;
+    private int senderSite_ = 0;
+    public boolean hasSenderSite() { return hasSenderSite; }
+    public int getSenderSite() { return senderSite_; }
+    
+    // required .edu.brown.hstore.Status status = 2;
+    public static final int STATUS_FIELD_NUMBER = 2;
+    private boolean hasStatus;
+    private edu.brown.hstore.Hstoreservice.Status status_;
+    public boolean hasStatus() { return hasStatus; }
+    public edu.brown.hstore.Hstoreservice.Status getStatus() { return status_; }
+    
+    // required int64 transaction_id = 3;
+    public static final int TRANSACTION_ID_FIELD_NUMBER = 3;
+    private boolean hasTransactionId;
+    private long transactionId_ = 0L;
+    public boolean hasTransactionId() { return hasTransactionId; }
+    public long getTransactionId() { return transactionId_; }
+    
+    // required int32 partition_id = 4;
+    public static final int PARTITION_ID_FIELD_NUMBER = 4;
+    private boolean hasPartitionId;
+    private int partitionId_ = 0;
+    public boolean hasPartitionId() { return hasPartitionId; }
+    public int getPartitionId() { return partitionId_; }
+    
+    private void initFields() {
+      status_ = edu.brown.hstore.Hstoreservice.Status.OK;
+    }
+    public final boolean isInitialized() {
+      if (!hasSenderSite) return false;
+      if (!hasStatus) return false;
+      if (!hasTransactionId) return false;
+      if (!hasPartitionId) return false;
+      return true;
+    }
+    
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (hasSenderSite()) {
+        output.writeInt32(1, getSenderSite());
+      }
+      if (hasStatus()) {
+        output.writeEnum(2, getStatus().getNumber());
+      }
+      if (hasTransactionId()) {
+        output.writeInt64(3, getTransactionId());
+      }
+      if (hasPartitionId()) {
+        output.writeInt32(4, getPartitionId());
+      }
+      getUnknownFields().writeTo(output);
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (hasSenderSite()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt32Size(1, getSenderSite());
+      }
+      if (hasStatus()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeEnumSize(2, getStatus().getNumber());
+      }
+      if (hasTransactionId()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(3, getTransactionId());
+      }
+      if (hasPartitionId()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt32Size(4, getPartitionId());
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> {
+      private edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse result;
+      
+      // Construct using edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse.newBuilder()
+      private Builder() {}
+      
+      private static Builder create() {
+        Builder builder = new Builder();
+        builder.result = new edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse();
+        return builder;
+      }
+      
+      protected edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse internalGetResult() {
+        return result;
+      }
+      
+      public Builder clear() {
+        if (result == null) {
+          throw new IllegalStateException(
+            "Cannot call clear() after build().");
+        }
+        result = new edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse();
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(result);
+      }
+      
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse.getDescriptor();
+      }
+      
+      public edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse getDefaultInstanceForType() {
+        return edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse.getDefaultInstance();
+      }
+      
+      public boolean isInitialized() {
+        return result.isInitialized();
+      }
+      public edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse build() {
+        if (result != null && !isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return buildPartial();
+      }
+      
+      private edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse buildParsed()
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        if (!isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return buildPartial();
+      }
+      
+      public edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse buildPartial() {
+        if (result == null) {
+          throw new IllegalStateException(
+            "build() has already been called on this Builder.");
+        }
+        edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse returnMe = result;
+        result = null;
+        return returnMe;
+      }
+      
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse) {
+          return mergeFrom((edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+      
+      public Builder mergeFrom(edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse other) {
+        if (other == edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse.getDefaultInstance()) return this;
+        if (other.hasSenderSite()) {
+          setSenderSite(other.getSenderSite());
+        }
+        if (other.hasStatus()) {
+          setStatus(other.getStatus());
+        }
+        if (other.hasTransactionId()) {
+          setTransactionId(other.getTransactionId());
+        }
+        if (other.hasPartitionId()) {
+          setPartitionId(other.getPartitionId());
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        return this;
+      }
+      
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+          com.google.protobuf.UnknownFieldSet.newBuilder(
+            this.getUnknownFields());
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              this.setUnknownFields(unknownFields.build());
+              return this;
+            default: {
+              if (!parseUnknownField(input, unknownFields,
+                                     extensionRegistry, tag)) {
+                this.setUnknownFields(unknownFields.build());
+                return this;
+              }
+              break;
+            }
+            case 8: {
+              setSenderSite(input.readInt32());
+              break;
+            }
+            case 16: {
+              int rawValue = input.readEnum();
+              edu.brown.hstore.Hstoreservice.Status value = edu.brown.hstore.Hstoreservice.Status.valueOf(rawValue);
+              if (value == null) {
+                unknownFields.mergeVarintField(2, rawValue);
+              } else {
+                setStatus(value);
+              }
+              break;
+            }
+            case 24: {
+              setTransactionId(input.readInt64());
+              break;
+            }
+            case 32: {
+              setPartitionId(input.readInt32());
+              break;
+            }
+          }
+        }
+      }
+      
+      
+      // required int32 sender_site = 1;
+      public boolean hasSenderSite() {
+        return result.hasSenderSite();
+      }
+      public int getSenderSite() {
+        return result.getSenderSite();
+      }
+      public Builder setSenderSite(int value) {
+        result.hasSenderSite = true;
+        result.senderSite_ = value;
+        return this;
+      }
+      public Builder clearSenderSite() {
+        result.hasSenderSite = false;
+        result.senderSite_ = 0;
+        return this;
+      }
+      
+      // required .edu.brown.hstore.Status status = 2;
+      public boolean hasStatus() {
+        return result.hasStatus();
+      }
+      public edu.brown.hstore.Hstoreservice.Status getStatus() {
+        return result.getStatus();
+      }
+      public Builder setStatus(edu.brown.hstore.Hstoreservice.Status value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        result.hasStatus = true;
+        result.status_ = value;
+        return this;
+      }
+      public Builder clearStatus() {
+        result.hasStatus = false;
+        result.status_ = edu.brown.hstore.Hstoreservice.Status.OK;
+        return this;
+      }
+      
+      // required int64 transaction_id = 3;
+      public boolean hasTransactionId() {
+        return result.hasTransactionId();
+      }
+      public long getTransactionId() {
+        return result.getTransactionId();
+      }
+      public Builder setTransactionId(long value) {
+        result.hasTransactionId = true;
+        result.transactionId_ = value;
+        return this;
+      }
+      public Builder clearTransactionId() {
+        result.hasTransactionId = false;
+        result.transactionId_ = 0L;
+        return this;
+      }
+      
+      // required int32 partition_id = 4;
+      public boolean hasPartitionId() {
+        return result.hasPartitionId();
+      }
+      public int getPartitionId() {
+        return result.getPartitionId();
+      }
+      public Builder setPartitionId(int value) {
+        result.hasPartitionId = true;
+        result.partitionId_ = value;
+        return this;
+      }
+      public Builder clearPartitionId() {
+        result.hasPartitionId = false;
+        result.partitionId_ = 0;
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:edu.brown.hstore.EvictionPreparedDataResponse)
+    }
+    
+    static {
+      defaultInstance = new EvictionPreparedDataResponse(true);
+      edu.brown.hstore.Hstoreservice.internalForceInit();
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:edu.brown.hstore.EvictionPreparedDataResponse)
+  }
+  
   public static final class TimeSyncRequest extends
       com.google.protobuf.GeneratedMessage {
     // Use TimeSyncRequest.newBuilder() to construct.
@@ -16260,6 +17122,11 @@ public final class Hstoreservice {
           edu.brown.hstore.Hstoreservice.UnevictDataRequest request,
           com.google.protobuf.RpcCallback<edu.brown.hstore.Hstoreservice.UnevictDataResponse> done);
       
+      public abstract void evictionPreparedData(
+          com.google.protobuf.RpcController controller,
+          edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest request,
+          com.google.protobuf.RpcCallback<edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse> done);
+      
       public abstract void timeSync(
           com.google.protobuf.RpcController controller,
           edu.brown.hstore.Hstoreservice.TimeSyncRequest request,
@@ -16391,6 +17258,14 @@ public final class Hstoreservice {
         }
         
         @Override
+        public  void evictionPreparedData(
+            com.google.protobuf.RpcController controller,
+            edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest request,
+            com.google.protobuf.RpcCallback<edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse> done) {
+          impl.evictionPreparedData(controller, request, done);
+        }
+        
+        @Override
         public  void timeSync(
             com.google.protobuf.RpcController controller,
             edu.brown.hstore.Hstoreservice.TimeSyncRequest request,
@@ -16451,6 +17326,8 @@ public final class Hstoreservice {
             case 14:
               return impl.unevictData(controller, (edu.brown.hstore.Hstoreservice.UnevictDataRequest)request);
             case 15:
+              return impl.evictionPreparedData(controller, (edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest)request);
+            case 16:
               return impl.timeSync(controller, (edu.brown.hstore.Hstoreservice.TimeSyncRequest)request);
             default:
               throw new java.lang.AssertionError("Can't get here.");
@@ -16497,6 +17374,8 @@ public final class Hstoreservice {
             case 14:
               return edu.brown.hstore.Hstoreservice.UnevictDataRequest.getDefaultInstance();
             case 15:
+              return edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest.getDefaultInstance();
+            case 16:
               return edu.brown.hstore.Hstoreservice.TimeSyncRequest.getDefaultInstance();
             default:
               throw new java.lang.AssertionError("Can't get here.");
@@ -16543,6 +17422,8 @@ public final class Hstoreservice {
             case 14:
               return edu.brown.hstore.Hstoreservice.UnevictDataResponse.getDefaultInstance();
             case 15:
+              return edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse.getDefaultInstance();
+            case 16:
               return edu.brown.hstore.Hstoreservice.TimeSyncResponse.getDefaultInstance();
             default:
               throw new java.lang.AssertionError("Can't get here.");
@@ -16626,6 +17507,11 @@ public final class Hstoreservice {
         com.google.protobuf.RpcController controller,
         edu.brown.hstore.Hstoreservice.UnevictDataRequest request,
         com.google.protobuf.RpcCallback<edu.brown.hstore.Hstoreservice.UnevictDataResponse> done);
+    
+    public abstract void evictionPreparedData(
+        com.google.protobuf.RpcController controller,
+        edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest request,
+        com.google.protobuf.RpcCallback<edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse> done);
     
     public abstract void timeSync(
         com.google.protobuf.RpcController controller,
@@ -16730,6 +17616,11 @@ public final class Hstoreservice {
               done));
           return;
         case 15:
+          this.evictionPreparedData(controller, (edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest)request,
+            com.google.protobuf.RpcUtil.<edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse>specializeCallback(
+              done));
+          return;
+        case 16:
           this.timeSync(controller, (edu.brown.hstore.Hstoreservice.TimeSyncRequest)request,
             com.google.protobuf.RpcUtil.<edu.brown.hstore.Hstoreservice.TimeSyncResponse>specializeCallback(
               done));
@@ -16779,6 +17670,8 @@ public final class Hstoreservice {
         case 14:
           return edu.brown.hstore.Hstoreservice.UnevictDataRequest.getDefaultInstance();
         case 15:
+          return edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest.getDefaultInstance();
+        case 16:
           return edu.brown.hstore.Hstoreservice.TimeSyncRequest.getDefaultInstance();
         default:
           throw new java.lang.AssertionError("Can't get here.");
@@ -16825,6 +17718,8 @@ public final class Hstoreservice {
         case 14:
           return edu.brown.hstore.Hstoreservice.UnevictDataResponse.getDefaultInstance();
         case 15:
+          return edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse.getDefaultInstance();
+        case 16:
           return edu.brown.hstore.Hstoreservice.TimeSyncResponse.getDefaultInstance();
         default:
           throw new java.lang.AssertionError("Can't get here.");
@@ -17072,12 +17967,27 @@ public final class Hstoreservice {
             edu.brown.hstore.Hstoreservice.UnevictDataResponse.getDefaultInstance()));
       }
       
+      public  void evictionPreparedData(
+          com.google.protobuf.RpcController controller,
+          edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest request,
+          com.google.protobuf.RpcCallback<edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse> done) {
+        channel.callMethod(
+          getDescriptor().getMethods().get(15),
+          controller,
+          request,
+          edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse.getDefaultInstance(),
+          com.google.protobuf.RpcUtil.generalizeCallback(
+            done,
+            edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse.class,
+            edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse.getDefaultInstance()));
+      }
+      
       public  void timeSync(
           com.google.protobuf.RpcController controller,
           edu.brown.hstore.Hstoreservice.TimeSyncRequest request,
           com.google.protobuf.RpcCallback<edu.brown.hstore.Hstoreservice.TimeSyncResponse> done) {
         channel.callMethod(
-          getDescriptor().getMethods().get(15),
+          getDescriptor().getMethods().get(16),
           controller,
           request,
           edu.brown.hstore.Hstoreservice.TimeSyncResponse.getDefaultInstance(),
@@ -17167,6 +18077,11 @@ public final class Hstoreservice {
       public edu.brown.hstore.Hstoreservice.UnevictDataResponse unevictData(
           com.google.protobuf.RpcController controller,
           edu.brown.hstore.Hstoreservice.UnevictDataRequest request)
+          throws com.google.protobuf.ServiceException;
+      
+      public edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse evictionPreparedData(
+          com.google.protobuf.RpcController controller,
+          edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest request)
           throws com.google.protobuf.ServiceException;
       
       public edu.brown.hstore.Hstoreservice.TimeSyncResponse timeSync(
@@ -17362,12 +18277,24 @@ public final class Hstoreservice {
       }
       
       
+      public edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse evictionPreparedData(
+          com.google.protobuf.RpcController controller,
+          edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest request)
+          throws com.google.protobuf.ServiceException {
+        return (edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse) channel.callBlockingMethod(
+          getDescriptor().getMethods().get(15),
+          controller,
+          request,
+          edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse.getDefaultInstance());
+      }
+      
+      
       public edu.brown.hstore.Hstoreservice.TimeSyncResponse timeSync(
           com.google.protobuf.RpcController controller,
           edu.brown.hstore.Hstoreservice.TimeSyncRequest request)
           throws com.google.protobuf.ServiceException {
         return (edu.brown.hstore.Hstoreservice.TimeSyncResponse) channel.callBlockingMethod(
-          getDescriptor().getMethods().get(15),
+          getDescriptor().getMethods().get(16),
           controller,
           request,
           edu.brown.hstore.Hstoreservice.TimeSyncResponse.getDefaultInstance());
@@ -17547,6 +18474,16 @@ public final class Hstoreservice {
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_edu_brown_hstore_UnevictDataResponse_fieldAccessorTable;
   private static com.google.protobuf.Descriptors.Descriptor
+    internal_static_edu_brown_hstore_EvictionPreparedDataRequest_descriptor;
+  private static
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_edu_brown_hstore_EvictionPreparedDataRequest_fieldAccessorTable;
+  private static com.google.protobuf.Descriptors.Descriptor
+    internal_static_edu_brown_hstore_EvictionPreparedDataResponse_descriptor;
+  private static
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_edu_brown_hstore_EvictionPreparedDataResponse_fieldAccessorTable;
+  private static com.google.protobuf.Descriptors.Descriptor
     internal_static_edu_brown_hstore_TimeSyncRequest_descriptor;
   private static
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
@@ -17673,54 +18610,65 @@ public final class Hstoreservice {
       "nsaction_id\030\007 \002(\003\"\202\001\n\023UnevictDataRespons" +
       "e\022\023\n\013sender_site\030\001 \002(\005\022(\n\006status\030\002 \002(\0162\030" +
       ".edu.brown.hstore.Status\022\026\n\016transaction_" +
-      "id\030\003 \002(\003\022\024\n\014partition_id\030\004 \002(\005\"4\n\017TimeSy" +
-      "ncRequest\022\023\n\013sender_site\030\001 \002(\005\022\014\n\004t0_s\030\002",
-      " \002(\003\"Q\n\020TimeSyncResponse\022\023\n\013sender_site\030" +
-      "\001 \002(\005\022\014\n\004t0_s\030\002 \002(\003\022\014\n\004t0_r\030\003 \002(\003\022\014\n\004t1_" +
-      "s\030\004 \002(\003*\320\001\n\006Status\022\006\n\002OK\020\000\022\016\n\nABORT_USER" +
-      "\020\001\022\022\n\016ABORT_GRACEFUL\020\002\022\024\n\020ABORT_UNEXPECT" +
-      "ED\020\003\022\031\n\025ABORT_CONNECTION_LOST\020\004\022\024\n\020ABORT" +
-      "_MISPREDICT\020\005\022\021\n\rABORT_RESTART\020\006\022\020\n\014ABOR" +
-      "T_REJECT\020\007\022\027\n\023ABORT_EVICTEDACCESS\020\010\022\025\n\021A" +
-      "BORT_SPECULATIVE\020\t2\326\014\n\rHStoreService\022f\n\017" +
-      "TransactionInit\022(.edu.brown.hstore.Trans" +
-      "actionInitRequest\032).edu.brown.hstore.Tra",
-      "nsactionInitResponse\022f\n\017TransactionWork\022" +
-      "(.edu.brown.hstore.TransactionWorkReques" +
-      "t\032).edu.brown.hstore.TransactionWorkResp" +
-      "onse\022x\n\023TransactionPrefetch\022+.edu.brown." +
-      "hstore.TransactionPrefetchResult\0324.edu.b" +
-      "rown.hstore.TransactionPrefetchAcknowled" +
-      "gement\022c\n\016TransactionMap\022\'.edu.brown.hst" +
-      "ore.TransactionMapRequest\032(.edu.brown.hs" +
-      "tore.TransactionMapResponse\022l\n\021Transacti" +
-      "onReduce\022*.edu.brown.hstore.TransactionR",
-      "educeRequest\032+.edu.brown.hstore.Transact" +
-      "ionReduceResponse\022o\n\022TransactionPrepare\022" +
-      "+.edu.brown.hstore.TransactionPrepareReq" +
-      "uest\032,.edu.brown.hstore.TransactionPrepa" +
-      "reResponse\022l\n\021TransactionFinish\022*.edu.br" +
-      "own.hstore.TransactionFinishRequest\032+.ed" +
-      "u.brown.hstore.TransactionFinishResponse" +
-      "\022r\n\023TransactionRedirect\022,.edu.brown.hsto" +
-      "re.TransactionRedirectRequest\032-.edu.brow" +
-      "n.hstore.TransactionRedirectResponse\022i\n\020",
-      "TransactionDebug\022).edu.brown.hstore.Tran" +
-      "sactionDebugRequest\032*.edu.brown.hstore.T" +
-      "ransactionDebugResponse\022Q\n\010SendData\022!.ed" +
-      "u.brown.hstore.SendDataRequest\032\".edu.bro" +
-      "wn.hstore.SendDataResponse\022W\n\nInitialize" +
-      "\022#.edu.brown.hstore.InitializeRequest\032$." +
-      "edu.brown.hstore.InitializeResponse\022f\n\017S" +
-      "hutdownPrepare\022(.edu.brown.hstore.Shutdo" +
-      "wnPrepareRequest\032).edu.brown.hstore.Shut" +
-      "downPrepareResponse\022Q\n\010Shutdown\022!.edu.br",
-      "own.hstore.ShutdownRequest\032\".edu.brown.h" +
-      "store.ShutdownResponse\022T\n\tHeartbeat\022\".ed" +
-      "u.brown.hstore.HeartbeatRequest\032#.edu.br" +
-      "own.hstore.HeartbeatResponse\022Z\n\013UnevictD" +
-      "ata\022$.edu.brown.hstore.UnevictDataReques" +
-      "t\032%.edu.brown.hstore.UnevictDataResponse" +
+      "id\030\003 \002(\003\022\024\n\014partition_id\030\004 \002(\005\"\216\001\n\033Evict" +
+      "ionPreparedDataRequest\022\023\n\013sender_site\030\001 ",
+      "\002(\005\022\026\n\016transaction_id\030\002 \002(\003\022\024\n\014partition" +
+      "_id\030\003 \002(\005\022\020\n\010table_id\030\004 \002(\005\022\032\n\022new_trans" +
+      "action_id\030\005 \002(\003\"\213\001\n\034EvictionPreparedData" +
+      "Response\022\023\n\013sender_site\030\001 \002(\005\022(\n\006status\030" +
+      "\002 \002(\0162\030.edu.brown.hstore.Status\022\026\n\016trans" +
+      "action_id\030\003 \002(\003\022\024\n\014partition_id\030\004 \002(\005\"4\n" +
+      "\017TimeSyncRequest\022\023\n\013sender_site\030\001 \002(\005\022\014\n" +
+      "\004t0_s\030\002 \002(\003\"Q\n\020TimeSyncResponse\022\023\n\013sende" +
+      "r_site\030\001 \002(\005\022\014\n\004t0_s\030\002 \002(\003\022\014\n\004t0_r\030\003 \002(\003" +
+      "\022\014\n\004t1_s\030\004 \002(\003*\362\001\n\006Status\022\006\n\002OK\020\000\022\016\n\nABO",
+      "RT_USER\020\001\022\022\n\016ABORT_GRACEFUL\020\002\022\024\n\020ABORT_U" +
+      "NEXPECTED\020\003\022\031\n\025ABORT_CONNECTION_LOST\020\004\022\024" +
+      "\n\020ABORT_MISPREDICT\020\005\022\021\n\rABORT_RESTART\020\006\022" +
+      "\020\n\014ABORT_REJECT\020\007\022\027\n\023ABORT_EVICTEDACCESS" +
+      "\020\010\022\025\n\021ABORT_SPECULATIVE\020\t\022 \n\034ABORT_EVICT" +
+      "IONPREPAREDACCESS\020\n2\315\r\n\rHStoreService\022f\n" +
+      "\017TransactionInit\022(.edu.brown.hstore.Tran" +
+      "sactionInitRequest\032).edu.brown.hstore.Tr" +
+      "ansactionInitResponse\022f\n\017TransactionWork" +
+      "\022(.edu.brown.hstore.TransactionWorkReque",
+      "st\032).edu.brown.hstore.TransactionWorkRes" +
+      "ponse\022x\n\023TransactionPrefetch\022+.edu.brown" +
+      ".hstore.TransactionPrefetchResult\0324.edu." +
+      "brown.hstore.TransactionPrefetchAcknowle" +
+      "dgement\022c\n\016TransactionMap\022\'.edu.brown.hs" +
+      "tore.TransactionMapRequest\032(.edu.brown.h" +
+      "store.TransactionMapResponse\022l\n\021Transact" +
+      "ionReduce\022*.edu.brown.hstore.Transaction" +
+      "ReduceRequest\032+.edu.brown.hstore.Transac" +
+      "tionReduceResponse\022o\n\022TransactionPrepare",
+      "\022+.edu.brown.hstore.TransactionPrepareRe" +
+      "quest\032,.edu.brown.hstore.TransactionPrep" +
+      "areResponse\022l\n\021TransactionFinish\022*.edu.b" +
+      "rown.hstore.TransactionFinishRequest\032+.e" +
+      "du.brown.hstore.TransactionFinishRespons" +
+      "e\022r\n\023TransactionRedirect\022,.edu.brown.hst" +
+      "ore.TransactionRedirectRequest\032-.edu.bro" +
+      "wn.hstore.TransactionRedirectResponse\022i\n" +
+      "\020TransactionDebug\022).edu.brown.hstore.Tra" +
+      "nsactionDebugRequest\032*.edu.brown.hstore.",
+      "TransactionDebugResponse\022Q\n\010SendData\022!.e" +
+      "du.brown.hstore.SendDataRequest\032\".edu.br" +
+      "own.hstore.SendDataResponse\022W\n\nInitializ" +
+      "e\022#.edu.brown.hstore.InitializeRequest\032$" +
+      ".edu.brown.hstore.InitializeResponse\022f\n\017" +
+      "ShutdownPrepare\022(.edu.brown.hstore.Shutd" +
+      "ownPrepareRequest\032).edu.brown.hstore.Shu" +
+      "tdownPrepareResponse\022Q\n\010Shutdown\022!.edu.b" +
+      "rown.hstore.ShutdownRequest\032\".edu.brown." +
+      "hstore.ShutdownResponse\022T\n\tHeartbeat\022\".e",
+      "du.brown.hstore.HeartbeatRequest\032#.edu.b" +
+      "rown.hstore.HeartbeatResponse\022Z\n\013Unevict" +
+      "Data\022$.edu.brown.hstore.UnevictDataReque" +
+      "st\032%.edu.brown.hstore.UnevictDataRespons" +
+      "e\022u\n\024EvictionPreparedData\022-.edu.brown.hs" +
+      "tore.EvictionPreparedDataRequest\032..edu.b" +
+      "rown.hstore.EvictionPreparedDataResponse" +
       "\022Q\n\010TimeSync\022!.edu.brown.hstore.TimeSync" +
       "Request\032\".edu.brown.hstore.TimeSyncRespo" +
       "nse"
@@ -18002,8 +18950,24 @@ public final class Hstoreservice {
               new java.lang.String[] { "SenderSite", "Status", "TransactionId", "PartitionId", },
               edu.brown.hstore.Hstoreservice.UnevictDataResponse.class,
               edu.brown.hstore.Hstoreservice.UnevictDataResponse.Builder.class);
-          internal_static_edu_brown_hstore_TimeSyncRequest_descriptor =
+          internal_static_edu_brown_hstore_EvictionPreparedDataRequest_descriptor =
             getDescriptor().getMessageTypes().get(33);
+          internal_static_edu_brown_hstore_EvictionPreparedDataRequest_fieldAccessorTable = new
+            com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+              internal_static_edu_brown_hstore_EvictionPreparedDataRequest_descriptor,
+              new java.lang.String[] { "SenderSite", "TransactionId", "PartitionId", "TableId", "NewTransactionId", },
+              edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest.class,
+              edu.brown.hstore.Hstoreservice.EvictionPreparedDataRequest.Builder.class);
+          internal_static_edu_brown_hstore_EvictionPreparedDataResponse_descriptor =
+            getDescriptor().getMessageTypes().get(34);
+          internal_static_edu_brown_hstore_EvictionPreparedDataResponse_fieldAccessorTable = new
+            com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+              internal_static_edu_brown_hstore_EvictionPreparedDataResponse_descriptor,
+              new java.lang.String[] { "SenderSite", "Status", "TransactionId", "PartitionId", },
+              edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse.class,
+              edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse.Builder.class);
+          internal_static_edu_brown_hstore_TimeSyncRequest_descriptor =
+            getDescriptor().getMessageTypes().get(35);
           internal_static_edu_brown_hstore_TimeSyncRequest_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TimeSyncRequest_descriptor,
@@ -18011,7 +18975,7 @@ public final class Hstoreservice {
               edu.brown.hstore.Hstoreservice.TimeSyncRequest.class,
               edu.brown.hstore.Hstoreservice.TimeSyncRequest.Builder.class);
           internal_static_edu_brown_hstore_TimeSyncResponse_descriptor =
-            getDescriptor().getMessageTypes().get(34);
+            getDescriptor().getMessageTypes().get(36);
           internal_static_edu_brown_hstore_TimeSyncResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_edu_brown_hstore_TimeSyncResponse_descriptor,

@@ -1121,6 +1121,29 @@ void VoltDBEngine::setBuffers(char *parameterBuffer,
     m_arieslogBufferCapacity = arieslogBufferCapacity;
 }
 
+void VoltDBEngine::setBuffers(
+        char *parameterBuffer, int parameterBuffercapacity,
+        char *resultBuffer, int resultBufferCapacity,
+        char *exceptionBuffer, int exceptionBufferCapacity,
+        char *arieslogBuffer, int arieslogBufferCapacity,
+        char *antiCacheUtilityBuffer, int antiCacheUtilityBufferCapcity
+) {
+    m_parameterBuffer = parameterBuffer;
+    m_parameterBufferCapacity = parameterBuffercapacity;
+
+    m_reusedResultBuffer = resultBuffer;
+    m_reusedResultCapacity = resultBufferCapacity;
+
+    m_exceptionBuffer = exceptionBuffer;
+    m_exceptionBufferCapacity = exceptionBufferCapacity;
+
+    m_arieslogBuffer = arieslogBuffer;
+    m_arieslogBufferCapacity = arieslogBufferCapacity;
+
+    m_antiCacheUtilityBuffer = antiCacheUtilityBuffer;
+    m_antiCacheUtilityBufferCapacity = antiCacheUtilityBufferCapcity;
+}
+
 // -------------------------------------------------
 // MISC FUNCTIONS
 // -------------------------------------------------
@@ -2017,12 +2040,184 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
                    numBlocks, table->name().c_str(), e.message().c_str());
         // FIXME: This won't work if we execute are executing this operation the
         //        same time that txns are running
-        resetReusedResultOutputBuffer();
-        e.serialize(getExceptionOutputSerializer());
-        retval = ENGINE_ERRORCODE_ERROR;
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        //retval = ENGINE_ERRORCODE_ERROR;
+        retval = ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
     }
 
     return (retval);
+}
+
+int VoltDBEngine::antiCacheEvictBlockPrepareInit(int64_t prepareTxnId) {
+    try {
+        AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+        assert(antiCacheManager);
+        assert(!antiCacheManager->hasInitEvictionPreparation());
+        antiCacheManager->evictBlockPrepareInit(prepareTxnId);
+    } catch (SerializableEEException &e) {
+        VOLT_ERROR("antiCacheEvictBlockPrepareInit: %s", e.message().c_str());
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
+    }
+
+    return ENGINE_ERRORCODE_SUCCESS;
+}
+
+void VoltDBEngine::assertEvictionPreparedFor(int64_t prepareTxnId, const string& operation) const {
+    AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+    assert(antiCacheManager);
+    if (!antiCacheManager->hasInitEvictionPreparation()) {
+        VOLT_ERROR("Failed in %s: Eviction is not prepared yet for transaction %ld", operation.c_str(), prepareTxnId);
+        throwFatalException("Unexpected exception in eviction prepareInit");
+    }
+
+    if (antiCacheManager->getEvictionPrepareTxnId() != prepareTxnId) {
+        VOLT_ERROR("Failed in %s: Eviction is prepared but not for transaction %ld, because another transaction %ld has done so", operation.c_str(), prepareTxnId, antiCacheManager->getEvictionPrepareTxnId());
+        throwFatalException("Unexpected exception in eviction prepareInit");
+    }
+}
+
+
+int VoltDBEngine::antiCacheEvictBlockPrepare(int64_t prepareTxnId, int32_t tableId, long blockSize, int numBlocks) {
+    AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+
+    try {
+        assertEvictionPreparedFor(prepareTxnId, "EvictBlockPrepare");
+        PersistentTable *table = dynamic_cast<PersistentTable*>(getTable(tableId));
+        if (table == NULL) {
+          throwFatalException("Invalid table id %d", tableId);
+        }
+
+        antiCacheManager->evictBlockPrepare(prepareTxnId, table, blockSize, numBlocks);
+    } catch (SerializableEEException &e) {
+        VOLT_ERROR("antiCacheEvictBlockPrepare: %s", e.message().c_str());
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
+    }
+
+    return ENGINE_ERRORCODE_SUCCESS;
+}
+
+int VoltDBEngine::antiCacheEvictBlockPrepareInBatch(int64_t prepareTxnId, int32_t tableId, int32_t childTableId, long blockSize, int numBlocks) {
+    try {
+        AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+        assert(antiCacheManager);
+        assertEvictionPreparedFor(prepareTxnId, "EvictBlockPrepareInBatch");
+        PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
+        PersistentTable *childTable = dynamic_cast<PersistentTable*>(this->getTable(childTableId));
+        if (table == NULL) {
+            throwFatalException("Invalid table id %d", tableId);
+        }
+        if (childTable == NULL) {
+            throwFatalException("Invalid table id %d", childTableId);
+        }
+
+        antiCacheManager->evictBlockPrepareInBatch(prepareTxnId, table, childTable, blockSize, numBlocks);
+    } catch (SerializableEEException &e) {
+        VOLT_ERROR("antiCacheEvictBlockPrepareInBatch: %s", e.message().c_str());
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
+    }
+
+    return ENGINE_ERRORCODE_SUCCESS;
+}
+
+int VoltDBEngine::antiCacheEvictBlockWork(int64_t prepareTxnId, int32_t tableId, long blockSize, int numBlocks) {
+    int numResults = 0;
+    try {
+        AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+        assert(antiCacheManager);
+        assertEvictionPreparedFor(prepareTxnId, "EvictBlockWork");
+        
+        PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
+        if (table == NULL) {
+            throwFatalException("Invalid table id %d", tableId);
+        }
+
+        size_t lengthPosition = m_antiCacheUtilityOutput.reserveBytes(sizeof(int32_t));
+        Table *resultTable = antiCacheManager->evictBlockWork(prepareTxnId, table, blockSize, numBlocks);
+        if (resultTable) {
+          resultTable->serializeTo(m_antiCacheUtilityOutput);
+          m_antiCacheUtilityOutput.writeIntAt(lengthPosition, static_cast<int32_t>(m_antiCacheUtilityOutput.size() - sizeof(int32_t)));
+          numResults = 1;
+        } else {
+          numResults = 0;
+        }
+    } catch (SerializableEEException &e) {
+        VOLT_ERROR("antiCacheEvictBlockWork: %s", e.message().c_str());
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
+    }
+    return numResults;
+}
+
+int VoltDBEngine::antiCacheEvictBlockWorkInBatch(int64_t prepareTxnId, int32_t tableId, int32_t childTableId, long blockSize, int numBlocks) {
+    int numResults = 0;
+    try {
+        AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+        assert(antiCacheManager);
+        assertEvictionPreparedFor(prepareTxnId, "EvictBlockWorkInBatch");
+
+        PersistentTable *table = dynamic_cast<PersistentTable*>(this->getTable(tableId));
+        PersistentTable *childTable = dynamic_cast<PersistentTable*>(this->getTable(childTableId));
+        if (table == NULL) {
+            throwFatalException("Invalid table id %d", tableId);
+        }
+        if (childTable == NULL) {
+            throwFatalException("Invalid table id %d", childTableId);
+        }
+
+        size_t lengthPosition = m_antiCacheUtilityOutput.reserveBytes(sizeof(int32_t));
+        Table *resultTable = antiCacheManager->evictBlockWorkInBatch(prepareTxnId, table, childTable, blockSize, numBlocks);
+        if (resultTable) {
+          resultTable->serializeTo(m_antiCacheUtilityOutput);
+          m_antiCacheUtilityOutput.writeIntAt(lengthPosition, static_cast<int32_t>(m_antiCacheUtilityOutput.size() - sizeof(int32_t)));
+          numResults = 1;
+        } else {
+          numResults = 0;
+        }
+    } catch (SerializableEEException &e) {
+        VOLT_ERROR("antiCacheEvictBlockWorkInBatch: %s", e.message().c_str());
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
+    }
+    return numResults;
+}
+
+int VoltDBEngine::antiCacheEvictBlockFinish(int64_t prepareTxnId) {
+    try {
+        AntiCacheEvictionManager* antiCacheManager = m_executorContext->getAntiCacheEvictionManager();
+        assert(antiCacheManager);
+        assertEvictionPreparedFor(prepareTxnId, "EvictBlockFinish");
+
+        antiCacheManager->evictBlockFinish(prepareTxnId);
+    } catch (SerializableEEException &e) {
+        VOLT_ERROR("antiCacheEvictBlockFinish: %s", e.message().c_str());
+        resetAntiCacheUtilityOutputBuffer();
+        e.serialize(getAntiCacheUtilityOutputSerializer());
+        return ENGINE_ERRORCODE_ANTICACHE_EXCEPTION;
+    }
+    return ENGINE_ERRORCODE_SUCCESS;
+}
+
+ReadWriteTracker* VoltDBEngine::antiCacheCreateEvictionTrackerOf(int64_t prepareTxnId) const {
+    ReadWriteTrackerManager* evictionTrackersManager = m_executorContext->getEvictionTrackersManager();
+    assert(evictionTrackersManager);
+    ReadWriteTracker* result = evictionTrackersManager->enableTracking(prepareTxnId);
+    assert(result);
+    return result;
+}
+
+void VoltDBEngine::antiCacheRemoveEvictionTrackerOf(int64_t prepareTxnId) const {
+    ReadWriteTrackerManager* evictionTrackersManager = m_executorContext->getEvictionTrackersManager();
+    assert(evictionTrackersManager);
+    evictionTrackersManager->removeTracker(prepareTxnId);
 }
 
 /**

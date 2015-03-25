@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.TreeSet;
 
 import org.voltdb.exceptions.EvictedTupleAccessException;
+import org.voltdb.exceptions.EvictionPreparedTupleAccessException;
 import org.voltdb.utils.EstTime;
 
 import edu.brown.hstore.txns.LocalTransaction;
@@ -52,11 +53,11 @@ public class AntiCacheManagerProfiler extends AbstractProfiler {
             return (0);
         }
     };
-    
+
     /**
      * Transaction Evicted Tuple Access History
      */
-    public static class AccessHistory implements Comparable<AccessHistory> {
+    public static class EvictionTupleAccessHistory implements Comparable<EvictionTupleAccessHistory> {
         public final long startTimestamp;
         public final Long txnId;
         public final int procId;
@@ -64,8 +65,8 @@ public class AntiCacheManagerProfiler extends AbstractProfiler {
         public final int numBlocks;
         public final int numTables;
         public final int restarts;
-        
-        public AccessHistory(LocalTransaction ts, EvictedTupleAccessException ex) {
+
+        public EvictionTupleAccessHistory(LocalTransaction ts, EvictedTupleAccessException ex) {
             this.startTimestamp = EstTime.currentTimeMillis();
             this.txnId = ts.getTransactionId();
             this.procId = ts.getProcedure().getId();
@@ -76,7 +77,38 @@ public class AntiCacheManagerProfiler extends AbstractProfiler {
             this.numTables = 1; // FIXME
         }
         @Override
-        public int compareTo(AccessHistory other) {
+        public int compareTo(EvictionTupleAccessHistory other) {
+            if (this.startTimestamp != other.startTimestamp) {
+                return (int)(this.startTimestamp - other.startTimestamp);
+            }
+            return (this.txnId.compareTo(other.txnId));
+        }
+    }
+
+    public static class EvictionPreparedAccessHistory implements Comparable<EvictionPreparedAccessHistory> {
+        public final long startTimestamp;
+        public final Long txnId;
+        public final int procId;
+        public final int restarts;
+
+        private EvictionPreparedAccessHistory(long startTimestamp, Long txnId, int procId, int restarts) {
+            this.startTimestamp = startTimestamp;
+            this.txnId = txnId;
+            this.procId = procId;
+            this.restarts = restarts;
+        }
+
+        public static EvictionPreparedAccessHistory of(LocalTransaction ts, EvictionPreparedTupleAccessException ex) {
+            return new EvictionPreparedAccessHistory(
+                    EstTime.currentTimeMillis(),
+                    ts.getTransactionId(),
+                    ts.getProcedure().getId(),
+                    ts.getRestartCounter()
+            );
+        }
+
+        @Override
+        public int compareTo(EvictionPreparedAccessHistory other) {
             if (this.startTimestamp != other.startTimestamp) {
                 return (int)(this.startTimestamp - other.startTimestamp);
             }
@@ -97,7 +129,9 @@ public class AntiCacheManagerProfiler extends AbstractProfiler {
     /**
      * Evicted Tuple Access History
      */
-    public Collection<AccessHistory> evictedaccess_history = new TreeSet<AccessHistory>();
+    public Collection<EvictionTupleAccessHistory> evictedaccess_history = new TreeSet<EvictionTupleAccessHistory>();
+
+    public Collection<EvictionPreparedAccessHistory> evictionPreparedAccessHistory = new TreeSet<EvictionPreparedAccessHistory>();
     
     /**
      * The amount of time it takes for the AntiCacheManager to evict a block
@@ -129,7 +163,12 @@ public class AntiCacheManagerProfiler extends AbstractProfiler {
     // ----------------------------------------------------------------------------
     
     public void addEvictedAccess(LocalTransaction ts, EvictedTupleAccessException ex) {
-        AccessHistory eah = new AccessHistory(ts, ex);
+        EvictionTupleAccessHistory eah = new EvictionTupleAccessHistory(ts, ex);
         this.evictedaccess_history.add(eah);
+    }
+
+    public void addEvictionPreparedAccess(LocalTransaction ts, EvictionPreparedTupleAccessException ex) {
+        EvictionPreparedAccessHistory h = EvictionPreparedAccessHistory.of(ts, ex);
+        evictionPreparedAccessHistory.add(h);
     }
 }

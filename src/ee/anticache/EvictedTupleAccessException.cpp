@@ -65,3 +65,19 @@ void EvictedTupleAccessException::p_serialize(ReferenceSerializeOutput *output) 
     }
     output->writeInt(m_partitionId);
 }
+
+std::string EvictionPreparedTupleAccessException::ERROR_MSG = std::string("Txn tried to access eviction-prepared tuples");
+
+EvictionPreparedTupleAccessException::EvictionPreparedTupleAccessException(int tableId):
+  SerializableEEException(VOLT_EE_EXCEPTION_TYPE_EVICTION_PREPARED_TUPLE, EvictionPreparedTupleAccessException::ERROR_MSG),
+  m_tableId(tableId), 
+  m_partitionId(-1)
+  {
+    VOLT_TRACE("In EvictionPreparedTupleAccessException constructor...setting exception type to %d.", VOLT_EE_EXCEPTION_TYPE_EVICTION_PREPARED_TUPLE); 
+  }
+
+void EvictionPreparedTupleAccessException::p_serialize(ReferenceSerializeOutput *output) {
+  VOLT_TRACE("In EvictionPreparedTupleAccessException p_serialize().");
+  output->writeInt(m_tableId);
+  output->writeInt(m_partitionId);
+}

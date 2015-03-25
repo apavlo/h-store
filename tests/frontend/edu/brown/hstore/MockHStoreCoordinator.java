@@ -48,6 +48,8 @@ import edu.brown.utils.StringUtil;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.RemoteTransaction;
 
+import static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse;
+
 public class MockHStoreCoordinator extends HStoreCoordinator {
     private static final Logger LOG = Logger.getLogger(MockHStoreCoordinator.class);
     private final static LoggerBoolean debug = new LoggerBoolean();
@@ -234,6 +236,27 @@ public class MockHStoreCoordinator extends HStoreCoordinator {
 
 			
 		}
+
+        @Override
+        public void evictionPreparedData(RpcController controller, Hstoreservice.EvictionPreparedDataRequest request, RpcCallback<EvictionPreparedDataResponse> done) {
+            LOG.info(String.format("Received %s from HStoreSite %s at HStoreSite %s",
+                    request.getClass().getSimpleName(),
+                    HStoreThreadManager.formatSiteName(request.getSenderSite()),
+                    HStoreThreadManager.formatSiteName(hstore_site.getSiteId())));
+
+            if (debug.val)
+                LOG.debug(String.format("Received %s from HStoreSite %s",
+                        request.getClass().getSimpleName(),
+                        HStoreThreadManager.formatSiteName(request.getSenderSite())));
+            Long oldTxnId = request.getTransactionId();
+            EvictionPreparedDataResponse response = EvictionPreparedDataResponse.newBuilder()
+                    .setSenderSite(hstore_site.getSiteId())
+                    .setTransactionId(oldTxnId)
+                    .setPartitionId(1) // some id
+                    .setStatus(Status.OK)
+                    .build();
+            done.run(response);
+        }
     }
 
 }

@@ -14,11 +14,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.voltdb.SysProcSelector;
 import org.voltdb.VoltTable;
-import org.voltdb.catalog.Procedure;
-import org.voltdb.catalog.Site;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.Client;
-import org.voltdb.client.ClientResponse;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.utils.VoltTableUtil;
 
@@ -29,7 +26,6 @@ import edu.brown.benchmark.AbstractProjectBuilder;
 import edu.brown.benchmark.ycsb.YCSBConstants;
 import edu.brown.benchmark.ycsb.YCSBProjectBuilder;
 import edu.brown.catalog.CatalogUtil;
-import edu.brown.hstore.Hstoreservice.Status;
 import edu.brown.hstore.Hstoreservice.UnevictDataResponse;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
@@ -37,6 +33,8 @@ import edu.brown.hstore.txns.RemoteTransaction;
 import edu.brown.utils.CollectionUtil;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.ThreadUtil;
+
+import static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse;
 
 public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
     
@@ -273,10 +271,22 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         this.hstore_conf.site.anticache_profiling = false;
         LocalTransaction txn = MockHStoreSite.makeLocalTransaction(hstore_sites[0]);
 
-        assertTrue(manager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
+        assertTrue(manager.queueUneviction(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
 
     }
-  
+
+    @Test
+    public void testQueueingOfTransactionForEvictionPreparedAccess() throws Exception {
+        AntiCacheManager manager = hstore_sites[0].getAntiCacheManager();
+        int block_ids[] = new int[]{ 1111 };
+        int tuple_offsets[] = new int[]{0};
+        int partition_id = 0;
+        this.hstore_conf.site.anticache_profiling = false;
+        LocalTransaction txn = MockHStoreSite.makeLocalTransaction(hstore_sites[0]);
+
+        assertTrue(manager.queueEvictionPreparedAccess(txn, partition_id, catalog_tbl));
+    }
+
     @Test
     public void testQueueingOfDistributedTransaction() throws Exception {
     	final CountDownLatch latch = new CountDownLatch(1);
@@ -298,11 +308,34 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
 	txn.setOldTransactionId(txn.getTransactionId()); //workaround
         int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
 
-        assertTrue(manager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
+        assertTrue(manager.queueUneviction(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
         latch.await();
 
     }
-    
+
+    @Test
+    public void testQueueingOfDistributedTransactionForEvictionPreparedAccess() throws Exception {
+        final CountDownLatch latch = new CountDownLatch(1);
+        final RpcCallback<EvictionPreparedDataResponse> callback = new RpcCallback<EvictionPreparedDataResponse>() {
+            @Override
+            public void run(EvictionPreparedDataResponse response) {
+                // do nothing
+                latch.countDown();
+            }
+        };
+        hstore_sites[0].getCoordinator().setEvictionPreparedCallback(callback);
+        AntiCacheManager manager = hstore_sites[0].getAntiCacheManager();
+        // different from the base partition. This means the exception was
+        // thrown by a remote site
+        this.hstore_conf.site.anticache_profiling = false;
+        LocalTransaction txn = MockHStoreSite.makeLocalTransaction(hstore_sites[0]);
+        txn.setOldTransactionId(txn.getTransactionId()); //workaround
+        int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
+
+        assertTrue(manager.queueEvictionPreparedAccess(txn, partition_id, catalog_tbl));
+        latch.await();
+    }
+
     /**
      * testUnevictDataAddsItemToAntiCacheManagerQueue
      */
@@ -347,7 +380,47 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         // BLOCK!
         latch.await();
         assertEquals(1, responses.size());
-    }    
+    }
+
+    @Test
+    public void testUnevictDataShouldAddEntryToAntiCacheManagerQueueForEvictionPreparedAccess() throws Exception {
+        final Map<Integer, String> responses = new HashMap<Integer, String>();
+
+        // We will block on this until we get responses from the remote site
+        final CountDownLatch latch = new CountDownLatch(1);
+
+        final RpcCallback<EvictionPreparedDataResponse> callback = new RpcCallback<EvictionPreparedDataResponse>() {
+            @Override
+            public void run(EvictionPreparedDataResponse parameter) {
+                int sender_site_id = parameter.getSenderSite();
+                String status = parameter.getStatus().name();
+                assertEquals("OK", status);
+                responses.put(sender_site_id, status );
+                StringBuilder sb = new StringBuilder();
+                sb.append("TestConnection Responses:\n");
+                for (java.util.Map.Entry<Integer, String> e : responses.entrySet()) {
+                    sb.append(String.format("  Partition %03d: %s\n", e.getKey(), e.getValue()));
+                } // FOR
+                System.err.println(sb.toString());
+                latch.countDown();
+            }
+        };
+
+        AntiCacheManager manager = hstore_sites[0].getAntiCacheManager();
+        // different from the base partition. This means the exception was
+        // thrown by a remote site
+        hstore_conf.site.anticache_profiling = false;
+        LocalTransaction txn = MockHStoreSite.makeLocalTransaction(hstore_sites[0]);
+        txn.setOldTransactionId(txn.getTransactionId()); //workaround
+        int dest_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
+        final int sender_id = hstore_sites[0].getSiteId();
+        hstore_sites[sender_id].getCoordinator().setEvictionPreparedCallback(callback);
+
+        hstore_sites[sender_id].getCoordinator().sendEvictionPreparedDataMessage(dest_id, txn, dest_id, catalog_tbl);
+        // BLOCK!
+        latch.await();
+        assertEquals(1, responses.size());
+    }
 
     @Test
     public void testProcessingOfQueuedDistributedTransaction() throws Exception {
@@ -385,7 +458,7 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
         txn.setUnevictCallback(callback);
         int partition_id = CollectionUtil.first(this.hstore_sites[1].getLocalPartitionIds());
         MockAntiCacheManager remotemanager = (MockAntiCacheManager) hstore_sites[1].getAntiCacheManager();
-        assertTrue(remotemanager.queue(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
+        assertTrue(remotemanager.queueUneviction(txn, partition_id, catalog_tbl, block_ids, tuple_offsets));
         remotemanager.processQueue(); // force to process the queued item
         
         // block till the remote site executes the callback notifying that its done
@@ -394,5 +467,4 @@ public class TestAntiCacheManagerDistributedTxn extends BaseTestCase {
 
 //        assertEquals(Status.OK, cresponse.getStatus()); // does the txn go to completion
     }
-    
 }

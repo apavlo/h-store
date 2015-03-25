@@ -3,34 +3,25 @@ package edu.brown.hstore;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.log4j.Logger;
-import org.voltdb.CatalogContext;
-import org.voltdb.ClientResponseImpl;
-import org.voltdb.StoredProcedureInvocation;
-import org.voltdb.VoltSystemProcedure;
-import org.voltdb.VoltTable;
+import org.voltdb.*;
 import org.voltdb.catalog.Database;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EvictedTupleAccessException;
+import org.voltdb.exceptions.EvictionPreparedTupleAccessException;
 import org.voltdb.exceptions.SerializableException;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.messaging.FastSerializer;
-import org.voltdb.sysprocs.EvictTuples;
+import org.voltdb.sysprocs.EvictTuplesFinish;
+import org.voltdb.sysprocs.EvictTuplesPrepare;
 import org.voltdb.types.AntiCacheEvictionPolicyType;
+import org.voltdb.types.TimestampType;
 import org.voltdb.utils.Pair;
-import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.RpcCallback;
 
@@ -53,6 +44,8 @@ import edu.brown.utils.ExceptionHandlingRunnable;
 import edu.brown.utils.FileUtil;
 import edu.brown.utils.StringUtil;
 
+import static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse;
+
 /**
  * A high-level manager for the anti-cache feature Most of the work is done down in the EE,
  * so this is just an abstraction layer for now
@@ -67,6 +60,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
 
+    private Queue<EvictionPreparedAccessQueueEntry> evictionPreparedAccessTxns = new ConcurrentLinkedQueue<EvictionPreparedAccessQueueEntry>();
+    private AtomicBoolean isEvictionPreparing = new AtomicBoolean(false);
+
 //    public static long DEFAULT_MAX_MEMORY_SIZE_MB = 500;
 //    public static final long TOTAL_BYTES_TO_EVICT = 2400 * 1024 * 1024;
 //    
@@ -79,14 +75,21 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     // INTERNAL QUEUE ENTRY
     // ----------------------------------------------------------------------------
 
-    protected class QueueEntry {
+    protected static interface QueueEntry {
+    }
+
+    protected static class UnevictionQueueEntry implements QueueEntry {
         final AbstractTransaction ts;
         final Table catalog_tbl;
         final int partition;
         final int block_ids[];
-        final int tuple_offsets[]; 
+        final int tuple_offsets[];
 
-        public QueueEntry(AbstractTransaction ts, int partition, Table catalog_tbl, int block_ids[], int tuple_offsets[]) {
+        public UnevictionQueueEntry(AbstractTransaction ts,
+                                    int partition,
+                                    Table catalog_tbl,
+                                    int block_ids[],
+                                    int tuple_offsets[]) {
             this.ts = ts;
             this.partition = partition;
             this.catalog_tbl = catalog_tbl;
@@ -100,6 +103,45 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                     this.getClass().getSimpleName(), this.ts,
                     this.catalog_tbl.getName(), this.partition,
                     Arrays.toString(this.block_ids));
+        }
+    }
+
+    protected static class EvictionQueueEntry implements QueueEntry {
+        final long prepareTxnId;
+        final int partition;
+
+        public EvictionQueueEntry(long prepareTxnId, int partition) {
+            this.prepareTxnId = prepareTxnId;
+            this.partition = partition;
+        }
+
+        @Override
+        public String toString() {
+            return String.format(
+                    "%s{prepareTxnId:%x / Partition:%d}",
+                    getClass().getSimpleName(),
+                    prepareTxnId,
+                    partition
+            );
+        }
+    }
+
+    protected static class EvictionPreparedAccessQueueEntry implements QueueEntry {
+        final AbstractTransaction ts;
+        final Table catalog_tbl;
+        final int partition;
+
+        public EvictionPreparedAccessQueueEntry(AbstractTransaction ts, Table catalog_tbl, int partition) {
+            this.ts = ts;
+            this.catalog_tbl = catalog_tbl;
+            this.partition = partition;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s{%s / Table:%s / Partition:%d}",
+                    getClass().getSimpleName(), ts,
+                    catalog_tbl.getName(), partition);
         }
     }
 
@@ -133,6 +175,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
      * The amount of memory used at each local partition
      */
     private final PartitionStats[] partitionStats;
+
+    private final ExecutorService evictionWorkExecutor;
 
     /**
      * Thread that is periodically executed to check whether the amount of memory used by this HStoreSite is over the
@@ -168,7 +212,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                     // check to see if we should start eviction
                     if (debug.val)
                         LOG.warn("Checking and evicting");
-                    if (hstore_conf.site.anticache_enable && checkEviction()) {
+                    if (hstore_conf.site.anticache_enable && (!isEvictionPreparing.get()) && checkEviction()) {
                         executeEviction();
                     }
                 } catch (Throwable ex) {
@@ -178,10 +222,47 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         }
     };
 
+    private final ExceptionHandlingRunnable evictionPreparedAccessTxnsResubmitter = new ExceptionHandlingRunnable() {
+        @Override
+        public void runImpl() {
+            synchronized(AntiCacheManager.this) {
+                try {
+                    if (debug.val)
+                        LOG.warn("Checking resubmission of eviction-prepared-access txns.");
+                    while (hstore_conf.site.anticache_enable && (!isEvictionPreparing.get()) && (!evictionPreparedAccessTxns.isEmpty())) {
+                        try {
+                            EvictionPreparedAccessQueueEntry e = evictionPreparedAccessTxns.remove();
+                            resubmit(e);
+                        } catch (NoSuchElementException ignored) {
+                        }
+                    }
+                } catch (Throwable ex) {
+                    ex.printStackTrace();
+                }
+            }
+        }
+    };
+
+    private static class EvictionParams {
+        final String tableNames[];
+        final String childrenTableNames[];
+        final long blockSizes[];
+        final int numBlocks[];
+
+        private EvictionParams(String[] tableNames, String[] childrenTableNames, long[] blockSizes, int[] numBlocks) {
+            this.tableNames = tableNames;
+            this.childrenTableNames = childrenTableNames;
+            this.blockSizes = blockSizes;
+            this.numBlocks = numBlocks;
+        }
+    }
+
+    private final Map<Integer,EvictionParams> partitionEvictionParams = new HashMap<Integer,EvictionParams>();
+
     /**
      * Local RpcCallback that will notify us when one of our eviction sysprocs is finished
      */
-    private final RpcCallback<ClientResponseImpl> evictionCallback = new RpcCallback<ClientResponseImpl>() {
+    /*private final RpcCallback<ClientResponseImpl> evictionCallback = new RpcCallback<ClientResponseImpl>() {
         @Override
         public void run(ClientResponseImpl parameter) {
             int partition = parameter.getBasePartition();
@@ -195,6 +276,25 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             synchronized(AntiCacheManager.this) {
                 pendingEvictions--;
             };
+        }
+    };*/
+
+    private final RpcCallback<ClientResponseImpl> evictionPrepareCallback = new RpcCallback<ClientResponseImpl>() {
+        @Override
+        public void run(ClientResponseImpl parameter) {
+            QueueEntry[] nextEntries = {
+                    new EvictionQueueEntry(parameter.getTransactionId(), parameter.getBasePartition()),
+            };
+            for (QueueEntry e : nextEntries) {
+                queue.offer(e);
+            }
+        }
+    };
+
+    private final RpcCallback<ClientResponseImpl> evictionFinishCallback = new RpcCallback<ClientResponseImpl>() {
+        @Override
+        public void run(ClientResponseImpl parameter) {
+            isEvictionPreparing.set(false);
         }
     };
 
@@ -237,6 +337,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         int num_partitions = hstore_site.getCatalogContext().numberOfPartitions;
 
         this.partitionStats = new PartitionStats[num_partitions];
+        evictionWorkExecutor = Executors.newFixedThreadPool(num_partitions);
         for(i = 0; i < num_partitions; i++) {
             this.partitionStats[i] = new PartitionStats();  
         }
@@ -267,20 +368,40 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         return this.memoryMonitor;
     }
 
+    public Runnable getEvictionPreparedAccessTxnsResubmitter() {
+        return evictionPreparedAccessTxnsResubmitter;
+    }
+
     // ----------------------------------------------------------------------------
     // TRANSACTION PROCESSING
     // ----------------------------------------------------------------------------
-
+    // Sam's TODO:
+    // If next QueueEntry is evictPrepare, then add to PE's queue. EvictPrepare has a callback that adds a QueueEntry of evictWork.
+    // If next QueueEntry is evictWork, then simply do eviction work using AntiCacheManager's thread.  In the end, add a QueueEntry of evictFinish.
+    // If next QueueEntry is evictFinish, then add to PE's queue.
+    // Q: do evictWork and evictFinish together? No, because we don't want evictFinish, which turns off read-write set tracking, to race with user transactions.
     @Override
     protected void processingCallback(QueueEntry next) {
+        if (next instanceof UnevictionQueueEntry) {
+            process((UnevictionQueueEntry) next);
+        } else if (next instanceof EvictionPreparedAccessQueueEntry) {
+            process((EvictionPreparedAccessQueueEntry) next);
+        } else if (next instanceof EvictionQueueEntry) {
+            process((EvictionQueueEntry) next);
+        } else {
+            throw new RuntimeException("Unsupported query entry type: " + next.getClass().getSimpleName());
+        }
+    }
+
+    protected void process(UnevictionQueueEntry next) {
         assert(next.ts.isInitialized()) :
-            String.format("Unexpected uninitialized transaction handle: %s", next);
+                String.format("Unexpected uninitialized transaction handle: %s", next);
         if (next.partition != next.ts.getBasePartition()) { // distributed txn
             LOG.warn(String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
-                     next.ts, next.ts.getBasePartition(), next.partition, next));
+                    next.ts, next.ts.getBasePartition(), next.partition, next));
             // if we are the remote site then we should go ahead and continue processing
-            // if no then we should simply requeue the entry? 
-            
+            // if no then we should simply requeue the entry?
+
         }
         if (debug.val)
             LOG.debug("Processing " + next);
@@ -290,7 +411,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         PartitionExecutor executor = hstore_site.getPartitionExecutor(next.partition);
         ExecutionEngine ee = executor.getExecutionEngine();
 
-        // boolean merge_needed = true; 
+        // boolean merge_needed = true;
 
         // We can now tell it to read in the blocks that this txn needs
         // Note that we are doing this without checking whether another txn is already
@@ -303,24 +424,24 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // TODO: We may want to create a HStoreConf option that allows to dispatch this
         // request asynchronously per partition. For now we're just going to
         // block the AntiCacheManager until each of the requests are finished
-        if (hstore_conf.site.anticache_profiling) 
+        if (hstore_conf.site.anticache_profiling)
             this.profilers[next.partition].retrieval_time.start();
         try {
             if (debug.val)
                 LOG.debug(String.format("Asking EE to read in evicted blocks from table %s on partition %d: %s",
-                          next.catalog_tbl.getName(), next.partition, Arrays.toString(next.block_ids)));
+                        next.catalog_tbl.getName(), next.partition, Arrays.toString(next.block_ids)));
 
             ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids, next.tuple_offsets);
 
             if (debug.val)
                 LOG.debug(String.format("Finished reading blocks from partition %d",
-                          next.partition));
+                        next.partition));
         } catch (SerializableException ex) {
             LOG.info("Caught unexpected SerializableException while reading anti-cache block.", ex);
 
-            // merge_needed = false; 
+            // merge_needed = false;
         } finally {
-            if (hstore_conf.site.anticache_profiling) 
+            if (hstore_conf.site.anticache_profiling)
                 this.profilers[next.partition].retrieval_time.stopIfStarted();
         }
 
@@ -335,48 +456,169 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             // HACK HACK HACK HACK HACK HACK
             // We need to get a new txnId for ourselves, since the one that we
             // were given before is now probably too far in the past
-        	if(next.partition != next.ts.getBasePartition()){
-        		ee.antiCacheMergeBlocks(next.catalog_tbl);
-        	}
+            if(next.partition != next.ts.getBasePartition()){
+                ee.antiCacheMergeBlocks(next.catalog_tbl);
+            }
             this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
 
             if (debug.val) LOG.debug("restartin on local");
-        	this.hstore_site.transactionInit(next.ts);	
+            this.hstore_site.transactionInit(next.ts);
         } else {
-        	ee.antiCacheMergeBlocks(next.catalog_tbl);
-        	RemoteTransaction ts = (RemoteTransaction) next.ts; 
-        	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
-        	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
-        		.setSenderSite(this.hstore_site.getSiteId())
-        		.setTransactionId(ts.getNewTransactionId())
-        		.setPartitionId(next.partition)
-        		.setStatus(Status.OK);
-        	callback.run(builder.build());        	
-        	
+            ee.antiCacheMergeBlocks(next.catalog_tbl);
+            RemoteTransaction ts = (RemoteTransaction) next.ts;
+            RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
+            UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
+                    .setSenderSite(this.hstore_site.getSiteId())
+                    .setTransactionId(ts.getNewTransactionId())
+                    .setPartitionId(next.partition)
+                    .setStatus(Status.OK);
+            callback.run(builder.build());
+
         }
+    }
+
+    private void process(EvictionPreparedAccessQueueEntry next) {
+        evictionPreparedAccessTxns.add(next);
+    }
+
+    private void resubmit(EvictionPreparedAccessQueueEntry next) {
+        assert(next.ts.isInitialized()) :
+                String.format("Unexpected uninitialized transaction handle: %s", next);
+        if (next.partition != next.ts.getBasePartition()) { // distributed txn
+            LOG.warn(String.format("The base partition for %s is %d but we want to fetch a block for partition %d: %s",
+                    next.ts, next.ts.getBasePartition(), next.partition, next));
+            // if we are the remote site then we should go ahead and continue processing
+            // if no then we should simply requeue the entry?
+
+        }
+        if (debug.val)
+            LOG.debug("Processing " + next);
+
+        if (next.ts instanceof LocalTransaction){
+            hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
+
+            if (debug.val) LOG.debug("restartin on local");
+            hstore_site.transactionInit(next.ts);
+        } else {
+            RemoteTransaction ts = (RemoteTransaction) next.ts;
+            RpcCallback<EvictionPreparedDataResponse> callback = ts.getEvictionPreparedCallback();
+            EvictionPreparedDataResponse response = EvictionPreparedDataResponse.newBuilder()
+                    .setSenderSite(hstore_site.getSiteId())
+                    .setTransactionId(ts.getNewTransactionId())
+                    .setPartitionId(next.partition)
+                    .setStatus(Status.OK)
+                    .build();
+            callback.run(response);
+        }
+    }
+
+
+    private void process(final EvictionQueueEntry next) {
+        FutureTask<VoltTable> evictionWorkFuture = new FutureTask<VoltTable>(new Callable<VoltTable>() {
+            @Override
+            public VoltTable call() throws Exception {
+                doEvictionWork(next.partition, next.prepareTxnId);
+                submitEvictionFinish(next.partition, next.prepareTxnId);
+                return null;
+            }
+        });
+        evictionWorkExecutor.execute(evictionWorkFuture);
+    }
+
+    private void doEvictionWork(int partitionId, long prepareTxnId) {
+        ExecutionEngine ee = hstore_site.getPartitionExecutor(partitionId).getExecutionEngine();
+        EvictionParams params = partitionEvictionParams.get(partitionId);
+
+        CatalogContext catalogContext = hstore_site.getCatalogContext();
+
+        long totalTuplesEvicted = 0;
+        long totalBlocksEvicted = 0;
+        long totalBytesEvicted = 0;
+        AntiCacheManagerProfiler profiler = null;
+        long start = -1;
+        if (hstore_conf.site.anticache_profiling) {
+            start = System.currentTimeMillis();
+            profiler = profilers[partitionId];
+            profiler.eviction_time.start();
+        }
+
+        Table[] tables = new Table[params.tableNames.length];
+        Table childTables[] = new Table[params.tableNames.length];
+        for (int i = 0; i < params.tableNames.length; i++) {
+            tables[i] = catalogContext.database.getTables().getIgnoreCase(params.tableNames[i]);
+        }
+
+        for (int i = 0; i < params.tableNames.length; i++) {
+            VoltTable vt;
+            if (hstore_conf.site.anticache_batching) {
+                if (params.childrenTableNames.length!=0 && !params.childrenTableNames[i].isEmpty()) {
+                    childTables[i] = catalogContext.database.getTables().getIgnoreCase(params.childrenTableNames[i]);
+                    vt = ee.antiCacheEvictBlockWorkInBatch(prepareTxnId, tables[i], childTables[i], params.blockSizes[i], params.numBlocks[i]);
+                } else {
+                    vt = ee.antiCacheEvictBlockWork(prepareTxnId, tables[i], params.blockSizes[i], params.numBlocks[i]);
+                }
+            } else {
+                vt = ee.antiCacheEvictBlockWork(prepareTxnId, tables[i], params.blockSizes[i], params.numBlocks[i]);
+            }
+
+            boolean hasRow = vt.advanceRow();
+            if (hasRow) {
+                totalTuplesEvicted += vt.getLong("ANTICACHE_TUPLES_EVICTED");
+                totalBlocksEvicted += vt.getLong("ANTICACHE_BLOCKS_EVICTED");
+                totalBytesEvicted += vt.getLong("ANTICACHE_BYTES_EVICTED");
+            } else {
+                String msg = String.format("antiCacheEvictBlock failed to return any rows.");
+                LOG.error(msg);
+            }
+        }
+
+        if (hstore_conf.site.anticache_profiling) {
+            AntiCacheManagerProfiler.EvictionHistory eh = new AntiCacheManagerProfiler.EvictionHistory(
+                    start,
+                    System.currentTimeMillis(),
+                    totalTuplesEvicted,
+                    totalBlocksEvicted,
+                    totalBytesEvicted);
+            assert profiler != null;
+            profiler.eviction_history.add(eh);
+            profiler.eviction_time.stopIfStarted();
+        }
+    }
+
+    private void submitEvictionFinish(int partitionId, long prepareTxnId) {
+        String procName = VoltSystemProcedure.procCallName(EvictTuplesFinish.class);
+        Object params[] = new Object[] { partitionId, prepareTxnId };
+        StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
+
+        ByteBuffer b;
+        try {
+            b = ByteBuffer.wrap(FastSerializer.serialize(invocation));
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+        pendingEvictions--;
+        hstore_site.invocationProcess(b, evictionFinishCallback);
     }
 
     @Override
     protected void removeCallback(QueueEntry next) {
-    	LocalTransaction ts = (LocalTransaction) next.ts;
-        this.hstore_site.transactionReject(ts, Status.ABORT_GRACEFUL);
+        if (next instanceof UnevictionQueueEntry) {
+            LocalTransaction ts = (LocalTransaction) ((UnevictionQueueEntry) next).ts;
+            this.hstore_site.transactionReject(ts, Status.ABORT_GRACEFUL);
+        }
     }
 
     /**
      * Queue a transaction that needs to wait until the evicted blocks at the target Table are read back in at the given
      * partition. This is a non-blocking call. The AntiCacheManager will figure out when it's ready to get these blocks
      * back in <B>Note:</B> The given LocalTransaction handle must not have been already started.
-     * 
-     * @param ts
-     *            - A new LocalTransaction handle created from an aborted transaction
      * @param partition
      *            - The partitionId that we need to read evicted tuples from
      * @param catalog_tbl
      *            - The table catalog
      * @param block_ids
-     *            - The list of blockIds that need to be read in for the table
      */
-    public boolean queue(AbstractTransaction txn, int partition, Table catalog_tbl, int block_ids[], int tuple_offsets[]) {
+    public boolean queueUneviction(AbstractTransaction txn, int partition, Table catalog_tbl, int block_ids[], int tuple_offsets[]) {
     	if (debug.val)
     	    LOG.debug(String.format("\nBase partition: %d \nPartition that needs to unevict data: %d",
     	              txn.getBasePartition(), partition));
@@ -423,7 +665,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     	if (debug.val)
     	    LOG.debug(String.format("AntiCacheManager queuing up an item for uneviction at site %d",
     	              hstore_site.getSiteId()));
-        QueueEntry e = new QueueEntry(txn, partition, catalog_tbl, block_ids, tuple_offsets);
+        UnevictionQueueEntry e = new UnevictionQueueEntry(txn, partition, catalog_tbl, block_ids, tuple_offsets);
 
         // TODO: We should check whether there are any other txns that are also blocked waiting
         // for these blocks. This will ensure that we don't try to read in blocks twice.
@@ -431,6 +673,42 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         //LOG.info("Queueing a transaction for partition " + partition);
         return (this.queue.offer(e));
     }
+
+    public boolean queueEvictionPreparedAccess(AbstractTransaction txn, int partition, Table catalog_tbl) {
+        if (debug.val) {
+            LOG.debug(String.format("\nBase partition: %d \nPartition that accessed eviction-prepared data: %d",
+                    txn.getBasePartition(), partition));
+        }
+
+        if (txn instanceof LocalTransaction) {
+            LocalTransaction ts = (LocalTransaction)txn;
+            // Different partition generated the exception
+            if (ts.getBasePartition() != partition  && !hstore_site.isLocalPartition(partition)){
+                int site_id = hstore_site.getCatalogContext().getSiteIdForPartitionId(partition);
+                hstore_site.getCoordinator().sendEvictionPreparedDataMessage(site_id, ts, partition, catalog_tbl);
+                return true;
+            }
+
+            if (hstore_conf.site.anticache_profiling) {
+                assert(ts.getPendingError() != null) :
+                        String.format("Missing original %s for %s", EvictedTupleAccessException.class.getSimpleName(), ts);
+                assert(ts.getPendingError() instanceof EvictionPreparedTupleAccessException) :
+                        String.format("Unexpected error for %s: %s", ts, ts.getPendingError().getClass().getSimpleName());
+                profilers[partition].restarted_txns++;
+                profilers[partition].addEvictionPreparedAccess(ts, (EvictionPreparedTupleAccessException)ts.getPendingError());
+                LOG.debug("Restarting transaction " + String.format("%s",ts) + ", " + ts.getRestartCounter() + " total restarts.");
+                LOG.debug("Total Restarted Txns: " + profilers[partition].restarted_txns);
+            }
+        }
+
+        if (debug.val)
+            LOG.debug(String.format("AntiCacheManager queuing up an item for eviction-prepared access at site %d",
+                    hstore_site.getSiteId()));
+        EvictionPreparedAccessQueueEntry e = new EvictionPreparedAccessQueueEntry(txn, catalog_tbl, partition);
+
+        return queue.offer(e);
+    }
+
 
     // ----------------------------------------------------------------------------
     // EVICTION INITIATION
@@ -522,7 +800,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             stats.setEvicted();
         }
 
-        String procName = VoltSystemProcedure.procCallName(EvictTuples.class);
+        String procName = VoltSystemProcedure.procCallName(EvictTuplesPrepare.class);
 
         for (int partition : hstore_site.getLocalPartitionIds().values()) {
             // XXX what if this pdist is empty, probably just go to next
@@ -547,6 +825,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             
             
             Object params[] = new Object[] { partition, tableNames, children, evictBlockSizes, evictBlocks};
+            partitionEvictionParams.put(
+                    partition,
+                    new EvictionParams(tableNames, children, evictBlockSizes, evictBlocks)
+            );
 
             StoredProcedureInvocation invocation = new StoredProcedureInvocation(1, procName, params);
 
@@ -560,7 +842,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 throw new RuntimeException(ex);
             }
             this.pendingEvictions++;
-            this.hstore_site.invocationProcess(b, this.evictionCallback);
+            assert(!isEvictionPreparing.get()) : "Should not have had eviction preparing already";
+            isEvictionPreparing.set(true);
+            this.hstore_site.invocationProcess(b, evictionPrepareCallback);
         } 
     }
 

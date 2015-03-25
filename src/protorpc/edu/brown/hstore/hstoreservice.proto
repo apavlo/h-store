@@ -34,6 +34,7 @@ enum Status {
     // The transaction was aborted because it was speculatively executed and 
     // its parent distributed transaction aborted.
     ABORT_SPECULATIVE = 9;
+    ABORT_EVICTIONPREPAREDACCESS = 10;
 }
 
 // -----------------------------------
@@ -482,6 +483,25 @@ message UnevictDataResponse {
 }
 
 // -----------------------------------
+// NODE EVICTIONPREPAREDATA MESSAGES
+// -----------------------------------
+
+message EvictionPreparedDataRequest {
+    required int32 sender_site = 1;
+    required int64 transaction_id = 2;
+    required int32 partition_id = 3;
+    required int32 table_id = 4;
+    required int64 new_transaction_id = 5;
+}
+
+message EvictionPreparedDataResponse {
+    required int32 sender_site = 1;
+    required Status status = 2;
+    required int64 transaction_id = 3;
+    required int32 partition_id = 4;
+}
+
+// -----------------------------------
 // TIME SYNC MESSAGE
 // -----------------------------------
 
@@ -524,5 +544,6 @@ service HStoreService {
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
     rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
     rpc UnevictData(UnevictDataRequest) returns (UnevictDataResponse);
+    rpc EvictionPreparedData(EvictionPreparedDataRequest) returns (EvictionPreparedDataResponse);
     rpc TimeSync(TimeSyncRequest) returns (TimeSyncResponse);
 }

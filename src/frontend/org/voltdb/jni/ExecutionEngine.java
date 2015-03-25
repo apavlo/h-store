@@ -75,6 +75,8 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     public static final int ERRORCODE_WRONG_SERIALIZED_BYTES = 101;
     public static final int ERRORCODE_NO_DATA = 102;
 
+    public static final int ERRORCODE_ANTICACHE_EXCEPTION = 103;
+
     /** Create an ee and load the volt shared library */
     public ExecutionEngine(final PartitionExecutor executor) {
         this.executor = executor;
@@ -521,7 +523,8 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
     protected native int nativeSetBuffers(long pointer, ByteBuffer parameter_buffer, int parameter_buffer_size,
                                           ByteBuffer resultBuffer, int result_buffer_size,
                                           ByteBuffer exceptionBuffer, int exception_buffer_size,
-                                          ByteBuffer ariesLogBuffer, int arieslog_buffer_size);
+                                          ByteBuffer ariesLogBuffer, int arieslog_buffer_size,
+                                          ByteBuffer antiCacheUtilityBuffer, int anticacheutility_buffer_size);
     
     /**
      * Load the system catalog for this engine.
@@ -829,7 +832,21 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @return TODO
      */
     public abstract VoltTable antiCacheEvictBlock(Table catalog_tbl, long block_size, int num_blocks);
-    
+
+    public abstract void antiCacheEvictBlockPrepareInit(Long prepareTxnId);
+    public abstract void antiCacheEvictBlockPrepare(Long prepareTxnId, Table catalog_tbl, long block_size, int num_blocks);
+    public abstract void antiCacheEvictBlockPrepareInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks);
+    public abstract VoltTable antiCacheEvictBlockWork(Long prepareTxnId, Table table, long blockSize, int numBlock);
+    public abstract VoltTable antiCacheEvictBlockWorkInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks);
+    public abstract void anticacheEvictBlockFinish(Long prepareTxnId);
+
+    protected native int nativeAntiCacheEvictBlockPrepareInit(long enginePtr, long prepareTxnId);
+    protected native int nativeAntiCacheEvictBlockPrepare(long enginePtr, long prepareTxnId, int tableId, long blockSize, int num_blocks);
+    protected native int nativeAntiCacheEvictBlockPrepareInBatch(long enginePtr, long prepareTxnId, int tableId, int childTableId, long blockSize, int num_blocks);
+    protected native int nativeAntiCacheEvictBlockWork(long enginePtr, long prepareTxnId, int tableId, long blockSize, int num_blocks);
+    protected native int nativeAntiCacheEvictBlockWorkInBatch(long enginePtr, long prepareTxnId, int tableId, int childTableId, long blockSize, int num_blocks);
+    protected native int nativeAntiCacheEvictBlockFinish(long enginePtr, long prepareTxnId);
+
     /**
      * Forcibly tell the EE that it needs to evict a certain number of bytes
      * for a table in batch. 
@@ -838,7 +855,8 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param block_size The number of bytes to evict from the target table
      */
     public abstract VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl, Table childTable, long block_size, int num_blocks);
-    
+
+
     /**
      * Instruct the EE to merge in the unevicted blocks into the table's regular data.
      * This is a blocking call and should only be executed when there is no other transaction

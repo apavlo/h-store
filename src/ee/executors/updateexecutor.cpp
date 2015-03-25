@@ -84,6 +84,8 @@ bool UpdateExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Data
     assert(m_targetTable);
     assert(node->getTargetTable());
 
+    m_catalogTable = catalog_db->tables().get(m_targetTable->name());
+
     // Our output is just our input table (regardless if plan is single-sited or not)
     node->setOutputTable(node->getInputTables()[0]);
 
@@ -169,6 +171,10 @@ bool UpdateExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
         void *target_address = m_inputTuple.getNValue(0).castAsAddress();
         m_targetTuple.move(target_address);
         
+        #ifdef ANTICACHE
+        checkEvictionPreparedAccess(*m_catalogTable, *m_targetTable, m_targetTuple);
+        #endif
+
         // Read/Write Set Tracking
         if (tracker != NULL) {
             tracker->markTupleWritten(m_targetTable, &m_targetTuple);

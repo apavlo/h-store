@@ -63,6 +63,7 @@ public enum TransactionCounter {
     NO_UNDO,
     /** The number of transactions that were sent out with prefetch queries */
     PREFETCH,
+    EVICTIONPREPAREDACCESS,
     
     // --------------------------------------------------------
     // Speculative Execution Stall Points

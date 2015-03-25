@@ -510,7 +510,8 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeSetBu
   (JNIEnv *env, jobject obj, jlong engine_ptr, jobject parameter_buffer, jint parameter_buffer_size,
    jobject result_buffer, jint result_buffer_size,
    jobject exception_buffer, jint exception_buffer_size,
-   jobject arieslog_buffer, jint arieslog_buffer_size)
+   jobject arieslog_buffer, jint arieslog_buffer_size,
+   jobject anticacheutility_buffer, jint anticacheutility_buffer_size)
 {
     VOLT_DEBUG("nativeSetBuffers() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
@@ -539,10 +540,15 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeSetBu
                 int arieslogBufferCapacity = arieslog_buffer_size;
         //#endif
 
+        char *antiCacheUtilityBuffer = reinterpret_cast<char*>(
+                env->GetDirectBufferAddress(anticacheutility_buffer));
+        int antiCacheUtilityBufferCapacity = anticacheutility_buffer_size;
+
         engine->setBuffers(parameterBuffer, parameterBufferCapacity,
             reusedResultBuffer, reusedResultBufferCapacity,
             exceptionBuffer, exceptionBufferCapacity,
-            arieslogBuffer, arieslogBufferCapacity);
+            arieslogBuffer, arieslogBufferCapacity,
+            antiCacheUtilityBuffer, antiCacheUtilityBufferCapacity);
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }
@@ -1544,6 +1550,104 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         topend->crashVoltDB(e);
     }
     return (retval);
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheEvictBlockPrepareInit(JNIEnv *env, jobject obj, jlong enginePtr, jlong prepareTxnId) {
+    int result = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    VoltDBEngine* engine = castToEngine(enginePtr);
+    if (engine == NULL) {
+        return result;
+    }
+
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    try {
+        result = engine->antiCacheEvictBlockPrepareInit(prepareTxnId);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return result;
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheEvictBlockPrepare(JNIEnv *env, jobject obj, jlong enginePtr, jlong prepareTxnId, jint tableId, jlong blockSize, jint numBlocks) {
+    int result = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    VoltDBEngine* engine = castToEngine(enginePtr);
+    if (engine == NULL) {
+        return result;
+    }
+
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    try {
+        result = engine->antiCacheEvictBlockPrepare(prepareTxnId, tableId, blockSize, numBlocks);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return result;
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheEvictBlockPrepareInBatch(JNIEnv *env, jobject obj, jlong enginePtr, jlong prepareTxnId, jint tableId, jint childTableId, jlong blockSize, jint numBlocks) {
+    int result = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    VoltDBEngine* engine = castToEngine(enginePtr);
+    if (engine == NULL) {
+        return result;
+    }
+
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    try {
+        result = engine->antiCacheEvictBlockPrepareInBatch(prepareTxnId, tableId, childTableId, blockSize, numBlocks);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return result;
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheEvictBlockWork(JNIEnv *env, jobject obj, jlong enginePtr, jlong prepareTxnId, jint tableId, jlong blockSize, jint numBlocks) {
+    int result = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    VoltDBEngine* engine = castToEngine(enginePtr);
+    if (engine == NULL) {
+        return result;
+    }
+    engine->resetAntiCacheUtilityOutputBuffer();
+
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    try {
+        result = engine->antiCacheEvictBlockWork(prepareTxnId, tableId, blockSize, numBlocks);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return result;
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheEvictBlockWorkInBatch(JNIEnv *env, jobject obj, jlong enginePtr, jlong prepareTxnId, jint tableId, jint childTableId, jlong blockSize, jint numBlocks) {
+    int result = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    VoltDBEngine* engine = castToEngine(enginePtr);
+    if (engine == NULL) {
+        return result;
+    }
+    engine->resetAntiCacheUtilityOutputBuffer();
+
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    try {
+        result = engine->antiCacheEvictBlockWorkInBatch(prepareTxnId, tableId, childTableId, blockSize, numBlocks);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return result;
+}
+
+SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheEvictBlockFinish(JNIEnv *env, jobject obj, jlong enginePtr, jlong prepareTxnId) {
+    int result = org_voltdb_jni_ExecutionEngine_ERRORCODE_ERROR;
+    VoltDBEngine* engine = castToEngine(enginePtr);
+    if (engine == NULL) {
+        return result;
+    }
+
+    Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
+    try {
+        result = engine->antiCacheEvictBlockFinish(prepareTxnId);
+    } catch (FatalException e) {
+        topend->crashVoltDB(e);
+    }
+    return result;
 }
 
 SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiCacheEvictBlock (

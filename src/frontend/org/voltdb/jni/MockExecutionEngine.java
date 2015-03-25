@@ -29,7 +29,6 @@ import org.voltdb.VoltType;
 import org.voltdb.catalog.Table;
 import org.voltdb.exceptions.EEException;
 import org.voltdb.export.ExportProtoMessage;
-import org.voltdb.utils.NotImplementedException;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.types.AntiCacheDBType;
 
@@ -223,8 +222,40 @@ public class MockExecutionEngine extends ExecutionEngine {
         return (null);
     }
 
+    @Override
+    public void antiCacheEvictBlockPrepareInit(Long prepareTxnId) {
+        // TODO Auto-generated method stub
+    }
 
-	@Override
+    @Override
+    public void antiCacheEvictBlockPrepare(Long prepareTxnId, Table catalog_tbl, long block_size, int num_blocks) {
+        // TODO Auto-generated method stub
+    }
+
+    @Override
+    public void antiCacheEvictBlockPrepareInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks) {
+        // TODO Auto-generated method stub
+    }
+
+    @Override
+    public VoltTable antiCacheEvictBlockWork(Long prepareTxnId, Table table, long blockSize, int numBlock) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public VoltTable antiCacheEvictBlockWorkInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public void anticacheEvictBlockFinish(Long prepareTxnId) {
+        // TODO Auto-generated method stub
+    }
+
+
+    @Override
 	public VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl,
 			Table childTable, long block_size, int num_blocks) {
 		// TODO Auto-generated method stub

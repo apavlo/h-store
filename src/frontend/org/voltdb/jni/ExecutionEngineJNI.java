@@ -44,7 +44,6 @@ import org.voltdb.utils.DBBPool.BBContainer;
 
 import edu.brown.hstore.HStoreConstants;
 import edu.brown.hstore.PartitionExecutor;
-import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 
@@ -93,7 +92,11 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     // ARIES
     private final BBContainer ariesLogBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 10);
     private ByteBuffer ariesLogBuffer = ariesLogBufferOrigin.b;
-    
+
+    private final BBContainer antiCacheUtilityBufferOrigin = org.voltdb.utils.DBBPool.allocateDirect(1024 * 1024 * 10);
+    private ByteBuffer antiCacheUtilityBuffer = antiCacheUtilityBufferOrigin.b;
+    private FastDeserializer antiCacheUtilityBufferDeserializer = new FastDeserializer(antiCacheUtilityBufferOrigin.b);
+
     /**
      * Java cache for read/write tracking sets
      */
@@ -138,7 +141,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                         fsForParameterSet.getContainerNoFlip().b.capacity(),
                         deserializer.buffer(), deserializer.buffer().capacity(),
                         exceptionBuffer, exceptionBuffer.capacity(),
-                        ariesLogBuffer, ariesLogBuffer.capacity());
+                        ariesLogBuffer, ariesLogBuffer.capacity(),
+                        antiCacheUtilityBuffer, antiCacheUtilityBuffer.capacity());
                 checkErrorCode(code);
             }
         }, null);
@@ -147,7 +151,8 @@ public class ExecutionEngineJNI extends ExecutionEngine {
                 fsForParameterSet.getContainerNoFlip().b.capacity(),
                 deserializer.buffer(), deserializer.buffer().capacity(),
                 exceptionBuffer, exceptionBuffer.capacity(),
-                ariesLogBuffer, ariesLogBuffer.capacity());
+                ariesLogBuffer, ariesLogBuffer.capacity(),
+                antiCacheUtilityBuffer, antiCacheUtilityBuffer.capacity());
 
         checkErrorCode(errorCode);
         
@@ -157,25 +162,60 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     /** Utility method to throw a Runtime exception based on the error code and serialized exception **/
     @Override
     final protected void throwExceptionForError(final int errorCode) throws RuntimeException {
+        SerializableException ex;
+        switch (errorCode) {
+            case ERRORCODE_ANTICACHE_EXCEPTION:
+                ex = antiCacheException();
+                break;
+            default:
+                ex = executionEngineExceptionFor(errorCode);
+        }
+        throw ex;
+    }
+
+    private SerializableException antiCacheException() {
+        antiCacheUtilityBuffer.clear();
+        int exceptionLength = antiCacheUtilityBuffer.getInt();
+        //if (debug.val) LOG.debug("EEException Length: " + exceptionLength);
+        LOG.info("AntiCacheException Length: " + exceptionLength);
+
+        if (exceptionLength == 0) {
+            return new EEException(ERRORCODE_ANTICACHE_EXCEPTION);
+        } else {
+            antiCacheUtilityBuffer.position(0);
+            antiCacheUtilityBuffer.limit(4 + exceptionLength);
+            SerializableException ex;
+            try {
+                ex = SerializableException.deserializeFromBuffer(antiCacheUtilityBuffer);
+            } catch (Throwable e) {
+                ex = new SerializableException();
+                e.printStackTrace();
+            }
+            return ex;
+        }
+    }
+
+    private SerializableException executionEngineExceptionFor(int errorCode) {
         exceptionBuffer.clear();
         final int exceptionLength = exceptionBuffer.getInt();
         if (debug.val) LOG.debug("EEException Length: " + exceptionLength);
 
         if (exceptionLength == 0) {
-            throw new EEException(errorCode);
+            return new EEException(errorCode);
         } else {
             exceptionBuffer.position(0);
             exceptionBuffer.limit(4 + exceptionLength);
-            SerializableException ex = null;
+            SerializableException ex;
             try {
                 ex = SerializableException.deserializeFromBuffer(exceptionBuffer);
             } catch (Throwable e) {
-                ex = new SerializableException(); 
+                ex = new SerializableException();
                 e.printStackTrace();
             }
-            throw ex;
+            return ex;
         }
     }
+
 
     /**
      * Releases the Engine object.
@@ -843,6 +883,44 @@ public class ExecutionEngineJNI extends ExecutionEngine {
     }
 
     @Override
+    public void antiCacheEvictBlockPrepareInit(Long prepareTxnId) {
+        if (!m_anticache) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        antiCacheUtilityBufferDeserializer.clear();
+
+        int errorCode = nativeAntiCacheEvictBlockPrepareInit(pointer, prepareTxnId);
+        checkErrorCode(errorCode);
+    }
+
+    @Override
+    public void antiCacheEvictBlockPrepare(Long prepareTxnId, Table catalog_tbl, long block_size, int num_blocks) {
+        if (!m_anticache) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        antiCacheUtilityBufferDeserializer.clear();
+
+        int errorCode = nativeAntiCacheEvictBlockPrepare(
+                pointer, prepareTxnId, catalog_tbl.getRelativeIndex(), block_size,
+                num_blocks);
+        checkErrorCode(errorCode);
+    }
+
+    @Override
+    public void anticacheEvictBlockFinish(Long prepareTxnId) {
+        if (!m_anticache) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        antiCacheUtilityBufferDeserializer.clear();
+
+        int errorCode = nativeAntiCacheEvictBlockFinish(pointer, prepareTxnId);
+        checkErrorCode(errorCode);
+    }
+
+    @Override
 	public VoltTable antiCacheEvictBlockInBatch(Table catalog_tbl,
 			Table childTable, long block_size, int num_blocks) {
         if (m_anticache == false) {
@@ -869,7 +947,78 @@ public class ExecutionEngineJNI extends ExecutionEngine {
             throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
         }
 	}
-    
+
+    @Override
+    public void antiCacheEvictBlockPrepareInBatch(Long prepareTxnId, Table catalog_tbl,
+                                                  Table childTable,
+                                                  long block_size,
+                                                  int num_blocks) {
+        if (!m_anticache) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        antiCacheUtilityBufferDeserializer.clear();
+
+        int errorCode = nativeAntiCacheEvictBlockPrepareInBatch(
+                pointer, prepareTxnId, catalog_tbl.getRelativeIndex(), childTable.getRelativeIndex(), block_size,
+                num_blocks);
+        checkErrorCode(errorCode);
+    }
+
+    @Override
+    public VoltTable antiCacheEvictBlockWork(Long prepareTxnId, Table table, long blockSize, int numBlock) {
+        if (!m_anticache) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        antiCacheUtilityBufferDeserializer.clear();
+
+        final int numResults = nativeAntiCacheEvictBlockWork(pointer, prepareTxnId, table.getRelativeIndex(), blockSize, numBlock);
+        if (numResults == -1) {
+            LOG.error("Unexpected error in antiCacheEvictBlock for table " + table.getName());
+            throwExceptionForError(ERRORCODE_ERROR);
+        }
+        try {
+            antiCacheUtilityBufferDeserializer.readInt();//Ignore the length of the result tables
+            final VoltTable results[] = new VoltTable[numResults];
+            for (int ii = 0; ii < numResults; ii++) {
+                final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
+                results[ii] = (VoltTable) antiCacheUtilityBufferDeserializer.readObject(resultTable, this);
+            }
+            return results[0];
+        } catch (final IOException ex) {
+            LOG.error("Failed to deserialze result table for antiCacheEvictBlock" + ex);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
+    }
+
+    @Override
+    public VoltTable antiCacheEvictBlockWorkInBatch(Long prepareTxnId, Table catalog_tbl, Table childTable, long block_size, int num_blocks) {
+        if (!m_anticache) {
+            String msg = "Trying to invoke anti-caching operation but feature is not enabled";
+            throw new VoltProcedure.VoltAbortException(msg);
+        }
+        antiCacheUtilityBufferDeserializer.clear();
+
+        final int numResults = nativeAntiCacheEvictBlockWorkInBatch(pointer, prepareTxnId, catalog_tbl.getRelativeIndex(), childTable.getRelativeIndex(), block_size, num_blocks);
+        if (numResults == -1) {
+            LOG.error("Unexpected error in antiCacheEvictBlockInBatch for table " + catalog_tbl.getName());
+            throwExceptionForError(ERRORCODE_ERROR);
+        }
+        try {
+            antiCacheUtilityBufferDeserializer.readInt();//Ignore the length of the result tables
+            final VoltTable results[] = new VoltTable[numResults];
+            for (int ii = 0; ii < numResults; ii++) {
+                final VoltTable resultTable = PrivateVoltTableFactory.createUninitializedVoltTable();
+                results[ii] = (VoltTable) antiCacheUtilityBufferDeserializer.readObject(resultTable, this);
+            }
+            return results[0];
+        } catch (final IOException ex) {
+            LOG.error("Failed to deserialze result table for antiCacheEvictBlock" + ex);
+            throw new EEException(ERRORCODE_WRONG_SERIALIZED_BYTES);
+        }
+    }
+
     @Override
     public void antiCacheMergeBlocks(Table catalog_tbl) {
         assert(m_anticache);

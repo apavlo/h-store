@@ -43,12 +43,7 @@ import org.voltdb.catalog.Statement;
 import org.voltdb.catalog.StmtParameter;
 import org.voltdb.catalog.Table;
 import org.voltdb.client.ClientResponse;
-import org.voltdb.exceptions.ConstraintFailureException;
-import org.voltdb.exceptions.EEException;
-import org.voltdb.exceptions.EvictedTupleAccessException;
-import org.voltdb.exceptions.MispredictionException;
-import org.voltdb.exceptions.SerializableException;
-import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.exceptions.*;
 import org.voltdb.types.TimestampType;
 
 import edu.brown.catalog.CatalogUtil;
@@ -216,7 +211,7 @@ public abstract class VoltProcedure implements Poolable {
     protected final LocalTransaction getTransactionState() {
         return this.localTxnState;
     }
-    
+
     /**
      * Main initialization method
      * @param executor
@@ -663,6 +658,13 @@ public abstract class VoltProcedure implements Poolable {
             } else if (ex_class.equals(EvictedTupleAccessException.class)) {
                 if (debug.val) LOG.warn("Caught EvictedTupleAccessException for " + this.localTxnState);
                 this.status = Status.ABORT_EVICTEDACCESS;
+
+            // -------------------------------
+            // EvictionpreparedTupleAccessException
+            // -------------------------------
+            } else if (ex_class.equals(EvictionPreparedTupleAccessException.class)) {
+                if (debug.val) LOG.warn("Caught EvictionPreparedTupleAccessException for " + localTxnState);
+                status = Status.ABORT_EVICTIONPREPAREDACCESS;
 
             // -------------------------------
             // ConstraintFailureException
@@ -1489,19 +1491,26 @@ public abstract class VoltProcedure implements Poolable {
         m_statusString = statusString;
     }
 
+    public void addCallback(EventObserver<ClientResponse> observer) {
+        if (observable == null) {
+            observable = new EventObservable<ClientResponse>();
+        }
+        observable.addObserver(observer);
+    }
+    public void deleteCallback(EventObserver<ClientResponse> observer) {
+        observable.deleteObserver(observer);
+    }
+
     // ----------------------------------------------------------------------------
     // DEBUG METHODS
     // ----------------------------------------------------------------------------
     
     public class Debug implements DebugContext {
         public void registerCallback(EventObserver<ClientResponse> observer) {
-            if (VoltProcedure.this.observable == null) {
-                VoltProcedure.this.observable = new EventObservable<ClientResponse>();
-            }
-            VoltProcedure.this.observable.addObserver(observer);
+            addCallback(observer);
         }
         public void unregisterCallback(EventObserver<ClientResponse> observer) {
-            VoltProcedure.this.observable.deleteObserver(observer);
+            deleteCallback(observer);
         }
         /**
          * Allow sysprocs to update m_currentTxnState manually. User procedures are

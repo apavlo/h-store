@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import edu.brown.hstore.Hstoreservice;
 import org.apache.log4j.Logger;
 import org.voltdb.ParameterSet;
 import org.voltdb.VoltTable;
@@ -63,6 +64,8 @@ import edu.brown.pools.Poolable;
 import edu.brown.utils.PartitionSet;
 import edu.brown.utils.StringUtil;
 
+import static edu.brown.hstore.Hstoreservice.EvictionPreparedDataResponse;
+
 /**
  * Base Transaction State
  * @author pavlo
@@ -73,7 +76,7 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
     static {
         LoggerUtil.attachObserver(LOG, debug);
     }
-    
+
     /**
      * Internal state for the transaction
      */
@@ -1367,6 +1370,8 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
 
     private Debug cachedDebugContext;
 	private RpcCallback<UnevictDataResponse> unevict_callback;
+    private RpcCallback<EvictionPreparedDataResponse> evictionPreparedCallback;
+
 	private long new_transaction_id;
     public Debug getDebugContext() {
         if (this.cachedDebugContext == null) {
@@ -1379,9 +1384,18 @@ public abstract class AbstractTransaction implements Poolable, Comparable<Abstra
 	public void setUnevictCallback(RpcCallback<UnevictDataResponse> done) {
 		this.unevict_callback = done;
 	}
+
+    public void setEvictionPreparedCallback(RpcCallback<EvictionPreparedDataResponse> done) {
+        this.evictionPreparedCallback = done;
+    }
+
 	public RpcCallback<UnevictDataResponse> getUnevictCallback() {
 		return this.unevict_callback;
 	}
+
+    public RpcCallback<EvictionPreparedDataResponse> getEvictionPreparedCallback() {
+        return evictionPreparedCallback;
+    }
 
 	public void setNewTransactionId(long newTransactionId) {
 		this.new_transaction_id = newTransactionId;

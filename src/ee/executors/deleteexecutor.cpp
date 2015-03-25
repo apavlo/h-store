@@ -71,6 +71,9 @@ bool DeleteExecutor::p_init(AbstractPlanNode *abstract_node, const catalog::Data
     assert(node->getTargetTable());
     m_targetTable = dynamic_cast<PersistentTable*>(node->getTargetTable()); //target table should be persistenttable
     assert(m_targetTable);
+
+    m_catalogTable = catalog_db->tables().get(m_targetTable->name());
+    
     m_truncate = node->getTruncate();
     if (m_truncate) {
         assert(node->getInputTables().size() == 0);
@@ -165,11 +168,17 @@ bool DeleteExecutor::p_execute(const NValueArray &params, ReadWriteTracker *trac
         //
         void *targetAddress = m_inputTuple.getNValue(0).castAsAddress();
         m_targetTuple.move(targetAddress);
+
+
+        #ifdef ANTICACHE
+        checkEvictionPreparedAccess(*m_catalogTable, *m_targetTable, m_targetTuple);
+        #endif
         
         // Read/Write Set Tracking
         if (tracker != NULL) {
             tracker->markTupleWritten(m_targetTable, &m_targetTuple);
         }
+
 
         #ifdef ARIES
         if(m_engine->isARIESEnabled()){

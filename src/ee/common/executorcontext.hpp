@@ -64,6 +64,7 @@ namespace voltdb {
             if (m_antiCacheEnabled) {
                 //delete[] m_antiCacheDB;
                 delete m_antiCacheEvictionManager;
+                delete m_evictionTrackersManager;
                 int i;
                 for (i = 0; i < m_levels; i++) {
                     delete m_antiCacheDB[i];
@@ -211,6 +212,11 @@ namespace voltdb {
         AntiCacheEvictionManager* getAntiCacheEvictionManager() const {
             return m_antiCacheEvictionManager;
         }
+
+
+        ReadWriteTrackerManager* getEvictionTrackersManager() const {
+            return m_evictionTrackersManager;
+        }
         
         /**
          * Return the AntiCacheDBType associated with the given AntiCacheDB
@@ -231,6 +237,8 @@ namespace voltdb {
             m_levels = 0;
             m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
             addAntiCacheDB(dbDir, blockSize, dbType, blocking, maxSize);
+            m_evictionTrackersManager = new ReadWriteTrackerManager(this);
+            addAntiCacheDB(dbDir, blockSize, dbType, maxSize);
         }
 
         void addAntiCacheDB(std::string &dbDir, long blockSize, AntiCacheDBType dbType, bool blocking, long maxSize) {
@@ -329,6 +337,7 @@ namespace voltdb {
         AntiCacheEvictionManager *m_antiCacheEvictionManager;
         AntiCacheDBType m_dbType[MAX_LEVELS];
         int16_t m_levels;
+        ReadWriteTrackerManager *m_evictionTrackersManager;
         #endif
 
         #ifdef STORAGE_MMAP

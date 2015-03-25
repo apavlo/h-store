@@ -223,7 +223,7 @@ public:
     inline int64_t getBytesRead()  const { return (m_bytesRead); }
     #endif
     
-    int getTupleID(const char* tuple_address); 
+    int getTupleID(const char* tuple_address) const; 
 
     // ------------------------------------------------------------------
     // COLUMNS
@@ -527,7 +527,7 @@ inline void Table::allocateNextBlock() {
     }
 }
     
-inline int Table::getTupleID(const char* tuple_address)
+inline int Table::getTupleID(const char* tuple_address) const
 {    
     char* addr; 
     int tuple_id = 0; 

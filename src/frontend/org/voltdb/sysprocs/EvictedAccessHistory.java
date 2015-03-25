@@ -20,7 +20,6 @@ import org.voltdb.utils.VoltTableUtil;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.profilers.AntiCacheManagerProfiler;
-import edu.brown.profilers.AntiCacheManagerProfiler.AccessHistory;
 
 /** 
  * Gather the eviction history from each partition
@@ -68,7 +67,7 @@ public class EvictedAccessHistory extends VoltSystemProcedure {
                 AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(this.partitionId);
                 assert(profiler != null);
                 TimestampType timestamp = new TimestampType();
-                for (AccessHistory eah : profiler.evictedaccess_history) {
+                for (AntiCacheManagerProfiler.EvictionTupleAccessHistory eah : profiler.evictedaccess_history) {
                     String procName = catalogContext.getProcedureById(eah.procId).getName();
                     Object row[] = {
                             timestamp,

@@ -68,11 +68,7 @@ import org.voltdb.catalog.Table;
 import org.voltdb.compiler.AdHocPlannedStmt;
 import org.voltdb.compiler.AsyncCompilerResult;
 import org.voltdb.compiler.AsyncCompilerWorkThread;
-import org.voltdb.exceptions.ClientConnectionLostException;
-import org.voltdb.exceptions.EvictedTupleAccessException;
-import org.voltdb.exceptions.MispredictionException;
-import org.voltdb.exceptions.SerializableException;
-import org.voltdb.exceptions.ServerFaultException;
+import org.voltdb.exceptions.*;
 import org.voltdb.jni.ExecutionEngine;
 import org.voltdb.logging.VoltLogger;
 import org.voltdb.messaging.FastDeserializer;
@@ -1076,6 +1072,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                         this.anticacheManager.getMemoryMonitorThread(),
                         hstore_conf.site.anticache_check_interval,
                         hstore_conf.site.anticache_check_interval,
+                        TimeUnit.MILLISECONDS);
+                threadManager.schedulePeriodicWork(
+                        anticacheManager.getEvictionPreparedAccessTxnsResubmitter(),
+                        1001,
+                        1001,
                         TimeUnit.MILLISECONDS);
             } else {
                 LOG.warn("There are no tables marked as evictable. Disabling anti-cache monitoring");
@@ -2496,7 +2497,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         if (hstore_conf.site.exec_db2_redirects && 
                  status != Status.ABORT_RESTART &&
                  status != Status.ABORT_SPECULATIVE &&
-                 status != Status.ABORT_EVICTEDACCESS) {
+                 status != Status.ABORT_EVICTEDACCESS &&
+                 status != Status.ABORT_EVICTIONPREPAREDACCESS) {
             // Figure out whether this transaction should be redirected based on what partitions it
             // tried to touch before it was aborted
             FastIntHistogram touched = orig_ts.getTouchedPartitions();
@@ -2605,6 +2607,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         PartitionSet predict_touchedPartitions = null;
         if (status == Status.ABORT_RESTART ||
             status == Status.ABORT_EVICTEDACCESS ||
+            status == Status.ABORT_EVICTIONPREPAREDACCESS ||
             status == Status.ABORT_SPECULATIVE) {
             
             predict_touchedPartitions = new PartitionSet(orig_ts.getPredictTouchedPartitions());
@@ -2705,9 +2708,27 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (orig_ts.getBasePartition() != error.getPartitionId() && !this.isLocalPartition(error.getPartitionId())) {
                 new_ts.setOldTransactionId(orig_ts.getTransactionId());
             }
-            this.anticacheManager.queue(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
-            
-            
+            this.anticacheManager.queueUneviction(new_ts, error.getPartitionId(), evicted_table, block_ids, tuple_offsets);
+
+        } else if (status == Status.ABORT_EVICTIONPREPAREDACCESS && orig_error instanceof EvictionPreparedTupleAccessException) {
+            if (this.anticacheManager == null) {
+                String message = "Got eviction notice but anti-caching is not enabled";
+                LOG.warn(message);
+                throw new ServerFaultException(message, orig_error, orig_ts.getTransactionId());
+            }
+            EvictionPreparedTupleAccessException error = (EvictionPreparedTupleAccessException) orig_error;
+            Table evicted_table = error.getTable(catalogContext.database);
+            new_ts.setPendingError(error, false);
+            if (debug.val) {
+                LOG.debug(String.format("Added aborted txn to %s queue. Eviction prepared access from %s (%d).",
+                          AntiCacheManager.class.getSimpleName(),
+                          evicted_table.getName(),
+                          evicted_table.getRelativeIndex()));
+            }
+            if (orig_ts.getBasePartition() != error.getPartitionId() && !this.isLocalPartition(error.getPartitionId())) {
+                new_ts.setOldTransactionId(orig_ts.getTransactionId());
+            }
+            anticacheManager.queueEvictionPreparedAccess(new_ts, error.getPartitionId(), evicted_table);
         }
             
         // -------------------------------
@@ -2757,7 +2778,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             "Missing ClientResponse for " + ts;
         assert(cresponse.getClientHandle() != -1) :
             "The client handle for " + ts + " was not set properly";
-        assert(status != Status.ABORT_MISPREDICT && status != Status.ABORT_EVICTEDACCESS) :
+        assert(status != Status.ABORT_MISPREDICT && status != Status.ABORT_EVICTEDACCESS && status != Status.ABORT_EVICTIONPREPAREDACCESS) :
             "Trying to send back a client response for " + ts + " but the status is " + status;
         
         if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostClient();
@@ -3035,6 +3056,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 case ABORT_MISPREDICT:
                 case ABORT_RESTART:
                 case ABORT_EVICTEDACCESS:
+                case ABORT_EVICTIONPREPAREDACCESS:
                 case ABORT_SPECULATIVE:
                     if (t_estimator != null) {
                         if (trace.val) LOG.trace("Telling the TransactionEstimator to IGNORE " + ts);
@@ -3045,6 +3067,8 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
                 //if(ts.getRestartCounter()==0){
                                 TransactionCounter.EVICTEDACCESS.inc(catalog_proc);
                 //}
+                        } else if (status == Status.ABORT_EVICTIONPREPAREDACCESS) {
+                            TransactionCounter.EVICTIONPREPAREDACCESS.inc(catalog_proc);
                         }
                         else if (status == Status.ABORT_SPECULATIVE) {
                             TransactionCounter.ABORT_SPECULATIVE.inc(catalog_proc);
@@ -3125,6 +3149,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             } else if (status != Status.ABORT_MISPREDICT &&
                        status != Status.ABORT_REJECT &&
                        status != Status.ABORT_EVICTEDACCESS &&
+                       status != Status.ABORT_EVICTIONPREPAREDACCESS &&
                        status != Status.ABORT_SPECULATIVE) {
                 (singlePartitioned ? TransactionCounter.SINGLE_PARTITION : TransactionCounter.MULTI_PARTITION).inc(catalog_proc);
                 

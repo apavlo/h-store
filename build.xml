@@ -951,6 +951,7 @@ TEST CASES
     <attribute name='timeout' default='240000' />
     <attribute name='printsummary' default='off' />
     <attribute name='showoutput' default='false' />
+    <attribute name='maxmemory' default='4096' />
     <element name='tests'/>
     <element name='formatters'/>
 
@@ -965,14 +966,14 @@ TEST CASES
             failureproperty="junit.failures"
             printsummary="@{printsummary}"
             timeout="@{timeout}"
-            maxmemory='2600M'
+            maxmemory='@{maxmemory}M'
             showoutput="@{showoutput}"
         >
             <classpath refid='project.classpath' />
             <jvmarg value="-Djava.library.path=${build.dir}/nativelibs" />
             <jvmarg value="-server" />
             <jvmarg value="-Xcheck:jni" />
-            <jvmarg value="-Xmx2600m"/>
+            <jvmarg value="-Xmx@{maxmemory}m"/>
             <jvmarg value="-XX:+HeapDumpOnOutOfMemoryError"/>
 
             <env key="ENABLE_JAR_REUSE" value="${junit.reusejars}"/>
