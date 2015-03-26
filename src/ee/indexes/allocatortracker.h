@@ -67,18 +67,6 @@ class AllocatorTracker : public std::allocator<ValueType> {
             *memory_size -= size * sizeof(ValueType);
         }
 
-        void construct(pointer __ptr, const ValueType& __val) {
-            new(__ptr) ValueType(__val);
-            VOLT_TRACE("construct +++++++ %p %lu.\n", __ptr, sizeof(ValueType));
-            VOLT_TRACE("%s\n", typeid(ValueType).name());
-            *memory_size += sizeof(ValueType);
-        }
-
-        void destroy(pointer __ptr) {
-            VOLT_TRACE("-+-+-+- %08x.\n", __ptr);
-            __ptr->~ValueType();
-            *memory_size -= sizeof(ValueType);
-        }
 };
 
 } // namespace h_index
