@@ -1489,16 +1489,14 @@ private:
             leaf_node *ln = static_cast<leaf_node*>(n);
             typename leaf_node::alloc_type a(leaf_node_allocator());
             a.destroy(ln);
-            //a.deallocate(ln, 1);
-            free(ln);
+            a.deallocate(ln, 1);
             m_stats.leaves--;
         }
         else {
             inner_node *in = static_cast<inner_node*>(n);
             typename inner_node::alloc_type a(inner_node_allocator());
             a.destroy(in);
-            //a.deallocate(in, 1);
-            free(in);
+            a.deallocate(in, 1);
             m_stats.innernodes--;
         }
     }
