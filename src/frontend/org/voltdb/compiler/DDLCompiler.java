@@ -435,9 +435,9 @@ public class DDLCompiler {
         if (indexNameNoCase.contains("tree"))
             index.setType(IndexType.BALANCED_TREE.getValue());
         else if (indexNameNoCase.contains("array"))
-                index.setType(IndexType.ARRAY.getValue());
+            index.setType(IndexType.ARRAY.getValue());
         else
-                index.setType(IndexType.HASH_TABLE.getValue());
+            index.setType(IndexType.HASH_TABLE.getValue());
 
         // need to set other index data here (column, etc)
         for (int i = 0; i < columns.length; i++) {

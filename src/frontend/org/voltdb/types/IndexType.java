@@ -77,14 +77,16 @@ public enum IndexType {
      */
     public String getSQLSuffix() {
         switch (this) {
-        case BALANCED_TREE:
-            return "_TREE";
-        case ARRAY:
-            return "_ARRAY";
-        case BTREE:
-        case HASH_TABLE:
-            return "";
+            case BALANCED_TREE:
+                return "_TREE";
+            case ARRAY:
+                return "_ARRAY";
+            case BTREE:
+            case HASH_TABLE:
+                return "";
+            default:
+                throw new RuntimeException("Unexpected " + this);
         }
-        return null;
+        // return null;
     }
 }
