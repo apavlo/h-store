@@ -635,7 +635,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskPrepare(PersistentTable *table, c
     int tuple_length = -1;
 
     #ifdef VOLT_INFO_ENABLED
-    int active_tuple_count = (int)table->activeTupleCount();
+    //int active_tuple_count = (int)table->activeTupleCount();
     #endif
 
     // Iterate through the table and pluck out tuples to put in our block
@@ -741,7 +741,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskPrepareInBatch(PersistentTable *t
                 {
                     childTuplesSize+= MAX_EVICTED_TUPLE_SIZE;
                     if(blockSerializedSize + MAX_EVICTED_TUPLE_SIZE + childTuplesSize >= block_size){
-                        VOLT_INFO("Size of block exceeds!!in child %d", blockSerializedSize + MAX_EVICTED_TUPLE_SIZE + childTuplesSize);
+                        VOLT_INFO("Size of block exceeds!!in child %d", (int)blockSerializedSize + MAX_EVICTED_TUPLE_SIZE + childTuplesSize);
                         nomore = true;
                         break;
                     }
@@ -756,7 +756,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskPrepareInBatch(PersistentTable *t
                 VOLT_DEBUG("Chind tuple to be evicted: %p", (*it).address());
             }
             if(blockSerializedSize + MAX_EVICTED_TUPLE_SIZE + childTuplesSize >= block_size){
-                VOLT_INFO("Size of block exceeds!! %d", blockSerializedSize() + MAX_EVICTED_TUPLE_SIZE + childTuplesSize);
+                VOLT_INFO("Size of block exceeds!! %d", (int)blockSerializedSize + MAX_EVICTED_TUPLE_SIZE + childTuplesSize);
                 break;
             }
             parentTuples++;
@@ -1540,7 +1540,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
         }
         cout << "\n";*/
         VOLT_INFO("***************** READ EVICTED BLOCK %d *****************", _block_id);
-        VOLT_INFO("Block Size = %ld / Table = %s", value->getSize(), table->name().c_str());
+        VOLT_INFO("Block Size = %d / Table = %s", value->getSize(), table->name().c_str());
         ReferenceSerializeInput in(unevicted_tuples, value->getSize());
         
         // Read in all the block meta-data
@@ -1822,6 +1822,7 @@ int16_t AntiCacheEvictionManager::addAntiCacheDB(AntiCacheDB* acdb) {
     if (m_numdbs > 1) {
         m_migrate = true;
     }
+    VOLT_INFO("Added AntiCacheDB #%d (m_migrate = %d)",m_numdbs, (int)m_migrate);
     return acid;
 }
 

@@ -71,7 +71,7 @@ NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) :
     m_blockType = ANTICACHEDB_NVM;
     //std::string payload_str(m_payload.data, m_size);
     
-    VOLT_INFO("NVMAntiCacheBlock #%d from table: %s [size=%ld / payload=%ld]",
+    VOLT_INFO("NVMAntiCacheBlock #%d from table: %s [size=%d / payload=%ld]",
               blockId, m_payload.tableName.c_str(), m_size, m_payload.size);
     
 }

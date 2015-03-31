@@ -42,7 +42,7 @@ BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) :
     m_block = m_payload.data;
 	    
     VOLT_DEBUG("BerkeleyAntiCacheBlock #%d from table: %s [size=%ld / payload=%ld = '%s']",
-              blockId, m_payload.tableName.c_str(), m_size, m_payload.size, m_payload.data);
+              blockId, m_payload.tableName.c_str(), m_size, (long int) m_payload.size, m_payload.data);
     //VOLT_INFO("data from getBlock %s", getData());
     m_blockType = ANTICACHEDB_BERKELEY;
 }
