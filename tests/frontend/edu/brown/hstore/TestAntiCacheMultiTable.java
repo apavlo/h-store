@@ -29,7 +29,7 @@ import edu.brown.utils.FileUtil;
 public class TestAntiCacheMultiTable extends BaseTestCase {
 
     private static final long PREPARE_TXN_ID = 33;
-    private static final long EVICT_BLOCK_SIZE = 1024 * 1024;
+    private static final long EVICT_BLOCK_SIZE = 1024 * 256;
     private static final int EVICT_NUM_BLOCKS = 1;
 
     private static final int NUM_PARTITIONS = 1;

@@ -46,7 +46,7 @@ public class TestAntiCacheManagerTPCC extends BaseTestCase {
     private static final String TARGET_TABLE = TPCCConstants.TABLENAME_ORDER_LINE;
 
     private static final long PREPARE_TXN_ID = 33;
-    private static final long EVICT_BLOCK_SIZE = 1024 * 1024;
+    private static final long EVICT_BLOCK_SIZE = 1024 * 256;
     private static final int EVICT_NUM_BLOCKS = 1;
     
     private static final String SEQSCAN_PROCEDURE = "GetRecordNoLimit";

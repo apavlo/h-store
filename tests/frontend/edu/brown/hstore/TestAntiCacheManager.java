@@ -135,7 +135,7 @@ public class TestAntiCacheManager extends BaseTestCase {
             assertEquals(0, results[0].getLong(idx));
         }
 
-        long blockSize = 1024 * 500;
+        long blockSize = 1024 * 256;
         int numBlocks = 1;
         ee.antiCacheEvictBlockPrepareInit(PREPARE_TXN_ID);
         ee.antiCacheEvictBlockPrepare(PREPARE_TXN_ID, catalog_tbl, blockSize, numBlocks);
