@@ -38,7 +38,7 @@ public class TestAntiCacheBatching extends BaseTestCase {
     private static final String CHILD_TABLE = ArticlesConstants.TABLENAME_COMMENTS;
 
     private static final long PREPARE_TXN_ID = 33;
-    private static final long EVICT_BLOCK_SIZE = 1024 * 500;
+    private static final long EVICT_BLOCK_SIZE = 1024 * 256;
     private static final int EVICT_NUM_BLOCKS = 1;
 
     private static final String statsFields[] = {
