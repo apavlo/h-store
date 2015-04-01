@@ -347,7 +347,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     assert(m_outputTable == static_cast<TempTable*>(m_node->getOutputTable()));
     assert(m_targetTable);
     assert(m_targetTable == m_node->getTargetTable());
-    VOLT_DEBUG("IndexScan: %s.%s", m_targetTable->name().c_str(),
+    VOLT_TRACE("IndexScan: %s.%s", m_targetTable->name().c_str(),
                m_index->getName().c_str());
 
     // INLINE PROJECTION
@@ -405,7 +405,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     m_searchKey.setAllNulls();
     if (m_searchKeyAllParamArray != NULL)
     {
-        VOLT_DEBUG("sweet, all params");
+        VOLT_TRACE("sweet, all params");
         for (int ctr = 0; ctr < m_numOfSearchkeys; ctr++)
         {
             m_searchKey.setNValue( ctr, params[m_searchKeyAllParamArray[ctr]]);
@@ -433,7 +433,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         if (m_needsSubstituteEndExpression) {
             end_expression->substitute(params);
         }
-        VOLT_DEBUG("End Expression:\n%s", end_expression->debug(true).c_str());
+        VOLT_TRACE("End Expression:\n%s", end_expression->debug(true).c_str());
     }
 
     //
@@ -695,7 +695,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     }
     #endif
     
-    VOLT_DEBUG ("Index Scanned :\n %s", m_outputTable->debug().c_str());
+    VOLT_TRACE ("Index Scanned :\n %s", m_outputTable->debug().c_str());
     return true;
 }
 

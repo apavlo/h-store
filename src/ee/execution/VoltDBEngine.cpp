@@ -361,7 +361,7 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                     executor->getPlanNode()->getPlanNodeId(), (intmax_t)txnId,
                     m_currentOutputDepId);
         } else {
-            VOLT_DEBUG(
+            VOLT_TRACE(
                     "[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
                     (intmax_t)planfragmentId,
                     executor->getPlanNode()->getPlanNodeId(), (intmax_t)txnId,
@@ -433,7 +433,7 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     m_currentOutputDepId = -1;
     m_currentInputDepId = -1;
 
-    VOLT_DEBUG("Finished executing.");
+    VOLT_TRACE("Finished executing.");
     return ENGINE_ERRORCODE_SUCCESS;
 }
 
@@ -501,7 +501,7 @@ int VoltDBEngine::executePlanFragment(string fragmentString,
 // RESULT FUNCTIONS
 // -------------------------------------------------
 bool VoltDBEngine::send(Table* dependency) {
-    VOLT_DEBUG("Sending Dependency '%d' from C++", m_currentOutputDepId);
+    VOLT_TRACE("Sending Dependency '%d' from C++", m_currentOutputDepId);
     m_resultOutput.writeInt(m_currentOutputDepId);
     if (!dependency->serializeTo(m_resultOutput))
         return false;

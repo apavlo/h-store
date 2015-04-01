@@ -778,8 +778,8 @@ bool AntiCacheEvictionManager::evictBlockToDiskPrepareInBatch(PersistentTable *t
 
 
             num_tuples_evicted++;
-            VOLT_DEBUG("Added new evicted %s tuple to block #%x [tuplesEvicted=%d]",
-                    table->name().c_str(), block_id, num_tuples_evicted);
+            //VOLT_DEBUG("Added new evicted %s tuple to block #%x [tuplesEvicted=%d]",
+             //       table->name().c_str(), block_id, num_tuples_evicted);
             if(blockSerializedSize + childTuplesSize >= block_size){
                 break;
             }

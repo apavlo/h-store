@@ -68,7 +68,7 @@ void ReadWriteTracker::insertTuple(boost::unordered_map<std::string, RowOffsets*
     
     uint32_t tupleId = table->getTupleID(tuple->address());
     offsets->insert(tupleId);
-    VOLT_INFO("*** TXN #%ld -> %s / %d", this->txnId, tableName.c_str(), tupleId);
+    VOLT_TRACE("*** TXN #%ld -> %s / %d", this->txnId, tableName.c_str(), tupleId);
 }
 
 void ReadWriteTracker::markTupleRead(Table *table, TableTuple *tuple) {
