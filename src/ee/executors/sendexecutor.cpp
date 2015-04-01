@@ -85,7 +85,7 @@ bool SendExecutor::p_init(AbstractPlanNode *abstractNode,
 }
 
 bool SendExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracker) {
-    VOLT_DEBUG("started SEND");
+    VOLT_TRACE("started SEND");
 
     // PAVLO
     assert(force_send_tuple_count == false); 
@@ -97,7 +97,7 @@ bool SendExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tracke
         VOLT_ERROR("Failed to send table '%s'", m_inputTable->name().c_str());
         return false;
     }
-    VOLT_DEBUG("SEND TABLE: %s", m_inputTable->debug().c_str());
+    VOLT_TRACE("SEND TABLE: %s", m_inputTable->debug().c_str());
 
     return true;
 }
