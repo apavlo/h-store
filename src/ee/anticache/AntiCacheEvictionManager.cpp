@@ -1200,7 +1200,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
         }
         cout << "\n";*/
         VOLT_INFO("***************** READ EVICTED BLOCK %d *****************", _block_id);
-        VOLT_INFO("Block Size = %ld / Table = %s", value->getSize(), table->name().c_str());
+        VOLT_INFO("Block Size = %d / Table = %s", value->getSize(), table->name().c_str());
         ReferenceSerializeInput in(unevicted_tuples, value->getSize());
         
         // Read in all the block meta-data
