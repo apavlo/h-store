@@ -429,14 +429,14 @@ Java_org_voltdb_jni_ExecutionEngine_nativeLoadTable (
     //JNIEnv pointer can change between calls, must be updated
     updateJNILogProxy(engine);
     engine->setUndoToken(undoToken);
-    VOLT_DEBUG("loading table %d in C++...", table_id);
+    VOLT_TRACE("loading table %d in C++...", table_id);
 
     // convert jboolean to bool
     bool bAllowExport = (allowExport == JNI_FALSE ? false : true);
 
     // deserialize dependency.
     jsize length = env->GetArrayLength(serialized_table);
-    VOLT_DEBUG("deserializing %d bytes ...", (int) length);
+    VOLT_TRACE("deserializing %d bytes ...", (int) length);
     jbyte *bytes = env->GetByteArrayElements(serialized_table, NULL);
     ReferenceSerializeInput serialize_in(bytes, length);
     try {
@@ -444,7 +444,7 @@ Java_org_voltdb_jni_ExecutionEngine_nativeLoadTable (
             bool success = engine->loadTable(bAllowExport, table_id, serialize_in,
                                              txnId, lastCommittedTxnId);
             env->ReleaseByteArrayElements(serialized_table, bytes, JNI_ABORT);
-            VOLT_DEBUG("deserialized table");
+            VOLT_TRACE("deserialized table");
 
             if (success)
                 return org_voltdb_jni_ExecutionEngine_ERRORCODE_SUCCESS;
@@ -884,7 +884,7 @@ Java_org_voltdb_jni_ExecutionEngine_nativeGetStats(JNIEnv *env, jobject obj,
                                                    jintArray locatorsArray,
                                                    jboolean jinterval,
                                                    jlong now) {
-    VOLT_DEBUG("nativeGetStats in C++ called");
+    VOLT_TRACE("nativeGetStats in C++ called");
     VoltDBEngine *engine = castToEngine(pointer);
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
     /*
@@ -936,7 +936,7 @@ Java_org_voltdb_jni_ExecutionEngine_nativeGetStats(JNIEnv *env, jobject obj,
 SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeToggleProfiler
 (JNIEnv *env, jobject obj, jlong engine_ptr, jint toggle)
 {
-    VOLT_DEBUG("nativeToggleProfiler in C++ called");
+    VOLT_TRACE("nativeToggleProfiler in C++ called");
     VoltDBEngine *engine = castToEngine(engine_ptr);
     updateJNILogProxy(engine); //JNIEnv pointer can change between calls, must be updated
     if (engine) {
@@ -961,7 +961,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeToggl
 SHAREDLIB_JNIEXPORT jboolean JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeReleaseUndoToken
 (JNIEnv *env, jobject obj, jlong engine_ptr, jlong undoToken)
 {
-    VOLT_DEBUG("nativeReleaseUndoToken in C++ called");
+    VOLT_TRACE("nativeReleaseUndoToken in C++ called");
     VoltDBEngine *engine = castToEngine(engine_ptr);
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
     try {
@@ -983,7 +983,7 @@ SHAREDLIB_JNIEXPORT jboolean JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeR
 SHAREDLIB_JNIEXPORT jboolean JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeUndoUndoToken
 (JNIEnv *env, jobject obj, jlong engine_ptr, jlong undoToken)
 {
-    VOLT_DEBUG("nativeUndoUndoToken in C++ called");
+    VOLT_TRACE("nativeUndoUndoToken in C++ called");
     VoltDBEngine *engine = castToEngine(engine_ptr);
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
     try {
