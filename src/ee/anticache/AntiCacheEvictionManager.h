@@ -94,7 +94,7 @@ public:
     }
     void recordEvictedAccess(catalog::Table* catalogTable, TableTuple *tuple);
     void throwEvictedAccessException();
-    bool nonBlockingMerge();
+    bool blockingMerge();
     
 protected:
     void initEvictResultTable();

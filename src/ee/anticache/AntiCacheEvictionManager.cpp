@@ -690,6 +690,16 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                                     num_tuples_evicted,
                                     blockdata,
                                     blocksize);
+            
+            // MJG: We need to check whether we're reusing a blockID.
+
+            bool reused = table->removeUnevictedBlockID(block_id);
+            if (reused) {
+                VOLT_INFO("Reusing block_id %x, should be safe", block_id);
+            } else {
+                VOLT_DEBUG("First time block_id %x has been used", block_id);
+            }
+
             needs_flush = true;
 
             // store pointer to AntiCacheDB associated with this block
@@ -1155,7 +1165,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
 
     bool already_unevicted = table->isAlreadyUnEvicted(block_id);
     if (already_unevicted) { // this block has already been read
-        VOLT_WARN("Block %d has already been read.", block_id);
+        VOLT_WARN("Block %x has already been read.", block_id);
         return true;
     }
 
@@ -1652,14 +1662,14 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     // NOTE: This is necessary because the original table tuple and the evicted tuple
     // do not have the same schema
     m_evicted_tuple->move(tuple->address()); 
-    VOLT_DEBUG("%s",m_evicted_tuple->getSchema()->debug().c_str());
-    VOLT_DEBUG("moved tuple into m_evicted_tuple. Time to get blockId"); 
-    VOLT_DEBUG("debug tuple: %s", m_evicted_tuple->debug(catalogTable->name()).c_str());
+    VOLT_TRACE("%s",m_evicted_tuple->getSchema()->debug().c_str());
+    VOLT_TRACE("moved tuple into m_evicted_tuple. Time to get blockId"); 
+    VOLT_TRACE("debug tuple: %s", m_evicted_tuple->debug(catalogTable->name()).c_str());
     // Determine the block id and tuple offset in the block using the EvictedTable tuple
     int32_t tuple_id = peeker.peekInteger(m_evicted_tuple->getNValue(1)); 
-    VOLT_DEBUG("Got tuple_id: %d", tuple_id);
+    VOLT_TRACE("Got tuple_id: %d", tuple_id);
     int32_t block_id = peeker.peekInteger(m_evicted_tuple->getNValue(0));
-    VOLT_DEBUG("Got blockId: %d", block_id);
+    VOLT_DEBUG("Got blockId: %x", block_id);
     // Updated internal tracking info
     if (m_blockable_accesses && !(block_id & 0x00080000)) {
         m_blockable_accesses = false;
@@ -1668,8 +1678,8 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     m_evicted_block_ids.push_back(block_id); 
     m_evicted_offsets.push_back(tuple_id);
 
-    VOLT_DEBUG("Recording evicted tuple access [table=%s / blockId=%d / tupleId=%d]",
-               catalogTable->name().c_str(), block_id, tuple_id);    
+    VOLT_DEBUG("Recording evicted tuple access [table=%s / blockId=%d / tupleId=%d /blockable = %d]",
+               catalogTable->name().c_str(), block_id, tuple_id, m_blockable_accesses);    
     VOLT_TRACE("Evicted Tuple Acccess: %s", m_evicted_tuple->debug(catalogTable->name()).c_str());
 }
 
@@ -1711,7 +1721,7 @@ void AntiCacheEvictionManager::throwEvictedAccessException() {
     throw EvictedTupleAccessException(catalogTable->relativeIndex(), num_block_ids, block_ids, tuple_ids);
 }
 
-bool AntiCacheEvictionManager::nonBlockingMerge() {
+bool AntiCacheEvictionManager::blockingMerge() {
 
     int num_block_ids = static_cast<int>(m_evicted_block_ids.size()); 
     assert(num_block_ids > 0); 
@@ -1721,7 +1731,7 @@ bool AntiCacheEvictionManager::nonBlockingMerge() {
     // copy the block ids into an array 
     int num_blocks = 0; 
     for(vector<int32_t>::iterator itr = m_evicted_block_ids.begin(); itr != m_evicted_block_ids.end(); ++itr) {
-        VOLT_DEBUG("Marking block %d as being needed for uneviction", *itr); 
+        VOLT_DEBUG("Marking block %x as being needed for uneviction", *itr); 
         block_ids[num_blocks++] = *itr; 
     }
 
@@ -1745,8 +1755,8 @@ bool AntiCacheEvictionManager::nonBlockingMerge() {
     // 6. success
 
     if (hasBlockableEvictedAccesses()) {
-        VOLT_INFO("We've only got blocks in blockable tier, so let's block and merge");
-        VOLT_INFO("Preparing to read %d evicted blocks", num_blocks);
+        VOLT_DEBUG("We've only got blocks in blockable tier, so let's block and merge");
+        VOLT_DEBUG("Preparing to read %d evicted blocks", num_blocks);
         PersistentTable *table = dynamic_cast<PersistentTable*>(m_engine->getTable(catalogTable->relativeIndex())); 
         
         if (table == NULL) { 
@@ -1763,13 +1773,13 @@ bool AntiCacheEvictionManager::nonBlockingMerge() {
             VOLT_ERROR("blocking read failed to read %d blocks for table '%s'\n%s",
                     num_blocks, table->name().c_str(), e.message().c_str());
         }
-        VOLT_INFO("We've read blocks, now lets merge them");
+        VOLT_DEBUG("We've read blocks, now lets merge them");
         try {
             mergeUnevictedTuples(table);
         } catch (SerializableEEException &e) {
             VOLT_INFO("failed to merge blocks for table %s", table->name().c_str());
         }
-        VOLT_INFO("blocking merge (possibly?) successful, don't throw exception, just return");
+        VOLT_DEBUG("blocking merge (possibly?) successful, don't throw exception, just return");
         return true;           
     }
     return false;

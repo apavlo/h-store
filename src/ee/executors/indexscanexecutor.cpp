@@ -445,7 +445,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         if (m_needsSubstitutePostExpression) {
             post_expression->substitute(params);
         }
-        VOLT_DEBUG("Post Expression:\n%s", post_expression->debug(true).c_str());
+        VOLT_TRACE("Post Expression:\n%s", post_expression->debug(true).c_str());
     }
 
     assert (m_index);
@@ -507,6 +507,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     #ifdef ANTICACHE
     AntiCacheEvictionManager* eviction_manager = m_targetTable->m_executorContext->getAntiCacheEvictionManager();
     bool hasEvictedTable = (eviction_manager != NULL && m_targetTable->getEvictedTable() != NULL);
+    bool blockingMergeSuccessful = false;
     #endif
 
     //
@@ -544,8 +545,9 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
             // TODO: possibly an alternate codepath that simply looks through all the tuples
             // for evicted tuples and then see if we have any non-blockable accesses
             if (eviction_manager->hasBlockableEvictedAccesses()) {
-                eviction_manager->nonBlockingMerge();
+                blockingMergeSuccessful = eviction_manager->blockingMerge();
             } else {
+                blockingMergeSuccessful = false;
                 continue;
             }
         }
@@ -685,7 +687,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     
     #ifdef ANTICACHE
     // throw exception indicating evicted blocks are needed
-    if (hasEvictedTable && eviction_manager->hasEvictedAccesses()) {
+    if (hasEvictedTable && !blockingMergeSuccessful && eviction_manager->hasEvictedAccesses()) {
         VOLT_DEBUG("Throwing EvictedaccessException\n");
         eviction_manager->throwEvictedAccessException();
     }
