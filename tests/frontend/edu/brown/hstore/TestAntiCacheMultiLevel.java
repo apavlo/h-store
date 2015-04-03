@@ -270,7 +270,8 @@ public class TestAntiCacheMultiLevel extends BaseTestCase {
         
         AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
         assertNotNull(profiler);
-        assertEquals(1, profiler.evictedaccess_history.size());
+        // MJG: Since we're blocking, we never record an evicted access in the Java profiler
+        //assertEquals(1, profiler.evictedaccess_history.size());
 
         evicted = evictResult.getLong("ANTICACHE_TUPLES_EVICTED");
         assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
@@ -302,7 +303,8 @@ public class TestAntiCacheMultiLevel extends BaseTestCase {
         
         AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
         assertNotNull(profiler);
-        assertEquals(1, profiler.evictedaccess_history.size());
+        // MJG: Since we're blocking, we never record an evicted access in the Java profiler
+        //assertEquals(1, profiler.evictedaccess_history.size());
     }
     
     @Test
@@ -414,9 +416,8 @@ public class TestAntiCacheMultiLevel extends BaseTestCase {
         
         AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
         assertNotNull(profiler);
-        // Since we are block-merging, we should only get 
-        // five block exceptions.
-        assertEquals(5, profiler.evictedaccess_history.size());
+        // Since one of the blocks is going to come from the non-blocking level, we'll get one exception.
+        assertEquals(1, profiler.evictedaccess_history.size());
     }
 
     @Test
