@@ -445,7 +445,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         if (m_needsSubstitutePostExpression) {
             post_expression->substitute(params);
         }
-        VOLT_TRACE("Post Expression:\n%s", post_expression->debug(true).c_str());
+        VOLT_DEBUG("Post Expression:\n%s", post_expression->debug(true).c_str());
     }
 
     assert (m_index);
@@ -485,6 +485,8 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
             return false;
         }
     }
+    VOLT_TRACE("IndexLookupType: %s SortDirectionType: %s", indexLookupToString(m_lookupType).c_str(),
+                                                            sortDirectionToString(m_sortDirection).c_str());
 
     if (m_sortDirection != SORT_DIRECTION_TYPE_INVALID) {
         bool order_by_asc = true;
@@ -532,9 +534,9 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
                        m_targetTable->name().c_str());      
 
             // Tell the EvictionManager's internal tracker that we touched this mofo
-            VOLT_TRACE("%s",m_tuple.getSchema()->debug().c_str());
+            VOLT_DEBUG("%s",m_tuple.getSchema()->debug().c_str());
             eviction_manager->recordEvictedAccess(m_catalogTable, &m_tuple);
-            VOLT_TRACE("recorded the evicted access in table %s\n", m_catalogTable->name().c_str());
+            VOLT_DEBUG("recorded the evicted access in table %s\n", m_catalogTable->name().c_str());
             // Pavlo: 2014-07-09
             // If the tuple is evicted, then we can't continue with the rest of stuff below us.
             // There is nothing else we can do with it (i.e., check expressions).
@@ -551,8 +553,14 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
                 continue;
             }
         }
-        #endif        
         
+        // MJG TEST: If we merged, maybe we need to grab the tuple again. Let's try
+        if (blockingMergeSuccessful) {
+            m_index->moveToKey(&m_searchKey);
+            m_tuple = m_index->nextValueAtKey();
+        }
+
+        #endif        
         //
         // First check whether the end_expression is now false
         //
