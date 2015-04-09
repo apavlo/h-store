@@ -328,6 +328,15 @@ void PersistentTable::insertUnevictedBlockID(std::pair<int32_t,int32_t> pair)
     m_unevictedBlockIDs.insert(pair);
 }
 
+bool PersistentTable::removeUnevictedBlockID(int32_t blockId) {
+    if (isAlreadyUnEvicted(blockId)) {
+        VOLT_INFO("Reusing blockID %x, so we need to remove it from list", blockId);
+        m_unevictedBlockIDs.erase(m_unevictedBlockIDs.find(blockId));
+        return true;
+    }
+    return false;
+}
+
 std::vector<char*> PersistentTable::getUnevictedBlocks()
 {
     return m_unevictedBlocks;
