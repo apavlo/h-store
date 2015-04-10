@@ -685,6 +685,16 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                                     num_tuples_evicted,
                                     blockdata,
                                     blocksize);
+            
+            // MJG: We need to check whether we're reusing a blockID.
+
+            bool reused = table->removeUnevictedBlockID(block_id);
+            if (reused) {
+                VOLT_INFO("Reusing block_id %x, should be safe", block_id);
+            } else {
+                VOLT_DEBUG("First time block_id %x has been used", block_id);
+            }
+
             needs_flush = true;
 
             // store pointer to AntiCacheDB associated with this block

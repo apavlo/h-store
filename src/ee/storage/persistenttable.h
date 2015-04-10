@@ -297,6 +297,7 @@ class PersistentTable : public Table {
     void setBytesWritten(int64_t bytesWritten);
     voltdb::TableTuple * getTempTarget1();
     void insertUnevictedBlockID(std::pair<int32_t,int32_t>);
+    bool removeUnevictedBlockID(int32_t blockId);
     void insertUnevictedBlock(char* unevicted_tuples);
     void insertTupleOffset(int32_t tuple_offset);
     bool isAlreadyUnEvicted(int32_t blockId);
