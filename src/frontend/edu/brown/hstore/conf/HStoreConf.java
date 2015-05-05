@@ -687,6 +687,13 @@ public final class HStoreConf {
             experimental=true
         )
         public long anticache_block_size;
+
+        @ConfigProperty(
+            description="The size of the anticache database.",
+            defaultString="2G",
+            experimental=true
+        )
+        public String anticache_dbsize;
         
         @ConfigProperty(
             description="Reset the anti-cache database directory for each partition when " +

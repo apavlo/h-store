@@ -37,6 +37,7 @@
 #include "boost/timer.hpp"
 #include "anticache/EvictedTable.h"
 #include "anticache/UnknownBlockAccessException.h"
+#include "anticache/FullBackingStoreException.h"
 #include "anticache/AntiCacheDB.h"
 #include "anticache/BerkeleyAntiCacheDB.h"
 
@@ -571,7 +572,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     {
 
         // get the LS16B and send that to the antiCacheDB
-        int16_t _block_id = antiCacheDB->nextBlockId();
+        uint16_t _block_id = antiCacheDB->nextBlockId();
 
         // find out whether this tier blocks and set a flag (bit 19)
         // then shift 3b for the ACID (8 levels)
@@ -695,9 +696,9 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
 
             bool reused = table->removeUnevictedBlockID(block_id);
             if (reused) {
-                VOLT_INFO("Reusing block_id %x, should be safe", block_id);
+                VOLT_INFO("Reusing block_id 0x%x, should be safe", block_id);
             } else {
-                VOLT_DEBUG("First time block_id %x has been used", block_id);
+                VOLT_DEBUG("First time block_id 0x%x has been used", block_id);
             }
 
             needs_flush = true;
@@ -821,7 +822,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
     //    VOLT_INFO("Printing child's LRU chain");
    //     this->printLRUChain(childTable, 4, true);
         // get a unique block id from the executorContext
-        int16_t _block_id = antiCacheDB->nextBlockId();
+        uint16_t _block_id = antiCacheDB->nextBlockId();
         // find out whether this tier blocks and set a flag (bit 19)
         // then shift 3b for the ACID (8 levels)
         // then shift 16b for the tier-unique block id (TUID)
@@ -1165,14 +1166,14 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
 
     bool already_unevicted = table->isAlreadyUnEvicted(block_id);
     if (already_unevicted) { // this block has already been read
-        VOLT_WARN("Block %x has already been read.", block_id);
+        VOLT_WARN("Block 0x%x has already been read.", block_id);
         return true;
     }
 
     /*
      * Finds the AntiCacheDB* instance associated with the needed block_id
      */
-    int16_t _block_id = (int16_t)(block_id & 0x0000FFFF);
+    uint16_t _block_id = (int16_t)(block_id & 0x0000FFFF);
     int16_t ACID = (int16_t)((block_id & 0x00070000) >> 16);
     bool blocking = (bool)((block_id & 0x00080000) >> 19);
     VOLT_DEBUG("block_id: %8x ACID: %d _block_id: %d blocking: %d\n", block_id, ACID, _block_id, (int)blocking);
@@ -1228,7 +1229,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
         }
 
         table->insertUnevictedBlock(unevicted_tuples);
-        VOLT_DEBUG("BLOCK %d - unevicted blocks size is %d",
+        VOLT_DEBUG("BLOCK %u - unevicted blocks size is %d",
                    _block_id, static_cast<int>(table->unevictedBlocksSize()));
         table->insertTupleOffset(tuple_offset);
 
@@ -1335,17 +1336,17 @@ int AntiCacheEvictionManager::chooseDB(long blockSize, bool migrate) {
  */
 
 int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* dstDB) {
-    int16_t _new_block_id = -1;
+    uint16_t _new_block_id = 0;
     int16_t new_acid;
     int32_t new_block_id = 0;
 
     if (dstDB->getFreeBlocks() == 0) {
-        return _new_block_id;
+        throw FullBackingStoreException((uint32_t)block_id, (uint32_t)dstDB->getACID());
     }
     
     int16_t acid = (int16_t)((block_id & 0x00070000) >> 16);
     bool blocking = (bool)((block_id & 0x00080000) >> 19);
-    int16_t _block_id = (int16_t)(block_id & 0x0000FFFF);
+    uint16_t _block_id = (uint16_t)(block_id & 0x0000FFFF);
     AntiCacheDB* srcDB = m_db_lookup[acid];
 
     // garbage. remove later MJG
@@ -1353,7 +1354,7 @@ int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* ds
         VOLT_WARN("blocking != srcDB->isBlocking(). Investigate!");
     }
 
-    VOLT_TRACE("source: block_id: %x _block_id: %x acid: %x blocking: %d",
+    VOLT_TRACE("source: block_id: 0x%x _block_id: 0x%x acid: 0x%x blocking: %d",
             block_id, _block_id, acid, (int)blocking);
     AntiCacheBlock* block = srcDB->readBlock(_block_id);    
     //VOLT_DEBUG("oldname: %s\n", block->getTableName().c_str());
@@ -1370,7 +1371,7 @@ int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* ds
     new_block_id = new_block_id | (new_acid << 16);
     new_block_id = new_block_id | (dstDB->isBlocking() << 19);
 
-    VOLT_DEBUG("block_id: %x _block_id: %x acid: %x blocking: %d new_block_id: %x _new_block_id: %x new_acid: %x new_blocking: %d",
+    VOLT_DEBUG("block_id: 0x%x _block_id: 0x%x acid: 0x%x blocking: %d new_block_id: 0x%x _new_block_id: 0x%x new_acid: 0x%x new_blocking: %d",
             block_id, _block_id, acid, srcDB->isBlocking(), new_block_id, _new_block_id, new_acid, dstDB->isBlocking());
 
     std::string tableName = block->getTableName();
@@ -1444,7 +1445,7 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
     new_block_id = (int32_t) _new_block_id;
     new_block_id = new_block_id | (new_acid << 16);
     new_block_id = new_block_id | (dstDB->isBlocking() << 19);
-    VOLT_DEBUG("new_block_id: %x _new_block_id: %x new_acid: %x blocking: %d",
+    VOLT_DEBUG("new_block_id: 0x%x _new_block_id: 0x%x new_acid: 0x%x blocking: %d",
             new_block_id, _new_block_id, new_acid, dstDB->isBlocking());
 
     std::string tableName = block->getTableName();
@@ -1669,7 +1670,7 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     int32_t tuple_id = peeker.peekInteger(m_evicted_tuple->getNValue(1)); 
     VOLT_TRACE("Got tuple_id: %d", tuple_id);
     int32_t block_id = peeker.peekInteger(m_evicted_tuple->getNValue(0));
-    VOLT_DEBUG("Got blockId: %x", block_id);
+    VOLT_DEBUG("Got blockId: 0x%x", block_id);
     // Updated internal tracking info
     if (m_blockable_accesses && !(block_id & 0x00080000)) {
         m_blockable_accesses = false;
@@ -1731,7 +1732,7 @@ bool AntiCacheEvictionManager::blockingMerge() {
     // copy the block ids into an array 
     int num_blocks = 0; 
     for(vector<int32_t>::iterator itr = m_evicted_block_ids.begin(); itr != m_evicted_block_ids.end(); ++itr) {
-        VOLT_DEBUG("Marking block %x as being needed for uneviction", *itr); 
+        VOLT_DEBUG("Marking block 0x%x as being needed for uneviction", *itr); 
         block_ids[num_blocks++] = *itr; 
     }
 

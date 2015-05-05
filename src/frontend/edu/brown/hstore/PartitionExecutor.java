@@ -819,9 +819,10 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         AntiCacheDBType dbType = AntiCacheDBType.get(hstore_conf.site.anticache_dbtype);
                         boolean blocking = hstore_conf.site.anticache_db_blocks;
                         // XXX: MJG: TODO: We've got to get a sane value for maxSize. -1 is no bueno.
+                        long dbSize = parseSize(hstore_conf.site.anticache_dbsize);
                         LOG.info(String.format("Creating AntiCacheDB type: %d blocking: %b blocksize: %d maxsize: %d @ %s (dbtype: %s)", 
-                                  dbType.ordinal(), blocking, blockSize, -1, acFile.getAbsolutePath(), hstore_conf.site.anticache_dbtype));
-                        eeTemp.antiCacheInitialize(acFile, dbType, blocking, blockSize, -1);
+                                  dbType.ordinal(), blocking, blockSize, dbSize, acFile.getAbsolutePath(), hstore_conf.site.anticache_dbtype));
+                        eeTemp.antiCacheInitialize(acFile, dbType, blocking, blockSize, dbSize);
                     } else {
                     // if we are using multilevel, ignore single config options and parse string
                         String config = hstore_conf.site.anticache_levels;

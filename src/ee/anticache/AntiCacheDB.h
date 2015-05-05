@@ -58,7 +58,7 @@ class AntiCacheBlock {
     public:
         virtual ~AntiCacheBlock() {};
         
-        inline int16_t getBlockId() const {
+        inline uint16_t getBlockId() const {
             return m_blockId;
         }
 
@@ -74,7 +74,7 @@ class AntiCacheBlock {
         }
 
         struct payload{
-            int16_t blockId;
+            uint16_t blockId;
             std::string tableName;
             char * data;
             long size;
@@ -86,8 +86,8 @@ class AntiCacheBlock {
     
     protected:
         // Why is this private/protected?
-        AntiCacheBlock(int16_t blockId);
-        int16_t m_blockId;
+        AntiCacheBlock(uint16_t blockId);
+        uint16_t m_blockId;
         payload m_payload;
         int32_t m_size;
         char * m_block;
@@ -107,14 +107,14 @@ class AntiCacheDB {
          * Write a block of serialized tuples out to the anti-cache database
          */
         virtual void writeBlock(const std::string tableName,
-                                int16_t blockId,
+                                uint16_t blockId,
                                 const int tupleCount,
                                 const char* data,
                                 const long size) = 0;
         /**
          * Read a block and return its contents
          */
-        virtual AntiCacheBlock* readBlock(int16_t blockId) = 0;
+        virtual AntiCacheBlock* readBlock(uint16_t blockId) = 0;
 
 
         /**
@@ -125,7 +125,7 @@ class AntiCacheDB {
         /**
          * Return the next BlockId to use in the anti-cache database
          */
-        virtual int16_t nextBlockId() = 0;
+        virtual uint16_t nextBlockId() = 0;
         /**
          * Return the AntiCacheDBType of the database
          */

@@ -45,7 +45,7 @@ class NVMAntiCacheBlock : public AntiCacheBlock {
         ~NVMAntiCacheBlock();
 
     private:
-        NVMAntiCacheBlock(int16_t blockId, char* block, long size);
+        NVMAntiCacheBlock(uint16_t blockId, char* block, long size);
         //std::string m_tableName;
 }; // CLASS
 
@@ -56,18 +56,20 @@ class NVMAntiCacheDB : public AntiCacheDB {
 
         void initializeDB();
 
-        inline int16_t nextBlockId() {
-            return (int16_t)getFreeNVMBlockIndex(); 
+        inline uint16_t nextBlockId() {
+            //return (int16_t)getFreeNVMBlockIndex(); 
+            return m_monoBlockID;
+           
         }
 
-        AntiCacheBlock* readBlock(int16_t blockId);
+        AntiCacheBlock* readBlock(uint16_t blockId);
 
         void shutdownDB();
 
         void flushBlocks();
 
         void writeBlock(const std::string tableName,
-                        int16_t blockId,
+                        uint16_t blockId,
                         const int tupleCount,
                         const char* data,
                         const long size);
@@ -84,34 +86,36 @@ class NVMAntiCacheDB : public AntiCacheDB {
         FILE* nvm_file;
         char* m_NVMBlocks; 
         int nvm_fd; 
-        int m_blockIndex;
+        uint16_t m_blockIndex;
+        uint16_t m_monoBlockID;
 
-        int m_nextFreeBlock; 
+        uint16_t m_nextFreeBlock; 
+
         
         /**
          *  List of free block indexes before the end of the last allocated block.
          */
-        std::vector<int> m_NVMBlockFreeList; 
+        std::vector<uint16_t> m_NVMBlockFreeList; 
 
         /*
          *  Maps a block id to a <index, size> pair
          */
-        std::map<int16_t, pair<int, int32_t> > m_blockMap; 
+        std::map<uint16_t, pair<uint16_t, int32_t> > m_blockMap; 
 
         /**
          *   Returns a pointer to the start of the block at the specified index. 
          */
-        char* getNVMBlock(int index); 
+        char* getNVMBlock(uint16_t index); 
 
         /**
          *  Adds the index to the free block list. 
          */
-        void freeNVMBlock(int index);
+        void freeNVMBlock(uint16_t index);
 
         /**
          *   Returns the index of a free slot in the NVM block array. 
          */
-        int getFreeNVMBlockIndex(); 
+        uint16_t getFreeNVMBlockIndex(); 
 };
 
 }

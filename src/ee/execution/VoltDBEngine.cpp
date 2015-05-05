@@ -2017,8 +2017,10 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
                    numBlocks, table->name().c_str(), e.message().c_str());
         // FIXME: This won't work if we execute are executing this operation the
         //        same time that txns are running
-        resetReusedResultOutputBuffer();
-        e.serialize(getExceptionOutputSerializer());
+        
+        // MJG DANGER!!!!
+        //resetReusedResultOutputBuffer();
+        //e.serialize(getExceptionOutputSerializer());
         retval = ENGINE_ERRORCODE_ERROR;
     }
 

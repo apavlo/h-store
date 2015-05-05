@@ -110,7 +110,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_newestTupleID = 0;
     m_oldestTupleID = 0;
     m_numTuplesInEvictionChain = 0;
-    m_blockMerge = true;
+    m_blockMerge = false;
     m_batchEvicted = false;
 #endif
 
@@ -137,7 +137,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, const std::string name, b
     m_newestTupleID = 0;
     m_oldestTupleID = 0;
     m_numTuplesInEvictionChain = 0;
-    m_blockMerge = true;
+    m_blockMerge = false;
     m_batchEvicted = false;
 #endif
 
@@ -324,7 +324,7 @@ bool PersistentTable::isAlreadyUnEvicted(int32_t blockId)
 
 void PersistentTable::insertUnevictedBlockID(std::pair<int32_t,int32_t> pair)
 {
-    VOLT_DEBUG("pair is %d", pair.first);
+    VOLT_INFO("Unevicted pair is %d", pair.first);
     m_unevictedBlockIDs.insert(pair);
 }
 

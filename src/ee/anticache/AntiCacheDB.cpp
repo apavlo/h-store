@@ -39,7 +39,7 @@ using namespace std;
 
 namespace voltdb {
 
-AntiCacheBlock::AntiCacheBlock(int16_t blockId) {
+AntiCacheBlock::AntiCacheBlock(uint16_t blockId) {
 
 //    for(int i=0;i<size;i++){
 //       VOLT_INFO("%x", data[i]);
@@ -103,13 +103,13 @@ void AntiCacheDB::removeBlockLRU(uint16_t blockId) {
     }
 
     if (!found) {
-        VOLT_ERROR("Found block but didn't find blockId %d in LRU!", blockId);
+        VOLT_ERROR("Found block but didn't find blockId %u in LRU!", blockId);
         //throw UnknownBlockAccessException(blockId);
     }
 }
 
 void AntiCacheDB::pushBlockLRU(uint16_t blockId) {
-    VOLT_INFO("Pushing blockId %d into LRU", blockId);
+    VOLT_INFO("Pushing blockId %u into LRU", blockId);
     m_block_lru.push_back(blockId);
     m_totalBlocks++;
 }
