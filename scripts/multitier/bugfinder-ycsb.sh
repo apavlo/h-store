@@ -16,36 +16,62 @@ ENABLE_ANTICACHE=true
 #SITE_HOST="dev3.db.pdl.cmu.local"
 SITE_HOST="localhost"
 
-CLIENT_HOSTS="localhost"
+#CLIENT_HOSTS=( "localhost")
 
+CLIENT_HOSTS=( \
+        "localhost" \
+        "localhost" \
+        "localhost" \
+        "localhost" \
+        )
+N_HOSTS=4
 BASE_CLIENT_THREADS=1
+CLIENT_THREADS_PER_HOST=4
 #BASE_SITE_MEMORY=8192
 #BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_SITE_MEMORY=8192
 BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
-OUTPUT_DIR="~/data-hstore/ycsb"
+OUTPUT_DIR="/home/michaelg/data-hstore/ycsb"
+#BLK_CON=1
+BLK_EVICT=200
+AC_THRESH=200
+SCALE=4
+BLOCK_SIZE_KB=256
+DURATION_S=300
+WARMUP_S=0
+INTERVAL_S=10
+PARTITIONS=8
 
-
+for BLK_CON in 1 10 50; do
+for BLOCK_SIZE in 128 256; do
 for BLOCKING in 'true' 'false'; do
     for DB in 'NVM' 'BERKELEY'; do
-        for skew in 1.01; do
+        for skew in 0.8 1.01 1.1 1.25; do
             for round in 1 ; do
                 if [ "$BLOCKING" = "true" ]; then
                     block='blocking'
                 else
                     block='nonblocking'
                 fi
-                OUTPUT_PREFIX="$OUTPUT_DIR/ycsb-bugtester/$round-ycsb1G-$block-$DB-T500-S$skew"
-                LOG_PREFIX="~/h-store/logs/test/bugtester/$round-ycsb1G-$block-$DB-T500-S$skew"
+                BLOCK_SIZE_KB=$BLOCK_SIZE
+                BLK_EVICT=$((51200 / $BLOCK_SIZE_KB))
+                OUTPUT_PREFIX="$OUTPUT_DIR/ycsb-bugfinder/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-tuplemerge"
+                LOG_PREFIX="/home/michaelg/h-store/logs/test/ycsb-bugfinder/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-tuplemerge"
+                echo "log = $LOG_PREFIX"
                 echo $OUTPUT_PREFIX
                 sed -i '$ d' "properties/benchmarks/ycsb.properties"
                 echo "skew_factor = $skew" >> "properties/benchmarks/ycsb.properties"
 
-                ANTICACHE_BLOCK_SIZE=262144
-                #ANTICACHE_BLOCK_SIZE=131072
+#ANTICACHE_BLOCK_SIZE=65536
+
+#ANTICACHE_BLOCK_SIZE=262144
+                ANTICACHE_BLOCK_SIZE=$(($BLOCK_SIZE_KB * 1024))
                 ANTICACHE_THRESHOLD=.5
+                DURATION=$((${DURATION_S} * 1000))
+                WARMUP=$((${WARMUP_S} * 1000))
+                INTERVAL=$((${INTERVAL_S} * 1000))
 
                 BASE_ARGS=( \
 # SITE DEBUG
@@ -80,15 +106,15 @@ for BLOCKING in 'true' 'false'; do
 #    "-Dsite.queue_threshold_factor=0.5" \
 
 # Client Params
-                        "-Dclient.scalefactor=6" \
+                        "-Dclient.scalefactor=${SCALE}" \
                         "-Dclient.memory=2048" \
                         "-Dclient.txnrate=3500" \
-                        "-Dclient.warmup=60000" \
-                        "-Dclient.duration=300000" \
-                        "-Dclient.interval=5000" \
+                        "-Dclient.warmup=${WARMUP}" \
+                        "-Dclient.duration=${DURATION}" \
+                        "-Dclient.interval=${INTERVAL}" \
                         "-Dclient.shared_connection=false" \
                         "-Dclient.blocking=true" \
-                        "-Dclient.blocking_concurrent=1" \
+                        "-Dclient.blocking_concurrent=${BLK_CON}" \ 
 #                        "-Dclient.throttle_backoff=100" \
                         "-Dclient.output_anticache_evictions=${OUTPUT_PREFIX}-evictions.csv" \
                         "-Dclient.output_anticache_profiling=${OUTPUT_PREFIX}-acprofiling.csv" \
@@ -103,10 +129,11 @@ for BLOCKING in 'true' 'false'; do
                         "-Dsite.anticache_profiling=true" \
                         "-Dsite.anticache_reset=false" \
                         "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
-                        "-Dsite.anticache_check_interval=10000" \
-                        "-Dsite.anticache_threshold_mb=500" \
-                        "-Dsite.anticache_blocks_per_eviction=200" \
+                        "-Dsite.anticache_check_interval=5000" \
+                        "-Dsite.anticache_threshold_mb=${AC_THRESH}" \
+                        "-Dsite.anticache_blocks_per_eviction=${BLK_EVICT}" \
                         "-Dsite.anticache_max_evicted_blocks=1000000" \
+                        "-Dsite.anticache_dbsize=1540M" \
                         "-Dsite.anticache_db_blocks=$BLOCKING" \
                         "-Dsite.anticache_dbtype=$DB" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
@@ -157,9 +184,16 @@ for BLOCKING in 'true' 'false'; do
 
                 ant compile
 #HSTORE_HOSTS="${SITE_HOST}:0:0-7"
-                HSTORE_HOSTS="${SITE_HOST}:0:0"
-                NUM_CLIENTS=`expr 1 \* $BASE_CLIENT_THREADS`
-                SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( 1 \* $BASE_SITE_MEMORY_PER_PARTITION \)`
+                if [ "$PARTITIONS" = "1" ]; then
+                    HSTORE_HOSTS="${SITE_HOST}:0:0"
+                else
+                    PART_NO=$((${PARTITIONS} - 1))
+                    HSTORE_HOSTS="${SITE_HOST}:0:0-$PART_NO"
+                fi
+                echo "$HSTORE_HOSTS"
+
+                NUM_CLIENTS=$((${PARTITIONS} * ${BASE_CLIENT_THREADS}))
+                SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $PARTITIONS \* $BASE_SITE_MEMORY_PER_PARTITION \)`
 
 # BUILD PROJECT JAR
                 ant hstore-prepare \
@@ -174,7 +208,7 @@ for BLOCKING in 'true' 'false'; do
                 for CLIENT_HOST in ${CLIENT_HOSTS[@]}; do
                     CLIENT_COUNT=`expr $CLIENT_COUNT + 1`
                     if [ ! -z "$CLIENT_HOSTS_STR" ]; then
-                        CLIENT_HOSTS_STR="${CLIENT_HOSTS_STR}"
+                        CLIENT_HOSTS_STR="${CLIENT_HOSTS_STR}",
                     fi
                     CLIENT_HOSTS_STR="${CLIENT_HOSTS_STR}${CLIENT_HOST}"
                 done
@@ -187,14 +221,15 @@ for BLOCKING in 'true' 'false'; do
                 done
                 wait
 
+                echo "Client count $CLIENT_COUNT client hosts: $CLIENT_HOSTS_STR"
 # EXECUTE BENCHMARK
                 ant hstore-benchmark ${BASE_ARGS[@]} \
                                 -Dproject=${BASE_PROJECT} \
                                 -Dkillonzero=false \
-                                -Dclient.threads_per_host=1 \
+                                -Dclient.threads_per_host=${CLIENT_THREADS_PER_HOST} \
                                 -Dsite.memory=${SITE_MEMORY} \
-                                -Dclient.hosts="localhost" \
-                                -Dclient.count=1
+                                -Dclient.hosts=${CLIENT_HOSTS_STR} \
+                                -Dclient.count=${CLIENT_COUNT}
                 result=$?
                 if [ $result != 0 ]; then
                     exit $result
@@ -203,3 +238,5 @@ for BLOCKING in 'true' 'false'; do
         done
     done
 done
+done #BLOCK_SIZE
+done #BLK_CON

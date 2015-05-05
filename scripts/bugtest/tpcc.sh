@@ -17,49 +17,70 @@ ENABLE_ANTICACHE=true
 SITE_HOST="localhost"
 
 CLIENT_HOSTS=( \
+    #"changping50" \
+    #"changping50" \
+    #"changping50" \
+    #"changping50" \
     "localhost" \
     "localhost" \
     "localhost" \
-    "localhost" \
+    #"dev1.db.pdl.cmu.local" \
+    #"dev1.db.pdl.cmu.local" \
+    #"dev1.db.pdl.cmu.local" \
+    #"dev1.db.pdl.cmu.local" \
     )
-#   "dev1.db.pdl.cmu.local" \
-#    "dev1.db.pdl.cmu.local" \
-#    "dev1.db.pdl.cmu.local" \
-#    "dev1.db.pdl.cmu.local" \
 
 BASE_CLIENT_THREADS=1
 #BASE_SITE_MEMORY=8192
 #BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_SITE_MEMORY=8192
 BASE_SITE_MEMORY_PER_PARTITION=1024
-BASE_PROJECT="ycsb"
+BASE_PROJECT="tpcc"
 BASE_DIR=`pwd`
-OUTPUT_DIR="/home/michaelg/data-hstore/ycsb"
+SPACE="        "
 
-for BLOCKING in 'false' 'true'; do
-    for DB in 'BERKELEY' 'NVM'; do
-        for skew in 0.8 1.01 1.1 1.2; do
-            for round in 1; do
-                if [ "$BLOCKING" = "true" ]; then
-                    block='blocking'
-                else
-                    block='nonblocking'
-                fi
-                OUTPUT_PREFIX="$OUTPUT_DIR/ycsb-hievict/$round-ycsb-hievict-$block-$DB-S$skew"
-                LOG_PREFIX="logs/test/ycsb-hievict/$round-ycsb-hievict-$block-$DB-S$skew"
-                echo $OUTPUT_PREFIX
-                sed -i '$ d' "properties/benchmarks/ycsb.properties"
-                echo "skew_factor = $skew" >> "properties/benchmarks/ycsb.properties"
+#for eviction_distribution in access_rate uneviction_ratio; do
+#eviction_size=100
+#for mechanism in alru; do
+#echo $eviction_size, $mechanism, $eviction_distribution
+#mkdir -p "output-1G-T750/test/$eviction_distribution"
+#sed -i "49c\ \ \ \ \ \ \ \ self.ANTICACHE_TIMESTAMPS = False" buildtools.py
+#sed -i "51c\ \ \ \ \ \ \ \ self.ANTICACHE_CLOCK = False" buildtools.py
+#if [ "$mechanism" = "timestamp" ]; then
+#    sed -i "49c\ \ \ \ \ \ \ \ self.ANTICACHE_TIMESTAMPS = True" buildtools.py
+#fi
+#if [ "$mechanism" = "clock" ]; then
+#    sed -i "51c\ \ \ \ \ \ \ \ self.ANTICACHE_CLOCK = True" buildtools.py
+#fi
+#ant clean build
+#for skew in 1.2; do
+#for skew in 0.8 1.01 1.1 1.2; do
+for memory in base; do
+    #if [ "$memory" = "base" ]; then
+    #    sed -i "65c#define\ BASELINE\ 1" src/ee/indexes/tableindexfactory.cpp
+    #    sed -i "66c#define\ ALLMT\ 0" src/ee/indexes/tableindexfactory.cpp
+    #fi
+    #if [ "$memory" = "allmt" ]; then
+    #    sed -i "65c#define\ BASELINE\ 0" src/ee/indexes/tableindexfactory.cpp
+    #    sed -i "66c#define\ ALLMT\ 1" src/ee/indexes/tableindexfactory.cpp
+    #fi
+    mkdir -p "output-tpcc/$memory"
+    #ant build
 
-#                ANTICACHE_BLOCK_SIZE=1048576
-                
-                ANTICACHE_BLOCK_SIZE=262144
-                ANTICACHE_THRESHOLD=.5
+    #for round in 1 2 3; do
+        OUTPUT_PREFIX="output-tpcc/$memory/tpcc-T1000-E100"
+        LOG_PREFIX="logs/tpcc"
+        echo $OUTPUT_PREFIX
+        #sed -i '$ d' "properties/benchmarks/ycsb.properties"
+        #echo "skew_factor = $skew" >> "properties/benchmarks/ycsb.properties"
 
-                BASE_ARGS=( \
+        ANTICACHE_BLOCK_SIZE=1048576
+        ANTICACHE_THRESHOLD=.5
+
+        BASE_ARGS=( \
             # SITE DEBUG
-                "-Dsite.status_enable=false" \
-                "-Dsite.status_interval=10000" \
+        "-Dsite.status_enable=false" \
+            "-Dsite.status_interval=10000" \
             #    "-Dsite.status_exec_info=true" \
             #    "-Dsite.status_check_for_zombies=true" \
             #    "-Dsite.exec_profiling=true" \
@@ -80,8 +101,9 @@ for BLOCKING in 'false' 'true'; do
             "-Dsite.commandlog_enable=false" \
             "-Dsite.txn_incoming_delay=5" \
             "-Dsite.exec_postprocessing_threads=false" \
+            #"-Dsite.anticache_eviction_distribution=$eviction_distribution" \
             "-Dsite.anticache_eviction_distribution=even" \
-            "-Dsite.log_dir=$LOG_PREFIX" \
+            #"-Dsite.log_dir=$LOG_PREFIX" \
             "-Dsite.specexec_enable=false"
 
         #    "-Dsite.queue_allow_decrease=true" \
@@ -89,34 +111,36 @@ for BLOCKING in 'false' 'true'; do
             #    "-Dsite.queue_threshold_factor=0.5" \
 
             # Client Params
-        "-Dclient.scalefactor=10" \
+        "-Dclient.scalefactor=1" \
             "-Dclient.memory=2048" \
-            "-Dclient.txnrate=3500" \
-            "-Dclient.warmup=120000" \
-            "-Dclient.duration=300000" \
+            "-Dclient.txnrate=3000" \
+            "-Dclient.warmup=0000" \
+            "-Dclient.duration=60000" \
             "-Dclient.interval=5000" \
             "-Dclient.shared_connection=false" \
             "-Dclient.blocking=true" \
             "-Dclient.blocking_concurrent=100" \
             "-Dclient.throttle_backoff=100" \
             "-Dclient.output_anticache_evictions=${OUTPUT_PREFIX}-evictions.csv" \
-            "-Dclient.output_anticache_profiling=${OUTPUT_PREFIX}-acprofiling.csv" \
             "-Dclient.output_memory_stats=${OUTPUT_PREFIX}-memory.csv" \
-            "-Dclient.weights=\"ReadRecord:50,UpdateRecord:50,*:0\""
+            "-Dclient.output_index_stats=${OUTPUT_PREFIX}-indexes.csv" \
+            #"-Dclient.output_anticache_access=${OUTPUT_PREFIX}-access.csv"\
+            "-Dclient.output_txn_profiling=${OUTPUT_PREFIX}-txnprofiler.csv"\
+            "-Dclient.output_exec_profiling=${OUTPUT_PREFIX}-execprofiler.csv"\
+            #"-Dclient.weights=\"ReadRecord:100,UpdateRecord:0,*:0\""\
 
-            # Anti-Caching Experiments
+        # Anti-Caching Experiments
         "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
             "-Dsite.anticache_timestamps=${ENABLE_TIMESTAMPS}" \
             "-Dsite.anticache_batching=true" \
             "-Dsite.anticache_profiling=true" \
             "-Dsite.anticache_reset=false" \
             "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
-            "-Dsite.anticache_check_interval=5000" \
-            "-Dsite.anticache_threshold_mb=500" \
-            "-Dsite.anticache_blocks_per_eviction=200" \
+            "-Dsite.anticache_check_interval=10000" \
+            "-Dsite.anticache_threshold_mb=1000" \
+            "-Dsite.anticache_blocks_per_eviction=50" \
+            #"-Dsite.anticache_blocks_per_eviction=$eviction_size" \
             "-Dsite.anticache_max_evicted_blocks=1000000" \
-            "-Dsite.anticache_db_blocks=$BLOCKING" \
-            "-Dsite.anticache_dbtype=$DB" \
             #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
             "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
             "-Dclient.anticache_enable=false" \
@@ -125,7 +149,7 @@ for BLOCKING in 'false' 'true'; do
             "-Dclient.output_csv=${OUTPUT_PREFIX}-results.csv" \
 
             # CLIENT DEBUG
-            "-Dclient.output_txn_counters=${OUTPUT_PREFIX}-txncounters.csv" \
+        "-Dclient.output_txn_counters=${OUTPUT_PREFIX}-txncounters.csv" \
             "-Dclient.output_clients=false" \
             "-Dclient.profiling=false" \
             "-Dclient.output_response_status=false" \
@@ -135,7 +159,9 @@ for BLOCKING in 'false' 'true'; do
         )
 
         EVICTABLE_TABLES=( \
-            "USERTABLE" \
+            "orders" \
+            "order_line" \
+            "history" \
             )
         EVICTABLES=""
         if [ "$ENABLE_ANTICACHE" = "true" ]; then
@@ -198,7 +224,7 @@ for BLOCKING in 'false' 'true'; do
         ant hstore-benchmark ${BASE_ARGS[@]} \
             -Dproject=${BASE_PROJECT} \
             -Dkillonzero=false \
-            -Dclient.threads_per_host=4 \
+            -Dclient.threads_per_host=3 \
             -Dsite.memory=${SITE_MEMORY} \
             -Dclient.hosts=${CLIENT_HOSTS_STR} \
             -Dclient.count=${CLIENT_COUNT}
@@ -206,7 +232,7 @@ for BLOCKING in 'false' 'true'; do
         if [ $result != 0 ]; then
             exit $result
         fi
-    done
+#    done
 done
-done
-done
+#done
+#done

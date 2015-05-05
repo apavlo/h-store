@@ -16,12 +16,13 @@ ENABLE_ANTICACHE=true
 #SITE_HOST="dev3.db.pdl.cmu.local"
 SITE_HOST="localhost"
 
-CLIENT_HOSTS=( \
-        "localhost" \
-        "localhost" \
-        "localhost" \
-        "localhost" \
-        )        
+CLIENT_HOSTS="localhost"
+#CLIENT_HOSTS=( \
+#        "localhost" \
+#        "localhost" \
+#        "localhost" \
+#        "localhost" \
+#        )        
 #   "dev1.db.pdl.cmu.local" \
 #    "dev1.db.pdl.cmu.local" \
 #    "dev1.db.pdl.cmu.local" \
@@ -36,17 +37,26 @@ OUTPUT_DIR="/home/michaelg/data-hstore/tpcc"
 OUTPUT_PREFIX="tpcc-lru-T1500-E100"
 
 ANTICACHE_BLOCK_SIZE=262144
+SCALE=2
 #ANTICACHE_BLOCK_SIZE=268400000
 ANTICACHE_THRESHOLD=.75
 
-for DB in 'NVM' 'BERKELEY'; do 
-    for round in 1 ; do
-        OUTPUT_PREFIX="$OUTPUT_DIR/tpcc-NoLoop/$round-tpcc-$DB-T500-E50"
-        echo $OUTPUT_PREFIX
-        BASE_ARGS=( \
+for BLOCKING in 'true' 'false'; do
+    for DB in 'NVM' 'BERKELEY'; do 
+        for round in 1 ; do
+            if [ "$BLOCKING" = "true" ]; then
+                block='blocking'
+            else
+                block='nonblocking'
+            fi
+        
+            OUTPUT_PREFIX="$OUTPUT_DIR/tpcc-single-host/$round-tpcc-$block-$DB-S$SCALE"
+            LOG_PREFIX="logs/tpcc/tpcc-single-host/$round-tpcc-$block-$DB-S$SCALE"
+            echo $OUTPUT_PREFIX
+            BASE_ARGS=( \
 # SITE DEBUG
-        "-Dsite.status_enable=false" \
-        "-Dsite.status_interval=20000" \
+            "-Dsite.status_enable=false" \
+            "-Dsite.status_interval=20000" \
 #    "-Dsite.status_exec_info=true" \
 #    "-Dsite.status_check_for_zombies=true" \
 #    "-Dsite.exec_profiling=true" \
@@ -55,7 +65,7 @@ for DB in 'NVM' 'BERKELEY'; do
 #     "-Dsite.network_profiling=false" \
 #     "-Dsite.log_backup=true"\
 #    "-Dnoshutdown=true" \
-        "-Dsite.log_dir=logs/$OUTPUT_PREFIX" \
+        "-Dsite.log_dir=$LOG_PREFIX" \
 
 # Site Params
         "-Dsite.jvm_asserts=false" \
@@ -78,11 +88,11 @@ for DB in 'NVM' 'BERKELEY'; do
 #    "-Dsite.queue_threshold_factor=0.5" \
 
 # Client Params
-        "-Dclient.scalefactor=1" \
+        "-Dclient.scalefactor=$SCALE" \
         "-Dclient.memory=2048" \
         "-Dclient.txnrate=1562" \
-        "-Dclient.warmup=120000" \
-        "-Dclient.duration=300000" \
+        "-Dclient.warmup=0" \
+        "-Dclient.duration=60000" \
         "-Dclient.shared_connection=false" \
         "-Dclient.blocking=true" \
         "-Dclient.blocking_concurrent=100" \
@@ -93,14 +103,16 @@ for DB in 'NVM' 'BERKELEY'; do
 # Anti-Caching Experiments
         "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
         "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
-        "-Dsite.anticache_check_interval=10000" \
-        "-Dsite.anticache_threshold_mb=500" \
-        "-Dsite.anticache_blocks_per_eviction=200" \
+        "-Dsite.anticache_check_interval=5000" \
+        "-Dsite.anticache_threshold_mb=200" \
+        "-Dsite.anticache_blocks_per_eviction=800" \
         "-Dsite.anticache_max_evicted_blocks=100000" \
 #"-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
         "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
         "-Dsite.anticache_eviction_distribution=PROPORTIONAL" \
         "-Dsite.anticache_dbtype=$DB" \
+        "-Dsite.anticache_db_blocks=$BLOCKING" \
+        "-Dsite.anticache_dbsize=1G" \
         "-Dclient.interval=5000" \
         "-Dclient.anticache_enable=false" \
         "-Dclient.anticache_evict_interval=5000" \
@@ -152,6 +164,9 @@ for DB in 'NVM' 'BERKELEY'; do
 
         ant compile
         for i in 8; do
+#           HSTORE_HOSTS="${SITE_HOST}:0:0"
+#           NUM_CLIENTS=1
+#           SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( 1 \* $BASE_SITE_MEMORY_PER_PARTITION \)`
             HSTORE_HOSTS="${SITE_HOST}:0:0-"`expr $i - 1`
             NUM_CLIENTS=`expr $i \* $BASE_CLIENT_THREADS`
             SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( $i \* $BASE_SITE_MEMORY_PER_PARTITION \)`
@@ -194,6 +209,7 @@ for DB in 'NVM' 'BERKELEY'; do
             if [ $result != 0 ]; then
                 exit $result
             fi
+            done
         done
     done
 done
