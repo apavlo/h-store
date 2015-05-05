@@ -333,7 +333,7 @@ bool PersistentTable::removeUnevictedBlockID(int32_t blockId) {
         VOLT_INFO("Reusing blockID %x, so we need to remove it from list", blockId);
         m_unevictedBlockIDs.erase(m_unevictedBlockIDs.find(blockId));
         return true;
-    } 
+    }
     return false;
 }
 
