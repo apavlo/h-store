@@ -2019,8 +2019,8 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
         //        same time that txns are running
         
         // MJG DANGER!!!!
-        //resetReusedResultOutputBuffer();
-        //e.serialize(getExceptionOutputSerializer());
+        resetReusedResultOutputBuffer();
+        e.serialize(getExceptionOutputSerializer());
         retval = ENGINE_ERRORCODE_ERROR;
     }
 
