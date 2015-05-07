@@ -1200,7 +1200,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
     //AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
 
     try {
-        AntiCacheBlock* value = antiCacheDB->readBlock(_block_id);
+        AntiCacheBlock* value = antiCacheDB->readBlock(_block_id, table->mergeStrategy());
 
         // allocate the memory for this block
         char* unevicted_tuples = new char[value->getSize()];
@@ -1235,6 +1235,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
 
 
         table->insertUnevictedBlockID(std::pair<int32_t,int16_t>(block_id, 0));
+        
         delete value;
     } catch (UnknownBlockAccessException e) {
         throw e;
@@ -1333,6 +1334,11 @@ int AntiCacheEvictionManager::chooseDB(long blockSize, bool migrate) {
  * In the future, it might make sense to allow for the return of a list of new tuple 
  * mappings so that blocks could be split or merged depending on the underlying 
  * physical medium
+ *
+ * WARNING! THIS WILL NOT WORK WITH TUPLE MERGE!
+ * Long story: readBlock needs to know whether to destroy the block or write it back when it's
+ * done. In this function, we don't have access to the tuple merging strategy. That is contained
+ * in the PersistentTable. Which we don't have. DON'T USE THIS WITH TUPLE MERGE.
  */
 
 int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* dstDB) {
@@ -1356,7 +1362,8 @@ int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* ds
 
     VOLT_TRACE("source: block_id: 0x%x _block_id: 0x%x acid: 0x%x blocking: %d",
             block_id, _block_id, acid, (int)blocking);
-    AntiCacheBlock* block = srcDB->readBlock(_block_id);    
+    VOLT_WARN("If you're using tuple merge, this is BROKEN BROKEN BROKEN");
+    AntiCacheBlock* block = srcDB->readBlock(_block_id, true);    
     //VOLT_DEBUG("oldname: %s\n", block->getTableName().c_str());
     _new_block_id = dstDB->nextBlockId();
     

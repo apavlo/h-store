@@ -75,13 +75,14 @@ AntiCacheBlock* AntiCacheDB::getLRUBlock() {
     uint16_t lru_block_id;
     AntiCacheBlock* lru_block;
 
+    VOLT_WARN("If you are using tuple merge, this is BROKEN BROKEN BROKEN");
     if (m_block_lru.empty()) {
         VOLT_ERROR("LRU Blocklist Empty!");
         throw UnknownBlockAccessException(0);
     } else {
         lru_block_id = m_block_lru.front();
-        //m_block_lru.pop_front();
-        lru_block = readBlock(lru_block_id);
+        // MJG: This is now BROKEN for tuple merge
+        lru_block = readBlock(lru_block_id, true);
         m_totalBlocks--;
         return lru_block;
     }

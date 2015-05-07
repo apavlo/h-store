@@ -114,7 +114,7 @@ class AntiCacheDB {
         /**
          * Read a block and return its contents
          */
-        virtual AntiCacheBlock* readBlock(uint16_t blockId) = 0;
+        virtual AntiCacheBlock* readBlock(uint16_t blockId, bool blockMerge) = 0;
 
 
         /**
@@ -276,6 +276,21 @@ class AntiCacheDB {
         inline void clearBytesUnevicted() {
             m_bytesUnevicted = 0;
         }
+        
+        /*
+         * Set to block merge
+         */
+        inline void setBlockMerge(bool block_merge) {
+            m_block_merge = block_merge;
+        }
+
+        /*
+         * Are we merging the entire block or just a single tuple?
+         */
+        inline bool isBlockMerge() {
+            return m_block_merge;
+        }
+        
 
     protected:
         ExecutorContext *m_executorContext;
@@ -289,9 +304,11 @@ class AntiCacheDB {
         
 
         bool m_blocking;
+        bool m_block_merge;
 
         AntiCacheDBType m_dbType;
         long m_maxDBSize;
+        
 
         /*
          * stats

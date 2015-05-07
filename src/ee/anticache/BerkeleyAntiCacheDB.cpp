@@ -173,7 +173,7 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     delete [] databuf_;
 }
 
-AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint16_t blockId) {
+AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint16_t blockId, bool blockMerge) {
     Dbt key;
     key.set_data(&blockId);
     key.set_size(sizeof(blockId));
@@ -200,7 +200,13 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint16_t blockId) {
     
     m_blocksUnevicted++;
     m_bytesUnevicted += static_cast<int32_t>( block->getSize());
+
     removeBlockLRU(blockId);
+    
+    if (!blockMerge) { //i.e. tuple merge
+        pushBlockLRU(blockId); // update block LRU
+    }
+
     /*uint16_t rm_block = removeBlockLRU(blockId);
     if (rm_block != blockId) {
         VOLT_ERROR("LRU rm_block id: %d  and blockId %d not equal!", rm_block, blockId);

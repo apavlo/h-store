@@ -87,7 +87,7 @@ class BerkeleyAntiCacheDB : public AntiCacheDB {
         }
         void initializeDB();
 
-        AntiCacheBlock* readBlock(uint16_t blockId);
+        AntiCacheBlock* readBlock(uint16_t blockId, bool blockMerge);
 
         void shutdownDB();
 

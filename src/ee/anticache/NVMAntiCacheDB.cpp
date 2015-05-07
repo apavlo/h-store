@@ -225,7 +225,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     pushBlockLRU(blockId);
 }
 
-AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId) {
+AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId, bool blockMerge) {
     
     std::map<uint16_t, std::pair<uint16_t, int32_t> >::iterator itr; 
     itr = m_blockMap.find(blockId); 
@@ -248,14 +248,19 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId) {
     
     AntiCacheBlock* anticache_block = new NVMAntiCacheBlock(blockId, block, blockSize);
 
-    freeNVMBlock(blockIndex); 
+    if (blockMerge) {
+        freeNVMBlock(blockIndex); 
 
-    m_blockMap.erase(itr); 
+        m_blockMap.erase(itr); 
 
-    removeBlockLRU(blockId);
+        removeBlockLRU(blockId);
 
-    m_bytesUnevicted += blockSize;
-    m_blocksUnevicted++;
+        m_bytesUnevicted += blockSize;
+        m_blocksUnevicted++;
+    } else {
+        removeBlockLRU(blockId);
+        pushBlockLRU(blockId);
+    }
     return (anticache_block);
 }
 

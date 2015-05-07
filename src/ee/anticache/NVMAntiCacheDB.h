@@ -62,7 +62,7 @@ class NVMAntiCacheDB : public AntiCacheDB {
            
         }
 
-        AntiCacheBlock* readBlock(uint16_t blockId);
+        AntiCacheBlock* readBlock(uint16_t blockId, bool blockMerge);
 
         void shutdownDB();
 
