@@ -188,7 +188,11 @@ public class TableStatistics extends AbstractStatistics<Table> {
 
             if (CatalogUtil.getReferencedTables(catalog_stmt).contains(catalog_tbl)) {
                 // Query Type Counts
-                this.query_type_count.put(query_type, this.query_type_count.get(query_type) + 1);
+                Long cnt = this.query_type_count.get(query_type);
+                if (cnt == null) {
+                    cnt = 0l;
+                }
+                this.query_type_count.put(query_type, cnt + 1);
 
                 // Read-only
                 if (query_type == QueryType.INSERT || query_type == QueryType.UPDATE || query_type == QueryType.DELETE) {

@@ -202,7 +202,12 @@ public class WorkloadStatistics implements JSONSerializable {
                     for (Table catalog_tbl : CatalogUtil.getReferencedTables(catalog_proc)) {
                         String table_key = CatalogKey.createKey(catalog_tbl);
                         synchronized (catalog_tbl) {
-                            WorkloadStatistics.this.table_stats.get(table_key).process(catalog_db, xact);
+                            TableStatistics tableStats = WorkloadStatistics.this.table_stats.get(table_key);
+                            if (tableStats == null) {
+                                tableStats = new TableStatistics(table_key);
+                                WorkloadStatistics.this.table_stats.put(table_key, tableStats);
+                            }
+                            tableStats.process(catalog_db, xact);
                         } // SYNCHRONIZED
                     } // FOR
                 } catch (Exception ex) {
