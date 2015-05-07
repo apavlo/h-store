@@ -1165,7 +1165,7 @@ Table* AntiCacheEvictionManager::evictBlockInBatch(PersistentTable *table, Persi
 bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t block_id, int32_t tuple_offset) {
 
     bool already_unevicted = table->isAlreadyUnEvicted(block_id);
-    if (already_unevicted) { // this block has already been read
+    if (already_unevicted && table->mergeStrategy()) { // this block has already been read
         VOLT_WARN("Block 0x%x has already been read.", block_id);
         return true;
     }
