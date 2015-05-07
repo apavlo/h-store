@@ -234,7 +234,7 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     int32_t newBlockId = (int32_t) acem->migrateBlock(blockId, berkeleydb);
     int16_t _new_block_id = (int16_t) (newBlockId & 0x0000FFFF);
     VOLT_INFO("blockId: %x newBlockId: %x _new_block_id: %x", blockId, newBlockId, _new_block_id);
-    AntiCacheBlock* berkeleyblock = berkeleydb->readBlock(_new_block_id);
+    AntiCacheBlock* berkeleyblock = berkeleydb->readBlock(_new_block_id, true);
     VOLT_INFO("tableName: %s berkeleyblock name: %s", tableName.c_str(), berkeleyblock->getTableName().c_str());
     
     //ASSERT_EQ(blockId, nvmblock->getBlockId());
@@ -272,7 +272,7 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     
     _new_block_id = (int16_t) (newBlockId & 0x0000FFFF);
 
-    berkeleyblock = berkeleydb->readBlock(_new_block_id);
+    berkeleyblock = berkeleydb->readBlock(_new_block_id, true);
     VOLT_INFO("tableName: %s berkeleyblock name: %s\n", tableName.c_str(), berkeleyblock->getTableName().c_str());
     
     //ASSERT_EQ(blockId, nvmblock->getBlockId());
