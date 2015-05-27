@@ -81,8 +81,7 @@ AntiCacheBlock* AntiCacheDB::getLRUBlock() {
         throw UnknownBlockAccessException(0);
     } else {
         lru_block_id = m_block_lru.front();
-        // MJG: This is now BROKEN for tuple merge
-        lru_block = readBlock(lru_block_id, true);
+        lru_block = readBlock(lru_block_id);
         m_totalBlocks--;
         return lru_block;
     }

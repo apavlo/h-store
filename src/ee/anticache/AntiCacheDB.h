@@ -114,7 +114,7 @@ class AntiCacheDB {
         /**
          * Read a block and return its contents
          */
-        virtual AntiCacheBlock* readBlock(uint16_t blockId, bool blockMerge) = 0;
+        virtual AntiCacheBlock* readBlock(uint16_t blockId) = 0;
 
 
         /**
