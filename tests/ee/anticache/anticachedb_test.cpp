@@ -137,7 +137,7 @@ TEST_F(AntiCacheDBTest, BerkeleyReadBlock) {
 						 const_cast<char*>(payload.data()),
 						 static_cast<int>(payload.size())+1);
 
-	AntiCacheBlock* block = anticache->readBlock(blockId, true);
+	AntiCacheBlock* block = anticache->readBlock(blockId);
 
 	ASSERT_EQ(block->getTableName(), tableName);
 	ASSERT_EQ(block->getBlockId(), blockId);
@@ -167,7 +167,7 @@ TEST_F(AntiCacheDBTest, NVMReadBlock) {
 						 const_cast<char*>(payload.data()),
 						 static_cast<int>(payload.size())+1);
 
-	AntiCacheBlock* block = anticache->readBlock(blockId, true);
+	AntiCacheBlock* block = anticache->readBlock(blockId);
 
 	ASSERT_EQ(block->getTableName(), tableName);
     VOLT_WARN("payload: %s block->getData(): %s\n", payload.c_str(), block->getData());
@@ -203,7 +203,7 @@ TEST_F(AntiCacheDBTest, BerkeleyCheckCapacity) {
     ASSERT_EQ(anticache->getBlocksEvicted(), 1);
     ASSERT_EQ(anticache->getBytesEvicted(), static_cast<int32_t>(payload.size()+1));
     
-    AntiCacheBlock* block = anticache->readBlock(blockId, true);
+    AntiCacheBlock* block = anticache->readBlock(blockId);
     
     ASSERT_EQ(anticache->getNumBlocks(), 0);
     ASSERT_EQ(anticache->getFreeBlocks(), 10);
@@ -247,7 +247,7 @@ TEST_F(AntiCacheDBTest, NVMCheckCapacity) {
     ASSERT_EQ(anticache->getBlocksEvicted(), 1);
     ASSERT_EQ(anticache->getBytesEvicted(), static_cast<int32_t>(tableName.size() + 1 + payload.size()+1));
     
-    AntiCacheBlock* block = anticache->readBlock(blockId, true);
+    AntiCacheBlock* block = anticache->readBlock(blockId);
     
     ASSERT_EQ(anticache->getNumBlocks(), 0);
     ASSERT_EQ(anticache->getFreeBlocks(), 10);
