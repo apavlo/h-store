@@ -813,6 +813,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 
                // Initialize Anti-Cache
                 if (hstore_conf.site.anticache_enable) {
+                    boolean blockMerge = hstore_conf.site.anticache_block_merge;
                     if (!hstore_conf.site.anticache_enable_multilevel) {
                         File acFile = AntiCacheManager.getDatabaseDir(this, 0);
                         long blockSize = hstore_conf.site.anticache_block_size;
@@ -820,9 +821,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         boolean blocking = hstore_conf.site.anticache_db_blocks;
                         // XXX: MJG: TODO: We've got to get a sane value for maxSize. -1 is no bueno.
                         long dbSize = parseSize(hstore_conf.site.anticache_dbsize);
-                        LOG.info(String.format("Creating AntiCacheDB type: %d blocking: %b blocksize: %d maxsize: %d @ %s (dbtype: %s)", 
-                                  dbType.ordinal(), blocking, blockSize, dbSize, acFile.getAbsolutePath(), hstore_conf.site.anticache_dbtype));
-                        eeTemp.antiCacheInitialize(acFile, dbType, blocking, blockSize, dbSize);
+                        LOG.info(String.format("Creating AntiCacheDB type: %d blocking: %b blockmerge: %b blocksize: %d maxsize: %d @ %s (dbtype: %s)", 
+                                  dbType.ordinal(), blocking, blockMerge, blockSize, dbSize, acFile.getAbsolutePath(), hstore_conf.site.anticache_dbtype));
+                        eeTemp.antiCacheInitialize(acFile, dbType, blocking, blockSize, dbSize, blockMerge);
                     } else {
                     // if we are using multilevel, ignore single config options and parse string
                         String config = hstore_conf.site.anticache_levels;
@@ -844,12 +845,12 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             long maxSize = parseSize(maxstr);
                             
                             File acFile = AntiCacheManager.getDatabaseDir(this, i);
-                            LOG.info(String.format("Creating AntiCacheDB type: %d blocking: %b blocksize: %d maxsize: %d @ %s", 
-                                  dbType.ordinal(), blocking, blockSize, maxSize, acFile.getAbsolutePath()));
+                            LOG.info(String.format("Creating AntiCacheDB type: %d blocking: %b blockMerge: %b blocksize: %d maxsize: %d @ %s", 
+                                  dbType.ordinal(), blocking, blockMerge, blockSize, maxSize, acFile.getAbsolutePath()));
                             if (i == 0) {
-                                eeTemp.antiCacheInitialize(acFile, dbType, blocking, blockSize, maxSize);
+                                eeTemp.antiCacheInitialize(acFile, dbType, blocking, blockSize, maxSize, blockMerge);
                             } else {
-                                eeTemp.antiCacheAddDB(acFile, dbType, blocking, blockSize, maxSize);
+                                eeTemp.antiCacheAddDB(acFile, dbType, blocking, blockSize, maxSize, blockMerge);
                         
                             }
                         }

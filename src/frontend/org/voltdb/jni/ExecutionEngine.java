@@ -798,9 +798,10 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param blocking
      * @param blockSize TODO
      * @param maxSize
+     * @param blockMerge
      * @throws EEException
      */
-    public abstract void antiCacheInitialize(File dbDir, AntiCacheDBType dbType, boolean blocking, long blockSize, long maxSize) throws EEException;
+    public abstract void antiCacheInitialize(File dbDir, AntiCacheDBType dbType, boolean blocking, long blockSize, long maxSize, boolean blockMerge) throws EEException;
 
     /**
      * Initialize additional levels of anticaching DBs.
@@ -810,9 +811,10 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param blocking
      * @param blockSize
      * @param maxSize 
+     * @param blockMerge
      * @throws EEException
      */
-    public abstract void antiCacheAddDB(File dbDir, AntiCacheDBType dbType, boolean blocking, long blockSize, long maxSize) throws EEException;
+    public abstract void antiCacheAddDB(File dbDir, AntiCacheDBType dbType, boolean blocking, long blockSize, long maxSize, boolean blockMerge) throws EEException;
     
     /**
      * 
@@ -858,9 +860,10 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param dbType
      * @param blocking
      * @param maxSize
+     * @param blockMerge
      * @return
      */
-    protected native int nativeAntiCacheInitialize(long pointer, String dbDir, long blockSize, int dbtype, boolean blocking, long maxSize);
+    protected native int nativeAntiCacheInitialize(long pointer, String dbDir, long blockSize, int dbtype, boolean blocking, long maxSize, boolean blockMerge);
 
     /** 
      * Adds new additional AntiCacheDB instances for multilevel anticaching. The database
@@ -872,9 +875,10 @@ public abstract class ExecutionEngine implements FastDeserializer.Deserializatio
      * @param dbType
      * @param blocking
      * @param maxSize
+     * @param blockMerge
      * @return
      */
-    protected native int nativeAntiCacheAddDB(long pointer, String dbDir, long blockSize, int dbtype, boolean blocking, long maxSize);
+    protected native int nativeAntiCacheAddDB(long pointer, String dbDir, long blockSize, int dbtype, boolean blocking, long maxSize, boolean blockMerge);
     
      /**
      * 

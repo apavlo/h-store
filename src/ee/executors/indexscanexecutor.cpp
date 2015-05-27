@@ -542,7 +542,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
             // There is nothing else we can do with it (i.e., check expressions).
             // I don't know why this wasn't here in the first place?
 
-            // MJG: 2014-02-20
+            // MJG: 2015-02-20
             // If we can merge now, let's merge
             // TODO: possibly an alternate codepath that simply looks through all the tuples
             // for evicted tuples and then see if we have any non-blockable accesses
@@ -568,6 +568,10 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
             end_expression->eval(&m_tuple, NULL).isFalse()) {
             VOLT_DEBUG("End Expression evaluated to false, stopping scan");
             break;
+        }
+        
+        if (blockingMergeSuccessful) {
+            VOLT_DEBUG("tuple merged and End Expression evaluated to true, continuing scan");
         }
         //
         // Then apply our post-predicate to do further filtering

@@ -1453,7 +1453,8 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         jlong blockSize,
         jint dbType,
         jboolean blocking,
-        jlong maxSize
+        jlong maxSize,
+        jboolean blockMerge
         ) {
     
     VOLT_DEBUG("nativeAntiCacheInitialize() start");
@@ -1467,7 +1468,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         std::string dbDirString(dbDirChars);
         env->ReleaseStringUTFChars(dbDir, dbDirChars);
         
-        engine->antiCacheInitialize(dbDirString, static_cast<AntiCacheDBType>(dbType), blocking, static_cast<int64_t>(blockSize),static_cast<int64_t>(maxSize));
+        engine->antiCacheInitialize(dbDirString, static_cast<AntiCacheDBType>(dbType), blocking, static_cast<int64_t>(blockSize),static_cast<int64_t>(maxSize), blockMerge);
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }
@@ -1482,7 +1483,9 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         jlong blockSize,
         jint dbType,
         jboolean blocking,
-        jlong maxSize) {
+        jlong maxSize,
+        jboolean blockMerge
+        ) {
     VOLT_DEBUG("nativeAntiCacheAddDB() start");
     VoltDBEngine *engine = castToEngine(engine_ptr);
     Topend *topend = static_cast<JNITopend*>(engine->getTopend())->updateJNIEnv(env);
@@ -1493,7 +1496,7 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
         const char *dbDirChars = env->GetStringUTFChars(dbDir, NULL);
         std::string dbDirString(dbDirChars);
         env->ReleaseStringUTFChars(dbDir, dbDirChars);
-        engine->antiCacheAddDB(dbDirString, static_cast<AntiCacheDBType>(dbType), blocking, static_cast<int64_t>(blockSize), static_cast<int64_t>(maxSize));
+        engine->antiCacheAddDB(dbDirString, static_cast<AntiCacheDBType>(dbType), blocking, static_cast<int64_t>(blockSize), static_cast<int64_t>(maxSize), blockMerge);
     } catch (FatalException e) {
         topend->crashVoltDB(e);
     }

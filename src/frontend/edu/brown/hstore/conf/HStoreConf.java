@@ -763,6 +763,13 @@ public final class HStoreConf {
         public boolean anticache_db_blocks;
        
         @ConfigProperty(
+                description="Merge entire block when unevicting. False merges just a single tuple",
+                defaultBoolean=true,
+                experimental=true
+        )
+        public boolean anticache_block_merge;
+
+        @ConfigProperty(
             description="Enable the anti-cache timestamps feature. This requires that the system " +
             		    "is compiled with ${site.anticache_enable} set to true.",
             defaultBoolean=true,

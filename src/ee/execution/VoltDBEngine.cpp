@@ -1972,16 +1972,16 @@ int VoltDBEngine::trackingTupleSet(int64_t txnId, bool writes) {
 // -------------------------------------------------
 
 #ifdef ANTICACHE
-void VoltDBEngine::antiCacheInitialize(std::string dbDir, AntiCacheDBType dbType, bool blocking, long blockSize, long maxSize) const {
-    VOLT_INFO("Enabling type %d (blocking: %d) Anti-Cache at Partition %d: dir=%s / blockSize=%ld max=%ld", 
-            (int)dbType, (int)blocking, m_partitionId, dbDir.c_str(), blockSize, maxSize);
-    m_executorContext->enableAntiCache(this, dbDir, blockSize, dbType, blocking,  maxSize);
+void VoltDBEngine::antiCacheInitialize(std::string dbDir, AntiCacheDBType dbType, bool blocking, long blockSize, long maxSize, bool blockMerge) const {
+    VOLT_INFO("Enabling type %d (blocking: %d/blockMerge: %d) Anti-Cache at Partition %d: dir=%s / blockSize=%ld max=%ld", 
+            (int)dbType, (int)blocking, (int)blockMerge, m_partitionId, dbDir.c_str(), blockSize, maxSize);
+    m_executorContext->enableAntiCache(this, dbDir, blockSize, dbType, blocking, maxSize, blockMerge);
 }
 
-void VoltDBEngine::antiCacheAddDB(std::string dbDir, AntiCacheDBType dbType, bool blocking, long blockSize, long maxSize) const {
-    VOLT_INFO("Adding type %d (blocking: %d) Anti-Cache at Partition %d: dir=%s / blockSize=%ld max=%ld", 
-            (int)dbType, (int)blocking, m_partitionId, dbDir.c_str(), blockSize, maxSize);
-    m_executorContext->addAntiCacheDB(dbDir, blockSize, dbType, blocking, maxSize);
+void VoltDBEngine::antiCacheAddDB(std::string dbDir, AntiCacheDBType dbType, bool blocking, long blockSize, long maxSize, bool blockMerge) const {
+    VOLT_INFO("Adding type %d (blocking: %d/blockMerge: %d) Anti-Cache at Partition %d: dir=%s / blockSize=%ld max=%ld", 
+            (int)dbType, (int)blocking, (int)blockMerge, m_partitionId, dbDir.c_str(), blockSize, maxSize);
+    m_executorContext->addAntiCacheDB(dbDir, blockSize, dbType, blocking, maxSize, blockMerge);
 }
 
 int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t blockIds[], int32_t tupleOffsets[]) {
