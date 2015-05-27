@@ -186,6 +186,7 @@ TEST_F(AntiCacheDBTest, BerkeleyCheckCapacity) {
     ChTempDir tempdir;
 
     AntiCacheDB* anticache = new BerkeleyAntiCacheDB(NULL, ".", BLOCK_SIZE, BLOCK_SIZE*10);
+    anticache->setBlockMerge(true);
     string tableName("FAKE");
     string payload("Test Capacity");
     uint16_t blockId = anticache->nextBlockId();
@@ -230,6 +231,7 @@ TEST_F(AntiCacheDBTest, NVMCheckCapacity) {
     ChTempDir tempdir;
 
     AntiCacheDB* anticache = new NVMAntiCacheDB(NULL, ".", BLOCK_SIZE, BLOCK_SIZE*10);
+    anticache->setBlockMerge(true);
     string tableName("FAKE");
     string payload("Test Capacity");
     uint16_t blockId = anticache->nextBlockId();

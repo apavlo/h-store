@@ -208,6 +208,8 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     AntiCacheEvictionManager* acem = new AntiCacheEvictionManager(m_engine);
     AntiCacheDB* nvmdb = new NVMAntiCacheDB(ctx, temp, BLOCK_SIZE, MAX_SIZE);
     AntiCacheDB* berkeleydb = new BerkeleyAntiCacheDB(ctx, temp, BLOCK_SIZE, MAX_SIZE);
+    nvmdb->setBlockMerge(true);
+    berkeleydb->setBlockMerge(true);
 
     int16_t nvm_acid = acem->addAntiCacheDB(nvmdb);
     int16_t berkeley_acid = acem->addAntiCacheDB(berkeleydb);
@@ -303,6 +305,8 @@ TEST_F(AntiCacheEvictionManagerTest, FullBackingStore) {
     AntiCacheEvictionManager* acem = new AntiCacheEvictionManager(m_engine);
     AntiCacheDB* nvmdb = new NVMAntiCacheDB(ctx, temp, BLOCK_SIZE, 2 * BLOCK_SIZE - 1);
     AntiCacheDB* berkeleydb = new BerkeleyAntiCacheDB(ctx, temp, BLOCK_SIZE, MAX_SIZE);
+    nvmdb->setBlockMerge(true);
+    berkeleydb->setBlockMerge(true);
     AntiCacheDB* acdb;
 
 
