@@ -522,9 +522,11 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     {
         m_targetTable->updateTupleAccessCount();
         
+        VOLT_DEBUG("m_index debug before merge: %s", m_index->debug().c_str());
         // Read/Write Set Tracking
         if (tracker != NULL) {
             tracker->markTupleRead(m_targetTable, &m_tuple);
+            VOLT_TRACE("Tuple marked as read.");
         }
         
         #ifdef ANTICACHE
@@ -556,10 +558,17 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         
         // MJG TEST: If we merged, maybe we need to grab the tuple again. Let's try
         if (blockingMergeSuccessful) {
-            m_index->moveToKey(&m_searchKey);
-            m_tuple = m_index->nextValueAtKey();
+            VOLT_TRACE("grabbing tuple again");
+            m_index->moveToKeyOrGreater(&m_searchKey);
+            VOLT_DEBUG("m_index debug after merge: %s", m_index->debug().c_str());
+            m_tuple = m_index->nextValue();
+            if (m_tuple.isNullTuple()) {
+                VOLT_INFO("We've got a null tuple for some reason");
+            }
+            VOLT_TRACE("Merged Tuple: %s", m_tuple.debug(m_targetTable->name()).c_str());
         }
 
+        VOLT_TRACE("Merged Tuple: %s", m_tuple.debug(m_targetTable->name()).c_str());
         #endif        
         //
         // First check whether the end_expression is now false

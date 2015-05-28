@@ -404,9 +404,11 @@ int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int m
     nextFreeTuple(&m_tmpTarget1);
     m_tupleCount++;
 
-    // deserialize tuple from unevicted block
-    int64_t bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
-
+    int64_t bytesUnevicted = 0;
+    for (int i = 0; i < merge_tuple_offset + 1; i++) { 
+        // deserialize tuple from unevicted block
+        bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
+    }
 
     // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
     // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version
