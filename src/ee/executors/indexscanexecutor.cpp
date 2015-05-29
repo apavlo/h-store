@@ -559,8 +559,17 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         // INDEX_LOOKUP_TYPE. For now it works with != EQ
         if (blockingMergeSuccessful) {
             VOLT_TRACE("grabbing tuple again");
-            m_index->moveToKeyOrGreater(&m_searchKey);
-            m_tuple = m_index->nextValue();
+            if (m_lookupType == INDEX_LOOKUP_TYPE_EQ) {
+                m_index->moveToKey(&m_searchKey);
+                m_tuple = m_index->nextValueAtKey();
+            } else {
+                if (m_lookupType == INDEX_LOOKUP_TYPE_GT) 
+                    m_index->moveToGreaterThanKey(&m_searchKey);
+                else 
+                    m_index->moveToKeyOrGreater(&m_searchKey);
+                m_tuple = m_index->nextValue();
+            }
+                
             if (m_tuple.isNullTuple()) {
                 VOLT_INFO("We've got a null tuple for some reason");
             }
