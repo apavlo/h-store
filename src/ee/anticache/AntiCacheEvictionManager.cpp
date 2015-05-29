@@ -1578,7 +1578,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
                         continue;
                 }
 
-                bytes_unevicted += tableInBlock->unevictTuple(&in, j, merge_tuple_offset);
+                bytes_unevicted += tableInBlock->unevictTuple(&in, j, merge_tuple_offset, (bool)table->mergeStrategy());
                 /*                // get a free tuple and increment the count of tuples current used
                                   voltdb::TableTuple * m_tmpTarget1 = tableInBlock->getTempTarget1();
                                   tableInBlock->nextFreeTuple(m_tmpTarget1);

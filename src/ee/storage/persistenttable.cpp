@@ -398,15 +398,24 @@ void PersistentTable::clearMergeTupleOffsets()
     m_mergeTupleOffset.clear();
 }
 
-int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset){
+int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset, bool blockMerge){
     TableTuple evicted_tuple = m_evictedTable->tempTuple();
     // get a free tuple and increment the count of tuples current used
     nextFreeTuple(&m_tmpTarget1);
     m_tupleCount++;
 
     int64_t bytesUnevicted = 0;
-    for (int i = 0; i < merge_tuple_offset + 1; i++) { 
-        // deserialize tuple from unevicted block
+    
+    // This only works if we either merge a single tuple or an entire block. If,
+    // in the future, we would like to merge more than one tuple but less than
+    // an entire block, this will need to be changed because it destroys the buffer
+    // for the single tuple.
+    if (!blockMerge) {
+        for (int i = 0; i < merge_tuple_offset + 1; i++) { 
+            // deserialize tuple from unevicted block
+            bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
+        }
+    } else {
         bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
     }
 

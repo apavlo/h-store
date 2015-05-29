@@ -307,7 +307,7 @@ class PersistentTable : public Table {
     bool isBatchEvicted();
     void clearUnevictedBlocks();
     void clearMergeTupleOffsets();
-    int64_t unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset);
+    int64_t unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset, bool blockMerge);
 void clearUnevictedBlocks(int i);
     char* getUnevictedBlocks(int i);
     int unevictedBlocksSize();
