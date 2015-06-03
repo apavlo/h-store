@@ -16,15 +16,15 @@ ENABLE_ANTICACHE=true
 #SITE_HOST="dev3.db.pdl.cmu.local"
 SITE_HOST="localhost"
 
-#CLIENT_HOSTS=( "localhost")
+CLIENT_HOSTS=( "localhost")
 
-CLIENT_HOSTS=( \
-        "localhost" \
-        "localhost" \
-        "localhost" \
-        "localhost" \
-        )
-N_HOSTS=4
+#CLIENT_HOSTS=( \
+#        "localhost" \
+#        "localhost" \
+#        "localhost" \
+#        "localhost" \
+#        )
+N_HOSTS=1
 BASE_CLIENT_THREADS=1
 CLIENT_THREADS_PER_HOST=4
 #BASE_SITE_MEMORY=8192
@@ -42,23 +42,29 @@ BLOCK_SIZE_KB=256
 DURATION_S=300
 WARMUP_S=0
 INTERVAL_S=10
-PARTITIONS=8
+PARTITIONS=1
 
-for BLK_CON in 1 10 50; do
-for BLOCK_SIZE in 128 256; do
+for BLK_CON in 10 50; do
+for BLOCK_SIZE in 256; do
 for BLOCKING in 'true' 'false'; do
-    for DB in 'NVM' 'BERKELEY'; do
-        for skew in 0.8 1.01 1.1 1.25; do
-            for round in 1 ; do
+for BLOCK_MERGE in 'true'; do
+    for DB in 'NVM' ; do
+        for skew in 0.8 1.01 1.25; do
+            for round in 1 2 3 4 5; do
                 if [ "$BLOCKING" = "true" ]; then
-                    block='blocking'
+                    block='ar'
                 else
-                    block='nonblocking'
+                    block='sync'
+                fi
+                if [ "$BLOCK_MERGE" = "true" ]; then
+                    block_merge='block'
+                else
+                    block_merge='tuple'
                 fi
                 BLOCK_SIZE_KB=$BLOCK_SIZE
                 BLK_EVICT=$((51200 / $BLOCK_SIZE_KB))
-                OUTPUT_PREFIX="$OUTPUT_DIR/ycsb-bugfinder/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-tuplemerge"
-                LOG_PREFIX="/home/michaelg/h-store/logs/test/ycsb-bugfinder/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-tuplemerge"
+                OUTPUT_PREFIX="$OUTPUT_DIR/ycsb-bugfinder/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}"
+                LOG_PREFIX="/home/michaelg/h-store/logs/test/ycsb-bugfinder/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}"
                 echo "log = $LOG_PREFIX"
                 echo $OUTPUT_PREFIX
                 sed -i '$ d' "properties/benchmarks/ycsb.properties"
@@ -135,6 +141,7 @@ for BLOCKING in 'true' 'false'; do
                         "-Dsite.anticache_max_evicted_blocks=1000000" \
                         "-Dsite.anticache_dbsize=1540M" \
                         "-Dsite.anticache_db_blocks=$BLOCKING" \
+                        "-Dsite.anticache_block_merge=$BLOCK_MERGE" \
                         "-Dsite.anticache_dbtype=$DB" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
                         "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
@@ -237,6 +244,7 @@ for BLOCKING in 'true' 'false'; do
             done
         done
     done
+done
 done
 done #BLOCK_SIZE
 done #BLK_CON
