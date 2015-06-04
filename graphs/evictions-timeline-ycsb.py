@@ -407,15 +407,15 @@ if __name__ == '__main__':
         
         data["run_head"] = ["run", "benchmark", "blocking", "backing", "skew", "partitions", "blocking_clients",
                             "client_hosts", "client_threads", "scaling_factor", "block_size", "blocks_evicted",
-                            "threshold_mb", "runtime","extra"]
+                            "threshold_mb", "runtime","merge"]
         data["run_info"] = benchmark.split('-')
                
         i = 0 
         for s in data["run_info"]:
             if i < 4:
                 if i == 2:
-                    if s == "blocking":
-                        data["run_info"][i] = "blocking merge"
+                    if s == "sync":
+                        data["run_info"][i] = "sync merge"
                     else:
                         data["run_info"][i] = "abort reissue"
                 i += 1
