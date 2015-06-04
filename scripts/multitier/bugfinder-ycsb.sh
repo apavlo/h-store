@@ -39,22 +39,22 @@ BLK_EVICT=200
 AC_THRESH=200
 SCALE=4
 BLOCK_SIZE_KB=256
-DURATION_S=300
+DURATION_S=600
 WARMUP_S=0
 INTERVAL_S=10
 PARTITIONS=1
 
-for BLK_CON in 10 50; do
+for BLK_CON in 1 10 50; do
 for BLOCK_SIZE in 256; do
 for BLOCKING in 'true' 'false'; do
-for BLOCK_MERGE in 'true'; do
+for BLOCK_MERGE in 'false'; do
     for DB in 'NVM' ; do
         for skew in 0.8 1.01 1.25; do
-            for round in 1 2 3 4 5; do
+            for round in 1; do
                 if [ "$BLOCKING" = "true" ]; then
-                    block='ar'
-                else
                     block='sync'
+                else
+                    block='abrt'
                 fi
                 if [ "$BLOCK_MERGE" = "true" ]; then
                     block_merge='block'
