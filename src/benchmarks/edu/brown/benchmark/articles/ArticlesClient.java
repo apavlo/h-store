@@ -15,6 +15,7 @@ import edu.brown.logging.LoggerUtil.LoggerBoolean;
 import edu.brown.rand.RandomDistribution.FlatHistogram;
 import edu.brown.rand.RandomDistribution.Zipf;
 import edu.brown.statistics.Histogram;
+import edu.brown.rand.RandomDistribution.PowerLaw;
 import edu.brown.statistics.ObjectHistogram;
 
 public class ArticlesClient extends BenchmarkComponent {
@@ -48,8 +49,8 @@ public class ArticlesClient extends BenchmarkComponent {
     int run_count = 0;
     private FlatHistogram<Transaction> txnWeights;
     private final Random rand_gen;
-    private Zipf readRecord;
-    private Zipf userRecord;
+    private final PowerLaw readRecord;
+    private final PowerLaw userRecord;
     
     public ArticlesClient(String[] args) {
         super(args);
@@ -65,8 +66,8 @@ public class ArticlesClient extends BenchmarkComponent {
         long articlesSize = Math.round(ArticlesConstants.ARTICLES_SIZE * this.getScaleFactor());
         long usersSize = Math.round(ArticlesConstants.USERS_SIZE * this.getScaleFactor());
 
-        this.readRecord = new Zipf(this.rand_gen, 0, articlesSize, 1.0001);
-        this.userRecord = new Zipf(this.rand_gen, 0, usersSize, 1.0001);
+        this.readRecord = new PowerLaw(this.rand_gen, 0, articlesSize, -0.3);
+        this.userRecord = new PowerLaw(this.rand_gen, 0, usersSize, -0.3);
 
         this.txnWeights = new FlatHistogram<Transaction>(this.rand_gen, txns);
     }

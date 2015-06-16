@@ -535,5 +535,51 @@ public class RandomDistribution {
             }
             return idx + min;
         }
+    } 
+    /**
+     *       
+     * Power Law distribution.
+     *       
+     * k = 1 + alpha
+     * x = [(max^k - min^k) * y - min^k]^(1/k)
+     * where y ~ uniform(0, 1)
+     */
+
+    public static class PowerLaw extends DiscreteRNG {
+        private static final long serialVersionUID = 1L;
+        private final double alpha_;
+
+        /**
+         * Constructor.
+         * 
+         * @param r
+         *            The random number generator.
+         * @param min
+         *            minimum integer (inclusvie)
+         * @param max
+         *            maximum integer (exclusive)
+         * @param alpha
+         *            parameter alpha. (alpha < 0)
+         */
+        public PowerLaw(Random r, long min_x, long max_x, double alpha) {
+            super(r, min_x, max_x);
+            if ((max <= min) || (alpha >= 0)) {
+                throw new IllegalArgumentException("Invalid arguments [min=" + min + ", max=" + max + ", alpha=" + alpha + "]");
+            }
+            alpha_ = alpha;
+        }
+
+        /**
+         * @see DiscreteRNG#nextInt()
+         */
+        @Override
+        protected long nextLongImpl() {
+            double y = random.nextDouble();
+            long x = 1;
+            double k = 1 + alpha_;
+
+            x = Math.round(Math.pow((Math.pow(max, k) - Math.pow(min, k)) * y + Math.pow(min, k), 1/k));
+            return x;
+        }
     }
 }
