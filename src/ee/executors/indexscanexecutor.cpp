@@ -520,6 +520,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
            ((m_lookupType != INDEX_LOOKUP_TYPE_EQ || m_numOfSearchkeys == 0) &&
             !(m_tuple = m_index->nextValue()).isNullTuple()))
     {
+        blockingMergeSuccessful = false;
         m_targetTable->updateTupleAccessCount();
         
         // Read/Write Set Tracking
