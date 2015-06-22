@@ -14,12 +14,17 @@ import csv
 import glob
 import re
 import logging
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plot
 import pylab
 import numpy as np
+import math
+import string
 from matplotlib.font_manager import FontProperties
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import MaxNLocator, MultipleLocator
 from pprint import pprint,pformat
+
 
 from options import *
 import graphutil
@@ -49,7 +54,16 @@ OPT_GRAPH_HEIGHT = 450
 ## ==============================================
 def createThroughputGraph(benchmark, data):
     y_max = max(data["y_values"])
+
+    tmp = y_max
+    order = 1
+
+    while tmp > 10: 
+        order = order * 10
+        tmp = tmp / 10;
     
+    y_max_range = math.ceil(tmp) * order
+        
     # INIT
     fig = plot.figure()
     ax1 = fig.add_subplot(111)
@@ -79,14 +93,14 @@ def createThroughputGraph(benchmark, data):
     
     # Evictions
     if len(data["evictions"]) > 0:
-        addEvictionLines(ax1, data["evictions"], 80000)
+        addEvictionLines(ax1, data["evictions"], y_max_range)
         LOG.info("Adding eviction lines.")
     else:
         LOG.warn("Missing eviction history for '%s'" % benchmark)
     
     # GRID
     axes = ax1.get_axes()
-    axes.set_ylim(0, 80000)
+    axes.set_ylim(0, y_max_range)
     axes.yaxis.grid(True, linestyle='-', which='major', color='0.85') # color='lightgrey', alpha=0.5)
     axes.set_axisbelow(True)
     graphutil.makeGrid(ax1)
@@ -101,7 +115,7 @@ def createThroughputGraph(benchmark, data):
     
     # X-AXIS
     ax1.set_xlabel(OPT_X_LABEL_TIME, name=OPT_FONT_NAME, size=OPT_XLABEL_FONT_SIZE, weight='bold')
-#    ax1.set_xlim(0, 130)
+    ax1.set_xlim(0, 600000)
     ax1.xaxis.set_major_locator(MaxNLocator(6))
     xLabels = map(lambda x: "%d" % (x / 1000), ax1.get_xticks())
     ax1.set_xticklabels(xLabels)
@@ -153,14 +167,16 @@ def createMemoryGraph(benchmark, data):
     
     # GRID
     axes = ax1.get_axes()
-    axes.set_ylim(0, 2000)
+    axes.set_ylim(0, 1250)
     axes.yaxis.grid(True, linestyle='-', which='major', color='0.85') # color='lightgrey', alpha=0.5)
     axes.set_axisbelow(True)
     graphutil.makeGrid(ax1)
     
     # Y-AXIS
     ax1.set_ylabel("Memory (MB)", name=OPT_FONT_NAME, size=OPT_YLABEL_FONT_SIZE)
-    ax1.yaxis.set_major_locator(MaxNLocator(5))
+    yLabels = map(lambda y: "%d" % (y / 1000), ax1.get_yticks())
+    #ax1.set_yticklabels(yLabels)
+    ax1.yaxis.set_major_locator(MultipleLocator(250))
     ax1.minorticks_on()
     for tick in ax1.yaxis.get_major_ticks():
         tick.label.set_fontsize(OPT_YTICKS_FONT_SIZE)
@@ -204,6 +220,151 @@ def addEvictionLines(ax, evictions, height):
         )
     ## FOR
 ## DEF
+        
+## ==============================================
+## BOTH PLOTS IN ONE
+## ==============================================
+
+def plotMemoryAndThroughput(benchmark, data):
+    x_max = max(data["x_values"])
+    y_max = max(data["y_values"])
+
+    tmp = y_max
+    order = 1
+
+    while tmp > 10: 
+        order = order * 10
+        tmp = tmp / 10;
+    
+    y_max_range = math.ceil(tmp) * order
+    
+    x = map(lambda x: x[0], data["memory"])
+    inMemory = map(lambda x: x[1], data["memory"]) # In-Memory Data
+    anticache = map(lambda x: x[2], data["memory"]) # Anti-Cache Data
+    y = np.row_stack((inMemory, anticache))   
+    
+    # this call to 'cumsum' (cumulative sum), passing in your y data, 
+    # is necessary to avoid having to manually order the datasets
+    y_stack = np.cumsum(y, axis=0)
+
+
+    fig = plot.figure()
+    fig.set_figheight(10)
+    ax1=fig.add_subplot(2,1,1)
+   
+  #  f, axarr = plot.subplots(2, sharex=True)
+   
+
+    ax1.fill_between(x, 0, y_stack[0,:],
+                     color=OPT_COLORS[0],
+                     alpha=0.5,
+                     label="XXX",
+    )
+    ax1.fill_between(x, y_stack[0,:], y_stack[1,:],
+                     color=OPT_COLORS[1],
+                     alpha=0.5,
+                     label="YYY",
+    )
+    ax1.plot(x, map(lambda x: sum(x[1:]), data["memory"]),
+             color=OPT_COLORS[1],
+             linewidth=3,
+             label="Anti-Cache Data"
+    )
+    ax1.plot(x, inMemory,
+             color=OPT_COLORS[0],
+             linewidth=3,
+             label="In-Memory Data",
+    )
+    
+    # GRID
+    axes = ax1.get_axes()
+    axes.set_ylim(0, 750)
+    axes.yaxis.grid(True, linestyle='-', which='major', color='0.85') # color='lightgrey', alpha=0.5)
+    axes.set_axisbelow(True)
+    graphutil.makeGrid(ax1)
+
+    head = data["run_head"]
+    info = data["run_info"]
+    # generate title string
+    # blocking 2, backing 3, skew 4, clients 6, blocksize 10
+    title_str="%s %s %s: %s %s: %s %s: %skb" % (info[2], info[3], head[4], info[4], head[6], info[6], head[10], info[10])
+    
+    # Y-AXIS
+    ax1.set_title(title_str)
+    ax1.set_ylabel("Memory (MB)", name=OPT_FONT_NAME, size=OPT_YLABEL_FONT_SIZE)
+    yLabels = map(lambda y: "%d" % (y / 1000), ax1.get_yticks())
+    #ax1.set_yticklabels(yLabels)
+    ax1.yaxis.set_major_locator(MultipleLocator(250))
+    ax1.minorticks_on()
+    for tick in ax1.yaxis.get_major_ticks():
+        tick.label.set_fontsize(OPT_YTICKS_FONT_SIZE)
+        tick.label.set_fontname(OPT_FONT_NAME)
+    
+    # X-AXIS
+    #ax1.set_xlabel(OPT_X_LABEL_TIME, name=OPT_FONT_NAME, size=OPT_XLABEL_FONT_SIZE)
+    ax1.xaxis.set_major_locator(MaxNLocator(6))
+    xLabels = map(lambda x: "%d" % (x / 1000), ax1.get_xticks())
+    ax1.set_xticklabels(xLabels)
+    for tick in ax1.xaxis.get_major_ticks():
+        tick.label.set_fontsize(OPT_YTICKS_FONT_SIZE)
+        tick.label.set_fontname(OPT_FONT_NAME)
+
+    # LEGEND
+    fp = FontProperties(family=OPT_FONT_NAME, size=OPT_LEGEND_FONT_SIZE)
+    ax1.legend(loc='upper left', shadow=OPT_LEGEND_SHADOW, prop=fp)
+        
+    # Evictions
+    if len(data["evictions"]) > 0:
+        # addEvictionLines(data["evictions"], y_max)
+        pass
+    else:
+        LOG.warn("Missing eviction history for '%s'" % benchmark)
+
+    ax2 = fig.add_subplot(2,1,2)
+    
+    # Throughout
+    ax2.plot(data["x_values"], data["y_values"],
+                color=OPT_COLORS[0],
+                linewidth=3.5,
+                marker='',
+    ) 
+
+    if len(data["evictions"]) > 0:
+        addEvictionLines(ax1, data["evictions"], y_max_range)
+        #LOG.info("Adding eviction lines.")
+        pass
+    else:
+        LOG.warn("Missing eviction history for '%s'" % benchmark)
+
+    axes = ax2.get_axes()
+    axes.set_ylim(0, y_max_range)
+    axes.yaxis.grid(True, linestyle='-', which='major', color='0.85')
+    axes.set_axisbelow(True)
+    graphutil.makeGrid(ax2)
+    
+    ax2.set_ylabel(OPT_Y_LABEL_THROUGHPUT, name=OPT_FONT_NAME, size=OPT_YLABEL_FONT_SIZE)
+    ax2.yaxis.set_major_locator(MaxNLocator(5))
+    ax2.minorticks_on()
+    for tick in ax2.yaxis.get_major_ticks():
+        tick.label.set_fontsize(OPT_YTICKS_FONT_SIZE)
+        tick.label.set_fontname(OPT_FONT_NAME)
+    
+    # X-AXIS
+    ax2.set_xlabel(OPT_X_LABEL_TIME, name=OPT_FONT_NAME, size=OPT_XLABEL_FONT_SIZE)
+    ax2.set_xlim(0, x_max)
+    ax2.xaxis.set_major_locator(MaxNLocator(6))
+    xLabels = map(lambda x: "%d" % (x / 1000), ax2.get_xticks())
+    ax2.set_xticklabels(xLabels)
+    for tick in ax2.xaxis.get_major_ticks():
+        tick.label.set_fontsize(OPT_YTICKS_FONT_SIZE)
+        tick.label.set_fontname(OPT_FONT_NAME)
+    
+    plot.tight_layout()
+    return fig
+## DEF
+
+ 
+
 
 ## ==============================================
 ## main
@@ -212,8 +373,8 @@ if __name__ == '__main__':
     
     OPT_FONT_NAME = 'DejaVu Sans'
     OPT_LABEL_WEIGHT = 'bold'
-    OPT_MARKER_SIZE = 12.0
-    OPT_DATA_EVICTIONS = "prime/voter-NoLoop"
+    OPT_MARKER_SIZE = 6.0
+    OPT_DATA_EVICTIONS = "/home/user/giardino/data-hstore/voter/voter-nvm"
     
     ## ----------------------------------------------
     ## LOAD DATA
@@ -242,7 +403,31 @@ if __name__ == '__main__':
             "timestamps": [ ],
             "memory":     [ ],
             "evictions":  [ ],
+            "run_head":   [ ],
+            "run_info":   [ ],
         }
+
+        
+        data["run_head"] = ["run", "benchmark", "blocking", "backing", "skew", "partitions", "blocking_clients",
+                            "client_hosts", "client_threads", "scaling_factor", "block_size", "blocks_evicted",
+                            "threshold_mb", "runtime","merge"]
+        data["run_info"] = benchmark.split('-')
+               
+        i = 0 
+        for s in data["run_info"]:
+            if i < 4:
+                if i == 2:
+                    if s == "sync":
+                        data["run_info"][i] = "sync merge"
+                    else:
+                        data["run_info"][i] = "abort reissue"
+                i += 1
+                continue
+            elif i == len(data["run_info"]) - 1:
+                pass
+            else:
+                data["run_info"][i] = s.translate(None, string.ascii_letters)
+                i += 1
         
         ## LOAD THROUGHPUT DATA
         with open(throughputFile, "U") as f:
@@ -341,11 +526,17 @@ if __name__ == '__main__':
     ## GENERATE GRAPHS
     ## ----------------------------------------------
     for benchmark,data in processedData.iteritems():
-        fig = createThroughputGraph(benchmark, data)
-        graphutil.saveGraph(fig, "./prime/voter-NoLoop-output/evictions-throughput-%s.pdf" % benchmark, height=OPT_GRAPH_HEIGHT)
+#        fig1 = createThroughputGraph(benchmark, data)
+#        fig1.savefig("/home/michaelg/data-hstore/plots/ycsb-bugfinder/png/ycsb-throughput-%s-600s.png" % benchmark)
+#        graphutil.saveGraph(fig, "/home/michaelg/data-hstore/plots/ycsb-bugfinder/ycsb-throughput-%s.pdf" % benchmark, height=OPT_GRAPH_HEIGHT)
         
-        fig = createMemoryGraph(benchmark, data)
-        graphutil.saveGraph(fig, "./prime/voter-NoLoop-output/evictions-memory-%s.pdf" % benchmark, height=OPT_GRAPH_HEIGHT)
+#        fig2 = createMemoryGraph(benchmark, data)
+#        fig2.savefig("/home/michaelg/data-hstore/plots/ycsb-bugfinder/png/ycsb-memory-%s-600s.png" % benchmark)
+#        graphutil.saveGraph(fig, "/home/michaelg/data-hstore/plots/ycsb-bugfinder/ycsb-memory-%s.pdf" % benchmark, height=OPT_GRAPH_HEIGHT)
+        fig3 = plotMemoryAndThroughput(benchmark, data)
+        print "making figure for %s" % benchmark
+        fig3.savefig("/home/user/giardino/data-hstore/plots/voter/png/voter-comb-%s.png" % benchmark)
+
     ## FOR
 
 ## MAIN
