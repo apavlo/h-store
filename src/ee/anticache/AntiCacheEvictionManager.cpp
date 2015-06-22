@@ -549,11 +549,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     VOLT_DEBUG("%s Table Schema:\n%s",
               evictedTable->name().c_str(), evictedTable->schema()->debug().c_str());
 
-    // get the AntiCacheDB instance from the executorContext
-    // For now use the single AntiCacheDB from PersistentTable but in the future, this 
-    // method to get the AntiCacheDB will have to choose which AntiCacheDB from to
-    // evict to
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
+    AntiCacheDB* antiCacheDB;
     int tuple_length = -1;
     bool needs_flush = false;
 
@@ -571,6 +567,12 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     for(int i = 0; i < num_blocks; i++)
     {
 
+        // get the AntiCacheDB instance from the executorContext
+        // For now use the single AntiCacheDB from PersistentTable but in the future, this 
+        // method to get the AntiCacheDB will have to choose which AntiCacheDB from to
+        // evict to
+        antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
+    
         // get the LS16B and send that to the antiCacheDB
         uint16_t _block_id = antiCacheDB->nextBlockId();
 
@@ -661,7 +663,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                    table->name().c_str(), num_tuples_evicted);
         
         // Only write out a bock if there are tuples in it
-        if (num_tuples_evicted >= 0) {
+        if (num_tuples_evicted > 0) {
             std::vector<int> numTuples;
             numTuples.push_back(num_tuples_evicted);
             block.writeHeader(numTuples);
@@ -686,6 +688,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             // TODO: make this look like
             // block.flush();
             //  antiCacheDB->writeBlock(block);
+            VOLT_DEBUG("about to write block %x to acid %d", _block_id, antiCacheDB->getACID());
             antiCacheDB->writeBlock(table->name(),
                                     _block_id,
                                     num_tuples_evicted,
@@ -696,7 +699,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
 
             bool reused = table->removeUnevictedBlockID(block_id);
             if (reused) {
-                VOLT_INFO("Reusing block_id 0x%x, should be safe", block_id);
+                VOLT_DEBUG("Reusing block_id 0x%x, should be safe", block_id);
             } else {
                 VOLT_DEBUG("First time block_id 0x%x has been used", block_id);
             }
@@ -781,7 +784,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
  //             evictedTable->name().c_str(), evictedTable->schema()->debug().c_str());
 
     // get the AntiCacheDB instance from the executorContext
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
+    AntiCacheDB* antiCacheDB;
     int tuple_length = -1;
     bool needs_flush = false;
 
@@ -822,6 +825,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
     //    VOLT_INFO("Printing child's LRU chain");
    //     this->printLRUChain(childTable, 4, true);
         // get a unique block id from the executorContext
+        antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
         uint16_t _block_id = antiCacheDB->nextBlockId();
         // find out whether this tier blocks and set a flag (bit 19)
         // then shift 3b for the ACID (8 levels)
@@ -1343,6 +1347,7 @@ int32_t AntiCacheEvictionManager::migrateBlock(int32_t block_id, AntiCacheDB* ds
     int32_t new_block_id = 0;
 
     if (dstDB->getFreeBlocks() == 0) {
+        VOLT_WARN("Our destination is full!");
         throw FullBackingStoreException((uint32_t)block_id, (uint32_t)dstDB->getACID());
     }
     
@@ -1423,7 +1428,7 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
         return (int32_t) _new_block_id;
     }
 
-
+    VOLT_DEBUG("migrating LRU block");
     AntiCacheBlock* block = srcDB->getLRUBlock();
     int16_t _block_id = block->getBlockId();
     int32_t block_id = (int32_t)_block_id;
@@ -1467,7 +1472,7 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
                     VOLT_TRACE("Updating tuple blockid from %8x to %8x", block_id, new_block_id);
                 }
             }
-            VOLT_DEBUG("updated %u migrated tuples [#%8x -> #%8x]", updated, block_id, new_block_id);
+            VOLT_INFO("updated %u migrated tuples [#%8x -> #%8x]", updated, block_id, new_block_id);
         } else {
             VOLT_WARN("No evicted table! If this is an EE test, shouldn't be a problem");
         }

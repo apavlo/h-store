@@ -82,7 +82,7 @@ AntiCacheBlock* AntiCacheDB::getLRUBlock() {
     } else {
         lru_block_id = m_block_lru.front();
         lru_block = readBlock(lru_block_id);
-        m_totalBlocks--;
+        //m_totalBlocks--;
         return lru_block;
     }
 }

@@ -196,6 +196,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
                                 const char* data,
                                 const long size)  {
    
+    VOLT_TRACE("free blocks: %d", getFreeBlocks());
     if (getFreeBlocks() == 0) {
         VOLT_WARN("No free space in ACID %d for blockid %u with blocksize %ld",
                 m_ACID, blockId, size);
@@ -280,14 +281,15 @@ uint16_t NVMAntiCacheDB::getFreeNVMBlockIndex() {
 
     if(m_NVMBlockFreeList.size() > 0) {
         free_index = m_NVMBlockFreeList.back(); 
-        VOLT_INFO("popping %u from list of size: %d", free_index, (int)m_NVMBlockFreeList.size());
+        VOLT_DEBUG("popping %u from list of size: %d", free_index, (int)m_NVMBlockFreeList.size());
         m_NVMBlockFreeList.pop_back(); 
     } else {
         if (m_nextFreeBlock == getMaxBlocks()) {
+            VOLT_WARN("Backing store full m_nextFreeBlock %d == max %d", m_nextFreeBlock, getMaxBlocks());
             throw FullBackingStoreException(0, m_nextFreeBlock);
         } else {
             free_index = m_nextFreeBlock;
-            VOLT_INFO("no reusable blocks (size: %d), using index %u", (int)m_NVMBlockFreeList.size(), free_index);
+            VOLT_DEBUG("no reusable blocks (size: %d), using index %u", (int)m_NVMBlockFreeList.size(), free_index);
             ++m_nextFreeBlock;
         }
     }
@@ -299,7 +301,7 @@ uint16_t NVMAntiCacheDB::getFreeNVMBlockIndex() {
 
 void NVMAntiCacheDB::freeNVMBlock(uint16_t index) {
     m_NVMBlockFreeList.push_back(index); 
-    VOLT_INFO("list size: %d  back: %u", (int)m_NVMBlockFreeList.size(), m_NVMBlockFreeList.back());
+    VOLT_DEBUG("list size: %d  back: %u", (int)m_NVMBlockFreeList.size(), m_NVMBlockFreeList.back());
     //m_blockIndex--; 
 }
 }
