@@ -15,7 +15,7 @@ public abstract class ArticlesConstants {
     // DATA CONFIGURATION
     // ----------------------------------------------------------------
     
-    public static final int ARTICLES_SIZE = 1000000;
+    public static final int ARTICLES_SIZE = 100000;
     public static final int USERS_SIZE = 200;
     
     public static final int BATCH_SIZE = 500;
