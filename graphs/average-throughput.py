@@ -78,7 +78,7 @@ def draw_throughput_graph_all(dict, out_path):
     fig = plot.figure()
     #fig.set_size_inches(8,4.8)
     ax = fig.add_subplot(111)
-    skew = ["S0.8", "S1.01", "S1.1", "S1.2"]
+    skew = ["S0.8", "S1.01", "S1.1", "S1.2", "S4", "S8"]
     res1 = []
     res1_min = []
     res1_max = []
@@ -297,7 +297,7 @@ def draw_throughput_sync_tuple_vs_block(dict, out_path):
     fig = plot.figure()
     #fig.set_size_inches(8,4.8)
     ax = fig.add_subplot(111)
-    skew = ["S0.8", "S1.01", "S1.25"]
+    skew = ["S0.8", "S1.01", "S1.25", "S4", "S8"]
     res1 = []
     res1_min = []
     res1_max = []
@@ -318,27 +318,27 @@ def draw_throughput_sync_tuple_vs_block(dict, out_path):
     res6_max = []
 
     print dict
-    for s in skew:
-        for tp in dict:
-            if tp.find(s + '-') > 0 and tp.find("-1c-") > 0 and tp.find("tuple") > 0 and tp.find("sync") > 0:
-            #if tp.find(s + '-') > 0 and tp.find("aseline") > 0 and tp.find("BERKELEY") > 0:
-                res1.append(np.mean(dict[tp]))
-                mean = np.mean(dict[tp])
-                res1_min.append(mean - np.min(dict[tp]))
-                res1_max.append(np.max(dict[tp]) - mean)
-                print tp
-                print np.mean(dict[tp])
+#    for s in skew:
+#        for tp in dict:
+#            if tp.find(s + '-') > 0 and tp.find("-1c-") > 0 and tp.find("tuple") > 0 and tp.find("sync") > 0:
+#            #if tp.find(s + '-') > 0 and tp.find("aseline") > 0 and tp.find("BERKELEY") > 0:
+#                res1.append(np.mean(dict[tp]))
+#                mean = np.mean(dict[tp])
+#                res1_min.append(mean - np.min(dict[tp]))
+#                res1_max.append(np.max(dict[tp]) - mean)
+#                print tp
+#                print np.mean(dict[tp])
     
-    for s in skew:
-        for tp in dict:
-            #if tp.find(s + '-') > 0 and tp.find("aseline") > 0 and tp.find("NVM") > 0:
-            if tp.find(s + '-') > 0 and tp.find("-1c-") > 0 and tp.find("block") > 0 and tp.find("sync") > 0:
-                res2.append(np.mean(dict[tp]))
-                mean = np.mean(dict[tp])
-                res2_min.append(mean - np.min(dict[tp]))
-                res2_max.append(np.max(dict[tp]) - mean)
-                print tp
-                print np.mean(dict[tp])
+#    for s in skew:
+#        for tp in dict:
+#            #if tp.find(s + '-') > 0 and tp.find("aseline") > 0 and tp.find("NVM") > 0:
+#            if tp.find(s + '-') > 0 and tp.find("-1c-") > 0 and tp.find("block") > 0 and tp.find("sync") > 0:
+#                res2.append(np.mean(dict[tp]))
+#                mean = np.mean(dict[tp])
+#                res2_min.append(mean - np.min(dict[tp]))
+#                res2_max.append(np.max(dict[tp]) - mean)
+#                print tp
+#                print np.mean(dict[tp])
     for s in skew:
         for tp in dict:
             if tp.find(s + '-') > 0 and tp.find("-10c-") > 0 and tp.find("tuple") > 0 and tp.find("sync") > 0:
@@ -361,39 +361,39 @@ def draw_throughput_sync_tuple_vs_block(dict, out_path):
                 print tp
                 print np.mean(dict[tp])
      
-    for s in skew:
-        for tp in dict:
-            if tp.find(s + '-') > 0 and tp.find("-50c-") > 0 and tp.find("tuple") > 0 and tp.find("sync") > 0:
+#    for s in skew:
+#        for tp in dict:
+#            if tp.find(s + '-') > 0 and tp.find("-50c-") > 0 and tp.find("tuple") > 0 and tp.find("sync") > 0:
             #if tp.find(s + '-') > 0 and tp.find("aseline") > 0 and tp.find("BERKELEY") > 0:
-                res5.append(np.mean(dict[tp]))
-                mean = np.mean(dict[tp])
-                res5_min.append(mean - np.min(dict[tp]))
-                res5_max.append(np.max(dict[tp]) - mean)
-                print tp
-                print np.mean(dict[tp])
+#                res5.append(np.mean(dict[tp]))
+#                mean = np.mean(dict[tp])
+#                res5_min.append(mean - np.min(dict[tp]))
+#                res5_max.append(np.max(dict[tp]) - mean)
+#                print tp
+#                print np.mean(dict[tp])
     
-    for s in skew:
-        for tp in dict:
-            #if tp.find(s + '-') > 0 and tp.find("aseline") > 0 and tp.find("NVM") > 0:
-            if tp.find(s + '-') > 0 and tp.find("-50c-") > 0 and tp.find("block") > 0 and tp.find("sync") > 0:
-                res6.append(np.mean(dict[tp]))
-                mean = np.mean(dict[tp])
-                res6_min.append(mean - np.min(dict[tp]))
-                res6_max.append(np.max(dict[tp]) - mean)
-                print tp
-                print np.mean(dict[tp])
+#    for s in skew:
+#        for tp in dict:
+#            #if tp.find(s + '-') > 0 and tp.find("aseline") > 0 and tp.find("NVM") > 0:
+#            if tp.find(s + '-') > 0 and tp.find("-50c-") > 0 and tp.find("block") > 0 and tp.find("sync") > 0:
+#                res6.append(np.mean(dict[tp]))
+#                mean = np.mean(dict[tp])
+#                res6_min.append(mean - np.min(dict[tp]))
+#                res6_max.append(np.max(dict[tp]) - mean)
+#                print tp
+#                print np.mean(dict[tp])
 
      
-    x = [0.5,1.5,2.5]
-    print res1
-    print res2
+    x = [0.5,1.5,2.5,3.5,4.5]
+#    print res1
+#    print res2
     print res3
     print res4
-    print res5
-    print res6
+#    print res5
+#    print res6
 
-    tmp1 = max(res6)
-    tmp2 = max(res5)
+    tmp1 = max(res3)
+    tmp2 = max(res4)
     tmp = max(tmp1, tmp2)
     print tmp
     order = 1
@@ -405,26 +405,26 @@ def draw_throughput_sync_tuple_vs_block(dict, out_path):
 
     print y_max_range
 
-    ax.bar( [i-0.3 for i in x] ,res1,width=0.1,label='1c tuple',hatch='\\\\\\',color='#0000CC')
-    ax.errorbar([i-0.25 for i in x], res1, yerr = [res1_min, res1_max], fmt='o')
-    ax.bar( [i-0.2 for i in x],res2,width=0.1,label='1c block',hatch='///',color='#FF0000')
-    ax.errorbar([i-0.15 for i in x], res2, yerr = [res2_min, res2_max], fmt='o')
-    ax.bar( [i-0.1 for i in x] ,res3,width=0.1,label='10c tuple',hatch='+++',color='#8080E6')
-    ax.errorbar([i-0.05 for i in x], res3, yerr = [res3_min, res3_max], fmt='o')
-    ax.bar( [i for i in x],res4,width=0.1,label='10c block',hatch='XXX',color='#FF8080')
-    ax.errorbar([i+0.05 for i in x], res4, yerr = [res4_min, res4_max], fmt='o')
-    ax.bar( [i+0.1 for i in x] ,res5,width=0.1,label='50c tuple',hatch='---',color='#CCCCF5')
-    ax.errorbar([i+0.15 for i in x], res5, yerr = [res5_min, res5_max], fmt='o')
-    ax.bar( [i+0.2 for i in x],res6,width=0.1,label='50c block',hatch='...',color='#FFC0C0')
-    ax.errorbar([i+0.25 for i in x], res6, yerr = [res6_min, res6_max], fmt='o')
+#    ax.bar( [i-0.3 for i in x] ,res1,width=0.1,label='1c tuple',hatch='\\\\\\',color='#0000CC')
+#    ax.errorbar([i-0.25 for i in x], res1, yerr = [res1_min, res1_max], fmt='o')
+#    ax.bar( [i-0.2 for i in x],res2,width=0.1,label='1c block',hatch='///',color='#FF0000')
+#    ax.errorbar([i-0.15 for i in x], res2, yerr = [res2_min, res2_max], fmt='o')
+    ax.bar( [i-0.2 for i in x] ,res3,width=0.2,label='10c tuple',hatch='+++',color='#8080E6')
+    ax.errorbar([i-0.1 for i in x], res3, yerr = [res3_min, res3_max], fmt='o')
+    ax.bar( [i for i in x],res4,width=0.2,label='10c block',hatch='XXX',color='#FF8080')
+    ax.errorbar([i+0.1 for i in x], res4, yerr = [res4_min, res4_max], fmt='o')
+#    ax.bar( [i+0.1 for i in x] ,res5,width=0.1,label='50c tuple',hatch='---',color='#CCCCF5')
+#    ax.errorbar([i+0.15 for i in x], res5, yerr = [res5_min, res5_max], fmt='o')
+#    ax.bar( [i+0.2 for i in x],res6,width=0.1,label='50c block',hatch='...',color='#FFC0C0')
+#    ax.errorbar([i+0.25 for i in x], res6, yerr = [res6_min, res6_max], fmt='o')
     ax.set_ylabel("Transactions per second",fontsize=16,weight='bold')
     #ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     lgd = ax.legend(loc=3, bbox_to_anchor=(0.,1, 1, .1),mode="expand", ncol=3)
-    ax.set_xlim([0.2,3.2])
+    ax.set_xlim([0.2,5.2])
     ax.set_ylim([0, y_max_range])
-    ax.set_xticklabels(["0.8", "1.01", "1.25"],fontsize=16)
+    ax.set_xticklabels(["0.8", "1.01", "1.25", "4.0", "8.0"],fontsize=16)
     ax.set_xlabel("Skew factor (Low -> High)",fontsize=16,weight='bold')
-    ax.set_xticks([0.5,1.5,2.5])
+    ax.set_xticks([0.5,1.5,2.5,3.5,4.5])
     y_format = tkr.FuncFormatter(func)  # make formatter
     ax.yaxis.set_major_formatter(y_format) # set formatter to needed axis
     #plt.show()
@@ -727,7 +727,7 @@ if __name__ == '__main__':
 
     #draw_throughput_graph_INF(dict, "ycsb-INF.pdf")
     #draw_throughput_graph(dict, "ycsb-T500-NoLoop-blocking-vs-nonblocking-6.pdf")
-    draw_throughput_sync_tuple_vs_block(dict, "ycsb-1-tier-8p-sync-tuple-vs-block.pdf");
+    #draw_throughput_sync_tuple_vs_block(dict, "ycsb-1-tier-8p-sync-tuple-vs-block.pdf");
     #draw_throughput_graph_all(dict, "ycsb-T500-NoLoop-prime-all.pdf")
     #lru_hstore(dict, "lru-hstore.pdf")
     #lru_alru_hstore(dict, "lru-alru-hstore.pdf")

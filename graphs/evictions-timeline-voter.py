@@ -277,8 +277,18 @@ def plotMemoryAndThroughput(benchmark, data):
     )
     
     # GRID
+    mem_max = max(data["memory"])
+    print mem_max
+    tmp = mem_max
+    order = 1
+
+    while tmp > 10: 
+        order = order * 10
+        tmp = tmp / 10;
+    
+    mem_max_range = math.ceil(tmp) * order
     axes = ax1.get_axes()
-    axes.set_ylim(0, 750)
+    axes.set_ylim(0, mem_max_range)
     axes.yaxis.grid(True, linestyle='-', which='major', color='0.85') # color='lightgrey', alpha=0.5)
     axes.set_axisbelow(True)
     graphutil.makeGrid(ax1)
@@ -290,6 +300,7 @@ def plotMemoryAndThroughput(benchmark, data):
     title_str="%s %s %s: %s %s: %s %s: %skb" % (info[2], info[3], head[4], info[4], head[6], info[6], head[10], info[10])
     
     # Y-AXIS
+    
     ax1.set_title(title_str)
     ax1.set_ylabel("Memory (MB)", name=OPT_FONT_NAME, size=OPT_YLABEL_FONT_SIZE)
     yLabels = map(lambda y: "%d" % (y / 1000), ax1.get_yticks())
