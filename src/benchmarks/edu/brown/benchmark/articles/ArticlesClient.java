@@ -66,8 +66,8 @@ public class ArticlesClient extends BenchmarkComponent {
         long articlesSize = Math.round(ArticlesConstants.ARTICLES_SIZE * this.getScaleFactor());
         long usersSize = Math.round(ArticlesConstants.USERS_SIZE * this.getScaleFactor());
 
-        this.readRecord = new PowerLaw(this.rand_gen, 0, articlesSize, -0.7);
-        this.userRecord = new PowerLaw(this.rand_gen, 0, usersSize, -0.7);
+        this.readRecord = new PowerLaw(this.rand_gen, 0, articlesSize, -0.95);
+        this.userRecord = new PowerLaw(this.rand_gen, 0, usersSize, -0.95);
 
         this.txnWeights = new FlatHistogram<Transaction>(this.rand_gen, txns);
     }
