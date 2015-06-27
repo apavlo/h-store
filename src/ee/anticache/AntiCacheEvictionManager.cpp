@@ -547,11 +547,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     VOLT_DEBUG("%s Table Schema:\n%s",
               evictedTable->name().c_str(), evictedTable->schema()->debug().c_str());
 
-    // get the AntiCacheDB instance from the executorContext
-    // For now use the single AntiCacheDB from PersistentTable but in the future, this 
-    // method to get the AntiCacheDB will have to choose which AntiCacheDB from to
-    // evict to
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
+    AntiCacheDB* antiCacheDB;
     int tuple_length = -1;
     bool needs_flush = false;
 
@@ -569,6 +565,11 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     for(int i = 0; i < num_blocks; i++)
     {
 
+        // get the AntiCacheDB instance from the executorContext
+        // For now use the single AntiCacheDB from PersistentTable but in the future, this 
+        // method to get the AntiCacheDB will have to choose which AntiCacheDB from to
+        // evict to
+        antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
         // get the LS16B and send that to the antiCacheDB
         int16_t _block_id = antiCacheDB->nextBlockId();
 
@@ -655,7 +656,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                    table->name().c_str(), num_tuples_evicted);
         
         // Only write out a bock if there are tuples in it
-        if (num_tuples_evicted >= 0) {
+        if (num_tuples_evicted > 0) {
             std::vector<int> numTuples;
             numTuples.push_back(num_tuples_evicted);
             block.writeHeader(numTuples);
@@ -775,7 +776,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
  //             evictedTable->name().c_str(), evictedTable->schema()->debug().c_str());
 
     // get the AntiCacheDB instance from the executorContext
-    AntiCacheDB* antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
+    AntiCacheDB* antiCacheDB;
     int tuple_length = -1;
     bool needs_flush = false;
 
@@ -815,6 +816,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
    //     this->printLRUChain(table, 4, true);
     //    VOLT_INFO("Printing child's LRU chain");
    //     this->printLRUChain(childTable, 4, true);
+        antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
         // get a unique block id from the executorContext
         int16_t _block_id = antiCacheDB->nextBlockId();
         int32_t block_id = ((antiCacheDB->getACID() << 16) | _block_id);
