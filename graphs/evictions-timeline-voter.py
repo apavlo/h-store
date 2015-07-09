@@ -277,16 +277,10 @@ def plotMemoryAndThroughput(benchmark, data):
     )
     
     # GRID
-    mem_max = max(data["memory"])
-    print mem_max
-    tmp = mem_max
-    order = 1
+    mem_max = max(inMemory)
+    mem_max_range = mem_max + max(anticache) 
+    print mem_max_range
 
-    while tmp > 10: 
-        order = order * 10
-        tmp = tmp / 10;
-    
-    mem_max_range = math.ceil(tmp) * order
     axes = ax1.get_axes()
     axes.set_ylim(0, mem_max_range)
     axes.yaxis.grid(True, linestyle='-', which='major', color='0.85') # color='lightgrey', alpha=0.5)
@@ -295,9 +289,16 @@ def plotMemoryAndThroughput(benchmark, data):
 
     head = data["run_head"]
     info = data["run_info"]
+    print head
+    print info
     # generate title string
     # blocking 2, backing 3, skew 4, clients 6, blocksize 10
-    title_str="%s %s %s: %s %s: %s %s: %skb" % (info[2], info[3], head[4], info[4], head[6], info[6], head[10], info[10])
+     # generate title string
+    # 0   1         2    3          4                5            6              7             
+    # run benchmark tier partitions blocking_clients client_hosts client_threads scaling_factor
+    # 8          9              10           11      12    
+    # block_size blocks_evicted threshold_mb runtime merge 
+    title_str="%s %s %s %s: %s" % (info[2], info[3], info[4], head[10], info[10])
     
     # Y-AXIS
     
@@ -419,22 +420,20 @@ if __name__ == '__main__':
         }
 
         
-        data["run_head"] = ["run", "benchmark", "blocking", "backing", "skew", "partitions", "blocking_clients",
+        data["run_head"] = ["run", "benchmark", "tier", "partitions", "blocking_clients",
                             "client_hosts", "client_threads", "scaling_factor", "block_size", "blocks_evicted",
-                            "threshold_mb", "runtime","merge"]
+                            "threshold_mb", "runtime", "merge"] 
         data["run_info"] = benchmark.split('-')
                
         i = 0 
         for s in data["run_info"]:
             if i < 4:
                 if i == 2:
-                    if s == "sync":
-                        data["run_info"][i] = "sync merge"
-                    else:
-                        data["run_info"][i] = "abort reissue"
+                    i += 1
+                    pass
                 i += 1
                 continue
-            elif i == len(data["run_info"]) - 1:
+            elif i <= len(data["run_info"]) - 1:
                 pass
             else:
                 data["run_info"][i] = s.translate(None, string.ascii_letters)

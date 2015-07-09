@@ -25,6 +25,7 @@ from matplotlib.font_manager import FontProperties
 from matplotlib.ticker import MaxNLocator, MultipleLocator
 from pprint import pprint,pformat
 
+
 from options import *
 import graphutil
 
@@ -276,8 +277,23 @@ def plotMemoryAndThroughput(benchmark, data):
     )
     
     # GRID
+    #mem_max = max((data["memory"])[1])
+    print data["memory"]
+    mem_max = max(inMemory)
+    mem_max = mem_max + max(anticache)
+    print mem_max
+    tmp = mem_max
+    order = 1
+
+    #while tmp > 10: 
+    #    order = order * 10
+    #    tmp = tmp / 10;
+    #    print tmp
+    
+    mem_max_range = mem_max + mem_max*0.30
+    print mem_max_range
     axes = ax1.get_axes()
-    axes.set_ylim(0, 750)
+    axes.set_ylim(0, mem_max_range)
     axes.yaxis.grid(True, linestyle='-', which='major', color='0.85') # color='lightgrey', alpha=0.5)
     axes.set_axisbelow(True)
     graphutil.makeGrid(ax1)
@@ -285,15 +301,14 @@ def plotMemoryAndThroughput(benchmark, data):
     head = data["run_head"]
     info = data["run_info"]
     # generate title string
-    # run benchmark blocking backing skew partitions blocking_clients
-    # 0   1         2        3       4    5          6
-    # client_hosts client_threads scaling_factor block_size blocks_evicted
-    # 7            8              9              10         11
-    # threshold_mb runtime merge
-    # 12           13      14
-    title_str="%s %s %s: %s %s: %s" % (info[2], info[14], head[4], info[4], head[6], info[6])
+    # 0   1         2    3          4                5            6              7             
+    # run benchmark tier partitions blocking_clients client_hosts client_threads scaling_factor
+    # 8          9              10           11      12    13
+    # block_size blocks_evicted threshold_mb runtime merge skew
+    title_str="%s %s: %s %s %s %s: %s %s: %s" % (info[2], head[12], info[12], info[3], info[4], head[10], info[10], head[13], info[13])
     
     # Y-AXIS
+    
     ax1.set_title(title_str)
     ax1.set_ylabel("Memory (MB)", name=OPT_FONT_NAME, size=OPT_YLABEL_FONT_SIZE)
     yLabels = map(lambda y: "%d" % (y / 1000), ax1.get_yticks())
@@ -334,7 +349,7 @@ def plotMemoryAndThroughput(benchmark, data):
     ) 
 
     if len(data["evictions"]) > 0:
-        addEvictionLines(ax1, data["evictions"], y_max_range)
+        addEvictionLines(ax1, data["evictions"], mem_max_range)
         #LOG.info("Adding eviction lines.")
         pass
     else:
@@ -378,7 +393,7 @@ if __name__ == '__main__':
     OPT_FONT_NAME = 'DejaVu Sans'
     OPT_LABEL_WEIGHT = 'bold'
     OPT_MARKER_SIZE = 6.0
-    OPT_DATA_EVICTIONS = "/home/user/giardino/data-hstore/ycsb/ycsb-nvm/1run"
+    OPT_DATA_EVICTIONS = "/home/user/giardino/data-hstore/articles/articles-nvm/k0.05"
     
     ## ----------------------------------------------
     ## LOAD DATA
@@ -412,22 +427,20 @@ if __name__ == '__main__':
         }
 
         
-        data["run_head"] = ["run", "benchmark", "blocking", "backing", "skew", "partitions", "blocking_clients",
+        data["run_head"] = ["run", "benchmark", "tier", "partitions", "blocking_clients",
                             "client_hosts", "client_threads", "scaling_factor", "block_size", "blocks_evicted",
-                            "threshold_mb", "runtime","merge"]
+                            "threshold_mb", "runtime", "merge", "skew"]
         data["run_info"] = benchmark.split('-')
                
         i = 0 
         for s in data["run_info"]:
             if i < 4:
                 if i == 2:
-                    if s == "sync":
-                        data["run_info"][i] = "sync"
-                    else:
-                        data["run_info"][i] = "abrt"
+                    i += 1
+                    pass
                 i += 1
                 continue
-            elif i == len(data["run_info"]) - 1:
+            elif i <= len(data["run_info"]) - 2:
                 pass
             else:
                 data["run_info"][i] = s.translate(None, string.ascii_letters)
@@ -539,7 +552,7 @@ if __name__ == '__main__':
 #        graphutil.saveGraph(fig, "/home/michaelg/data-hstore/plots/ycsb-bugfinder/ycsb-memory-%s.pdf" % benchmark, height=OPT_GRAPH_HEIGHT)
         fig3 = plotMemoryAndThroughput(benchmark, data)
         print "making figure for %s" % benchmark
-        fig3.savefig("/home/user/giardino/data-hstore/plots/ycsb/ycsb-nvm/png/ycsb-comb-%s.png" % benchmark)
+        fig3.savefig("/home/user/giardino/data-hstore/plots/articles/png/articles-comb-%s.png" % benchmark)
 
     ## FOR
 
