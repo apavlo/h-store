@@ -2288,7 +2288,7 @@ UTILITIES
     </java>
 
     <echo>Creating stats file for workload '${target.workload}' using '${benchmark.tablestats}' as base</echo>
-    <antcall target="stats">
+    <antcall target="workload-stats">
         <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" />
         <param name="stats" value="${benchmark.tablestats}" />
         <param name="output" value="${files.stats.dir}/${project}.stats" />
@@ -2296,11 +2296,12 @@ UTILITIES
     <gzip src="${files.stats.dir}/${project}.stats" destfile="${files.stats.dir}/${project}.stats.gz"/>
     <delete file="${files.stats.dir}/${project}.stats" />
 
-    <echo>Creating mappings file for workload '${target.workload}'</echo>
-    <antcall target="mappings-generate">
-        <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" />
-        <param name="output" value="${files.mappings.dir}/${project}.mappings" />
-    </antcall>
+<!--     <echo>Creating mappings file for workload '${target.workload}'</echo> -->
+<!--     <antcall target="mappings-generate"> -->
+<!--         <param name="workload" value="${files.workloads.dir}/${target.workload}.trace.gz" /> -->
+<!--         <param name="output" value="${files.mappings.dir}/${project}.mappings" /> -->
+<!--         <param name="output" value="${project}.mappings" /> -->
+<!--     </antcall> -->
 </target>
 
 

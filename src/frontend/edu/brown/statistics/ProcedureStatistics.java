@@ -26,6 +26,7 @@
 package edu.brown.statistics;
 
 import java.util.*;
+
 import org.apache.log4j.Logger;
 
 import org.json.*;
@@ -201,8 +202,17 @@ public class ProcedureStatistics extends AbstractStatistics<Procedure> {
             System.exit(1);
         }
         for (Table catalog_tbl : catalog_tbls) {
+            assert(catalog_tbl != null) : "Unexpected null table catalog object";
             String table_key = CatalogKey.createKey(catalog_tbl);
-            this.table_querytype_counts.get(table_key).put(query_type, this.table_querytype_counts.get(table_key).get(query_type) + 1);
+            assert(table_key != null) : "Unexpected null table key for '" + catalog_tbl + "'";
+            SortedMap<QueryType, Integer> cntMap = this.table_querytype_counts.get(table_key);
+            if (cntMap == null) {
+                cntMap = new TreeMap<QueryType, Integer>();
+                this.table_querytype_counts.put(table_key, cntMap);
+            }
+            Integer cnt = cntMap.get(query_type);
+            if (cnt == null) cnt = 0;
+            cntMap.put(query_type, cnt + 1);
         } // FOR
 
         //

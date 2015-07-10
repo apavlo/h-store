@@ -572,7 +572,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
         // method to get the AntiCacheDB will have to choose which AntiCacheDB from to
         // evict to
         antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
-    
+               
         // get the LS16B and send that to the antiCacheDB
         uint16_t _block_id = antiCacheDB->nextBlockId();
 
@@ -824,6 +824,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
    //     this->printLRUChain(table, 4, true);
     //    VOLT_INFO("Printing child's LRU chain");
    //     this->printLRUChain(childTable, 4, true);
+        antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
         // get a unique block id from the executorContext
         antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
         uint16_t _block_id = antiCacheDB->nextBlockId();

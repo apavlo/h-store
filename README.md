@@ -15,7 +15,7 @@ Please note that it will not compile on 32-bit systems.
 + Mac OS X 10.6+ (64-bit)
 
 ## Dependencies
-+ [gcc +4.3](http://www.ubuntuupdates.org/gcc)
++ [gcc +4.3](http://www.ubuntuupdates.org/gcc) (currently does not work on gcc v5)
 + [openjdk +1.6](http://www.ubuntuupdates.org/openjdk-7-jdk) (1.7 is recommended)
 + [ant +1.7](http://www.ubuntuupdates.org/ant)
 + [python +2.7](http://www.ubuntuupdates.org/python)
