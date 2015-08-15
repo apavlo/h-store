@@ -411,13 +411,10 @@ int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int m
     // an entire block, this will need to be changed because it destroys the buffer
     // for the single tuple.
     if (!blockMerge) {
-        for (int i = 0; i < merge_tuple_offset + 1; i++) { 
-            // deserialize tuple from unevicted block
-            bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
-        }
-    } else {
-        bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
+        in->getRawPointer(merge_tuple_offset);
     }
+        
+    bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
 
     // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
     // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version

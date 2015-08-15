@@ -637,7 +637,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             // tuple as we iterate through the index
             VOLT_TRACE("block id is %d for table %s", block_id, table->name().c_str());
             evicted_tuple.setNValue(0, ValueFactory::getIntegerValue(block_id)); // BLOCK ID
-            evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(num_tuples_evicted)); // OFFSET
+            evicted_tuple.setNValue(1, ValueFactory::getIntegerValue(block.getSerializedSize() - initSize)); // OFFSET
             evicted_tuple.setEvictedTrue();
             VOLT_TRACE("EvictedTuple: %s", evicted_tuple.debug(evictedTable->name()).c_str());
 
@@ -1575,16 +1575,15 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
             // Now read the actual tuples
             int64_t bytes_unevicted = 0;
             int tuplesRead = 0;
-            for (int j = 0; j < num_tuples_in_block; j++)
-            {
-                // if we're using the tuple-merge strategy, only merge in a single tuple
-                if(!table->mergeStrategy())
+            if(!table->mergeStrategy()) {
+                bytes_unevicted += tableInBlock->unevictTuple(&in, merge_tuple_offset, merge_tuple_offset, (bool)table->mergeStrategy());
+            } else {
+                for (int j = 0; j < num_tuples_in_block; j++)
                 {
-                    if(j != merge_tuple_offset)  // don't merge this tuple
-                        continue;
-                }
+                // if we're using the tuple-merge strategy, only merge in a single tuple
 
-                bytes_unevicted += tableInBlock->unevictTuple(&in, j, merge_tuple_offset, (bool)table->mergeStrategy());
+                // NOTICE: As we handle the problem this way, the unevicted bytes from one block can not exceed MAXINT.
+                bytes_unevicted += tableInBlock->unevictTuple(&in, (int)bytes_unevicted, merge_tuple_offset, (bool)table->mergeStrategy());
                 /*                // get a free tuple and increment the count of tuples current used
                                   voltdb::TableTuple * m_tmpTarget1 = tableInBlock->getTempTarget1();
                                   tableInBlock->nextFreeTuple(m_tmpTarget1);
@@ -1619,6 +1618,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
                 updateUnevictedTuple(tableInBlock, m_tmpTarget1);
                 }
                  */
+                }
             }
             if(tableInBlock->mergeStrategy())
                 tuplesRead += num_tuples_in_block;
