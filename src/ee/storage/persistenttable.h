@@ -300,7 +300,7 @@ class PersistentTable : public Table {
     bool removeUnevictedBlockID(int32_t blockId);
     void insertUnevictedBlock(char* unevicted_tuples);
     void insertTupleOffset(int32_t tuple_offset);
-    bool isAlreadyUnEvicted(int32_t blockId);
+    int isAlreadyUnEvicted(int32_t blockId);
     int32_t getTuplesRead();
     void setTuplesRead(int32_t tuplesRead);
     void setBatchEvicted(bool batchEvicted);
@@ -308,7 +308,8 @@ class PersistentTable : public Table {
     void clearUnevictedBlocks();
     void clearMergeTupleOffsets();
     int64_t unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset, bool blockMerge);
-void clearUnevictedBlocks(int i);
+    void clearUnevictedBlocks(int i);
+    void clearUnevictedBlockIDs();
     char* getUnevictedBlocks(int i);
     int unevictedBlocksSize();
 

@@ -60,6 +60,7 @@ import edu.brown.hstore.PartitionExecutor.SystemProcedureExecutionContext;
 import edu.brown.hstore.conf.HStoreConf;
 import edu.brown.hstore.txns.LocalTransaction;
 import edu.brown.hstore.util.ParameterSetArrayCache;
+import edu.brown.hstore.AntiCacheManager;
 import edu.brown.interfaces.DebugContext;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
@@ -585,10 +586,12 @@ public abstract class VoltProcedure implements Poolable {
                     
                     // Note that I decided to put this in here because we already
                     // have the logic down below for handling various errors from the EE
+                    AntiCacheManager.lock.lock();
                     try {
                         Table catalog_tbl = txnState.getAntiCacheMergeTable();
                         this.executor.getExecutionEngine().antiCacheMergeBlocks(catalog_tbl);
                     } finally {
+                        AntiCacheManager.lock.unlock();
                         if (hstore_conf.site.anticache_profiling) {
                             this.hstore_site.getAntiCacheManager()
                                             .getDebugContext()

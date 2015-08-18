@@ -1169,9 +1169,19 @@ Table* AntiCacheEvictionManager::evictBlockInBatch(PersistentTable *table, Persi
     
 bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t block_id, int32_t tuple_offset) {
 
-    bool already_unevicted = table->isAlreadyUnEvicted(block_id);
+    int already_unevicted = table->isAlreadyUnEvicted(block_id);
     if (already_unevicted && table->mergeStrategy()) { // this block has already been read
         VOLT_WARN("Block 0x%x has already been read.", block_id);
+        return true;
+    }
+
+    if (already_unevicted) { // this block has already been read, but it is tuple-merge strategy
+        table->insertUnevictedBlock(table->getUnevictedBlocks(already_unevicted - 1));
+        table->insertTupleOffset(tuple_offset);
+
+        VOLT_DEBUG("BLOCK %u TUPLE %d - unevicted blocks size is %d",
+                block_id, tuple_offset, already_unevicted);
+
         return true;
     }
 
@@ -1239,8 +1249,11 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
         table->insertTupleOffset(tuple_offset);
 
 
-        table->insertUnevictedBlockID(std::pair<int32_t,int16_t>(block_id, 0));
+        table->insertUnevictedBlockID(std::pair<int32_t,int32_t>(block_id, table->unevictedBlocksSize()));
         
+        VOLT_DEBUG("BLOCK %u TUPLE %d - unevicted blocks size is %d",
+                block_id, tuple_offset, static_cast<int>(table->unevictedBlocksSize()));
+
         delete value;
     } catch (UnknownBlockAccessException e) {
         throw e;
@@ -1642,11 +1655,22 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
 
 
 
-        delete [] table->getUnevictedBlocks(i);
+        if (table->mergeStrategy())
+            delete [] table->getUnevictedBlocks(i);
         //table->clearUnevictedBlocks(i);
     }
 
+    VOLT_DEBUG("unevicted blockIDs size %d", static_cast<int>(table->getUnevictedBlockIDs().size()));
     VOLT_DEBUG("unevicted blocks size %d", static_cast<int>(table->unevictedBlocksSize()));
+    if (!table->mergeStrategy()) {
+        map <int32_t, int32_t> unevictedBlockIDs = table->getUnevictedBlockIDs();
+        for (map <int32_t, int32_t>::iterator itr = unevictedBlockIDs.begin(); itr != unevictedBlockIDs.end();
+                itr++) {
+            //printf("bid:%d idx:%d\n", itr->first, itr->second);
+            delete [] table->getUnevictedBlocks(itr->second - 1);
+        }
+        table->clearUnevictedBlockIDs();
+    }
     table->clearUnevictedBlocks();
     table->clearMergeTupleOffsets();
 

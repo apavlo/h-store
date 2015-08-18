@@ -14,6 +14,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
@@ -63,6 +64,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private static final Logger LOG = Logger.getLogger(AntiCacheManager.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static final LoggerBoolean trace = new LoggerBoolean();
+    public static final ReentrantLock lock = new ReentrantLock();
+
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -305,6 +308,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // block the AntiCacheManager until each of the requests are finished
         if (hstore_conf.site.anticache_profiling) 
             this.profilers[next.partition].retrieval_time.start();
+        lock.lock();
         try {
             if (debug.val)
                 LOG.debug(String.format("Asking EE to read in evicted blocks from table %s on partition %d: %s",
@@ -320,6 +324,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
             // merge_needed = false; 
         } finally {
+            lock.unlock();
             if (hstore_conf.site.anticache_profiling) 
                 this.profilers[next.partition].retrieval_time.stopIfStarted();
         }

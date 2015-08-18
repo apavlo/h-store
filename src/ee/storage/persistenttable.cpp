@@ -317,15 +317,18 @@ std::map<int32_t, int32_t> PersistentTable::getUnevictedBlockIDs()
     return m_unevictedBlockIDs;
 }
 
-bool PersistentTable::isAlreadyUnEvicted(int32_t blockId)
+int PersistentTable::isAlreadyUnEvicted(int32_t blockId)
 {
-    return m_unevictedBlockIDs.find(blockId) != m_unevictedBlockIDs.end();
+    if (m_unevictedBlockIDs.find(blockId) != m_unevictedBlockIDs.end())
+        return m_unevictedBlockIDs[blockId];
+    else
+        return 0;
 }
 
 void PersistentTable::insertUnevictedBlockID(std::pair<int32_t,int32_t> pair)
 {
     VOLT_INFO("Unevicted pair is %d", pair.first);
-    m_unevictedBlockIDs.insert(pair);
+    m_unevictedBlockIDs[pair.first] = pair.second;
 }
 
 bool PersistentTable::removeUnevictedBlockID(int32_t blockId) {
@@ -387,6 +390,10 @@ voltdb::TableTuple * PersistentTable::getTempTarget1()
 void PersistentTable::clearUnevictedBlocks()
 {
     m_unevictedBlocks.clear();
+}
+void PersistentTable::clearUnevictedBlockIDs()
+{
+    m_unevictedBlockIDs.clear();
 }
 void PersistentTable::clearUnevictedBlocks(int i)
 {
