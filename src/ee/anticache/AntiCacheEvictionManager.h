@@ -92,6 +92,9 @@ public:
     inline bool hasBlockableEvictedAccesses() const {
         return m_blockable_accesses;
     }
+    inline int16_t getNumAntiCacheDBs() {
+        return m_numdbs;
+    }
     void recordEvictedAccess(catalog::Table* catalogTable, TableTuple *tuple);
     void throwEvictedAccessException();
     bool blockingMerge();

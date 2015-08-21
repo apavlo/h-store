@@ -1276,6 +1276,12 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                     now);
             break;
         }
+        // -------------------------------------------------
+        // MULTITIER STATS
+        // -------------------------------------------------
+        case STATISTICS_SELECTOR_MULTITIER_ANTICACHE: {
+            
+
         default:
             char message[256];
             snprintf(message, 256,

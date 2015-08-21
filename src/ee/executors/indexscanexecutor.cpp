@@ -557,7 +557,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         
         // MJG TEST: If we merged, maybe we need to grab the tuple again. Let's try
         // we need to check again which way we want to get the index based upon the 
-        // INDEX_LOOKUP_TYPE. For now it works with != EQ
+        // INDEX_LOOKUP_TYPE. 
         if (blockingMergeSuccessful) {
             VOLT_TRACE("grabbing tuple again");
             if (m_lookupType == INDEX_LOOKUP_TYPE_EQ) {
