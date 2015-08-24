@@ -47,6 +47,7 @@ namespace voltdb {
     
 class ExecutorContext;
 class AntiCacheDB;
+class AntiCacheStats;
 
 /**
  * Wrapper class for an evicted block that has been read back in 
@@ -121,6 +122,8 @@ class AntiCacheDB {
          * Flush the buffered blocks to disk.
          */
         virtual void flushBlocks() = 0;
+        
+        virtual void setStatsSource();
 
         /**
          * Return the next BlockId to use in the anti-cache database
@@ -197,6 +200,10 @@ class AntiCacheDB {
          */
         inline void setACID(int16_t ACID) {
             m_ACID = ACID;
+        }
+
+        virtual inline AntiCacheStats* getACDBStats() {
+            return m_stats;
         }
         
         /**
@@ -318,7 +325,7 @@ class AntiCacheDB {
         int64_t m_bytesUnevicted;
         int32_t m_blocksUnevicted;
 
-
+        voltdb::AntiCacheStats* m_stats;
         
         /* we need to test whether a deque or list is better. If we push/pop more than we
          * remove, this is better. otherwise, let's use a list

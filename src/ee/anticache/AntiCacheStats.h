@@ -76,6 +76,8 @@ public:
             voltdb::CatalogId partitionId,
             voltdb::CatalogId databaseId);
 
+    virtual ~AntiCacheStats();
+
 protected:
 
     /**
@@ -96,13 +98,15 @@ protected:
      */
     virtual void populateSchema(std::vector<voltdb::ValueType> &types, std::vector<int32_t> &columnLengths, std::vector<bool> &allowNull);
 
-    ~AntiCacheStats();
 
 private:
     /**
      * AntiCacheDB whose stats are being collected.
      */
     AntiCacheDB * m_acdb;
+
+    // actually we don't need this now
+    Table* m_table;
 
     // AntiCacheID 
     int16_t m_acid;
@@ -120,6 +124,12 @@ private:
     int64_t m_totalBytesEvicted;
     int32_t m_totalBlocksUnevicted;
     int64_t m_totalBytesUnevicted;
+
+    /*
+    int32_t m_currentBlocksEvicted;
+    int64_t m_currentBytesEvicted;
+    int32_t m_currentBlocksUnevicted;
+    int64_t m_currentBytesUnevicted;*/
 
     // current number of blocks in storage
     int32_t m_currentEvictedBlocks;

@@ -100,6 +100,7 @@
 #include "storage/TableCatalogDelegate.hpp"
 #include "org_voltdb_jni_ExecutionEngine.h" // to use static values
 #include "stats/StatsAgent.h"
+#include "stats/StatsSource.h"
 #include "voltdbipc.h"
 #include "common/FailureInjection.h"
 
@@ -838,6 +839,16 @@ bool VoltDBEngine::rebuildTableCollections() {
                         STATISTICS_SELECTOR_TYPE_INDEX,
                         indexId, index->getIndexStats());
             }
+
+            // Add all different levels of anticacheDB to the stats source.
+            // This is duplicated, but that's fine for now (in case we need to get per-tire-table anticache stats).
+            std::vector <AntiCacheDB*> tacdbs = tcd->getTable()->allACDBs();
+            for (int i = 0; i < tacdbs.size(); i++) {
+                VOLT_ERROR("CREATE ACDBStats: %d\n", i);
+                getStatsManager().registerStatsSource(
+                        STATISTICS_SELECTOR_TYPE_MULTITIER_ANTICACHE,
+                        static_cast<CatalogId>(i), (StatsSource*)(tacdbs[i]->getACDBStats()));
+            }
         }
         cdIt++;
     }
@@ -1279,8 +1290,30 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
         // -------------------------------------------------
         // MULTITIER STATS
         // -------------------------------------------------
-        case STATISTICS_SELECTOR_MULTITIER_ANTICACHE: {
-            
+        case STATISTICS_SELECTOR_TYPE_MULTITIER_ANTICACHE: {
+            for (int ii = 0; ii < numLocators; ii++) {
+                CatalogId locator = static_cast<CatalogId>(locators[ii]);
+                locatorIds.push_back(locator);
+            }
+            /*
+            for (int ii = 0; ii < numLocators; ii++) {
+                CatalogId locator = static_cast<CatalogId>(locators[ii]);
+                if (m_tables.find(locator) == m_tables.end()) {
+                    char message[256];
+                    snprintf(message, 256,
+                            "getStats() called with selector %d, and"
+                                    " an invalid locator %d that does not correspond to"
+                                    " a table", selector, locator);
+                    throw SerializableEEException(
+                            VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION, message);
+                }
+            }*/
+
+            resultTable = m_statsManager.getStats(
+                    (StatisticsSelectorType) selector, locatorIds, interval,
+                    now);
+            break;
+        }
 
         default:
             char message[256];

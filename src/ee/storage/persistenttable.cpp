@@ -252,6 +252,15 @@ AntiCacheDB* PersistentTable::getAntiCacheDB(int level)
     return m_executorContext->getAntiCacheDB(level);
 }
 
+std::vector<AntiCacheDB*> PersistentTable::allACDBs() const {
+    std::vector<AntiCacheDB*> retval;
+    int numDBs = (int)m_executorContext->getAntiCacheEvictionManager()->getNumAntiCacheDBs();
+    for (int i = 0; i < numDBs; ++i)
+        retval.push_back(m_executorContext->getAntiCacheDB(i));
+
+    return retval;
+}
+
 int32_t PersistentTable::getTuplesEvicted()
 {
     return m_tuplesEvicted;

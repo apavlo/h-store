@@ -312,6 +312,7 @@ class PersistentTable : public Table {
     void clearUnevictedBlockIDs();
     char* getUnevictedBlocks(int i);
     int unevictedBlocksSize();
+    std::vector<AntiCacheDB*> allACDBs() const;
 
     #endif
 

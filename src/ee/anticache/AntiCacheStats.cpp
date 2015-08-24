@@ -33,6 +33,7 @@ vector<string> AntiCacheStats::generateAntiCacheStatsColumnNames() {
 
     columnNames.push_back("ANTICACHE_ID");
     columnNames.push_back("TABLE_ID");
+    columnNames.push_back("ANTICACHEDB_TYPE");
 
     columnNames.push_back("ANTICACHE_LAST_BLOCKS_EVICTED");
     columnNames.push_back("ANTICACHE_LAST_BYTES_EVICTED");
@@ -64,6 +65,11 @@ void AntiCacheStats::populateAntiCacheStatsSchema(
     allowNull.push_back(false);
    
     // TABLE_ID
+    types.push_back(VALUE_TYPE_INTEGER);
+    columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
+    allowNull.push_back(false);
+
+    // AntiCacheDB_TYPE
     types.push_back(VALUE_TYPE_INTEGER);
     columnLengths.push_back(NValue::getTupleStorageSize(VALUE_TYPE_INTEGER));
     allowNull.push_back(false);
@@ -171,10 +177,12 @@ AntiCacheStats::AntiCacheStats(Table* table, AntiCacheDB* acdb)
     m_lastBlocksUnevicted = 0;
     m_lastBytesUnevicted = 0;
 
+    /*
     m_currentBlocksEvicted = 0;
     m_currentBytesEvicted = 0;
     m_currentBlocksUnevicted = 0;
     m_currentBytesUnevicted = 0;
+    */
 
 
     m_currentEvictedBlocks = 0;
@@ -201,7 +209,7 @@ void AntiCacheStats::configure(
         CatalogId partitionId,
         CatalogId databaseId) {
     StatsSource::configure(name, hostId, hostname, siteId, partitionId, databaseId);
-    m_acid = acdb->getACID();
+    m_acid = m_acdb->getACID();
 }
 
 /**
@@ -218,7 +226,7 @@ vector<string> AntiCacheStats::generateStatsColumnNames() {
  */
 void AntiCacheStats::updateStatsTuple(TableTuple *tuple) {
 
-    AntiCacheDB acdb = m_acdb;
+    AntiCacheDB* acdb = m_acdb;
 
     int32_t totalBlocksEvicted = acdb->getBlocksEvicted();
     int64_t totalBytesEvicted = acdb->getBytesEvicted();
@@ -244,41 +252,44 @@ void AntiCacheStats::updateStatsTuple(TableTuple *tuple) {
             StatsSource::m_columnName2Index["ANTICACHE_ID"],
             ValueFactory::getIntegerValue(m_acid));
     tuple->setNValue(
+            StatsSource::m_columnName2Index["ANTICACHEDB_TYPE"],
+            ValueFactory::getIntegerValue(acdb->getDBType()));
+    tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_LAST_BLOCKS_EVICTED"],
-            ValueFactory::getIntegerValue());
+            ValueFactory::getIntegerValue(m_lastBlocksEvicted));
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_LAST_BYTES_EVICTED"],
-            ValueFactory::getBigIntValue());
+            ValueFactory::getBigIntValue(m_lastBytesEvicted));
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_LAST_BLOCKS_UNEVICTED"],
-            ValueFactory::getIntegerValue());
+            ValueFactory::getIntegerValue(m_lastBlocksUnevicted));
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_LAST_BYTES_UNEVICTED"],
-            ValueFactory::getBigIntValue());
+            ValueFactory::getBigIntValue(m_lastBytesUnevicted));
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_TOTAL_BLOCKS_EVICTED"],
-            ValueFactory::getIntegerValue());
+            ValueFactory::getIntegerValue(m_totalBlocksEvicted));
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_TOTAL_BYTES_EVICTED"],
-            ValueFactory::getBigIntValue());
+            ValueFactory::getBigIntValue(m_totalBytesEvicted));
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_TOTAL_BLOCKS_UNEVICTED"],
-            ValueFactory::getIntegerValue());
+            ValueFactory::getIntegerValue(m_totalBlocksUnevicted));
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_TOTAL_BYTES_UNEVICTED"],
-            ValueFactory::getBigIntValue());
+            ValueFactory::getBigIntValue(m_totalBytesUnevicted));
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_BLOCKS_STORED"],
-            ValueFactory::getIntegerValue());
+            ValueFactory::getIntegerValue(m_totalBlocksEvicted - m_totalBlocksUnevicted));
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_BYTES_STORED"],
-            ValueFactory::getBigIntValue());
+            ValueFactory::getBigIntValue(m_totalBytesEvicted - m_totalBytesUnevicted));
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_BLOCKS_FREE"],
-            ValueFactory::getIntegerValue());
+            ValueFactory::getIntegerValue(m_currentFreeBlocks));
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_BYTES_FREE"],
-            ValueFactory::getBigIntValue());
+            ValueFactory::getBigIntValue(m_currentFreeBytes));
 
 }
 
@@ -294,6 +305,6 @@ void AntiCacheStats::populateSchema(
 }
 
 AntiCacheStats::~AntiCacheStats() {
-    m_tableName.free();
-    m_tableType.free();
+    //m_tableName.free();
+    //m_tableType.free();
 }

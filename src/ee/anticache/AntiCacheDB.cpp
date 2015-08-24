@@ -25,6 +25,7 @@
 
 #include "anticache/AntiCacheDB.h"
 #include "anticache/UnknownBlockAccessException.h"
+#include "anticache/AntiCacheStats.h"
 #include "common/debuglog.h"
 #include "common/FatalException.hpp"
 #include "common/executorcontext.hpp"
@@ -65,10 +66,13 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSiz
         m_blocksEvicted = 0;
         m_bytesUnevicted = 0;
         m_blocksUnevicted = 0;
+
+        m_stats = new AntiCacheStats(NULL, this);
         
 }
 
 AntiCacheDB::~AntiCacheDB() {
+    delete m_stats;
 }
 
 AntiCacheBlock* AntiCacheDB::getLRUBlock() {
@@ -120,6 +124,9 @@ uint16_t AntiCacheDB::popBlockLRU() {
     return blockId;
 }
 
+void AntiCacheDB::setStatsSource() {
+    //m_stats = new AntiCacheStats(NULL, this);
+}
 
 }
 
