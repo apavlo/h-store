@@ -840,6 +840,7 @@ bool VoltDBEngine::rebuildTableCollections() {
                         indexId, index->getIndexStats());
             }
 
+            #ifdef ANTICACHE
             // Add all different levels of anticacheDB to the stats source.
             // This is duplicated, but that's fine for now (in case we need to get per-tire-table anticache stats).
             std::vector <AntiCacheDB*> tacdbs = tcd->getTable()->allACDBs();
@@ -849,6 +850,7 @@ bool VoltDBEngine::rebuildTableCollections() {
                         STATISTICS_SELECTOR_TYPE_MULTITIER_ANTICACHE,
                         static_cast<CatalogId>(i), (StatsSource*)(tacdbs[i]->getACDBStats()));
             }
+            #endif
         }
         cdIt++;
     }
