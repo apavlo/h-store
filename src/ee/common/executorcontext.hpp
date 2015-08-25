@@ -85,6 +85,10 @@ namespace voltdb {
             m_MMAPEnabled = false;
             m_ARIESEnabled = false;
             m_antiCacheDBs = 0;
+            #ifdef ANTICACHE
+            m_antiCacheEvictionManager = NULL;
+            #endif
+
         }
 
         // not always known at initial construction
