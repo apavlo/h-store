@@ -64,7 +64,11 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private static final Logger LOG = Logger.getLogger(AntiCacheManager.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static final LoggerBoolean trace = new LoggerBoolean();
-    public static final ReentrantLock lock = new ReentrantLock();
+    private static final ReentrantLock lock = new ReentrantLock();
+
+    public static ReentrantLock getLock() {
+        return lock;
+    }
 
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
@@ -201,6 +205,13 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         }
     };
 
+    // Anticache levels
+    private static int numDBs = 1;
+
+    public static int getNumDBs() {
+        return numDBs;
+    }
+
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -260,6 +271,14 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 AntiCacheManager.this.updatePartitionStats(vt);
             }
         });
+        
+        if (hstore_conf.site.anticache_enable_multilevel) {
+            String config = hstore_conf.site.anticache_levels;
+            String delims = "[;]";
+            String[] levels = config.split(delims);
+
+            numDBs = levels.length;
+        }
     }
 
     public Collection<Table> getEvictableTables() {
@@ -269,6 +288,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     public Runnable getMemoryMonitorThread() {
         return this.memoryMonitor;
     }
+
 
     // ----------------------------------------------------------------------------
     // TRANSACTION PROCESSING
@@ -341,14 +361,18 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             // We need to get a new txnId for ourselves, since the one that we
             // were given before is now probably too far in the past
         	if(next.partition != next.ts.getBasePartition()){
+                lock.lock();
         		ee.antiCacheMergeBlocks(next.catalog_tbl);
+                lock.unlock();
         	}
             this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
 
             if (debug.val) LOG.debug("restartin on local");
         	this.hstore_site.transactionInit(next.ts);	
         } else {
+            lock.lock();
         	ee.antiCacheMergeBlocks(next.catalog_tbl);
+            lock.unlock();
         	RemoteTransaction ts = (RemoteTransaction) next.ts; 
         	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
         	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()

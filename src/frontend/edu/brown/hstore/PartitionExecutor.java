@@ -70,6 +70,7 @@ import org.voltdb.ClientResponseImpl;
 import org.voltdb.DependencySet;
 import org.voltdb.HsqlBackend;
 import org.voltdb.MemoryStats;
+import org.voltdb.AntiCacheMemoryStats;
 import org.voltdb.ParameterSet;
 import org.voltdb.SQLStmt;
 import org.voltdb.SnapshotSiteProcessor;
@@ -1711,6 +1712,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                 
                 if ((time - this.lastStatsTime) >= 20000) {
                     this.updateMemoryStats(time);
+                    if (hstore_conf.site.anticache_enable) {
+                        this.updateAntiCacheMemoryStats(time);
+                    }
                 }
             }
             this.lastTickTime = time;
@@ -1823,6 +1827,95 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         
         this.lastStatsTime = time;
     }
+    
+    
+    private void updateAntiCacheMemoryStats(long time) {
+        if (trace.val)
+            LOG.trace("Updating memory stats for partition " + this.partitionId);
+        
+        int numDBs = AntiCacheManager.getNumDBs();
+        int[] acdbIDs = new int[numDBs];
+        for (int i = 0; i < numDBs; ++i) {
+            acdbIDs[i] = i;
+        }
+
+        // data to aggregate
+        int anticacheID = 0;
+        int anticacheType = 0;
+
+        // ACTIVE
+        long blocksEvicted = 0;
+        long bytesEvicted = 0;
+        
+        // GLOBAL WRITTEN
+        long blocksWritten = 0;
+        long bytesWritten = 0;
+        
+        // GLOBAL READ
+        long blocksRead = 0;
+        long bytesRead = 0;
+
+        // FREE 
+        long blocksFree= 0;
+        long bytesFree = 0;
+
+        // update table stats
+        VoltTable[] s1 = null;
+        try {
+            s1 = this.ee.getStats(SysProcSelector.MULTITIER_ANTICACHE, acdbIDs, false, time);
+        } catch (RuntimeException ex) {
+            LOG.warn("Unexpected error when trying to retrieve EE stats for partition " + this.partitionId, ex);
+        }
+        if (s1 != null) {
+            VoltTable stats = s1[0];
+            assert(stats != null);
+
+            // rollup the table memory stats for this site
+            while (stats.advanceRow()) {
+                // ACTIVE
+                if (hstore_conf.site.anticache_enable) {
+                    anticacheID = (int) stats.getLong("ANTICACHE_ID");
+                    anticacheType = (int) stats.getLong("ANTICACHE_TYPE");
+
+                    blocksEvicted = (long) stats.getLong("ANTICACHE_BLOCKS_EVICTED");
+                    bytesEvicted = (long) stats.getLong("ANTICACHE_BYTES_EVICTED");
+                
+                    // GLOBAL WRITTEN
+                    blocksWritten = (long) stats.getLong("ANTICACHE_BLOCKS_WRITTEN");
+                    bytesWritten = (long) stats.getLong("ANTICACHE_BYTES_WRITTEN");
+                    
+                    // GLOBAL READ
+                    blocksRead = (long) stats.getLong("ANTICACHE_BLOCKS_READ");
+                    bytesRead = (long) stats.getLong("ANTICACHE_BYTES_READ");
+
+                    blocksFree = (long) stats.getLong("ANTICACHE_BLOCKS_FREE");
+                    bytesFree = (long) stats.getLong("ANTICACHE_BYTES_FREE");
+                }
+            }
+            stats.resetRowPosition();
+        }
+
+        // update the rolled up memory statistics
+        AntiCacheMemoryStats acmemoryStats = hstore_site.getAntiCacheMemoryStatsSource();
+        acmemoryStats.eeUpdateMemStats(this.partitionId,
+                                     anticacheID,
+                                     anticacheType,
+                                     
+                                     // ACTIVE
+                                     blocksEvicted, bytesEvicted,
+                                     
+                                     // GLOBAL WRITTEN
+                                     blocksWritten, bytesWritten,
+                                     
+                                     // GLOBAL READ
+                                     blocksRead, bytesRead,
+
+                                     blocksFree, bytesFree
+        );
+        
+        this.lastStatsTime = time;
+    }
+    
     
     public void haltProcessing() {
 //        if (debug.val)
