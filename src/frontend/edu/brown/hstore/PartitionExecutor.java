@@ -1409,7 +1409,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (work instanceof UpdateMemoryMessage) {
                 //LOG.info("Update mem stats");
                 this.updateMemoryStats(EstTime.currentTimeMillis());
-                this.updateAntiCacheMemoryStats(EstTime.currentTimeMillis());
+                if (this.hstore_site.getAntiCacheManager() != null && this.hstore_site.getAntiCacheManager().getEvictableTables().isEmpty() == false) {
+                    this.updateAntiCacheMemoryStats(EstTime.currentTimeMillis());
+                }
             }
             // TABLE STATS REQUEST
             else if (work instanceof TableStatsRequestMessage) {
@@ -1713,7 +1715,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                 
                 if ((time - this.lastStatsTime) >= 20000) {
                     this.updateMemoryStats(time);
-                    if (hstore_conf.site.anticache_enable) {
+                    if (this.hstore_site.getAntiCacheManager() != null && this.hstore_site.getAntiCacheManager().getEvictableTables().isEmpty() == false) {
                         this.updateAntiCacheMemoryStats(time);
                     }
                 }
