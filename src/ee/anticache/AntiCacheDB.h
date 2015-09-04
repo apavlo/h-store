@@ -150,7 +150,7 @@ class AntiCacheDB {
         /**
          * Return the maximum size of the database in bytes
          */
-        inline long getMaxDBSize() {
+        inline int64_t getMaxDBSize() {
             return m_maxDBSize;
         }
         /**
@@ -314,7 +314,7 @@ class AntiCacheDB {
         bool m_block_merge;
 
         AntiCacheDBType m_dbType;
-        long m_maxDBSize;
+        int64_t m_maxDBSize;
         
 
         /*

@@ -73,6 +73,7 @@
 <arg value="client.output_site_profiling=${client.output_site_profiling}" />
 <arg value="client.output_anticache_evictions=${client.output_anticache_evictions}" />
 <arg value="client.output_anticache_access=${client.output_anticache_access}" />
+<arg value="client.output_anticache_memory_stats=${client.output_anticache_memory_stats}" />
 <arg value="client.output_txn_profiling=${client.output_txn_profiling}" />
 <arg value="client.output_txn_profiling_combine=${client.output_txn_profiling_combine}" />
 <arg value="client.output_specexec_profiling=${client.output_specexec_profiling}" />

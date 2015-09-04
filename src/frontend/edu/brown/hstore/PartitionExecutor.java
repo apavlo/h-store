@@ -843,11 +843,11 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             long blockSize = parseSize(blockstr);
 
                             String maxstr = opts[3];
-                            long maxSize = parseSize(maxstr);
+                            long maxSize = parseSize(maxstr) / catalogContext.numberOfPartitions;
                             
                             File acFile = AntiCacheManager.getDatabaseDir(this, i);
-                            LOG.info(String.format("Creating AntiCacheDB type: %d blocking: %b blockMerge: %b blocksize: %d maxsize: %d @ %s", 
-                                  dbType.ordinal(), blocking, blockMerge, blockSize, maxSize, acFile.getAbsolutePath()));
+                            //LOG.info(String.format("Creating AntiCacheDB type: %d blocking: %b blockMerge: %b blocksize: %d maxsize: %d @ %s", 
+                            //      dbType.ordinal(), blocking, blockMerge, blockSize, maxSize, acFile.getAbsolutePath()));
                             if (i == 0) {
                                 eeTemp.antiCacheInitialize(acFile, dbType, blocking, blockSize, maxSize, blockMerge);
                             } else {
@@ -1409,6 +1409,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (work instanceof UpdateMemoryMessage) {
                 //LOG.info("Update mem stats");
                 this.updateMemoryStats(EstTime.currentTimeMillis());
+                this.updateAntiCacheMemoryStats(EstTime.currentTimeMillis());
             }
             // TABLE STATS REQUEST
             else if (work instanceof TableStatsRequestMessage) {
@@ -1730,7 +1731,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
     
     
     private void updateMemoryStats(long time) {
-        if (trace.val)
+        //if (trace.val)
             LOG.trace("Updating memory stats for partition " + this.partitionId);
         
         Collection<Table> tables = this.catalogContext.database.getTables();
@@ -1859,6 +1860,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         long blocksFree= 0;
         long bytesFree = 0;
 
+        //System.out.println("From java (before update): " + anticacheID + " " + anticacheType + " " + bytesWritten);
+
         // update table stats
         VoltTable[] s1 = null;
         try {
@@ -1875,29 +1878,25 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // ACTIVE
                 if (hstore_conf.site.anticache_enable) {
                     anticacheID = (int) stats.getLong("ANTICACHE_ID");
-                    anticacheType = (int) stats.getLong("ANTICACHE_TYPE");
+                    anticacheType = (int) stats.getLong("ANTICACHEDB_TYPE");
 
-                    blocksEvicted = (long) stats.getLong("ANTICACHE_BLOCKS_EVICTED");
-                    bytesEvicted = (long) stats.getLong("ANTICACHE_BYTES_EVICTED");
+                    blocksEvicted = (long) stats.getLong("ANTICACHE_BLOCKS_STORED");
+                    bytesEvicted = (long) stats.getLong("ANTICACHE_BYTES_STORED");
                 
                     // GLOBAL WRITTEN
-                    blocksWritten = (long) stats.getLong("ANTICACHE_BLOCKS_WRITTEN");
-                    bytesWritten = (long) stats.getLong("ANTICACHE_BYTES_WRITTEN");
+                    blocksWritten = (long) stats.getLong("ANTICACHE_TOTAL_BLOCKS_EVICTED");
+                    bytesWritten = (long) stats.getLong("ANTICACHE_TOTAL_BYTES_EVICTED");
                     
                     // GLOBAL READ
-                    blocksRead = (long) stats.getLong("ANTICACHE_BLOCKS_READ");
-                    bytesRead = (long) stats.getLong("ANTICACHE_BYTES_READ");
+                    blocksRead = (long) stats.getLong("ANTICACHE_TOTAL_BLOCKS_UNEVICTED");
+                    bytesRead = (long) stats.getLong("ANTICACHE_TOTAL_BYTES_UNEVICTED");
 
                     blocksFree = (long) stats.getLong("ANTICACHE_BLOCKS_FREE");
                     bytesFree = (long) stats.getLong("ANTICACHE_BYTES_FREE");
-                }
-            }
-            stats.resetRowPosition();
-        }
-
-        // update the rolled up memory statistics
-        AntiCacheMemoryStats acmemoryStats = hstore_site.getAntiCacheMemoryStatsSource();
-        acmemoryStats.eeUpdateMemStats(this.partitionId,
+                    //System.out.println("From java: partition: " + this.partitionId + " " + anticacheID + " " + anticacheType + " " + blocksWritten + " " + blocksRead);
+                    // update the anticache memory statistics
+                    AntiCacheMemoryStats acmemoryStats = hstore_site.getAntiCacheMemoryStatsSource();
+                    acmemoryStats.eeUpdateMemStats(this.partitionId,
                                      anticacheID,
                                      anticacheType,
                                      
@@ -1911,7 +1910,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                                      blocksRead, bytesRead,
 
                                      blocksFree, bytesFree
-        );
+                    );
+                }
+            }
+            stats.resetRowPosition();
+        } else {
+            LOG.warn("Getting anticache memory stats failed!");
+        }
+
         
         this.lastStatsTime = time;
     }

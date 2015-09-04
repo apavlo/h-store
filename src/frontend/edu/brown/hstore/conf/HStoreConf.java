@@ -1976,6 +1976,16 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "the memory stats of different tiers of anti-cache. This can work with single-tier" +
+                        "anti-cache. ${site.anticache_enable} should be set to true to enable this feature." +
+                        "Any file that exists with the same name as this will be overwritten.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_anticache_memory_stats;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
                     "transaction profiling stats. Note that this will automatically enable " +
                     "${site.txn_profiling}, which will affect the runtime performance." +
                     "Any file that exists with the same name as this will be overwritten.",

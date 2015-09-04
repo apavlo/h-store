@@ -68,6 +68,12 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSiz
         m_blocksUnevicted = 0;
 
         m_stats = new AntiCacheStats(NULL, this);
+        m_stats->configure("Anticache Memory Stats",
+                ctx->m_hostId,
+                ctx->m_hostname,
+                ctx->m_siteId,
+                ctx->m_partitionId,
+                -1);
         
 }
 

@@ -209,6 +209,8 @@ void AntiCacheStats::configure(
         CatalogId partitionId,
         CatalogId databaseId) {
     StatsSource::configure(name, hostId, hostname, siteId, partitionId, databaseId);
+    // This is false since acid in acdb is set after this is called. We need to figure this out later but now we can directly
+    // call m_acdb->getACID() when we need.
     m_acid = m_acdb->getACID();
 }
 
@@ -228,6 +230,8 @@ void AntiCacheStats::updateStatsTuple(TableTuple *tuple) {
 
     AntiCacheDB* acdb = m_acdb;
 
+    m_acid = m_acdb->getACID();
+
     int32_t totalBlocksEvicted = acdb->getBlocksEvicted();
     int64_t totalBytesEvicted = acdb->getBytesEvicted();
     int32_t totalBlocksUnevicted = acdb->getBlocksUnevicted();
@@ -244,9 +248,12 @@ void AntiCacheStats::updateStatsTuple(TableTuple *tuple) {
     m_totalBytesUnevicted = totalBytesUnevicted;
 
     m_currentEvictedBlocks = acdb->getNumBlocks();
-    m_currentEvictedBytes = (int64_t)m_currentEvictedBlocks * acdb->getBlockSize();
+    m_currentEvictedBytes = totalBytesEvicted - totalBytesUnevicted;
+    //m_currentEvictedBytes = (int64_t)m_currentEvictedBlocks * acdb->getBlockSize();
     m_currentFreeBlocks = acdb->getFreeBlocks();
-    m_currentFreeBytes = (int64_t)m_currentFreeBlocks * acdb->getBlockSize();
+    m_currentFreeBytes = acdb->getMaxDBSize() - m_currentEvictedBytes;
+    //m_currentFreeBytes = (int64_t)m_currentFreeBlocks * acdb->getBlockSize();
+
 
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_ID"],
@@ -290,7 +297,6 @@ void AntiCacheStats::updateStatsTuple(TableTuple *tuple) {
     tuple->setNValue(
             StatsSource::m_columnName2Index["ANTICACHE_BYTES_FREE"],
             ValueFactory::getBigIntValue(m_currentFreeBytes));
-
 }
 
 /**

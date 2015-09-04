@@ -32,8 +32,8 @@ public class AntiCacheMemoryStats extends StatsSource {
         new VoltTable.ColumnInfo("ANTICACHEDB_TYPE", VoltType.INTEGER),
 
         // ACTIVE
-        new VoltTable.ColumnInfo("ANTICACHE_BLOCKS_STORED", VoltType.BIGINT),
-        new VoltTable.ColumnInfo("ANTICACHE_BYTES_STORED", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("ANTICACHE_BLOCKS_EVICTED", VoltType.BIGINT),
+        new VoltTable.ColumnInfo("ANTICACHE_BYTES_EVICTED", VoltType.BIGINT),
         // GLOBAL WRITTEN
         new VoltTable.ColumnInfo("ANTICACHE_BLOCKS_WRITTEN", VoltType.BIGINT),
         new VoltTable.ColumnInfo("ANTICACHE_BYTES_WRITTEN", VoltType.BIGINT),
@@ -89,7 +89,7 @@ public class AntiCacheMemoryStats extends StatsSource {
             @Override
             public Object next() {
                 key += 1;
-                return new Integer(key);
+                return new Long(key - 1);
             }
 
             @Override
@@ -109,48 +109,49 @@ public class AntiCacheMemoryStats extends StatsSource {
 
     @Override
     protected synchronized void updateStatsRow(Object rowKey, Object[] rowValues) {
-        for (Map<Long, PartitionMemRow> tier : m_memoryStats.values()) {
+        Map<Long, PartitionMemRow> tier = m_memoryStats.get(rowKey);
             // sum up all of the site statistics
-            PartitionMemRow totals = new PartitionMemRow();
-            for (PartitionMemRow pmr : tier.values()) {
-                totals.anticacheID = pmr.anticacheID;
-                totals.anticacheType = pmr.anticacheType;
-
-                // ACTIVE
-                totals.blocksEvicted += pmr.blocksEvicted;
-                totals.bytesEvicted += pmr.bytesEvicted;
-
-                // GLOBAL WRITTEN
-                totals.blocksWritten += pmr.blocksWritten;
-                totals.bytesWritten += pmr.bytesWritten;
-
-                // GLOBAL READ
-                totals.blocksRead += pmr.blocksRead;
-                totals.bytesRead += pmr.bytesRead;
-
-                totals.blocksFree += pmr.blocksFree;
-                totals.bytesFree += pmr.bytesFree;
-            }
-
-            rowValues[columnNameToIndex.get("ANTICACHE_ID")] = totals.anticacheID;
-            rowValues[columnNameToIndex.get("ANTICACHE_TYPE")] = totals.anticacheType;
+        PartitionMemRow totals = new PartitionMemRow();
+        for (PartitionMemRow pmr : tier.values()) {
+            totals.anticacheID = pmr.anticacheID;
+            totals.anticacheType = pmr.anticacheType;
 
             // ACTIVE
-            rowValues[columnNameToIndex.get("ANTICACHE_BLOCKS_EVICTED")] = totals.blocksEvicted;
-            rowValues[columnNameToIndex.get("ANTICACHE_BYTES_EVICTED")] = totals.bytesEvicted / 1024;
+            totals.blocksEvicted += pmr.blocksEvicted;
+            totals.bytesEvicted += pmr.bytesEvicted;
 
             // GLOBAL WRITTEN
-            rowValues[columnNameToIndex.get("ANTICACHE_BLOCKS_WRITTEN")] = totals.blocksWritten;
-            rowValues[columnNameToIndex.get("ANTICACHE_BYTES_WRITTEN")] = totals.bytesWritten / 1024;
+            totals.blocksWritten += pmr.blocksWritten;
+            totals.bytesWritten += pmr.bytesWritten;
 
             // GLOBAL READ
-            rowValues[columnNameToIndex.get("ANTICACHE_BLOCKS_READ")] = totals.blocksRead;
-            rowValues[columnNameToIndex.get("ANTICACHE_BYTES_READ")] = totals.bytesRead / 1024;
+            totals.blocksRead += pmr.blocksRead;
+            totals.bytesRead += pmr.bytesRead;
 
-            rowValues[columnNameToIndex.get("ANTICACHE_BLOCKS_FREE")] = totals.blocksFree;
-            rowValues[columnNameToIndex.get("ANTICACHE_BYTES_FREE")] = totals.bytesRead / 1024;
-            super.updateStatsRow(rowKey, rowValues);
+            totals.blocksFree += pmr.blocksFree;
+            totals.bytesFree += pmr.bytesFree;
         }
+
+        //System.out.println("From updateStatsRow: " + totals.anticacheID + " " + totals.anticacheType);
+
+        rowValues[columnNameToIndex.get("ANTICACHE_ID")] = totals.anticacheID;
+        rowValues[columnNameToIndex.get("ANTICACHEDB_TYPE")] = totals.anticacheType;
+
+        // ACTIVE
+        rowValues[columnNameToIndex.get("ANTICACHE_BLOCKS_EVICTED")] = totals.blocksEvicted;
+        rowValues[columnNameToIndex.get("ANTICACHE_BYTES_EVICTED")] = totals.bytesEvicted / 1024;
+
+        // GLOBAL WRITTEN
+        rowValues[columnNameToIndex.get("ANTICACHE_BLOCKS_WRITTEN")] = totals.blocksWritten;
+        rowValues[columnNameToIndex.get("ANTICACHE_BYTES_WRITTEN")] = totals.bytesWritten / 1024;
+
+        // GLOBAL READ
+        rowValues[columnNameToIndex.get("ANTICACHE_BLOCKS_READ")] = totals.blocksRead;
+        rowValues[columnNameToIndex.get("ANTICACHE_BYTES_READ")] = totals.bytesRead / 1024;
+
+        rowValues[columnNameToIndex.get("ANTICACHE_BLOCKS_FREE")] = totals.blocksFree;
+        rowValues[columnNameToIndex.get("ANTICACHE_BYTES_FREE")] = totals.bytesFree / 1024;
+        super.updateStatsRow(rowKey, rowValues);
     }
 
     public synchronized void eeUpdateMemStats(long partitionId,
@@ -187,6 +188,8 @@ public class AntiCacheMemoryStats extends StatsSource {
 
         if (m_memoryStats.get(new Long(anticacheID)) == null)
             m_memoryStats.put(new Long(anticacheID), new TreeMap<Long, PartitionMemRow>());
+
+        //System.out.println("From AntiCacheMemoryStats: " + partitionId + " " + anticacheID);
 
         m_memoryStats.get(new Long(anticacheID)).put(partitionId, pmr);
     }

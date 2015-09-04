@@ -1281,7 +1281,7 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                     catalog::Index *catIndex = idx_iterator->second;
                     CatalogId indexId = computeIndexStatsId(catTable->relativeIndex(), catIndex->relativeIndex());
                     locatorIds.push_back(indexId);
-                    VOLT_DEBUG("FETCH IndexStats: %s.%s -> %d\n",
+                    VOLT_ERROR("FETCH IndexStats: %s.%s -> %d\n",
                                catTable->name().c_str(), catIndex->name().c_str(), indexId);
                 } // FOR
             } // FOR
@@ -1295,9 +1295,11 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
         // MULTITIER STATS
         // -------------------------------------------------
         case STATISTICS_SELECTOR_TYPE_MULTITIER_ANTICACHE: {
+            VOLT_TRACE("Getting acdbstats!\n");
             for (int ii = 0; ii < numLocators; ii++) {
                 CatalogId locator = static_cast<CatalogId>(locators[ii]);
                 locatorIds.push_back(locator);
+                VOLT_TRACE("Fetching acdbstats: %d\n", locator);
             }
             /*
             for (int ii = 0; ii < numLocators; ii++) {

@@ -1509,6 +1509,7 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
 int16_t AntiCacheEvictionManager::addAntiCacheDB(AntiCacheDB* acdb) {
     int16_t acid;
     acdb->setACID(m_numdbs);
+    //printf("add acdb: %d\n", m_numdbs);
     m_db_lookup[m_numdbs] = acdb;
     acid = m_numdbs;
     m_numdbs++;
