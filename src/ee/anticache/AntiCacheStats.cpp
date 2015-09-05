@@ -251,8 +251,8 @@ void AntiCacheStats::updateStatsTuple(TableTuple *tuple) {
     m_currentEvictedBytes = totalBytesEvicted - totalBytesUnevicted;
     //m_currentEvictedBytes = (int64_t)m_currentEvictedBlocks * acdb->getBlockSize();
     m_currentFreeBlocks = acdb->getFreeBlocks();
-    m_currentFreeBytes = acdb->getMaxDBSize() - m_currentEvictedBytes;
-    //m_currentFreeBytes = (int64_t)m_currentFreeBlocks * acdb->getBlockSize();
+    //m_currentFreeBytes = acdb->getMaxDBSize() - m_currentEvictedBytes;
+    m_currentFreeBytes = (int64_t)m_currentFreeBlocks * acdb->getBlockSize();
 
 
     tuple->setNValue(

@@ -130,6 +130,7 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
                              const long size,
                              const int evictedTupleCount) {
 
+    //VOLT_ERROR("In BerkeleyDB:writeBlock");
 
     Dbt key;
     key.set_data(&blockId);
@@ -160,7 +161,7 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     value.set_size(static_cast<int32_t>(bufLen_));
 
 
-    VOLT_INFO("Writing out a block #%u to anti-cache database [tuples=%d / size=%ld]",
+    VOLT_DEBUG("Writing out a block #%u to anti-cache database [tuples=%d / size=%ld]",
                blockId, tupleCount, size);
     // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);
@@ -214,8 +215,6 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate)
         if (isMigrate) {
             m_bytesUnevicted += static_cast<int32_t>((int64_t)block->getSize() - block->getSize() / tupleInBlock[blockId] *
                     (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
-            evictedTupleInBlock.erase(blockId);
-            tupleInBlock.erase(blockId);
         }
         else {
             m_bytesUnevicted += static_cast<int32_t>( block->getSize() / tupleInBlock[blockId]);

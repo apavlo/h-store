@@ -67,7 +67,7 @@ class AntiCacheBlock {
             return (m_payload.tableName);
         }
 
-        inline int32_t getSize() const {
+        inline long getSize() const {
             return m_size;
         }
         inline char* getData() const {

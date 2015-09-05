@@ -44,7 +44,7 @@ public class AddComment extends VoltProcedure {
             LOG.debug("After comments Num comments");
             if (ex instanceof EvictedTupleAccessException) {
                 EvictedTupleAccessException exception = (EvictedTupleAccessException) ex;
-                LOG.warn(exception.block_ids[0]);
+                if (debug.val) LOG.warn(exception.block_ids[0]);
             }
             throw ex;
         }

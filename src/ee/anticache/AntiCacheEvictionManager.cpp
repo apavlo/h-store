@@ -1448,7 +1448,6 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
         return (int32_t) _new_block_id;
     }
 
-    VOLT_DEBUG("migrating LRU block");
     AntiCacheBlock* block = srcDB->getLRUBlock();
     int16_t _block_id = block->getBlockId();
     int32_t block_id = (int32_t)_block_id;
@@ -1458,6 +1457,8 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
 
     int tupleInBlock = srcDB->getTupleInBlock(_block_id);
     int evictedTupleInBlock = srcDB->getEvictedTupleInBlock(_block_id);
+
+    VOLT_DEBUG("migrating LRU block   tuples: %d   evictedTuples: %d", tupleInBlock, evictedTupleInBlock);
     
     VOLT_DEBUG("block_id: %8x _new_block_id: %8x", block_id, _new_block_id);
 
@@ -1470,6 +1471,8 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
         throw FullBackingStoreException((int32_t)_new_block_id, -1);
     }
     
+    VOLT_DEBUG("tablename: %s _newBlockId: %d, data: %s, size: %ld\n", block->getTableName().c_str(), _new_block_id,
+            block->getData(), block->getSize());
     dstDB->writeBlock(block->getTableName(), _new_block_id, tupleInBlock, block->getData(), block->getSize(), evictedTupleInBlock);
     
     new_acid = dstDB->getACID();
@@ -1495,7 +1498,7 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
                     VOLT_TRACE("Updating tuple blockid from %8x to %8x", block_id, new_block_id);
                 }
             }
-            VOLT_INFO("updated %u migrated tuples [#%8x -> #%8x]", updated, block_id, new_block_id);
+            VOLT_DEBUG("updated %u migrated tuples [#%8x -> #%8x]", updated, block_id, new_block_id);
         } else {
             VOLT_WARN("No evicted table! If this is an EE test, shouldn't be a problem");
         }

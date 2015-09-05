@@ -216,7 +216,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     memcpy(block, buffer, bufsize); 
     delete[] buffer;
 
-    VOLT_INFO("Writing NVM Block: ID = %u, index = %u, size = %ld", blockId, index, bufsize); 
+    VOLT_DEBUG("Writing NVM Block: ID = %u, index = %u, tupleCount = %d, size = %ld", blockId, index, tupleCount, bufsize); 
 
     tupleInBlock[blockId] = tupleCount;
     evictedTupleInBlock[blockId] = evictedTupleCount;
@@ -250,11 +250,12 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {
 
     uint16_t blockIndex = itr->second.first; 
     int blockSize = itr->second.second;
-    VOLT_INFO("Reading NVM block: ID = %u, index = %u, size = %d", blockId, blockIndex, blockSize);
    
     char* block_ptr = getNVMBlock(blockIndex);
     char* block = new char[blockSize];
     memcpy(block, block_ptr, blockSize); 
+
+    VOLT_DEBUG("Reading NVM block: ID = %u, index = %u, size = %d, isMigrate = %d, data = %s", blockId, blockIndex, blockSize, isMigrate, block);
     
     AntiCacheBlock* anticache_block = new NVMAntiCacheBlock(blockId, block, blockSize);
 
@@ -277,10 +278,7 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {
 
             m_bytesUnevicted += static_cast<int32_t>( (int64_t)blockSize - blockSize / tupleInBlock[blockId] *
                     (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
-            evictedTupleInBlock.erase(blockId);
-            tupleInBlock.erase(blockId);
 
-            m_bytesUnevicted += blockSize;
             m_blocksUnevicted++;
         } else {
             m_bytesUnevicted += static_cast<int32_t>( blockSize / tupleInBlock[blockId]);
