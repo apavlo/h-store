@@ -62,7 +62,7 @@ class NVMAntiCacheDB : public AntiCacheDB {
            
         }
 
-        AntiCacheBlock* readBlock(uint16_t blockId);
+        AntiCacheBlock* readBlock(uint16_t blockId, bool isMigrate);
 
         void shutdownDB();
 
@@ -72,7 +72,8 @@ class NVMAntiCacheDB : public AntiCacheDB {
                         uint16_t blockId,
                         const int tupleCount,
                         const char* data,
-                        const long size);
+                        const long size,
+                        const int evictedTupleCount);
 
     private:
         /**

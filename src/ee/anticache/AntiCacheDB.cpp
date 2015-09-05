@@ -81,6 +81,8 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSiz
 
 AntiCacheDB::~AntiCacheDB() {
     delete m_stats;
+    tupleInBlock.clear();
+    evictedTupleInBlock.clear();
 }
 
 AntiCacheBlock* AntiCacheDB::getLRUBlock() {
@@ -93,7 +95,7 @@ AntiCacheBlock* AntiCacheDB::getLRUBlock() {
         throw UnknownBlockAccessException(0);
     } else {
         lru_block_id = m_block_lru.front();
-        lru_block = readBlock(lru_block_id);
+        lru_block = readBlock(lru_block_id, 1);
         //m_totalBlocks--;
         return lru_block;
     }
@@ -134,6 +136,11 @@ uint16_t AntiCacheDB::popBlockLRU() {
 
 void AntiCacheDB::setStatsSource() {
     //m_stats = new AntiCacheStats(NULL, this);
+}
+
+void AntiCacheDB::removeSingleTupleStats(uint16_t blockId) {
+    m_bytesUnevicted += static_cast<int32_t>( blockSize[blockId] / tupleInBlock[blockId]);
+    evictedTupleInBlock[blockId]--;
 }
 
 }

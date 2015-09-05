@@ -111,11 +111,11 @@ class AntiCacheDB {
                                 uint16_t blockId,
                                 const int tupleCount,
                                 const char* data,
-                                const long size) = 0;
+                                const long size, const int evictedTupleCount) = 0;
         /**
          * Read a block and return its contents
          */
-        virtual AntiCacheBlock* readBlock(uint16_t blockId) = 0;
+        virtual AntiCacheBlock* readBlock(uint16_t blockId, bool isMigrate) = 0;
 
 
         /**
@@ -205,6 +205,13 @@ class AntiCacheDB {
         virtual inline AntiCacheStats* getACDBStats() {
             return m_stats;
         }
+
+        /**
+         * Change anticache memory stats for the removal of a single tuple.
+         * Because of the structure of AnticacheDB we have to have this another
+         * function.
+         */
+        void removeSingleTupleStats(uint16_t blockId);
         
         /**
          * Return the AntiCacheID number.
@@ -297,7 +304,14 @@ class AntiCacheDB {
         inline bool isBlockMerge() {
             return m_block_merge;
         }
+
+        inline int getTupleInBlock(uint16_t blockId) {
+            return tupleInBlock[blockId];
+        }
         
+        inline int getEvictedTupleInBlock(uint16_t blockId) {
+            return evictedTupleInBlock[blockId];
+        }
 
     protected:
         ExecutorContext *m_executorContext;
@@ -324,6 +338,10 @@ class AntiCacheDB {
         int32_t m_blocksEvicted;
         int64_t m_bytesUnevicted;
         int32_t m_blocksUnevicted;
+
+        std::map <uint16_t, int> tupleInBlock;
+        std::map <uint16_t, int> evictedTupleInBlock;
+        std::map <uint16_t, long> blockSize;
 
         voltdb::AntiCacheStats* m_stats;
         

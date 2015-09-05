@@ -194,7 +194,8 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
                                 uint16_t blockId,
                                 const int tupleCount,
                                 const char* data,
-                                const long size)  {
+                                const long size,
+                                const int evictedTupleCount)  {
    
     VOLT_TRACE("free blocks: %d", getFreeBlocks());
     if (getFreeBlocks() == 0) {
@@ -217,8 +218,16 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
 
     VOLT_INFO("Writing NVM Block: ID = %u, index = %u, size = %ld", blockId, index, bufsize); 
 
-    m_bytesEvicted += static_cast<int32_t>(bufsize);
+    tupleInBlock[blockId] = tupleCount;
+    evictedTupleInBlock[blockId] = evictedTupleCount;
+    blockSize[blockId] = bufsize;
     m_blocksEvicted++;
+    if (!isBlockMerge()) {
+        m_bytesEvicted += static_cast<int32_t>((int64_t)bufsize * evictedTupleCount / tupleCount);
+    }
+    else {
+        m_bytesEvicted += static_cast<int32_t>(bufsize);
+    }
 
     m_blockMap.insert(std::pair<uint16_t, std::pair<int, int32_t> >(blockId, std::pair<uint16_t, int32_t>(index, static_cast<int32_t>(bufsize))));
     m_monoBlockID++;
@@ -226,7 +235,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     pushBlockLRU(blockId);
 }
 
-AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId) {
+AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {
     
     std::map<uint16_t, std::pair<uint16_t, int32_t> >::iterator itr; 
     itr = m_blockMap.find(blockId); 
@@ -259,8 +268,27 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId) {
         m_bytesUnevicted += blockSize;
         m_blocksUnevicted++;
     } else {
-        removeBlockLRU(blockId);
-        pushBlockLRU(blockId);
+        if (isMigrate) {
+            freeNVMBlock(blockIndex); 
+
+            m_blockMap.erase(itr); 
+
+            removeBlockLRU(blockId);
+
+            m_bytesUnevicted += static_cast<int32_t>( (int64_t)blockSize - blockSize / tupleInBlock[blockId] *
+                    (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
+            evictedTupleInBlock.erase(blockId);
+            tupleInBlock.erase(blockId);
+
+            m_bytesUnevicted += blockSize;
+            m_blocksUnevicted++;
+        } else {
+            m_bytesUnevicted += static_cast<int32_t>( blockSize / tupleInBlock[blockId]);
+            evictedTupleInBlock[blockId]--;
+
+            removeBlockLRU(blockId);
+            pushBlockLRU(blockId);
+        }
     }
     return (anticache_block);
 }
