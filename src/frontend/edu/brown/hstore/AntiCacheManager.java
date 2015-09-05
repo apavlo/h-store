@@ -512,7 +512,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
          */
         return  totalEvictableSizeKb >= (hstore_conf.site.anticache_block_size / 1024) &&
                 this.pendingEvictions == 0 &&
-                totalActiveDataSize > hstore_conf.site.anticache_threshold_mb &&
+                totalDataSize > hstore_conf.site.anticache_threshold_mb &&
 //                totalEvictedMB < (totalDataSize * hstore_conf.site.anticache_threshold) &&
                 totalBlocksEvicted < hstore_conf.site.anticache_max_evicted_blocks;
     }
