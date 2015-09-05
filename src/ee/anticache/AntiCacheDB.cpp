@@ -54,7 +54,8 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSiz
     m_dbDir(db_dir),
     m_nextBlockId(0),
     m_blockSize(blockSize),
-    m_totalBlocks(0)
+    m_totalBlocks(0),
+    m_block_merge(1)
     { 
         // MJG: TODO: HACK: Come up with a better way to make a maxsize when one isn't given
         if (maxSize == -1) {

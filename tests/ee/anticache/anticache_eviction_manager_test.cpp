@@ -227,7 +227,8 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
         blockId,
         1,
         const_cast<char*>(payload.data()),
-        static_cast<int>(payload.size())+1);
+        static_cast<int>(payload.size())+1,
+        1);
 
     //int32_t fullBlockId = (nvm_acid << 16) | blockId;
     //VOLT_INFO("acid: %x, blockId: %x fullBlockId: %x\n", nvm_acid, blockId, fullBlockId);
@@ -235,7 +236,7 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     int32_t newBlockId = (int32_t) acem->migrateBlock(blockId, berkeleydb);
     int16_t _new_block_id = (int16_t) (newBlockId & 0x0000FFFF);
     VOLT_INFO("blockId: %x newBlockId: %x _new_block_id: %x", blockId, newBlockId, _new_block_id);
-    AntiCacheBlock* berkeleyblock = berkeleydb->readBlock(_new_block_id);
+    AntiCacheBlock* berkeleyblock = berkeleydb->readBlock(_new_block_id, 1);
     VOLT_INFO("tableName: %s berkeleyblock name: %s", tableName.c_str(), berkeleyblock->getTableName().c_str());
     
     ASSERT_EQ(_new_block_id, berkeleyblock->getBlockId());
@@ -255,20 +256,22 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
         blockIdLRU,
         1,
         const_cast<char*>(payloadLRU.data()),
-        static_cast<int>(payloadLRU.size())+1);
+        static_cast<int>(payloadLRU.size())+1,
+        1);
 
     blockId = nvmdb->nextBlockId();
     nvmdb->writeBlock(tableName,
         blockId,
         1,
         const_cast<char*>(payload.data()),
-        static_cast<int>(payload.size())+1);
+        static_cast<int>(payload.size())+1,
+        1);
     
     newBlockId = (int32_t)acem->migrateLRUBlock(nvmdb, berkeleydb);
     
     _new_block_id = (int16_t) (newBlockId & 0x0000FFFF);
 
-    berkeleyblock = berkeleydb->readBlock(_new_block_id);
+    berkeleyblock = berkeleydb->readBlock(_new_block_id, 1);
     VOLT_INFO("tableName: %s berkeleyblock name: %s\n", tableName.c_str(), berkeleyblock->getTableName().c_str());
     
     ASSERT_EQ(_new_block_id, berkeleyblock->getBlockId());
@@ -313,13 +316,14 @@ TEST_F(AntiCacheEvictionManagerTest, FullBackingStore) {
         blockId,
         1,
         const_cast<char*>(payload.data()),
-        BLOCK_SIZE);
+        BLOCK_SIZE,
+        1);
 
     acdb = acem->getAntiCacheDB(acem->chooseDB(BLOCK_SIZE));
     ASSERT_EQ(1, acdb->getACID());
     blockId = acdb->nextBlockId();
 
-    acdb->writeBlock(tableName, blockId, 1, const_cast<char*>(payload.data()), BLOCK_SIZE);
+    acdb->writeBlock(tableName, blockId, 1, const_cast<char*>(payload.data()), BLOCK_SIZE, 1);
     
     ASSERT_EQ(1, nvmdb->getNumBlocks());
     ASSERT_EQ(1, berkeleydb->getNumBlocks());
@@ -329,7 +333,8 @@ TEST_F(AntiCacheEvictionManagerTest, FullBackingStore) {
             blockId,
             1,
             const_cast<char*>(payload.data()),
-            BLOCK_SIZE);
+            BLOCK_SIZE,
+            1);
     } catch (...)  {
             VOLT_INFO("Throwing FullBackingStoreException (this is what we want!)");
             ASSERT_TRUE(true);
