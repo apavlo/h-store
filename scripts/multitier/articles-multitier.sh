@@ -33,21 +33,23 @@ BASE_SITE_MEMORY=8192
 BASE_SITE_MEMORY_PER_PARTITION=512
 BASE_PROJECT="articles"
 BASE_DIR=`pwd`
-OUTPUT_DIR="/home/user/giardino/data-hstore/articles"
+OUTPUT_DIR="data-hstore/articles/articles-nvm"
 #BLK_CON=1
-BLK_EVICT=400
-AC_THRESH=500
-SCALE=10
+BLK_EVICT=4
+AC_THRESH=160
+SCALE=1
 BLOCK_SIZE_KB=256
-DURATION_S=600
-WARMUP_S=10
-INTERVAL_S=10
-PARTITIONS=1
+DURATION_S=60
+WARMUP_S=0
+INTERVAL_S=2
+PARTITIONS=2
 
-for BLK_CON in 1 10 50 ; do
+mkdir -p $OUTPUT_DIR
+
+for BLK_CON in 10 ; do
 for BLOCK_SIZE in 256; do
 for BLOCKING in 'true';  do
-for BLOCK_MERGE in 'true' 'false'; do
+for BLOCK_MERGE in 'false' ;do
     for DB in 'NVM' ; do
             for round in 1; do
                 if [ "$BLOCKING" = "true" ]; then
@@ -62,8 +64,8 @@ for BLOCK_MERGE in 'true' 'false'; do
                 fi
                 BLOCK_SIZE_KB=$BLOCK_SIZE
                 #BLK_EVICT=$((51200 / $BLOCK_SIZE_KB))
-                OUTPUT_PREFIX="$OUTPUT_DIR/articles-nvm/$round-articles-2_tier_sync-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}-0.05k"
-                LOG_PREFIX="/home/user/giardino/h-store/logs/articles-nvm/$round-articles-2_tier_sync-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}-0.05k"
+                OUTPUT_PREFIX="$OUTPUT_DIR/$round-articles-2_tier_sync-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}-0.05k"
+                LOG_PREFIX="logs/articles-nvm/$round-articles-2_tier_sync-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}-0.05k"
                 echo "log = $LOG_PREFIX"
                 echo $OUTPUT_PREFIX
 
@@ -123,6 +125,7 @@ for BLOCK_MERGE in 'true' 'false'; do
                         "-Dclient.output_anticache_profiling=${OUTPUT_PREFIX}-acprofiling.csv" \
 #                       "-Dclient.output_anticache_access=${OUTPUT_PREFIX}-accesses.csv" \
                         "-Dclient.output_memory_stats=${OUTPUT_PREFIX}-memory.csv" \
+                        "-Dclient.output_anticache_memory_stats=${OUTPUT_PREFIX}-anticache-memory.csv" \
 #                        "-Dclient.weights=\"ReadRecord:50,UpdateRecord:50,*:0\"" \
 
 # Anti-Caching Experiments
@@ -139,12 +142,14 @@ for BLOCK_MERGE in 'true' 'false'; do
                         "-Dsite.anticache_max_evicted_blocks=1000000" \
 #                        "-Dsite.anticache_dbsize=1540M" \
 #                        "-Dsite.anticache_db_blocks=$BLOCKING" \
-#                        "-Dsite.anticache_block_merge=$BLOCK_MERGE" \
+                        "-Dsite.anticache_block_merge=$BLOCK_MERGE" \
 #                        "-Dsite.anticache_dbtype=$DB" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
-                        "-Dsite.anticache_dir=/mnt/pmfs/aclevel0" \
-                        "-Dsite.anticache_levels=NVM,true,256K,2G;BERKELEY,false,256K,16G" \
-                        "-Dsite.anticache_multilevel_dirs=/mnt/pmfs/nvm-level0;/tmp/berk-level1" \
+                        "-Dsite.anticache_dir=tmp/pmfs/aclevel0" \
+                        #"-Dsite.anticache_levels=BERKELEY,false,256K,1M;NVM,false,256K,16G" \
+                        "-Dsite.anticache_levels=NVM,false,256K,1M;BERKELEY,false,256K,16G" \
+                        "-Dsite.anticache_multilevel_dirs=tmp/pmfs/nvm-level0;tmp/berk-level4" \
+                        #"-Dsite.anticache_multilevel_dirs=/mnt/pmfs/nvm-level0;/tmp/berk-level1" \
                         "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
                         "-Dclient.anticache_enable=false" \
                         "-Dclient.anticache_evict_interval=5000" \
