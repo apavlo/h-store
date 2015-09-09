@@ -342,7 +342,15 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
                 // If the tuple is evicted, then we can't continue with the rest of stuff below us.
                 // There is nothing else we can do with it (i.e., check expressions).
                 // I don't know why this wasn't here in the first place?
-                continue;
+                // MJG: 2014-02-20
+                // If we can merge now, let's merge
+                // TODO: possibly an alternate codepath that simply looks through all the tuples
+                // for evicted tuples and then see if we have any non-blockable accesses
+                if (eviction_manager->hasBlockableEvictedAccesses()) {
+                    eviction_manager->blockingMerge();
+                } else {
+                    continue;
+                }
             }
             #endif
 

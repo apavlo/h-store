@@ -420,6 +420,7 @@ if CTX.ANTICACHE_BUILD:
         EvictedTupleAccessException.cpp
         UnknownBlockAccessException.cpp
         FullBackingStoreException.cpp
+        AntiCacheStats.cpp
         AntiCacheDB.cpp
         BerkeleyAntiCacheDB.cpp
         NVMAntiCacheDB.cpp

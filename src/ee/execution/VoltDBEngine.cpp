@@ -100,6 +100,7 @@
 #include "storage/TableCatalogDelegate.hpp"
 #include "org_voltdb_jni_ExecutionEngine.h" // to use static values
 #include "stats/StatsAgent.h"
+#include "stats/StatsSource.h"
 #include "voltdbipc.h"
 #include "common/FailureInjection.h"
 
@@ -355,13 +356,13 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
         // send back the number of tuples modified
         if (executor->forceTupleCount()) {
             send_tuple_count = true;
-            VOLT_DEBUG(
+            VOLT_TRACE(
                     "[PlanFragment %jd] Forcing tuple count at PlanNode #%02d for txn #%jd [OutputDep=%d]",
                     (intmax_t)planfragmentId,
                     executor->getPlanNode()->getPlanNodeId(), (intmax_t)txnId,
                     m_currentOutputDepId);
         } else {
-            VOLT_DEBUG(
+            VOLT_TRACE(
                     "[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
                     (intmax_t)planfragmentId,
                     executor->getPlanNode()->getPlanNodeId(), (intmax_t)txnId,
@@ -433,7 +434,7 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     m_currentOutputDepId = -1;
     m_currentInputDepId = -1;
 
-    VOLT_DEBUG("Finished executing.");
+    VOLT_TRACE("Finished executing.");
     return ENGINE_ERRORCODE_SUCCESS;
 }
 
@@ -501,7 +502,7 @@ int VoltDBEngine::executePlanFragment(string fragmentString,
 // RESULT FUNCTIONS
 // -------------------------------------------------
 bool VoltDBEngine::send(Table* dependency) {
-    VOLT_DEBUG("Sending Dependency '%d' from C++", m_currentOutputDepId);
+    VOLT_TRACE("Sending Dependency '%d' from C++", m_currentOutputDepId);
     m_resultOutput.writeInt(m_currentOutputDepId);
     if (!dependency->serializeTo(m_resultOutput))
         return false;
@@ -838,6 +839,20 @@ bool VoltDBEngine::rebuildTableCollections() {
                         STATISTICS_SELECTOR_TYPE_INDEX,
                         indexId, index->getIndexStats());
             }
+
+            #ifdef ANTICACHE
+            // Add all different levels of anticacheDB to the stats source.
+            // This is duplicated, but that's fine for now (in case we need to get per-tire-table anticache stats).
+            if (m_executorContext->getAntiCacheEvictionManager() != NULL) {
+                std::vector <AntiCacheDB*> tacdbs = tcd->getTable()->allACDBs();
+                for (int i = 0; i < tacdbs.size(); i++) {
+                    VOLT_DEBUG("CREATE ACDBStats: %d\n", i);
+                    getStatsManager().registerStatsSource(
+                            STATISTICS_SELECTOR_TYPE_MULTITIER_ANTICACHE,
+                            static_cast<CatalogId>(i), (StatsSource*)(tacdbs[i]->getACDBStats()));
+                }
+            }
+            #endif
         }
         cdIt++;
     }
@@ -1266,7 +1281,7 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                     catalog::Index *catIndex = idx_iterator->second;
                     CatalogId indexId = computeIndexStatsId(catTable->relativeIndex(), catIndex->relativeIndex());
                     locatorIds.push_back(indexId);
-                    VOLT_DEBUG("FETCH IndexStats: %s.%s -> %d\n",
+                    VOLT_ERROR("FETCH IndexStats: %s.%s -> %d\n",
                                catTable->name().c_str(), catIndex->name().c_str(), indexId);
                 } // FOR
             } // FOR
@@ -1276,6 +1291,36 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                     now);
             break;
         }
+        // -------------------------------------------------
+        // MULTITIER STATS
+        // -------------------------------------------------
+        case STATISTICS_SELECTOR_TYPE_MULTITIER_ANTICACHE: {
+            VOLT_TRACE("Getting acdbstats!\n");
+            for (int ii = 0; ii < numLocators; ii++) {
+                CatalogId locator = static_cast<CatalogId>(locators[ii]);
+                locatorIds.push_back(locator);
+                VOLT_TRACE("Fetching acdbstats: %d\n", locator);
+            }
+            /*
+            for (int ii = 0; ii < numLocators; ii++) {
+                CatalogId locator = static_cast<CatalogId>(locators[ii]);
+                if (m_tables.find(locator) == m_tables.end()) {
+                    char message[256];
+                    snprintf(message, 256,
+                            "getStats() called with selector %d, and"
+                                    " an invalid locator %d that does not correspond to"
+                                    " a table", selector, locator);
+                    throw SerializableEEException(
+                            VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION, message);
+                }
+            }*/
+
+            resultTable = m_statsManager.getStats(
+                    (StatisticsSelectorType) selector, locatorIds, interval,
+                    now);
+            break;
+        }
+
         default:
             char message[256];
             snprintf(message, 256,
@@ -1972,16 +2017,16 @@ int VoltDBEngine::trackingTupleSet(int64_t txnId, bool writes) {
 // -------------------------------------------------
 
 #ifdef ANTICACHE
-void VoltDBEngine::antiCacheInitialize(std::string dbDir, AntiCacheDBType dbType, long blockSize, long maxSize) const {
-    VOLT_INFO("Enabling type %d Anti-Cache at Partition %d: dir=%s / blockSize=%ld max=%ld", (int)dbType,
-            m_partitionId, dbDir.c_str(), blockSize, maxSize);
-    m_executorContext->enableAntiCache(this, dbDir, blockSize, dbType, maxSize);
+void VoltDBEngine::antiCacheInitialize(std::string dbDir, AntiCacheDBType dbType, bool blocking, long blockSize, long maxSize, bool blockMerge) const {
+    VOLT_INFO("Enabling type %d (blocking: %d/blockMerge: %d) Anti-Cache at Partition %d: dir=%s / blockSize=%ld max=%ld", 
+            (int)dbType, (int)blocking, (int)blockMerge, m_partitionId, dbDir.c_str(), blockSize, maxSize);
+    m_executorContext->enableAntiCache(this, dbDir, blockSize, dbType, blocking, maxSize, blockMerge);
 }
 
-void VoltDBEngine::antiCacheAddDB(std::string dbDir, AntiCacheDBType dbType, long blockSize, long maxSize) const {
-    VOLT_INFO("Adding type %d Anti-Cache at Partition %d: dir=%s / blockSize=%ld max=%ld", (int)dbType,
-            m_partitionId, dbDir.c_str(), blockSize, maxSize);
-    m_executorContext->addAntiCacheDB(dbDir, blockSize, dbType, maxSize);
+void VoltDBEngine::antiCacheAddDB(std::string dbDir, AntiCacheDBType dbType, bool blocking, long blockSize, long maxSize, bool blockMerge) const {
+    VOLT_INFO("Adding type %d (blocking: %d/blockMerge: %d) Anti-Cache at Partition %d: dir=%s / blockSize=%ld max=%ld", 
+            (int)dbType, (int)blocking, (int)blockMerge, m_partitionId, dbDir.c_str(), blockSize, maxSize);
+    m_executorContext->addAntiCacheDB(dbDir, blockSize, dbType, blocking, maxSize, blockMerge);
 }
 
 int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t blockIds[], int32_t tupleOffsets[]) {
@@ -2017,6 +2062,8 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
                    numBlocks, table->name().c_str(), e.message().c_str());
         // FIXME: This won't work if we execute are executing this operation the
         //        same time that txns are running
+        
+        // MJG DANGER!!!!
         resetReusedResultOutputBuffer();
         e.serialize(getExceptionOutputSerializer());
         retval = ENGINE_ERRORCODE_ERROR;

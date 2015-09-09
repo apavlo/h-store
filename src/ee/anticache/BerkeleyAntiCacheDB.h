@@ -24,7 +24,7 @@ class BerkeleyAntiCacheBlock : public AntiCacheBlock {
         ~BerkeleyAntiCacheBlock();
 
     private:
-        BerkeleyAntiCacheBlock(int16_t blockId, Dbt value);
+        BerkeleyAntiCacheBlock(uint16_t blockId, Dbt value);
 };
 
 // Encapsulates a block that is flushed out to BerkeleyDB
@@ -82,22 +82,23 @@ class BerkeleyAntiCacheDB : public AntiCacheDB {
         BerkeleyAntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSize, long maxSize);
         ~BerkeleyAntiCacheDB(); 
 
-        inline int16_t nextBlockId() {
+        inline uint16_t nextBlockId() {
             return (++m_nextBlockId);
         }
         void initializeDB();
 
-        AntiCacheBlock* readBlock(int16_t blockId);
+        AntiCacheBlock* readBlock(uint16_t blockId, bool isMigrate);
 
         void shutdownDB();
 
         void flushBlocks();
 
         void writeBlock(const std::string tableName,
-                        int16_t blockID,
+                        uint16_t blockID,
                         const int tupleCount,
                         const char* data,
-                        const long size);
+                        const long size,
+                        const int evictedTupleCount);
     private:
         DbEnv* m_dbEnv;
         Db* m_db;

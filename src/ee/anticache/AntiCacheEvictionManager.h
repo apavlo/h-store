@@ -84,12 +84,20 @@ public:
         m_evicted_tables.clear();
         m_evicted_block_ids.clear();
         m_evicted_offsets.clear();
+        m_blockable_accesses = true;
     }
     inline bool hasEvictedAccesses() const {
         return (m_evicted_block_ids.empty() == false);
     }
+    inline bool hasBlockableEvictedAccesses() const {
+        return m_blockable_accesses;
+    }
+    inline int16_t getNumAntiCacheDBs() {
+        return m_numdbs;
+    }
     void recordEvictedAccess(catalog::Table* catalogTable, TableTuple *tuple);
     void throwEvictedAccessException();
+    bool blockingMerge();
     
 protected:
     void initEvictResultTable();
@@ -111,6 +119,9 @@ protected:
     std::vector<catalog::Table*> m_evicted_tables;
     std::vector<int32_t> m_evicted_block_ids;
     std::vector<int32_t> m_evicted_offsets;
+    // whether the block to be merged is blockable, that is, all blocks that are needed
+    // are in blockable tiers
+    bool m_blockable_accesses;
 
     AntiCacheDB* m_db_lookup[MAX_DBS];
     int16_t m_numdbs;

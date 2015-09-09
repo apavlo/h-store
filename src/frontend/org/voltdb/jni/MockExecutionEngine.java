@@ -200,12 +200,12 @@ public class MockExecutionEngine extends ExecutionEngine {
     }
     
     @Override
-    public void antiCacheInitialize(File dbFilePath, AntiCacheDBType dbType, long blockSize, long maxSize) throws EEException {
+    public void antiCacheInitialize(File dbFilePath, AntiCacheDBType dbType, boolean blocking, long blockSize, long maxSize, boolean blockMerge) throws EEException {
         // TODO Auto-generated method stub
     }
     
     @Override
-    public void antiCacheAddDB(File dbFilePath, AntiCacheDBType dbType, long blockSize, long maxSize) throws EEException {
+    public void antiCacheAddDB(File dbFilePath, AntiCacheDBType dbType, boolean blocking, long blockSize, long maxSize, boolean blockMerge) throws EEException {
     }
 
     @Override

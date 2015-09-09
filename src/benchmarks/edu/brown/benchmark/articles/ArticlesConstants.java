@@ -15,12 +15,12 @@ public abstract class ArticlesConstants {
     // DATA CONFIGURATION
     // ----------------------------------------------------------------
     
-    public static final int ARTICLES_SIZE = 10000;
+    public static final int ARTICLES_SIZE = 100000;
     public static final int USERS_SIZE = 200;
     
     public static final int BATCH_SIZE = 500;
 
-    public static final long MAX_COMMENTS_PER_ARTICLE = 65535; // 2^16 - 1
+    public static final long MAX_COMMENTS_PER_ARTICLE = 1000; // 2^16 - 1
     public static final double COMMENTS_PER_ARTICLE_SIGMA = 2d;
     public static final int COMMENTS_NUM_COLUMNS = 0;
     

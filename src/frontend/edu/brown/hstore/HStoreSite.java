@@ -51,6 +51,7 @@ import org.voltdb.AriesLogNative;
 import org.voltdb.CatalogContext;
 import org.voltdb.ClientResponseImpl;
 import org.voltdb.MemoryStats;
+import org.voltdb.AntiCacheMemoryStats;
 import org.voltdb.ParameterSet;
 import org.voltdb.ProcedureProfiler;
 import org.voltdb.StatsAgent;
@@ -255,6 +256,7 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
     private final StatsAgent statsAgent = new StatsAgent();
     private TransactionProfilerStats txnProfilerStats;
     private MemoryStats memoryStats;
+    private AntiCacheMemoryStats anticacheMemoryStats;
     
     // ----------------------------------------------------------------------------
     // NETWORKING STUFF
@@ -868,6 +870,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         this.memoryStats = new MemoryStats();
         this.statsAgent.registerStatsSource(SysProcSelector.MEMORY, 0, this.memoryStats);
         
+        // ANTICACHE MEMORY
+        this.anticacheMemoryStats = new AntiCacheMemoryStats();
+        this.statsAgent.registerStatsSource(SysProcSelector.MULTITIER_ANTICACHE, 0, this.anticacheMemoryStats);
+
         // TXN COUNTERS
         statsSource = new TransactionCounterStats(this.catalogContext);
         this.statsAgent.registerStatsSource(SysProcSelector.TXNCOUNTER, 0, statsSource);
@@ -1381,6 +1387,10 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
         return (this.memoryStats);
     }
     
+    public AntiCacheMemoryStats getAntiCacheMemoryStatsSource() {
+        return (this.anticacheMemoryStats);
+    }
+
     public Collection<TransactionPreProcessor> getTransactionPreProcessors() {
         return (this.preProcessors);
     }

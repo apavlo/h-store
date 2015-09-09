@@ -85,6 +85,10 @@ namespace voltdb {
             m_MMAPEnabled = false;
             m_ARIESEnabled = false;
             m_antiCacheDBs = 0;
+            #ifdef ANTICACHE
+            m_antiCacheEvictionManager = NULL;
+            #endif
+
         }
 
         // not always known at initial construction
@@ -221,25 +225,45 @@ namespace voltdb {
         }
 
         /**
+         * Return whether the system as a whole uses blockmerge or tuple merge.
+         *
+         * currently, this is the only version that works.
+         */
+        bool isBlockMerge() {
+            return m_blockMergeSystem;
+        }
+
+        /**
+         * Return whether the level chosen uses block merge or tuple merge.
+         *
+         * This is not fully implemented yet. Currently the system as a whole
+         * can be block or tuple merge.
+         */
+        bool isBlockMerge(int level) {
+            return m_blockMerge[level];
+        }
+
+        /**
          * Enable the anti-caching feature in the EE.
          * The input parameter is the directory where our disk-based storage
          * will write out evicted blocks of tuples for this partition
          */
-        void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize, AntiCacheDBType dbType, long maxSize) {
+        void enableAntiCache(const VoltDBEngine *engine, std::string &dbDir, long blockSize, AntiCacheDBType dbType, bool blocking, long maxSize, bool blockMerge) {
             assert(m_antiCacheEnabled == false);
             m_antiCacheEnabled = true;
             m_levels = 0;
+            m_blockMergeSystem = blockMerge;
             m_antiCacheEvictionManager = new AntiCacheEvictionManager(engine);
-            addAntiCacheDB(dbDir, blockSize, dbType, maxSize);
+            addAntiCacheDB(dbDir, blockSize, dbType, blocking, maxSize, blockMerge);
         }
 
-        void addAntiCacheDB(std::string &dbDir, long blockSize, AntiCacheDBType dbType, long maxSize) {
+        void addAntiCacheDB(std::string &dbDir, long blockSize, AntiCacheDBType dbType, bool blocking, long maxSize, bool blockMerge) {
             assert(m_antiCacheEnabled == true);
             m_dbType[m_levels] = dbType;
             // MJG: need a better error return (throw exception?) 
             if (dbType == ANTICACHEDB_BERKELEY) {
                 m_antiCacheDB[m_levels] = new BerkeleyAntiCacheDB(this, dbDir, blockSize, maxSize);
-//                m_antiCacheEvictionManager->addAntiCacheDB(new BerkeleyAntiCacheDB(this, dbDir, blockSize, maxSize));
+//              m_antiCacheEvictionManager->addAntiCacheDB(new BerkeleyAntiCacheDB(this, dbDir, blockSize, maxSize));
             } else if (dbType == ANTICACHEDB_NVM) {
                 m_antiCacheDB[m_levels] = new NVMAntiCacheDB(this, dbDir, blockSize, maxSize);
                 //m_antiCacheEvictionManager->addAntiCacheDB(new NVMAntiCacheDB(this, dbDir, blockSize, maxSize));
@@ -247,6 +271,9 @@ namespace voltdb {
                 VOLT_ERROR("Invalid AntiCacheDBType: %d! Aborting...", (int)dbType);
                 assert(m_antiCacheEnabled == false);
             }  
+            m_antiCacheDB[m_levels]->setBlocking(blocking);
+            m_antiCacheDB[m_levels]->setBlockMerge(blockMerge);
+            m_blockMerge[m_levels] = blockMerge;
             m_antiCacheEvictionManager->addAntiCacheDB(m_antiCacheDB[m_levels]);
             m_levels++;
         }
@@ -328,6 +355,8 @@ namespace voltdb {
         AntiCacheEvictionManager *m_antiCacheEvictionManager;
         AntiCacheDBType m_dbType[MAX_LEVELS];
         int16_t m_levels;
+        bool m_blockMerge[MAX_LEVELS];
+        bool m_blockMergeSystem;
         #endif
 
         #ifdef STORAGE_MMAP

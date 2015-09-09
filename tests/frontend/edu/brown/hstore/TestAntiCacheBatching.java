@@ -156,7 +156,7 @@ public class TestAntiCacheBatching extends BaseTestCase {
 
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
-        VoltTable evictResult = this.ee.antiCacheEvictBlockInBatch(catalog_tbl, child_tbl, 1024 * 500, 1);
+        VoltTable evictResult = this.ee.antiCacheEvictBlockInBatch(catalog_tbl, child_tbl, 1024 * 250, 1);
 
         System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(evictResult));

@@ -71,12 +71,12 @@ TableIndex::TableIndex(const TableIndexScheme &scheme) : m_scheme(scheme), m_sta
     // initialize memory size to zero
     m_memoryEstimate = 0;
 
-    VOLT_TRACE("Index created2: %s %d\n", getName().c_str(), m_id);
+    //VOLT_TRACE("Index created2: %s %d\n", getName().c_str(), m_id);
 }
 
 TableIndex::~TableIndex()
 {
-    VOLT_TRACE("Index destructed: %s %d\n", getName().c_str(), m_id);
+    //VOLT_TRACE("Index destructed: %s %d\n", getName().c_str(), m_id);
 
     delete[] column_indices_;
     delete[] column_types_;

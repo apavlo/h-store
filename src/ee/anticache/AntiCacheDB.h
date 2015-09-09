@@ -47,6 +47,7 @@ namespace voltdb {
     
 class ExecutorContext;
 class AntiCacheDB;
+class AntiCacheStats;
 
 /**
  * Wrapper class for an evicted block that has been read back in 
@@ -58,7 +59,7 @@ class AntiCacheBlock {
     public:
         virtual ~AntiCacheBlock() {};
         
-        inline int16_t getBlockId() const {
+        inline uint16_t getBlockId() const {
             return m_blockId;
         }
 
@@ -74,7 +75,7 @@ class AntiCacheBlock {
         }
 
         struct payload{
-            int16_t blockId;
+            uint16_t blockId;
             std::string tableName;
             char * data;
             long size;
@@ -86,10 +87,10 @@ class AntiCacheBlock {
     
     protected:
         // Why is this private/protected?
-        AntiCacheBlock(int16_t blockId);
-        int16_t m_blockId;
+        AntiCacheBlock(uint16_t blockId);
+        uint16_t m_blockId;
         payload m_payload;
-        long m_size;
+        int32_t m_size;
         char * m_block;
         char * m_buf;
         // probably should be changed to a final/const
@@ -107,25 +108,27 @@ class AntiCacheDB {
          * Write a block of serialized tuples out to the anti-cache database
          */
         virtual void writeBlock(const std::string tableName,
-                                int16_t blockId,
+                                uint16_t blockId,
                                 const int tupleCount,
                                 const char* data,
-                                const long size) = 0;
+                                const long size, const int evictedTupleCount) = 0;
         /**
          * Read a block and return its contents
          */
-        virtual AntiCacheBlock* readBlock(int16_t blockId) = 0;
+        virtual AntiCacheBlock* readBlock(uint16_t blockId, bool isMigrate) = 0;
 
 
         /**
          * Flush the buffered blocks to disk.
          */
         virtual void flushBlocks() = 0;
+        
+        virtual void setStatsSource();
 
         /**
          * Return the next BlockId to use in the anti-cache database
          */
-        virtual int16_t nextBlockId() = 0;
+        virtual uint16_t nextBlockId() = 0;
         /**
          * Return the AntiCacheDBType of the database
          */
@@ -145,9 +148,9 @@ class AntiCacheDB {
             return m_totalBlocks;
         }
         /**
-         * Return the maximum size of the database
+         * Return the maximum size of the database in bytes
          */
-        inline long getMaxDBSize() {
+        inline int64_t getMaxDBSize() {
             return m_maxDBSize;
         }
         /**
@@ -198,6 +201,17 @@ class AntiCacheDB {
         inline void setACID(int16_t ACID) {
             m_ACID = ACID;
         }
+
+        virtual inline AntiCacheStats* getACDBStats() {
+            return m_stats;
+        }
+
+        /**
+         * Change anticache memory stats for the removal of a single tuple.
+         * Because of the structure of AnticacheDB we have to have this another
+         * function.
+         */
+        void removeSingleTupleStats(uint16_t blockId);
         
         /**
          * Return the AntiCacheID number.
@@ -207,12 +221,97 @@ class AntiCacheDB {
         }
 
         /**
-         * return true if we should stall false if we need to abort
+         * return true if we block to fetch a block, false if we abort and issue a merge
          */
-        inline bool stallForData() {
-            return m_stall;
+        inline bool isBlocking() {
+            return m_blocking;
+        }
+        
+        /**
+         * Set whether we block or abort
+         */
+        inline void setBlocking(bool blocking) {
+            m_blocking = blocking;
         }
 
+        /*
+         * return current count of evicted blocks
+         */
+        inline int32_t getBlocksEvicted() {
+            return m_blocksEvicted;
+        }
+        
+        /* 
+         * clear current count of evicted blocks
+         */
+        inline void clearBlocksEvicted() {
+            m_blocksEvicted = 0;
+        }
+        
+        /*
+         * return current count of evicted bytes
+         */
+
+        inline int64_t getBytesEvicted() {
+            return m_bytesEvicted;
+        }
+
+        /*
+         * clear current count of evicted bytes
+         */
+        inline void clearBytesEvicted() {
+            m_bytesEvicted = 0;
+        }
+        
+        /* 
+         * return current count of unevicted blocks
+         */
+        inline int32_t getBlocksUnevicted() {
+            return m_blocksUnevicted;
+        }
+
+        /*
+         * clear current count of unevicted blocks
+         */
+        inline void clearBlocksUnevicted() {
+            m_blocksUnevicted = 0;
+        }
+
+        /* 
+         * return current count of unevicted bytes
+         */
+        inline int64_t getBytesUnevicted() {
+            return m_bytesUnevicted;
+        }
+
+        /*
+         * clear current couont of unevicted bytes
+         */
+        inline void clearBytesUnevicted() {
+            m_bytesUnevicted = 0;
+        }
+        
+        /*
+         * Set to block merge
+         */
+        inline void setBlockMerge(bool block_merge) {
+            m_block_merge = block_merge;
+        }
+
+        /*
+         * Are we merging the entire block or just a single tuple?
+         */
+        inline bool isBlockMerge() {
+            return m_block_merge;
+        }
+
+        inline int getTupleInBlock(uint16_t blockId) {
+            return tupleInBlock[blockId];
+        }
+        
+        inline int getEvictedTupleInBlock(uint16_t blockId) {
+            return evictedTupleInBlock[blockId];
+        }
 
     protected:
         ExecutorContext *m_executorContext;
@@ -224,11 +323,28 @@ class AntiCacheDB {
         int m_partitionId; 
         int m_totalBlocks; 
         
-        bool m_stall;
+
+        bool m_blocking;
+        bool m_block_merge;
 
         AntiCacheDBType m_dbType;
-        long m_maxDBSize;
+        int64_t m_maxDBSize;
+        
 
+        /*
+         * stats
+         */
+        int64_t m_bytesEvicted;
+        int32_t m_blocksEvicted;
+        int64_t m_bytesUnevicted;
+        int32_t m_blocksUnevicted;
+
+        std::map <uint16_t, int> tupleInBlock;
+        std::map <uint16_t, int> evictedTupleInBlock;
+        std::map <uint16_t, long> blockSize;
+
+        voltdb::AntiCacheStats* m_stats;
+        
         /* we need to test whether a deque or list is better. If we push/pop more than we
          * remove, this is better. otherwise, let's use a list
          */

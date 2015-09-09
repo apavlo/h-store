@@ -110,7 +110,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_newestTupleID = 0;
     m_oldestTupleID = 0;
     m_numTuplesInEvictionChain = 0;
-    m_blockMerge = true;
+    m_blockMerge = ctx->isBlockMerge();
     m_batchEvicted = false;
 #endif
 
@@ -137,7 +137,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, const std::string name, b
     m_newestTupleID = 0;
     m_oldestTupleID = 0;
     m_numTuplesInEvictionChain = 0;
-    m_blockMerge = true;
+    m_blockMerge = ctx->isBlockMerge();
     m_batchEvicted = false;
 #endif
 
@@ -252,6 +252,15 @@ AntiCacheDB* PersistentTable::getAntiCacheDB(int level)
     return m_executorContext->getAntiCacheDB(level);
 }
 
+std::vector<AntiCacheDB*> PersistentTable::allACDBs() const {
+    std::vector<AntiCacheDB*> retval;
+    int numDBs = (int)m_executorContext->getAntiCacheEvictionManager()->getNumAntiCacheDBs();
+    for (int i = 0; i < numDBs; ++i)
+        retval.push_back(m_executorContext->getAntiCacheDB(i));
+
+    return retval;
+}
+
 int32_t PersistentTable::getTuplesEvicted()
 {
     return m_tuplesEvicted;
@@ -317,15 +326,18 @@ std::map<int32_t, int32_t> PersistentTable::getUnevictedBlockIDs()
     return m_unevictedBlockIDs;
 }
 
-bool PersistentTable::isAlreadyUnEvicted(int32_t blockId)
+int PersistentTable::isAlreadyUnEvicted(int32_t blockId)
 {
-    return m_unevictedBlockIDs.find(blockId) != m_unevictedBlockIDs.end();
+    if (m_unevictedBlockIDs.find(blockId) != m_unevictedBlockIDs.end())
+        return m_unevictedBlockIDs[blockId];
+    else
+        return 0;
 }
 
 void PersistentTable::insertUnevictedBlockID(std::pair<int32_t,int32_t> pair)
 {
-    VOLT_DEBUG("pair is %d", pair.first);
-    m_unevictedBlockIDs.insert(pair);
+    VOLT_INFO("Unevicted pair is %d", pair.first);
+    m_unevictedBlockIDs[pair.first] = pair.second;
 }
 
 bool PersistentTable::removeUnevictedBlockID(int32_t blockId) {
@@ -388,6 +400,10 @@ void PersistentTable::clearUnevictedBlocks()
 {
     m_unevictedBlocks.clear();
 }
+void PersistentTable::clearUnevictedBlockIDs()
+{
+    m_unevictedBlockIDs.clear();
+}
 void PersistentTable::clearUnevictedBlocks(int i)
 {
     m_unevictedBlocks.erase(m_unevictedBlocks.begin()+i);
@@ -398,15 +414,23 @@ void PersistentTable::clearMergeTupleOffsets()
     m_mergeTupleOffset.clear();
 }
 
-int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset){
+int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset, bool blockMerge){
     TableTuple evicted_tuple = m_evictedTable->tempTuple();
     // get a free tuple and increment the count of tuples current used
     nextFreeTuple(&m_tmpTarget1);
     m_tupleCount++;
 
-    // deserialize tuple from unevicted block
-    int64_t bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
-
+    int64_t bytesUnevicted = 0;
+    
+    // This only works if we either merge a single tuple or an entire block. If,
+    // in the future, we would like to merge more than one tuple but less than
+    // an entire block, this will need to be changed because it destroys the buffer
+    // for the single tuple.
+    if (!blockMerge) {
+        in->getRawPointer(merge_tuple_offset);
+    }
+        
+    bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
 
     // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
     // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version
@@ -417,7 +441,7 @@ int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int m
     m_tmpTarget1.setEvictedFalse();
     m_tmpTarget1.setDeletedFalse();
     // update the indexes to point to this newly unevicted tuple
-    VOLT_DEBUG("BEFORE: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
+    VOLT_TRACE("BEFORE: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
     setEntryToNewAddressForAllIndexes(&m_tmpTarget1, m_tmpTarget1.address(), m_tmpTarget2.address());
     updateStringMemory((int)m_tmpTarget1.getNonInlinedMemorySize());
 
@@ -425,8 +449,8 @@ int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int m
     //insertTuple(m_tmpTarget1);
 
     m_tmpTarget1.setEvictedFalse();
-    VOLT_DEBUG("AFTER: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
-    VOLT_DEBUG("Merged Tuple: %s", m_tmpTarget1.debug(name()).c_str());
+    VOLT_TRACE("AFTER: tuple.isEvicted() = %d", m_tmpTarget1.isEvicted());
+    VOLT_TRACE("Merged Tuple: %s", m_tmpTarget1.debug(name()).c_str());
     //VOLT_INFO("tuple size: %d, non-inlined memory size: %d", m_tmpTarget1.tupleLength(), m_tmpTarget1.getNonInlinedMemorySize());
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
     // re-insert the tuple back into the eviction chain

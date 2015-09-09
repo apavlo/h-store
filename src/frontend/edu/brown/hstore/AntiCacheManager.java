@@ -14,6 +14,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.log4j.Logger;
 import org.voltdb.CatalogContext;
@@ -63,6 +64,12 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private static final Logger LOG = Logger.getLogger(AntiCacheManager.class);
     private static final LoggerBoolean debug = new LoggerBoolean();
     private static final LoggerBoolean trace = new LoggerBoolean();
+    private static final ReentrantLock lock = new ReentrantLock();
+
+    public static ReentrantLock getLock() {
+        return lock;
+    }
+
     static {
         LoggerUtil.attachObserver(LOG, debug, trace);
     }
@@ -198,6 +205,13 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         }
     };
 
+    // Anticache levels
+    private static int numDBs = 1;
+
+    public static int getNumDBs() {
+        return numDBs;
+    }
+
     // ----------------------------------------------------------------------------
     // INITIALIZATION
     // ----------------------------------------------------------------------------
@@ -257,6 +271,14 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 AntiCacheManager.this.updatePartitionStats(vt);
             }
         });
+        
+        if (hstore_conf.site.anticache_enable_multilevel) {
+            String config = hstore_conf.site.anticache_levels;
+            String delims = "[;]";
+            String[] levels = config.split(delims);
+
+            numDBs = levels.length;
+        }
     }
 
     public Collection<Table> getEvictableTables() {
@@ -266,6 +288,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     public Runnable getMemoryMonitorThread() {
         return this.memoryMonitor;
     }
+
 
     // ----------------------------------------------------------------------------
     // TRANSACTION PROCESSING
@@ -305,6 +328,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         // block the AntiCacheManager until each of the requests are finished
         if (hstore_conf.site.anticache_profiling) 
             this.profilers[next.partition].retrieval_time.start();
+        lock.lock();
         try {
             if (debug.val)
                 LOG.debug(String.format("Asking EE to read in evicted blocks from table %s on partition %d: %s",
@@ -320,6 +344,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
             // merge_needed = false; 
         } finally {
+            lock.unlock();
             if (hstore_conf.site.anticache_profiling) 
                 this.profilers[next.partition].retrieval_time.stopIfStarted();
         }
@@ -336,14 +361,18 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             // We need to get a new txnId for ourselves, since the one that we
             // were given before is now probably too far in the past
         	if(next.partition != next.ts.getBasePartition()){
+                lock.lock();
         		ee.antiCacheMergeBlocks(next.catalog_tbl);
+                lock.unlock();
         	}
             this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
 
             if (debug.val) LOG.debug("restartin on local");
         	this.hstore_site.transactionInit(next.ts);	
         } else {
+            lock.lock();
         	ee.antiCacheMergeBlocks(next.catalog_tbl);
+            lock.unlock();
         	RemoteTransaction ts = (RemoteTransaction) next.ts; 
         	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
         	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
@@ -483,7 +512,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
          */
         return  totalEvictableSizeKb >= (hstore_conf.site.anticache_block_size / 1024) &&
                 this.pendingEvictions == 0 &&
-                totalActiveDataSize > hstore_conf.site.anticache_threshold_mb &&
+                totalDataSize > hstore_conf.site.anticache_threshold_mb &&
 //                totalEvictedMB < (totalDataSize * hstore_conf.site.anticache_threshold) &&
                 totalBlocksEvicted < hstore_conf.site.anticache_max_evicted_blocks;
     }

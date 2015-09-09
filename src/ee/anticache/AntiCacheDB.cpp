@@ -25,6 +25,7 @@
 
 #include "anticache/AntiCacheDB.h"
 #include "anticache/UnknownBlockAccessException.h"
+#include "anticache/AntiCacheStats.h"
 #include "common/debuglog.h"
 #include "common/FatalException.hpp"
 #include "common/executorcontext.hpp"
@@ -39,7 +40,7 @@ using namespace std;
 
 namespace voltdb {
 
-AntiCacheBlock::AntiCacheBlock(int16_t blockId) {
+AntiCacheBlock::AntiCacheBlock(uint16_t blockId) {
 
 //    for(int i=0;i<size;i++){
 //       VOLT_INFO("%x", data[i]);
@@ -53,7 +54,8 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSiz
     m_dbDir(db_dir),
     m_nextBlockId(0),
     m_blockSize(blockSize),
-    m_totalBlocks(0)
+    m_totalBlocks(0),
+    m_block_merge(1)
     { 
         // MJG: TODO: HACK: Come up with a better way to make a maxsize when one isn't given
         if (maxSize == -1) {
@@ -61,23 +63,40 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSiz
         } else {
             m_maxDBSize = maxSize;
         }
-        
+        m_bytesEvicted = 0;
+        m_blocksEvicted = 0;
+        m_bytesUnevicted = 0;
+        m_blocksUnevicted = 0;
+
+        m_stats = new AntiCacheStats(NULL, this);
+        if (ctx != NULL)
+            m_stats->configure("Anticache Memory Stats",
+                ctx->m_hostId,
+                ctx->m_hostname,
+                ctx->m_siteId,
+                ctx->m_partitionId,
+                -1);
+        else  
+            m_stats->configure("Anticache Memory Stats", 0, "", 0, 0, -1);
 }
 
 AntiCacheDB::~AntiCacheDB() {
+    delete m_stats;
+    tupleInBlock.clear();
+    evictedTupleInBlock.clear();
 }
 
 AntiCacheBlock* AntiCacheDB::getLRUBlock() {
     uint16_t lru_block_id;
     AntiCacheBlock* lru_block;
 
+    VOLT_WARN("If you are using tuple merge, this is BROKEN BROKEN BROKEN");
     if (m_block_lru.empty()) {
         VOLT_ERROR("LRU Blocklist Empty!");
         throw UnknownBlockAccessException(0);
     } else {
         lru_block_id = m_block_lru.front();
-        //m_block_lru.pop_front();
-        lru_block = readBlock(lru_block_id);
+        lru_block = readBlock(lru_block_id, 1);
         //m_totalBlocks--;
         return lru_block;
     }
@@ -99,13 +118,13 @@ void AntiCacheDB::removeBlockLRU(uint16_t blockId) {
     }
 
     if (!found) {
-        VOLT_ERROR("Found block but didn't find blockId %d in LRU!", blockId);
+        VOLT_ERROR("Found block but didn't find blockId %u in LRU!", blockId);
         //throw UnknownBlockAccessException(blockId);
     }
 }
 
 void AntiCacheDB::pushBlockLRU(uint16_t blockId) {
-    VOLT_INFO("Pushing blockId %d into LRU", blockId);
+    VOLT_INFO("Pushing blockId %u into LRU", blockId);
     m_block_lru.push_back(blockId);
     m_totalBlocks++;
 }
@@ -116,6 +135,14 @@ uint16_t AntiCacheDB::popBlockLRU() {
     return blockId;
 }
 
+void AntiCacheDB::setStatsSource() {
+    //m_stats = new AntiCacheStats(NULL, this);
+}
+
+void AntiCacheDB::removeSingleTupleStats(uint16_t blockId) {
+    m_bytesUnevicted += static_cast<int32_t>( blockSize[blockId] / tupleInBlock[blockId]);
+    evictedTupleInBlock[blockId]--;
+}
 
 }
 

@@ -31,9 +31,10 @@ import edu.brown.utils.StringUtil;
 import edu.brown.utils.ThreadUtil;
 
 /**
- * Anti-Cache Manager Test Cases
+ * Anti-Cache Multilevel Manager Test Cases
  * @author pavlo
  * @author jdebrabant
+ * @author giardino
  */
 public class TestAntiCacheMultiLevel extends BaseTestCase {
     
@@ -86,7 +87,7 @@ public class TestAntiCacheMultiLevel extends BaseTestCase {
         this.hstore_conf.site.anticache_enable_multilevel = true;
         this.hstore_conf.site.anticache_profiling = true;
         this.hstore_conf.site.anticache_check_interval = Integer.MAX_VALUE;
-        this.hstore_conf.site.anticache_levels = "NVM,1M,4M;BERKELEY,1M,8M";
+        this.hstore_conf.site.anticache_levels = "NVM,true,256K,1M;BERKELEY,false,256K,8M";
         //this.hstore_conf.site.anticache_levels = "BERKELEY,1M,4M;BERKELEY,1M,8M";
         //this.hstore_conf.site.anticache_levels = "NVM,1M,4M;";
         //this.hstore_conf.site.anticache_levels = "BERKELEY,1M,4M;";
@@ -140,7 +141,8 @@ public class TestAntiCacheMultiLevel extends BaseTestCase {
 
         // Now force the EE to evict our boys out
         // We'll tell it to remove 1MB, which is guaranteed to include all of our tuples
-        VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024, 1);
+        //VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024 * 1024, 1);
+        VoltTable evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 256 * 1024, 1);
 
         System.err.println("-------------------------------");
         System.err.println(VoltTableUtil.format(evictResult));
@@ -268,7 +270,8 @@ public class TestAntiCacheMultiLevel extends BaseTestCase {
         
         AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
         assertNotNull(profiler);
-        assertEquals(1, profiler.evictedaccess_history.size());
+        // MJG: Since we're blocking, we never record an evicted access in the Java profiler
+        //assertEquals(1, profiler.evictedaccess_history.size());
 
         evicted = evictResult.getLong("ANTICACHE_TUPLES_EVICTED");
         assertTrue("No tuples were evicted!"+evictResult, evicted > 0);
@@ -300,7 +303,8 @@ public class TestAntiCacheMultiLevel extends BaseTestCase {
         
         AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
         assertNotNull(profiler);
-        assertEquals(1, profiler.evictedaccess_history.size());
+        // MJG: Since we're blocking, we never record an evicted access in the Java profiler
+        //assertEquals(1, profiler.evictedaccess_history.size());
     }
     
     @Test
@@ -350,7 +354,8 @@ public class TestAntiCacheMultiLevel extends BaseTestCase {
                 ThreadUtil.sleep(1000);
             }
             System.err.println("Eviction #" + i);
-            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024*1024, 1);
+            //evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024*1024, 1);
+            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 256*1024, 1);
             System.err.println(VoltTableUtil.format(evictResult));
             assertNotNull(evictResult);
             assertEquals(1, evictResult.getRowCount());
@@ -384,7 +389,8 @@ public class TestAntiCacheMultiLevel extends BaseTestCase {
                 ThreadUtil.sleep(1000);
             }
             System.err.println("Eviction #" + i);
-            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024*1024, 1);
+            //evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 1024*1024, 1);
+            evictResult = this.ee.antiCacheEvictBlock(catalog_tbl, 256*1024, 1);
             System.err.println(VoltTableUtil.format(evictResult));
             assertNotNull(evictResult);
             assertEquals(1, evictResult.getRowCount());
@@ -410,9 +416,8 @@ public class TestAntiCacheMultiLevel extends BaseTestCase {
         
         AntiCacheManagerProfiler profiler = hstore_site.getAntiCacheManager().getDebugContext().getProfiler(0);
         assertNotNull(profiler);
-        // Since we are block-merging, we should only get 
-        // five block exceptions.
-        assertEquals(5, profiler.evictedaccess_history.size());
+        // Since one of the blocks is going to come from the non-blocking level, we'll get one exception.
+        assertEquals(1, profiler.evictedaccess_history.size());
     }
 
     @Test

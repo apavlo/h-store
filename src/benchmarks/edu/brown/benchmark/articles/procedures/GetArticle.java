@@ -29,13 +29,16 @@ public class GetArticle extends VoltProcedure{
     	voltQueueSQL(GetArticle, a_id);
         return voltExecuteSQL(true);
     	} catch (SerializableException ex) {
-    		LOG.info("After get article");
-    		System.out.println(ex);
-		if(ex instanceof EvictedTupleAccessException){
+		    if(ex instanceof EvictedTupleAccessException){
                        EvictedTupleAccessException exception = (EvictedTupleAccessException) ex;
-                       LOG.info(exception.block_ids[0]);
-			System.out.println(a_id);
-               }
+                if (debug.val) {
+                    LOG.info(exception.block_ids[0]);
+			        System.out.println(a_id);
+                }
+            } else {
+	            LOG.info("After get article");
+    		    System.out.println(ex);
+            }
     		throw ex;
     	}
 /*    	try{

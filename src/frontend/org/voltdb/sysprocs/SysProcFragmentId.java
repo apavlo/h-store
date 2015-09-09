@@ -59,6 +59,9 @@ public class SysProcFragmentId {
     public static final int PF_plannerProfilerAggregator = 37;
     public static final int PF_anticacheProfilerData = 38;
     public static final int PF_anticacheProfilerAggregator = 39;
+    public static final int PF_anticacheMemoryData = 40;
+    public static final int PF_anticacheMemoryAggregator = 41;
+
 
     // @Shutdown
     public static final int PF_shutdownCommand = 50;

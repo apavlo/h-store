@@ -109,6 +109,7 @@ public class Statistics extends VoltSystemProcedure {
         addStatsFragments(SysProcSelector.SITEPROFILER, SysProcFragmentId.PF_siteProfilerData, SysProcFragmentId.PF_siteProfilerAggregator);
         addStatsFragments(SysProcSelector.PLANNERPROFILER, SysProcFragmentId.PF_plannerProfilerData, SysProcFragmentId.PF_plannerProfilerAggregator);
         addStatsFragments(SysProcSelector.ANTICACHE, SysProcFragmentId.PF_anticacheProfilerData, SysProcFragmentId.PF_anticacheProfilerAggregator);
+        addStatsFragments(SysProcSelector.MULTITIER_ANTICACHE, SysProcFragmentId.PF_anticacheMemoryData, SysProcFragmentId.PF_anticacheMemoryAggregator);
     } // STATIC
     
     @Override
@@ -155,7 +156,8 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_specexecProfilerData:
             case SysProcFragmentId.PF_siteProfilerData:
             case SysProcFragmentId.PF_plannerProfilerData:
-            case SysProcFragmentId.PF_anticacheProfilerData: {
+            case SysProcFragmentId.PF_anticacheProfilerData:
+            case SysProcFragmentId.PF_anticacheMemoryData: {
                 assert(params.toArray().length == 2);
                 final boolean interval =
                     ((Byte)params.toArray()[0]).byteValue() == 0 ? false : true;
@@ -196,7 +198,8 @@ public class Statistics extends VoltSystemProcedure {
             case SysProcFragmentId.PF_specexecProfilerAggregator:
             case SysProcFragmentId.PF_siteProfilerAggregator:
             case SysProcFragmentId.PF_plannerProfilerAggregator:
-            case SysProcFragmentId.PF_anticacheProfilerAggregator: {
+            case SysProcFragmentId.PF_anticacheProfilerAggregator:
+            case SysProcFragmentId.PF_anticacheMemoryAggregator: {
                 // Do a reverse look up to find the input dependency id
                 int dataFragmentId = -1;
                 for (Integer id : STATS_DATA.keySet()) {

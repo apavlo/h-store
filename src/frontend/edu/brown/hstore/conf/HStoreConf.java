@@ -663,9 +663,9 @@ public final class HStoreConf {
 
         @ConfigProperty(
             description="Configuration options for multilevel anticaching. Up to five " +
-                        "levels can be set up. The format is type,block_size,db_size; " +
-                        "The default is 'NVM,1M,64G;BERKELEY,1M,128G'.",
-            defaultString="NVM,1M,64G;BERKELEY,1M,128G",
+                        "levels can be set up. The format is type,blocking,block_size,db_size; " +
+                        "The default is 'NVM,true,256K,64G;BERKELEY,false,256K,128G'.",
+            defaultString="NVM,true,256K,64G;BERKELEY,false,256K,128G",
             experimental=true
         )
         public String anticache_levels;       
@@ -679,12 +679,21 @@ public final class HStoreConf {
         public String anticache_multilevel_dirs;
 
         @ConfigProperty(
-            description="The size (in bytes) for the anti-cache's blocks on disk.",
-            //defaultLong=262144, // 256kb
-            defaultLong=1048576, // 1MB
+            description="The size (in bytes) for the anti-cache's blocks on disk." +
+                        "WARNING: this seem to be buggy/broken. Please leave the default " +
+                        "value of 256KB (262144) unless you know what you're doing.",
+            defaultLong=262144, // 256kb
+            //defaultLong=1048576, // 1MB
             experimental=true
         )
         public long anticache_block_size;
+
+        @ConfigProperty(
+            description="The size of the anticache database.",
+            defaultString="2G",
+            experimental=true
+        )
+        public String anticache_dbsize;
         
         @ConfigProperty(
             description="Reset the anti-cache database directory for each partition when " +
@@ -745,7 +754,21 @@ public final class HStoreConf {
                 enumOptions="org.voltdb.types.AntiCacheDBType"
         )
         public String anticache_dbtype;
+
+        @ConfigProperty(
+                description="Top level database blocks for evictions",
+                defaultBoolean=false,
+                experimental=true
+        )
+        public boolean anticache_db_blocks;
        
+        @ConfigProperty(
+                description="Merge entire block when unevicting. False merges just a single tuple",
+                defaultBoolean=true,
+                experimental=true
+        )
+        public boolean anticache_block_merge;
+
         @ConfigProperty(
             description="Enable the anti-cache timestamps feature. This requires that the system " +
             		    "is compiled with ${site.anticache_enable} set to true.",
@@ -1950,6 +1973,16 @@ public final class HStoreConf {
             experimental=false
         )
         public String output_anticache_access;
+        
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "the memory stats of different tiers of anti-cache. This can work with single-tier" +
+                        "anti-cache. ${site.anticache_enable} should be set to true to enable this feature." +
+                        "Any file that exists with the same name as this will be overwritten.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_anticache_memory_stats;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +

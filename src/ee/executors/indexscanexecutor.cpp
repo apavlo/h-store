@@ -347,7 +347,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     assert(m_outputTable == static_cast<TempTable*>(m_node->getOutputTable()));
     assert(m_targetTable);
     assert(m_targetTable == m_node->getTargetTable());
-    VOLT_DEBUG("IndexScan: %s.%s", m_targetTable->name().c_str(),
+    VOLT_TRACE("IndexScan: %s.%s", m_targetTable->name().c_str(),
                m_index->getName().c_str());
 
     // INLINE PROJECTION
@@ -405,7 +405,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     m_searchKey.setAllNulls();
     if (m_searchKeyAllParamArray != NULL)
     {
-        VOLT_DEBUG("sweet, all params");
+        VOLT_TRACE("sweet, all params");
         for (int ctr = 0; ctr < m_numOfSearchkeys; ctr++)
         {
             m_searchKey.setNValue( ctr, params[m_searchKeyAllParamArray[ctr]]);
@@ -433,7 +433,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         if (m_needsSubstituteEndExpression) {
             end_expression->substitute(params);
         }
-        VOLT_DEBUG("End Expression:\n%s", end_expression->debug(true).c_str());
+        VOLT_TRACE("End Expression:\n%s", end_expression->debug(true).c_str());
     }
 
     //
@@ -485,6 +485,8 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
             return false;
         }
     }
+    VOLT_TRACE("IndexLookupType: %s SortDirectionType: %s", indexLookupToString(m_lookupType).c_str(),
+                                                            sortDirectionToString(m_sortDirection).c_str());
 
     if (m_sortDirection != SORT_DIRECTION_TYPE_INVALID) {
         bool order_by_asc = true;
@@ -507,6 +509,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     #ifdef ANTICACHE
     AntiCacheEvictionManager* eviction_manager = m_targetTable->m_executorContext->getAntiCacheEvictionManager();
     bool hasEvictedTable = (eviction_manager != NULL && m_targetTable->getEvictedTable() != NULL);
+    bool blockingMergeSuccessful = false;
     #endif
 
     //
@@ -517,6 +520,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
            ((m_lookupType != INDEX_LOOKUP_TYPE_EQ || m_numOfSearchkeys == 0) &&
             !(m_tuple = m_index->nextValue()).isNullTuple()))
     {
+        blockingMergeSuccessful = false;
         m_targetTable->updateTupleAccessCount();
         
         // Read/Write Set Tracking
@@ -538,10 +542,42 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
             // If the tuple is evicted, then we can't continue with the rest of stuff below us.
             // There is nothing else we can do with it (i.e., check expressions).
             // I don't know why this wasn't here in the first place?
-            continue;
+
+            // MJG: 2015-02-20
+            // If we can merge now, let's merge
+            // TODO: possibly an alternate codepath that simply looks through all the tuples
+            // for evicted tuples and then see if we have any non-blockable accesses
+            if (eviction_manager->hasBlockableEvictedAccesses()) {
+                blockingMergeSuccessful = eviction_manager->blockingMerge();
+            } else {
+                blockingMergeSuccessful = false;
+                continue;
+            }
         }
-        #endif        
         
+        // MJG TEST: If we merged, maybe we need to grab the tuple again. Let's try
+        // we need to check again which way we want to get the index based upon the 
+        // INDEX_LOOKUP_TYPE. 
+        if (blockingMergeSuccessful) {
+            VOLT_TRACE("grabbing tuple again");
+            if (m_lookupType == INDEX_LOOKUP_TYPE_EQ) {
+                m_index->moveToKey(&m_searchKey);
+                m_tuple = m_index->nextValueAtKey();
+            } else {
+                if (m_lookupType == INDEX_LOOKUP_TYPE_GT) 
+                    m_index->moveToGreaterThanKey(&m_searchKey);
+                else 
+                    m_index->moveToKeyOrGreater(&m_searchKey);
+                m_tuple = m_index->nextValue();
+            }
+                
+            if (m_tuple.isNullTuple()) {
+                VOLT_INFO("We've got a null tuple for some reason");
+            }
+        }
+
+        VOLT_TRACE("Merged Tuple: %s", m_tuple.debug(m_targetTable->name()).c_str());
+        #endif        
         //
         // First check whether the end_expression is now false
         //
@@ -549,6 +585,10 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
             end_expression->eval(&m_tuple, NULL).isFalse()) {
             VOLT_DEBUG("End Expression evaluated to false, stopping scan");
             break;
+        }
+        
+        if (blockingMergeSuccessful) {
+            VOLT_DEBUG("tuple merged and End Expression evaluated to true, continuing scan");
         }
         //
         // Then apply our post-predicate to do further filtering
@@ -676,13 +716,13 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
     
     #ifdef ANTICACHE
     // throw exception indicating evicted blocks are needed
-    if (hasEvictedTable && eviction_manager->hasEvictedAccesses()) {
+    if (hasEvictedTable && !blockingMergeSuccessful && eviction_manager->hasEvictedAccesses()) {
         VOLT_DEBUG("Throwing EvictedaccessException\n");
         eviction_manager->throwEvictedAccessException();
     }
     #endif
     
-    VOLT_DEBUG ("Index Scanned :\n %s", m_outputTable->debug().c_str());
+    VOLT_TRACE("Index Scanned :\n %s", m_outputTable->debug().c_str());
     return true;
 }
 

@@ -57,6 +57,7 @@
 #include "common/Pool.hpp"
 #include "common/tabletuple.h"
 #include "common/MMAPMemoryManager.h"
+#include "anticache/AntiCacheDB.h"
 
 namespace voltdb {
 
@@ -221,6 +222,8 @@ public:
     inline int32_t getTuplesRead() const { return (m_tuplesRead); }
     inline int32_t getBlocksRead() const { return (m_blocksRead); }
     inline int64_t getBytesRead()  const { return (m_bytesRead); }
+
+    virtual std::vector<AntiCacheDB*> allACDBs() const;
     #endif
     
     int getTupleID(const char* tuple_address); 

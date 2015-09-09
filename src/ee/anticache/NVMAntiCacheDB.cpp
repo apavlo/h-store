@@ -41,7 +41,7 @@ using namespace std;
 
 namespace voltdb {
 
-NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) :
+NVMAntiCacheBlock::NVMAntiCacheBlock(uint16_t blockId, char* block, long size) :
     AntiCacheBlock(blockId) {
 
     /* m_block = block;
@@ -67,11 +67,11 @@ NVMAntiCacheBlock::NVMAntiCacheBlock(int16_t blockId, char* block, long size) :
     p.size = size;
      
     m_payload = p;
-    m_size = size;
+    m_size = static_cast<int32_t>(size);
     m_blockType = ANTICACHEDB_NVM;
     //std::string payload_str(m_payload.data, m_size);
     
-    VOLT_INFO("NVMAntiCacheBlock #%d from table: %s [size=%ld / payload=%ld]",
+    VOLT_INFO("NVMAntiCacheBlock #%u from table: %s [size=%d / payload=%ld]",
               blockId, m_payload.tableName.c_str(), m_size, m_payload.size);
     
 }
@@ -98,6 +98,7 @@ void NVMAntiCacheDB::initializeDB() {
 
     m_blockIndex = 0; 
     m_nextFreeBlock = 0;
+    m_monoBlockID = 0;
     // TODO: Make DRAM based store a separate type
     #ifdef ANTICACHE_DRAM
         VOLT_INFO("Allocating anti-cache in DRAM."); 
@@ -121,7 +122,7 @@ void NVMAntiCacheDB::initializeDB() {
     // there will be one NVM anti-cache file per partition, saved in /mnt/pmfs/anticache-XX
     strcat(nvm_file_name, "/anticache-");
     strcat(nvm_file_name, partition_str);
-    VOLT_INFO("Creating nvm file: %s", nvm_file_name); 
+    VOLT_INFO("Creating size %ld nvm file: %s", m_maxDBSize, nvm_file_name); 
     nvm_file = fopen(nvm_file_name, "w"); 
 
     if(nvm_file == NULL)
@@ -190,18 +191,20 @@ void NVMAntiCacheDB::flushBlocks() {
 }
 
 void NVMAntiCacheDB::writeBlock(const std::string tableName,
-                                int16_t blockId,
+                                uint16_t blockId,
                                 const int tupleCount,
                                 const char* data,
-                                const long size)  {
+                                const long size,
+                                const int evictedTupleCount)  {
    
+    VOLT_TRACE("free blocks: %d", getFreeBlocks());
     if (getFreeBlocks() == 0) {
-        VOLT_WARN("No free space in ACID %d for blockid %d with blocksize %ld",
+        VOLT_WARN("No free space in ACID %d for blockid %u with blocksize %ld",
                 m_ACID, blockId, size);
         throw FullBackingStoreException(((int32_t)m_ACID << 16) & blockId, 0);
     }
-    int index = (int)blockId;
-    VOLT_TRACE("block index: %d", index);
+    uint16_t index = getFreeNVMBlockIndex();
+    VOLT_TRACE("block index: %u", index);
     char* block = getNVMBlock(index); 
     long bufsize; 
     char* buffer = new char [tableName.size() + 1 + size];
@@ -213,46 +216,82 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     memcpy(block, buffer, bufsize); 
     delete[] buffer;
 
-    VOLT_INFO("Writing NVM Block: ID = %d, index = %d, size = %ld", blockId, index, bufsize); 
+    VOLT_DEBUG("Writing NVM Block: ID = %u, index = %u, tupleCount = %d, size = %ld", blockId, index, tupleCount, bufsize); 
 
-    m_blockMap.insert(std::pair<int16_t, std::pair<int, int32_t> >(blockId, std::pair<int, int32_t>(index, static_cast<int32_t>(bufsize))));
-    m_nextFreeBlock++; 
+    tupleInBlock[blockId] = tupleCount;
+    evictedTupleInBlock[blockId] = evictedTupleCount;
+    blockSize[blockId] = bufsize;
+    m_blocksEvicted++;
+    if (!isBlockMerge()) {
+        m_bytesEvicted += static_cast<int32_t>((int64_t)bufsize * evictedTupleCount / tupleCount);
+    }
+    else {
+        m_bytesEvicted += static_cast<int32_t>(bufsize);
+    }
+
+    m_blockMap.insert(std::pair<uint16_t, std::pair<int, int32_t> >(blockId, std::pair<uint16_t, int32_t>(index, static_cast<int32_t>(bufsize))));
+    m_monoBlockID++;
     
     pushBlockLRU(blockId);
 }
 
-AntiCacheBlock* NVMAntiCacheDB::readBlock(int16_t blockId) {
+AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {
     
-    std::map<int16_t, std::pair<int, int32_t> >::iterator itr; 
+    std::map<uint16_t, std::pair<uint16_t, int32_t> >::iterator itr; 
     itr = m_blockMap.find(blockId); 
   
     if (itr == m_blockMap.end()) {
-        VOLT_INFO("Invalid anti-cache blockId '%d'", blockId);
-        VOLT_ERROR("Invalid anti-cache blockId '%d'", blockId);
+        VOLT_INFO("Invalid anti-cache blockId '%u'", blockId);
+        VOLT_ERROR("Invalid anti-cache blockId '%u'", blockId);
         //throw UnknownBlockAccessException(tableName, blockId);
         throw UnknownBlockAccessException(blockId);
    
     }
 
-    int blockIndex = itr->second.first; 
+    uint16_t blockIndex = itr->second.first; 
     int blockSize = itr->second.second;
-    VOLT_INFO("Reading NVM block: ID = %d, index = %d, size = %d", blockId, blockIndex, blockSize);
    
     char* block_ptr = getNVMBlock(blockIndex);
     char* block = new char[blockSize];
     memcpy(block, block_ptr, blockSize); 
+
+    VOLT_DEBUG("Reading NVM block: ID = %u, index = %u, size = %d, isMigrate = %d, data = %s", blockId, blockIndex, blockSize, isMigrate, block);
     
     AntiCacheBlock* anticache_block = new NVMAntiCacheBlock(blockId, block, blockSize);
 
-    freeNVMBlock(blockId); 
+    if (this->isBlockMerge()) {
+        freeNVMBlock(blockIndex); 
 
-    m_blockMap.erase(itr); 
+        m_blockMap.erase(itr); 
 
-    removeBlockLRU(blockId);
+        removeBlockLRU(blockId);
+
+        m_bytesUnevicted += blockSize;
+        m_blocksUnevicted++;
+    } else {
+        if (isMigrate) {
+            freeNVMBlock(blockIndex); 
+
+            m_blockMap.erase(itr); 
+
+            removeBlockLRU(blockId);
+
+            m_bytesUnevicted += static_cast<int32_t>( (int64_t)blockSize - blockSize / tupleInBlock[blockId] *
+                    (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
+
+            m_blocksUnevicted++;
+        } else {
+            m_bytesUnevicted += static_cast<int32_t>( blockSize / tupleInBlock[blockId]);
+            evictedTupleInBlock[blockId]--;
+
+            removeBlockLRU(blockId);
+            pushBlockLRU(blockId);
+        }
+    }
     return (anticache_block);
 }
 
-char* NVMAntiCacheDB::getNVMBlock(int index) {
+char* NVMAntiCacheDB::getNVMBlock(uint16_t index) {
     //char* nvm_block = new char[NVM_BLOCK_SIZE];     
     //memcpy(nvm_block, m_NVMBlocks+(index*NVM_BLOCK_SIZE), NVM_BLOCK_SIZE); 
     
@@ -261,28 +300,34 @@ char* NVMAntiCacheDB::getNVMBlock(int index) {
     return (m_NVMBlocks+(index*m_blockSize));
 }
 
-int NVMAntiCacheDB::getFreeNVMBlockIndex() {
+uint16_t NVMAntiCacheDB::getFreeNVMBlockIndex() {
   
-    int free_index = 0; 
+    
+    uint16_t free_index = 0; 
+
     if(m_NVMBlockFreeList.size() > 0) {
         free_index = m_NVMBlockFreeList.back(); 
-        VOLT_TRACE("popping %d from list of size: %d", free_index, (int)m_NVMBlockFreeList.size());
+        VOLT_DEBUG("popping %u from list of size: %d", free_index, (int)m_NVMBlockFreeList.size());
         m_NVMBlockFreeList.pop_back(); 
     } else {
         if (m_nextFreeBlock == getMaxBlocks()) {
+            VOLT_WARN("Backing store full m_nextFreeBlock %d == max %d", m_nextFreeBlock, getMaxBlocks());
             throw FullBackingStoreException(0, m_nextFreeBlock);
         } else {
             free_index = m_nextFreeBlock;
+            VOLT_DEBUG("no reusable blocks (size: %d), using index %u", (int)m_NVMBlockFreeList.size(), free_index);
+            ++m_nextFreeBlock;
         }
     }
-  
+    
+
     //int free_index = m_blockIndex++; 
     return free_index; 
 }
 
-void NVMAntiCacheDB::freeNVMBlock(int index) {
+void NVMAntiCacheDB::freeNVMBlock(uint16_t index) {
     m_NVMBlockFreeList.push_back(index); 
-    VOLT_TRACE("list size: %d  back: %d", (int)m_NVMBlockFreeList.size(), m_NVMBlockFreeList.back());
+    VOLT_DEBUG("list size: %d  back: %u", (int)m_NVMBlockFreeList.size(), m_NVMBlockFreeList.back());
     //m_blockIndex--; 
 }
 }

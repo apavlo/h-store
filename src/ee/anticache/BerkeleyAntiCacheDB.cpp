@@ -18,15 +18,15 @@ using namespace std;
 
 namespace voltdb {
 
-BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) :
+BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(uint16_t blockId, Dbt value) :
    AntiCacheBlock(blockId) 
     {
     m_buf = (char *) value.get_data();
-    int16_t id = *((int16_t *)m_buf);
+    uint16_t id = *((uint16_t *)m_buf);
     long bufLen_ = sizeof(int16_t);
     std::string tableName = m_buf + bufLen_;
     bufLen_ += tableName.size()+1;
-    long size = *((long *)(m_buf+bufLen_));
+    int32_t size = *((int32_t *)(m_buf+bufLen_));
     bufLen_+=sizeof(long);
     char * data = m_buf + bufLen_;
     bufLen_ += size;
@@ -41,7 +41,7 @@ BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(int16_t blockId, Dbt value) :
     
     m_block = m_payload.data;
 	    
-    VOLT_DEBUG("BerkeleyAntiCacheBlock #%d from table: %s [size=%ld / payload=%ld = '%s']",
+    VOLT_DEBUG("BerkeleyAntiCacheBlock #%u from table: %s [size=%d / payload=%ld = '%s']",
               blockId, m_payload.tableName.c_str(), m_size, m_payload.size, m_payload.data);
     //VOLT_INFO("data from getBlock %s", getData());
     m_blockType = ANTICACHEDB_BERKELEY;
@@ -124,11 +124,13 @@ BerkeleyAntiCacheDB::~BerkeleyAntiCacheDB() {
 }
 
 void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
-                             int16_t blockId,
+                             uint16_t blockId,
                              const int tupleCount,
                              const char* data,
-                             const long size) {
+                             const long size,
+                             const int evictedTupleCount) {
 
+    //VOLT_ERROR("In BerkeleyDB:writeBlock");
 
     Dbt key;
     key.set_data(&blockId);
@@ -159,17 +161,29 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     value.set_size(static_cast<int32_t>(bufLen_));
 
 
-    VOLT_INFO("Writing out a block #%d to anti-cache database [tuples=%d / size=%ld]",
+    VOLT_DEBUG("Writing out a block #%u to anti-cache database [tuples=%d / size=%ld]",
                blockId, tupleCount, size);
     // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);
     
+    tupleInBlock[blockId] = tupleCount;
+    evictedTupleInBlock[blockId] = evictedTupleCount;
+    blockSize[blockId] = size;
+    m_blocksEvicted++;
+    if (!isBlockMerge()) {
+        m_bytesEvicted += static_cast<int32_t>((int64_t)size * evictedTupleCount / tupleCount);
+    }
+    else {
+        m_bytesEvicted += static_cast<int32_t>(size);
+    }
+
+
     pushBlockLRU(blockId);
 
     delete [] databuf_;
 }
 
-AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(int16_t blockId) {
+AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {
     Dbt key;
     key.set_data(&blockId);
     key.set_size(sizeof(blockId));
@@ -177,13 +191,13 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(int16_t blockId) {
     Dbt value;
     value.set_flags(DB_DBT_MALLOC);
     
-    VOLT_INFO("Reading evicted block with id %d", blockId);
+    VOLT_INFO("Reading evicted block with id %u", blockId);
     
     int ret_value = m_db->get(NULL, &key, &value, 0);
 
     if (ret_value != 0) 
     {
-        VOLT_ERROR("Invalid anti-cache blockId '%d'", blockId);
+        VOLT_ERROR("Invalid anti-cache blockId '%u'", blockId);
         throw UnknownBlockAccessException(blockId);
     }
     else 
@@ -194,7 +208,27 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(int16_t blockId) {
     
     AntiCacheBlock* block = new BerkeleyAntiCacheBlock(blockId, value);
     
+    m_blocksUnevicted++;
+    if (isBlockMerge()) {
+        m_bytesUnevicted += static_cast<int32_t>( block->getSize());
+    } else {
+        if (isMigrate) {
+            m_bytesUnevicted += static_cast<int32_t>((int64_t)block->getSize() - block->getSize() / tupleInBlock[blockId] *
+                    (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
+        }
+        else {
+            m_bytesUnevicted += static_cast<int32_t>( block->getSize() / tupleInBlock[blockId]);
+            evictedTupleInBlock[blockId]--;
+            m_blocksUnevicted--;
+        }
+    }
+
     removeBlockLRU(blockId);
+    
+    if (!(this->isBlockMerge())) { //i.e. tuple merge
+        pushBlockLRU(blockId); // update block LRU
+    }
+
     /*uint16_t rm_block = removeBlockLRU(blockId);
     if (rm_block != blockId) {
         VOLT_ERROR("LRU rm_block id: %d  and blockId %d not equal!", rm_block, blockId);

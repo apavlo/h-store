@@ -100,6 +100,7 @@ Table* StatsAgent::getStats(voltdb::StatisticsSelectorType sst,
         voltdb::TableTuple *statsTuple = ss->getStatsTuple(interval, now);
         statsTable->insertTuple(*statsTuple);
     }
+
     return statsTable;
 }
 

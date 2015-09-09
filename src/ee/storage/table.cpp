@@ -618,4 +618,10 @@ void Table::loadTuplesFrom(bool allowExport,
 
     loadTuplesFromNoHeader( allowExport, serialize_io, stringPool);
 }
+
+#ifdef ANTICACHE
+std::vector<AntiCacheDB*> Table::allACDBs() const{
+    return std::vector<AntiCacheDB*>();
+}
+#endif
 }

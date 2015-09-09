@@ -73,6 +73,7 @@
 <arg value="client.output_site_profiling=${client.output_site_profiling}" />
 <arg value="client.output_anticache_evictions=${client.output_anticache_evictions}" />
 <arg value="client.output_anticache_access=${client.output_anticache_access}" />
+<arg value="client.output_anticache_memory_stats=${client.output_anticache_memory_stats}" />
 <arg value="client.output_txn_profiling=${client.output_txn_profiling}" />
 <arg value="client.output_txn_profiling_combine=${client.output_txn_profiling_combine}" />
 <arg value="client.output_specexec_profiling=${client.output_specexec_profiling}" />
@@ -149,6 +150,7 @@
 <arg value="site.anticache_levels=${site.anticache_levels}" />
 <arg value="site.anticache_multilevel_dirs=${site.anticache_multilevel_dirs}" />
 <arg value="site.anticache_block_size=${site.anticache_block_size}" />
+<arg value="site.anticache_dbsize=${site.anticache_dbsize}" />
 <arg value="site.anticache_reset=${site.anticache_reset}" />
 <arg value="site.anticache_check_interval=${site.anticache_check_interval}" />
 <arg value="site.anticache_threshold_mb=${site.anticache_threshold_mb}" />
@@ -157,6 +159,8 @@
 <arg value="site.anticache_eviction_distribution=${site.anticache_eviction_distribution}" />
 <arg value="site.anticache_batching=${site.anticache_batching}" />
 <arg value="site.anticache_dbtype=${site.anticache_dbtype}" />
+<arg value="site.anticache_db_blocks=${site.anticache_db_blocks}" />
+<arg value="site.anticache_block_merge=${site.anticache_block_merge}" />
 <arg value="site.anticache_timestamps=${site.anticache_timestamps}" />
 <arg value="site.anticache_timestamps_prime=${site.anticache_timestamps_prime}" />
 <arg value="site.storage_mmap=${site.storage_mmap}" />

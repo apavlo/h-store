@@ -91,7 +91,8 @@ TEST_F(AntiCacheDBTest, BerkeleyWriteBlock) {
                              blockId,
                              1,
                              const_cast<char*>(payload.data()),
-                             static_cast<int>(payload.size())+1);
+                             static_cast<int>(payload.size())+1,
+                             1);
     } catch (...) {
         delete anticache;
         ASSERT_TRUE(false);
@@ -113,7 +114,8 @@ TEST_F(AntiCacheDBTest, NVMWriteBlock) {
                              blockId,
                              1,
                              const_cast<char*>(payload.data()),
-                             static_cast<int>(payload.size())+1);
+                             static_cast<int>(payload.size())+1,
+                             1);
     } catch (...) {
         delete anticache;
         ASSERT_TRUE(false);
@@ -135,9 +137,10 @@ TEST_F(AntiCacheDBTest, BerkeleyReadBlock) {
 						 blockId,
 						 1,
 						 const_cast<char*>(payload.data()),
-						 static_cast<int>(payload.size())+1);
+						 static_cast<int>(payload.size())+1,
+                         1);
 
-	AntiCacheBlock* block = anticache->readBlock(blockId);
+	AntiCacheBlock* block = anticache->readBlock(blockId, 1);
 
 	ASSERT_EQ(block->getTableName(), tableName);
 	ASSERT_EQ(block->getBlockId(), blockId);
@@ -165,9 +168,10 @@ TEST_F(AntiCacheDBTest, NVMReadBlock) {
 						 blockId,
 						 1,
 						 const_cast<char*>(payload.data()),
-						 static_cast<int>(payload.size())+1);
+						 static_cast<int>(payload.size())+1,
+                         1);
 
-	AntiCacheBlock* block = anticache->readBlock(blockId);
+	AntiCacheBlock* block = anticache->readBlock(blockId, 1);
 
 	ASSERT_EQ(block->getTableName(), tableName);
     VOLT_WARN("payload: %s block->getData(): %s\n", payload.c_str(), block->getData());
@@ -186,6 +190,7 @@ TEST_F(AntiCacheDBTest, BerkeleyCheckCapacity) {
     ChTempDir tempdir;
 
     AntiCacheDB* anticache = new BerkeleyAntiCacheDB(NULL, ".", BLOCK_SIZE, BLOCK_SIZE*10);
+    anticache->setBlockMerge(true);
     string tableName("FAKE");
     string payload("Test Capacity");
     uint16_t blockId = anticache->nextBlockId();
@@ -193,17 +198,36 @@ TEST_F(AntiCacheDBTest, BerkeleyCheckCapacity) {
                          blockId,
                          1,
                          const_cast<char*>(payload.data()),
-                         static_cast<int>(payload.size())+1);
+                         static_cast<int>(payload.size())+1,
+                         1);
 
     ASSERT_EQ(anticache->getMaxBlocks(), 10);
     ASSERT_EQ(anticache->getMaxDBSize(), BLOCK_SIZE*10);
     ASSERT_EQ(anticache->getNumBlocks(), 1);
     ASSERT_EQ(anticache->getFreeBlocks(), 9);
+
+    ASSERT_EQ(anticache->getBlocksEvicted(), 1);
+    ASSERT_EQ(anticache->getBytesEvicted(), static_cast<int32_t>(payload.size()+1));
     
-    AntiCacheBlock* block = anticache->readBlock(blockId);
+    AntiCacheBlock* block = anticache->readBlock(blockId, 1);
     
     ASSERT_EQ(anticache->getNumBlocks(), 0);
     ASSERT_EQ(anticache->getFreeBlocks(), 10);
+
+    ASSERT_EQ(anticache->getBlocksUnevicted(), 1);
+    ASSERT_EQ(anticache->getBytesUnevicted(), static_cast<int32_t>(payload.size()+1));
+    
+    anticache->clearBlocksEvicted();
+    anticache->clearBytesEvicted();
+    anticache->clearBytesUnevicted();
+    anticache->clearBlocksUnevicted();
+
+    ASSERT_EQ(anticache->getBlocksUnevicted(), 0);
+    ASSERT_EQ(anticache->getBytesUnevicted(), 0);
+
+    ASSERT_EQ(anticache->getBlocksEvicted(), 0);
+    ASSERT_EQ(anticache->getBytesEvicted(), 0);
+
     delete block;
     delete anticache;
 }
@@ -212,6 +236,7 @@ TEST_F(AntiCacheDBTest, NVMCheckCapacity) {
     ChTempDir tempdir;
 
     AntiCacheDB* anticache = new NVMAntiCacheDB(NULL, ".", BLOCK_SIZE, BLOCK_SIZE*10);
+    anticache->setBlockMerge(true);
     string tableName("FAKE");
     string payload("Test Capacity");
     uint16_t blockId = anticache->nextBlockId();
@@ -219,18 +244,37 @@ TEST_F(AntiCacheDBTest, NVMCheckCapacity) {
                          blockId,
                          1,
                          const_cast<char*>(payload.data()),
-                         static_cast<int>(payload.size())+1);
+                         static_cast<int>(payload.size())+1,
+                         1);
 
     ASSERT_EQ(anticache->getMaxBlocks(), 10);
     ASSERT_EQ(anticache->getMaxDBSize(), BLOCK_SIZE*10);
     ASSERT_EQ(anticache->getNumBlocks(), 1);
     ASSERT_EQ(anticache->getFreeBlocks(), 9);
+
+    ASSERT_EQ(anticache->getBlocksEvicted(), 1);
+    ASSERT_EQ(anticache->getBytesEvicted(), static_cast<int32_t>(tableName.size() + 1 + payload.size()+1));
     
-    AntiCacheBlock* block = anticache->readBlock(blockId);
+    AntiCacheBlock* block = anticache->readBlock(blockId, 1);
     
     ASSERT_EQ(anticache->getNumBlocks(), 0);
     ASSERT_EQ(anticache->getFreeBlocks(), 10);
-    delete block;
+ 
+    ASSERT_EQ(anticache->getBlocksUnevicted(), 1);
+    ASSERT_EQ(anticache->getBytesUnevicted(), static_cast<int32_t>(tableName.size() + 1 + payload.size()+1));
+    
+    anticache->clearBlocksEvicted();
+    anticache->clearBytesEvicted();
+    anticache->clearBytesUnevicted();
+    anticache->clearBlocksUnevicted();
+
+    ASSERT_EQ(anticache->getBlocksUnevicted(), 0);
+    ASSERT_EQ(anticache->getBytesUnevicted(), 0);
+
+    ASSERT_EQ(anticache->getBlocksEvicted(), 0);
+    ASSERT_EQ(anticache->getBytesEvicted(), 0);
+
+   delete block;
     delete anticache;
 }
 
