@@ -1190,6 +1190,12 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
     AntiCacheDB* antiCacheDB = m_db_lookup[ACID]; 
 
     if (!antiCacheDB->validateBlock(_block_id)) {
+        // TODO:This is a hack!!
+        if (_block_id >= antiCacheDB->nextBlockId()) {
+            throw UnknownBlockAccessException(_block_id);
+            return false;
+        }
+
         VOLT_WARN("Block %d has already been read from another table.", block_id);
         return true;
     }
