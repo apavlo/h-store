@@ -99,6 +99,9 @@ class BerkeleyAntiCacheDB : public AntiCacheDB {
                         const char* data,
                         const long size,
                         const int evictedTupleCount);
+
+        bool validateBlock(uint16_t blockID);
+
     private:
         DbEnv* m_dbEnv;
         Db* m_db;

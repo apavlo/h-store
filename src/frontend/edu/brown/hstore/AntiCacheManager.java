@@ -334,6 +334,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                 LOG.debug(String.format("Asking EE to read in evicted blocks from table %s on partition %d: %s",
                           next.catalog_tbl.getName(), next.partition, Arrays.toString(next.block_ids)));
 
+            //LOG.warn(Arrays.toString(next.block_ids) + "\n" + Arrays.toString(next.tuple_offsets));
             ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids, next.tuple_offsets);
 
             if (debug.val)
@@ -411,15 +412,18 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     	              txn.getBasePartition(), partition));
     	
     	// HACK
-    	Set<Integer> allBlockIds = new HashSet<Integer>();
-    	for (int block : block_ids) {
-    	    allBlockIds.add(block);
-    	}
-    	block_ids = new int[allBlockIds.size()];
-    	int i = 0;
-    	for (int block : allBlockIds) {
-    	    block_ids[i++] = block;
-    	}
+	    if (hstore_conf.site.anticache_block_merge) {
+            //LOG.warn("here!!");
+    	    Set<Integer> allBlockIds = new HashSet<Integer>();
+    	    for (int block : block_ids) {
+    	        allBlockIds.add(block);
+    	    }
+    	    block_ids = new int[allBlockIds.size()];
+    	    int i = 0;
+    	    for (int block : allBlockIds) {
+    	        block_ids[i++] = block;
+    	    }
+        }
     	
     	if (txn instanceof LocalTransaction) {
     		LocalTransaction ts = (LocalTransaction)txn;

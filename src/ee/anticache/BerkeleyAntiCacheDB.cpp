@@ -183,6 +183,10 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     delete [] databuf_;
 }
 
+bool BerkeleyAntiCacheDB::validateBlock(uint16_t blockId) {
+    return true;
+}
+
 AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {
     Dbt key;
     key.set_data(&blockId);

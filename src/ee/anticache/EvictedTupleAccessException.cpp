@@ -53,9 +53,13 @@ EvictedTupleAccessException::EvictedTupleAccessException(int tableId, int numBlo
 void EvictedTupleAccessException::p_serialize(ReferenceSerializeOutput *output) {
     
     VOLT_TRACE("In EvictedTupleAccessException p_serialize()."); 
+    //  This is hack. But the string buffer in Java layer has limit.
+    //if (m_numBlockIds > 10000)
+    //    m_numBlockIds = 10000;
     
     output->writeInt(m_tableId);
-    output->writeShort(static_cast<short>(m_numBlockIds)); // # of block ids
+    output->writeInt(m_numBlockIds); // # of block ids
+    //output->writeShort(static_cast<short>(m_numBlockIds)); // # of block ids
     for (int ii = 0; ii < m_numBlockIds; ii++) {
         output->writeInt(m_blockIds[ii]);
     }

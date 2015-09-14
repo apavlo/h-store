@@ -117,6 +117,8 @@ class AntiCacheDB {
          */
         virtual AntiCacheBlock* readBlock(uint16_t blockId, bool isMigrate) = 0;
 
+        virtual bool validateBlock(uint16_t blockId) = 0;
+
 
         /**
          * Flush the buffered blocks to disk.
