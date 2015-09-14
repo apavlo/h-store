@@ -282,6 +282,7 @@ class PersistentTable : public Table {
     std::map<int32_t, int32_t> getUnevictedBlockIDs();
     std::vector<char*> getUnevictedBlocks();
     int32_t getMergeTupleOffset(int);
+    int32_t getBlockID(int);
     bool mergeStrategy();
     int32_t getTuplesEvicted();
     void setTuplesEvicted(int32_t tuplesEvicted);
@@ -300,6 +301,7 @@ class PersistentTable : public Table {
     bool removeUnevictedBlockID(int32_t blockId);
     void insertUnevictedBlock(char* unevicted_tuples);
     void insertTupleOffset(int32_t tuple_offset);
+    void insertBlockID(int32_t);
     int isAlreadyUnEvicted(int32_t blockId);
     int32_t getTuplesRead();
     void setTuplesRead(int32_t tuplesRead);
@@ -310,6 +312,7 @@ class PersistentTable : public Table {
     int64_t unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset, bool blockMerge);
     void clearUnevictedBlocks(int i);
     void clearUnevictedBlockIDs();
+    void clearBlockIDs();
     char* getUnevictedBlocks(int i);
     int unevictedBlocksSize();
     std::vector<AntiCacheDB*> allACDBs() const;
@@ -384,6 +387,7 @@ protected:
 //    std::vector<int16_t> m_unevictedBlockIDs;
     std::vector<char*> m_unevictedBlocks;
     std::vector<int32_t> m_mergeTupleOffset; 
+    std::vector<int32_t> m_blockIDs;
     
     std::map<int, int> m_unevictedTuplesPerBlocks; 
 

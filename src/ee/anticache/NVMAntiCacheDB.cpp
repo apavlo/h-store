@@ -216,7 +216,8 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     memcpy(block, buffer, bufsize); 
     delete[] buffer;
 
-    VOLT_DEBUG("Writing NVM Block: ID = %u, index = %u, tupleCount = %d, size = %ld", blockId, index, tupleCount, bufsize); 
+    VOLT_DEBUG("Writing NVM Block: ID = %u, index = %u, tupleCount = %d, size = %ld, tableName = %s",
+            blockId, index, tupleCount, bufsize, tableName.c_str()); 
 
     tupleInBlock[blockId] = tupleCount;
     evictedTupleInBlock[blockId] = evictedTupleCount;
@@ -233,6 +234,13 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     m_monoBlockID++;
     
     pushBlockLRU(blockId);
+}
+
+bool NVMAntiCacheDB::validateBlock(uint16_t blockId) {
+    if (m_blockMap.find(blockId) == m_blockMap.end())
+        return 0;
+    else
+        return 1;
 }
 
 AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {

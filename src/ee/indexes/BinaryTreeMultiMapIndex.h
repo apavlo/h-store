@@ -50,7 +50,7 @@
 #include <iostream>
 #include "indexes/tableindex.h"
 #include "common/tabletuple.h"
-#include "stx/btree_map.h"
+#include "stx/btree_multimap.h"
 
 namespace voltdb {
 
@@ -67,7 +67,8 @@ class BinaryTreeMultiMapIndex : public TableIndex
 
     //typedef std::multimap<KeyType, const void*, KeyComparator> MapType;
     typedef h_index::AllocatorTracker<pair<const KeyType, const void*> > AllocatorType;
-    typedef std::multimap<KeyType, const void*, KeyComparator, AllocatorType> MapType;
+    //typedef std::multimap<KeyType, const void*, KeyComparator, AllocatorType> MapType;
+    typedef stx::btree_multimap<KeyType, const void*, KeyComparator, stx::btree_default_map_traits<KeyType, const void*>, AllocatorType> MapType;
     typedef typename MapType::const_iterator MMCIter;
     typedef typename MapType::iterator MMIter;
     typedef typename MapType::const_reverse_iterator MMCRIter;

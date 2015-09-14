@@ -30,7 +30,7 @@ public class EvictedTupleAccessException extends SerializableException {
         super(buffer);
         
         this.table_id = buffer.getInt();
-        final int num_blocks = buffer.getShort();
+        final int num_blocks = buffer.getInt();
         assert(num_blocks > 0) :
             "Unexpected non-negative block count '" + num_blocks + "'";
         this.block_ids = new int[num_blocks];
@@ -87,7 +87,7 @@ public class EvictedTupleAccessException extends SerializableException {
         // (4 bytes * # of block_ids)
         // (4 bytes * # of tuple offsets)
     	// 4 bytes for partition id
-        return (4 + 2 + (4 * this.block_ids.length) + (4 * this.tuple_offsets.length) + 4);
+        return (4 + 4 + (4 * this.block_ids.length) + (4 * this.tuple_offsets.length) + 4);
     }
 
     /**
@@ -97,7 +97,7 @@ public class EvictedTupleAccessException extends SerializableException {
     @Override
     protected void p_serializeToBuffer(ByteBuffer b) throws IOException {
         b.putInt(this.table_id);
-        b.putShort((short)this.block_ids.length);
+        b.putInt(this.block_ids.length);
         for (int i = 0; i < this.block_ids.length; i++) {
             b.putInt(this.block_ids[i]);
         } // FOR

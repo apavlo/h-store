@@ -363,6 +363,12 @@ int32_t PersistentTable::getMergeTupleOffset(int i)
 {
     return m_mergeTupleOffset[i];
 }
+
+int32_t PersistentTable::getBlockID(int i)
+{
+    return m_blockIDs[i];
+}
+
 char* PersistentTable::getUnevictedBlocks(int i)
 {
     return m_unevictedBlocks[i];
@@ -375,6 +381,11 @@ int PersistentTable::unevictedBlocksSize(){
 void PersistentTable::insertTupleOffset(int32_t tuple_offset)
 {
     m_mergeTupleOffset.push_back(tuple_offset);
+}
+
+void PersistentTable::insertBlockID(int32_t ACID)
+{
+    m_blockIDs.push_back(ACID);
 }
 
 int32_t PersistentTable::getTuplesRead()
@@ -414,6 +425,11 @@ void PersistentTable::clearMergeTupleOffsets()
     m_mergeTupleOffset.clear();
 }
 
+void PersistentTable::clearBlockIDs()
+{
+    m_blockIDs.clear();
+}
+
 int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int merge_tuple_offset, bool blockMerge){
     TableTuple evicted_tuple = m_evictedTable->tempTuple();
     // get a free tuple and increment the count of tuples current used
@@ -435,6 +451,11 @@ int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int m
     // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
     // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version
     m_tmpTarget2 = lookupTuple(m_tmpTarget1);       // lookup the tuple in the table
+    //printf("%d\n", m_tmpTarget2.isEvicted());
+    if (!m_tmpTarget2.isEvicted()) {
+        deleteTupleStorage(m_tmpTarget1);
+        return 0;
+    }
     evicted_tuple.move(m_tmpTarget2.address());
     static_cast<EvictedTable*>(m_evictedTable)->deleteEvictedTuple(evicted_tuple);             // delete the EvictedTable tuple
 

@@ -38,6 +38,7 @@
 
 #include <vector>
 #include <map>
+#include <pthread.h>
 
 #define MAX_DBS 8
 
@@ -84,6 +85,7 @@ public:
         m_evicted_tables.clear();
         m_evicted_block_ids.clear();
         m_evicted_offsets.clear();
+        m_evicted_filter.clear();
         m_blockable_accesses = true;
     }
     inline bool hasEvictedAccesses() const {
@@ -119,6 +121,7 @@ protected:
     std::vector<catalog::Table*> m_evicted_tables;
     std::vector<int32_t> m_evicted_block_ids;
     std::vector<int32_t> m_evicted_offsets;
+    std::map <int32_t, set <int32_t> > m_evicted_filter;
     // whether the block to be merged is blockable, that is, all blocks that are needed
     // are in blockable tiers
     bool m_blockable_accesses;
@@ -132,7 +135,7 @@ protected:
     // m_numdbs > 1;
     bool m_migrate;
     //std::map<int16_t, AntiCacheDB*> m_db_lookup_table;
-    
+
 }; // AntiCacheEvictionManager class
 
 

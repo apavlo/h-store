@@ -139,9 +139,9 @@ void AntiCacheDB::setStatsSource() {
     //m_stats = new AntiCacheStats(NULL, this);
 }
 
-void AntiCacheDB::removeSingleTupleStats(uint16_t blockId) {
-    m_bytesUnevicted += static_cast<int32_t>( blockSize[blockId] / tupleInBlock[blockId]);
-    evictedTupleInBlock[blockId]--;
+void AntiCacheDB::removeSingleTupleStats(uint16_t blockId, int32_t sign) {
+    m_bytesUnevicted += static_cast<int32_t>( blockSize[blockId] / tupleInBlock[blockId]) * sign;
+    evictedTupleInBlock[blockId] -= sign;
 }
 
 }

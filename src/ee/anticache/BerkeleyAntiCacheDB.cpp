@@ -179,8 +179,16 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
 
 
     pushBlockLRU(blockId);
+    m_blockSet.insert(blockId);
 
     delete [] databuf_;
+}
+
+bool BerkeleyAntiCacheDB::validateBlock(uint16_t blockId) {
+    
+    //if (m_blockSet.find(blockId) == m_blockSet.end())
+    //    printf("Berkeley block already unevicted!\n");
+    return m_blockSet.find(blockId) != m_blockSet.end();
 }
 
 AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {
@@ -224,9 +232,11 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate)
     }
 
     removeBlockLRU(blockId);
+    m_blockSet.erase(blockId);
     
-    if (!(this->isBlockMerge())) { //i.e. tuple merge
+    if (!(this->isBlockMerge()) && !isMigrate) { //i.e. tuple merge
         pushBlockLRU(blockId); // update block LRU
+        m_blockSet.insert(blockId);
     }
 
     /*uint16_t rm_block = removeBlockLRU(blockId);

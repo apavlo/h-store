@@ -33,7 +33,7 @@ BASE_SITE_MEMORY=8192
 BASE_SITE_MEMORY_PER_PARTITION=2048
 BASE_PROJECT="tpcc"
 BASE_DIR=`pwd`
-OUTPUT_DIR="/home/michaelg/data-hstore/tpcc"
+OUTPUT_DIR="data-hstore/tpcc/tpcc-single-host"
 OUTPUT_PREFIX="tpcc-lru-T1500-E100"
 
 ANTICACHE_BLOCK_SIZE=262144
@@ -41,8 +41,12 @@ SCALE=2
 #ANTICACHE_BLOCK_SIZE=268400000
 ANTICACHE_THRESHOLD=.75
 
-for BLOCKING in 'true' 'false'; do
-    for DB in 'NVM' 'BERKELEY'; do 
+mkdir -p $OUTPUT_DIR
+
+for BLOCKING in 'false'; do
+#for BLOCKING in 'true' 'false'; do
+    for DB in 'BERKELEY' ; do 
+    #for DB in 'NVM' 'BERKELEY'; do 
         for round in 1 ; do
             if [ "$BLOCKING" = "true" ]; then
                 block='blocking'
@@ -50,7 +54,7 @@ for BLOCKING in 'true' 'false'; do
                 block='nonblocking'
             fi
         
-            OUTPUT_PREFIX="$OUTPUT_DIR/tpcc-single-host/$round-tpcc-$block-$DB-S$SCALE"
+            OUTPUT_PREFIX="$OUTPUT_DIR/$round-tpcc-$block-$DB-S$SCALE"
             LOG_PREFIX="logs/tpcc/tpcc-single-host/$round-tpcc-$block-$DB-S$SCALE"
             echo $OUTPUT_PREFIX
             BASE_ARGS=( \
@@ -99,20 +103,22 @@ for BLOCKING in 'true' 'false'; do
         "-Dclient.throttle_backoff=100" \
         "-Dclient.output_anticache_evictions=${OUTPUT_PREFIX}-evictions.csv" \
         "-Dclient.output_memory_stats=${OUTPUT_PREFIX}-memory.csv" \
+        "-Dclient.output_anticache_memory_stats=${OUTPUT_PREFIX}-anticache-memory.csv" \
 
 # Anti-Caching Experiments
         "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
         "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
         "-Dsite.anticache_check_interval=5000" \
         "-Dsite.anticache_threshold_mb=200" \
-        "-Dsite.anticache_blocks_per_eviction=800" \
+        "-Dsite.anticache_blocks_per_eviction=400" \
         "-Dsite.anticache_max_evicted_blocks=100000" \
 #"-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
         "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
         "-Dsite.anticache_eviction_distribution=PROPORTIONAL" \
         "-Dsite.anticache_dbtype=$DB" \
         "-Dsite.anticache_db_blocks=$BLOCKING" \
-        "-Dsite.anticache_dbsize=1G" \
+        "-Dsite.anticache_block_merge=true" \
+        "-Dsite.anticache_dbsize=10G" \
         "-Dclient.interval=5000" \
         "-Dclient.anticache_enable=false" \
         "-Dclient.anticache_evict_interval=5000" \
@@ -163,7 +169,7 @@ for BLOCKING in 'true' 'false'; do
         wait
 
         ant compile
-        for i in 8; do
+        for i in 4; do
 #           HSTORE_HOSTS="${SITE_HOST}:0:0"
 #           NUM_CLIENTS=1
 #           SITE_MEMORY=`expr $BASE_SITE_MEMORY + \( 1 \* $BASE_SITE_MEMORY_PER_PARTITION \)`

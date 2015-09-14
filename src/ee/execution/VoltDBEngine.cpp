@@ -108,6 +108,8 @@
 #include "logging/Logrecord.h"
 #include "logging/AriesLogProxy.h"
 #include <string>
+#include <map>
+#include <set>
 
 #define BUFFER_SIZE         1024*1024*300    // 100 MB buffer for reading in log file
 
@@ -2032,6 +2034,7 @@ void VoltDBEngine::antiCacheAddDB(std::string dbDir, AntiCacheDBType dbType, boo
 int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t blockIds[], int32_t tupleOffsets[]) {
     int retval = ENGINE_ERRORCODE_SUCCESS;
 
+
     // Grab the PersistentTable referenced by the given tableId
     // This is simply the relativeIndex of the table in the catalog
     // We can assume that the ordering hasn't changed.
@@ -2039,6 +2042,7 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
     if (table == NULL) {
         throwFatalException("Invalid table id %d", tableId);
     }
+    VOLT_DEBUG("Read from table: %d %s", tableId, (table->name()).c_str());
 
     #ifdef VOLT_INFO_ENABLED
     std::ostringstream buffer;
@@ -2048,12 +2052,23 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
     }
     VOLT_INFO("Preparing to read %d evicted blocks: [%s]", numBlocks, buffer.str().c_str());
     #endif
+    VOLT_DEBUG("Preparing to read %d evicted blocks: [%s]", numBlocks, (table->name()).c_str());
     
     // We can now ask it directly to read in the evicted blocks that they want
     bool finalResult = true;
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+    std::map <int32_t, set <int32_t> > filter;
     try {
         for (int i = 0; i < numBlocks; i++) {
+            VOLT_TRACE("inengine: %d", i);
+            if (filter.find(blockIds[i]) != filter.end())
+                if (filter[blockIds[i]].find(tupleOffsets[i]) != filter[blockIds[i]].end()) {
+                    VOLT_WARN("skipping %d %d", blockIds[i], tupleOffsets[i]);
+                    continue;
+                }
+
+            (filter[blockIds[i]]).insert(tupleOffsets[i]);
+            VOLT_DEBUG("reading %d %d", blockIds[i], tupleOffsets[i]);
             finalResult = eviction_manager->readEvictedBlock(table, blockIds[i], tupleOffsets[i]) && finalResult;
         } // FOR
 
@@ -2069,6 +2084,7 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
         retval = ENGINE_ERRORCODE_ERROR;
     }
 
+    VOLT_DEBUG("Read from finished table: %d %s", tableId, (table->name()).c_str());
     return (retval);
 }
 

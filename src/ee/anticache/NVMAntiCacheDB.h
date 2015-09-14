@@ -75,6 +75,8 @@ class NVMAntiCacheDB : public AntiCacheDB {
                         const long size,
                         const int evictedTupleCount);
 
+        bool validateBlock(uint16_t blockId);
+
     private:
         /**
          * NVM constants
