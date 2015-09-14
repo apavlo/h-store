@@ -1210,8 +1210,9 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
 
         table->insertUnevictedBlock(table->getUnevictedBlocks(already_unevicted - 1));
         table->insertTupleOffset(tuple_offset);
+        table->insertBlockID(block_id);
 
-        antiCacheDB->removeSingleTupleStats(_block_id);
+        antiCacheDB->removeSingleTupleStats(_block_id, 1);
 
         VOLT_DEBUG("BLOCK %u TUPLE %d - unevicted blocks size is %d",
                 block_id, tuple_offset, (int)table->unevictedBlocksSize());
@@ -1271,6 +1272,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
 
         table->insertUnevictedBlock(unevicted_tuples);
         table->insertTupleOffset(tuple_offset);
+        table->insertBlockID(block_id);
 
 
         table->insertUnevictedBlockID(std::pair<int32_t,int32_t>(block_id, table->unevictedBlocksSize()));
@@ -1613,6 +1615,13 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
             VOLT_TRACE("%s", tableNames[j].c_str());
         }
 
+        // Get ACDB for this tuple. That is used for correct stats tuple-merge strategy
+        int32_t block_id = table->getBlockID(i);
+        uint16_t _block_id = (int16_t)(block_id & 0x0000FFFF);
+        int16_t ACID = (int16_t)((block_id & 0x00070000) >> 16);
+        VOLT_DEBUG("block_id: %8x ACID: %d _block_id: %d blocking: %d\n", block_id, ACID, _block_id, (int)blocking);
+        AntiCacheDB* antiCacheDB = m_db_lookup[ACID]; 
+
         int count = 0;
         for (std::vector<std::string>::iterator it = tableNames.begin() ; it != tableNames.end(); ++it){
             PersistentTable *tableInBlock = dynamic_cast<PersistentTable*>(m_engine->getTable(*it));
@@ -1623,7 +1632,12 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
             int64_t bytes_unevicted = 0;
             int tuplesRead = 0;
             if(!table->mergeStrategy()) {
-                bytes_unevicted += tableInBlock->unevictTuple(&in, merge_tuple_offset, merge_tuple_offset, (bool)table->mergeStrategy());
+                int64_t current_unevicted = tableInBlock->unevictTuple(&in, merge_tuple_offset, merge_tuple_offset, (bool)table->mergeStrategy());
+                bytes_unevicted += current_unevicted;
+                if (current_unevicted == 0) {
+                    antiCacheDB->removeSingleTupleStats(_block_id, -1);
+                    //printf("Add back: %u %u\n", ACID, _block_id);
+                }
             } else {
                 for (int j = 0; j < num_tuples_in_block; j++)
                 {
@@ -1707,6 +1721,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
     }
     table->clearUnevictedBlocks();
     table->clearMergeTupleOffsets();
+    table->clearBlockIDs();
     VOLT_DEBUG("unevicted blockIDs size %d", static_cast<int>(table->getUnevictedBlockIDs().size()));
     VOLT_DEBUG("unevicted blocks size %d", static_cast<int>(table->unevictedBlocksSize()));
 

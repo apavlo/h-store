@@ -8,6 +8,7 @@
 
 #include <map>
 #include <vector>
+#include <set>
 
 using namespace std;
 
@@ -106,6 +107,7 @@ class BerkeleyAntiCacheDB : public AntiCacheDB {
         DbEnv* m_dbEnv;
         Db* m_db;
         Dbt m_value;
+        std::set <uint16_t> m_blockSet;
 };
 
 }

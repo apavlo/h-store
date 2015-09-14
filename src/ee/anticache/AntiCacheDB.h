@@ -213,7 +213,7 @@ class AntiCacheDB {
          * Because of the structure of AnticacheDB we have to have this another
          * function.
          */
-        void removeSingleTupleStats(uint16_t blockId);
+        void removeSingleTupleStats(uint16_t blockId, int32_t sign);
         
         /**
          * Return the AntiCacheID number.
