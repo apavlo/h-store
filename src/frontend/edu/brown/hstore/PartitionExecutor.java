@@ -846,8 +846,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                             long maxSize = parseSize(maxstr) / catalogContext.numberOfPartitions;
                             
                             File acFile = AntiCacheManager.getDatabaseDir(this, i);
-                            //LOG.info(String.format("Creating AntiCacheDB type: %d blocking: %b blockMerge: %b blocksize: %d maxsize: %d @ %s", 
-                            //      dbType.ordinal(), blocking, blockMerge, blockSize, maxSize, acFile.getAbsolutePath()));
+                            LOG.info(String.format("Creating AntiCacheDB type: %d blocking: %b blockMerge: %b blocksize: %d maxsize: %d @ %s", 
+                                  dbType.ordinal(), blocking, blockMerge, blockSize, maxSize, acFile.getAbsolutePath()));
                             if (i == 0) {
                                 eeTemp.antiCacheInitialize(acFile, dbType, blocking, blockSize, maxSize, blockMerge);
                             } else {
@@ -1787,7 +1787,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 tupleDataMem += (int) stats.getLong("TUPLE_DATA_MEMORY");
                 stringMem += (int) stats.getLong("STRING_DATA_MEMORY");
                 indexMem += (int) stats.getLong("INDEX_MEMORY");
-                
+
                 // ACTIVE
                 if (hstore_conf.site.anticache_enable) {
                     tuplesEvicted += (long) stats.getLong("ANTICACHE_TUPLES_EVICTED");

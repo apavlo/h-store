@@ -484,12 +484,12 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
          *       In some cases, we may do want exclude index memory. Then uncomment them!
          */
         for (PartitionStats stats : this.partitionStats) {
-            totalSizeKb += stats.sizeKb;// - stats.indexes;
+            totalSizeKb += stats.sizeKb - stats.indexes;
             totalIndexKb += stats.indexes;
             totalBlocksEvicted += stats.blocksEvicted;
             totalBlocksFetched += stats.blocksFetched;
             for (Stats tstats : stats.getTableStats()) {
-                totalEvictableSizeKb += tstats.sizeKb;// - tstats.indexes;
+                totalEvictableSizeKb += tstats.sizeKb - tstats.indexes;
             }
         }
 
@@ -979,7 +979,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             String config = hstore_conf.site.anticache_multilevel_dirs;
             String delims = "[;]";
             String[] dirs = config.split(delims);
-            base_dir = FileUtil.realpath(hstore_conf.global.temp_dir + dirs[dbnum] +
+            base_dir = FileUtil.realpath(dirs[dbnum] +
                     File.separatorChar +
                     catalog_db.getProject());
         } 
