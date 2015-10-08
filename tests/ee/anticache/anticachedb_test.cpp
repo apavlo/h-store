@@ -50,9 +50,9 @@ TEST_F(AntiCacheDBTest, BerkeleyNextBlockId) {
     ChTempDir tempdir;
     AntiCacheDB* anticache = new BerkeleyAntiCacheDB(NULL, ".", BLOCK_SIZE, MAX_SIZE);
     
-    uint16_t lastBlockId;
+    uint32_t lastBlockId;
     for (int i = 0; i < 1000; i++) {
-        uint16_t blockId = anticache->nextBlockId();
+        uint32_t blockId = anticache->nextBlockId();
         if (i > 0) ASSERT_NE(lastBlockId, blockId);
         lastBlockId = blockId;
     } // FOR
@@ -65,9 +65,9 @@ TEST_F(AntiCacheDBTest, NVMNextBlockId) {
     ChTempDir tempdir;
     AntiCacheDB* anticache = new NVMAntiCacheDB(NULL, ".", BLOCK_SIZE, MAX_SIZE);
     
-    uint16_t lastBlockId;
+    uint32_t lastBlockId;
     for (int i = 0; i < 1000; i++) {
-        uint16_t blockId = anticache->nextBlockId();
+        uint32_t blockId = anticache->nextBlockId();
         if (i > 0) ASSERT_NE(lastBlockId, blockId);
         lastBlockId = blockId;
     } // FOR
@@ -84,7 +84,7 @@ TEST_F(AntiCacheDBTest, BerkeleyWriteBlock) {
 
     string tableName("FAKE");
     string payload("Squirrels and Girls!");
-    uint16_t blockId = anticache->nextBlockId();
+    uint32_t blockId = anticache->nextBlockId();
 
     try {
         anticache->writeBlock(tableName,
@@ -107,7 +107,7 @@ TEST_F(AntiCacheDBTest, NVMWriteBlock) {
 
     string tableName("FAKE");
     string payload("Squirrels and Girls!");
-    uint16_t blockId = anticache->nextBlockId();
+    uint32_t blockId = anticache->nextBlockId();
 
     try {
         anticache->writeBlock(tableName,
@@ -132,7 +132,7 @@ TEST_F(AntiCacheDBTest, BerkeleyReadBlock) {
 
     string tableName("FAKE");
     string payload("Test Read");
-    uint16_t blockId = anticache->nextBlockId();
+    uint32_t blockId = anticache->nextBlockId();
 	anticache->writeBlock(tableName,
 						 blockId,
 						 1,
@@ -163,7 +163,7 @@ TEST_F(AntiCacheDBTest, NVMReadBlock) {
 
     string tableName("FAKE");
     string payload("Test Read");
-    uint16_t blockId = anticache->nextBlockId();
+    uint32_t blockId = anticache->nextBlockId();
 	anticache->writeBlock(tableName,
 						 blockId,
 						 1,
@@ -193,7 +193,7 @@ TEST_F(AntiCacheDBTest, BerkeleyCheckCapacity) {
     anticache->setBlockMerge(true);
     string tableName("FAKE");
     string payload("Test Capacity");
-    uint16_t blockId = anticache->nextBlockId();
+    uint32_t blockId = anticache->nextBlockId();
     anticache->writeBlock(tableName,
                          blockId,
                          1,
@@ -239,7 +239,7 @@ TEST_F(AntiCacheDBTest, NVMCheckCapacity) {
     anticache->setBlockMerge(true);
     string tableName("FAKE");
     string payload("Test Capacity");
-    uint16_t blockId = anticache->nextBlockId();
+    uint32_t blockId = anticache->nextBlockId();
     anticache->writeBlock(tableName,
                          blockId,
                          1,

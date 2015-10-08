@@ -222,7 +222,7 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     string tableName("TEST");
     string payload("Test payload");
 
-    int16_t blockId = nvmdb->nextBlockId();
+    int32_t blockId = nvmdb->nextBlockId();
     nvmdb->writeBlock(tableName,
         blockId,
         1,
@@ -234,7 +234,7 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     //VOLT_INFO("acid: %x, blockId: %x fullBlockId: %x\n", nvm_acid, blockId, fullBlockId);
     
     int32_t newBlockId = (int32_t) acem->migrateBlock(blockId, berkeleydb);
-    int16_t _new_block_id = (int16_t) (newBlockId & 0x0000FFFF);
+    int32_t _new_block_id = (int16_t) (newBlockId & 0x0000FFFF);
     VOLT_INFO("blockId: %x newBlockId: %x _new_block_id: %x", blockId, newBlockId, _new_block_id);
     AntiCacheBlock* berkeleyblock = berkeleydb->readBlock(_new_block_id, 1);
     VOLT_INFO("tableName: %s berkeleyblock name: %s", tableName.c_str(), berkeleyblock->getTableName().c_str());
@@ -251,7 +251,7 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
 
     VOLT_DEBUG("migrating LRU block..."); 
     
-    int16_t blockIdLRU = nvmdb->nextBlockId();
+    int32_t blockIdLRU = nvmdb->nextBlockId();
     nvmdb->writeBlock(tableNameLRU,
         blockIdLRU,
         1,
@@ -269,7 +269,7 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     
     newBlockId = (int32_t)acem->migrateLRUBlock(nvmdb, berkeleydb);
     
-    _new_block_id = (int16_t) (newBlockId & 0x0000FFFF);
+    _new_block_id = (int32_t) (newBlockId & 0x0FFFFFFF);
 
     berkeleyblock = berkeleydb->readBlock(_new_block_id, 1);
     VOLT_INFO("tableName: %s berkeleyblock name: %s\n", tableName.c_str(), berkeleyblock->getTableName().c_str());
@@ -311,7 +311,7 @@ TEST_F(AntiCacheEvictionManagerTest, FullBackingStore) {
 
     acdb = acem->getAntiCacheDB(acem->chooseDB(BLOCK_SIZE));
     ASSERT_EQ(0, acdb->getACID());
-    int16_t blockId = acdb->nextBlockId();
+    int32_t blockId = acdb->nextBlockId();
     acdb->writeBlock(tableName,
         blockId,
         1,
