@@ -20,46 +20,47 @@ SITE_HOST="localhost"
 
 CLIENT_HOSTS=( \
         "localhost" \
-        "localhost" \
-        "localhost" \
-        "localhost" \
+        #"localhost" \
+        #"localhost" \
+        #"localhost" \
         )
 N_HOSTS=4
 BASE_CLIENT_THREADS=1
-CLIENT_THREADS_PER_HOST=2
+CLIENT_THREADS_PER_HOST=1
 #BASE_SITE_MEMORY=8192
 #BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_SITE_MEMORY=12288
 BASE_SITE_MEMORY_PER_PARTITION=2024
 BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
-OUTPUT_DIR_PREFIX="data-read-heavy/ycsb-"
+OUTPUT_DIR_PREFIX="data-multitier-new/ycsb-"
 #BLK_CON=1
 #BLK_EVICT=800
-AC_THRESH=50
-SCALE=1
+AC_THRESH=5000
+SCALE=10
 #BLOCK_SIZE_KB=256
-DURATION_S=300
-WARMUP_S=3
+DURATION_S=90
+WARMUP_S=10
 INTERVAL_S=2
-PARTITIONS=8
+PARTITIONS=1
 
 for BLK_CON in 500; do
 for BLOCK_SIZE in 1; do
 #for BLOCK_SIZE in 4 16 64 256 1024; do
-for BLOCKING in 'false';  do
+for BLOCKING in 'true';  do
 #for BLOCK_MERGE in 'false' 'true'; do
 for BLOCK_MERGE in 'false'; do
         #OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${BLK_EVICT}*${BLOCK_SIZE}kb
         #mkdir -p $OUTPUT_DIR
 
-    for DB in 'NVM'; do
-        #for skew in 1.01; do
-        for skew in 0.75 0.5 1.01 1.25; do
+        for skew in 1.01; do
+        #for skew in 1.01 1.25 0.75 0.5; do
+    for DB in 'NVM' 'BERKELEY'; do
+    #for DB in 'NVM' ;do
         #for skew in 0.8 1.01 1.25 4 8; do
             OUTPUT_DIR=${OUTPUT_DIR_PREFIX}S${skew}
             mkdir -p $OUTPUT_DIR
-            for round in 1; do
+            for round in 2; do
                 if [ "$BLOCKING" = "true" ]; then
                     block='sync'
                 else
@@ -75,15 +76,18 @@ for BLOCK_MERGE in 'false'; do
                     AC_DIR='/mnt/pmfs/aclevel1'
                     BLOCK_SIZE=1
                 else
-                    AC_DIR="/data1/ycsb-berk-level$RANDOM"
-                    BLOCK_SIZE=16
+                    AC_DIR="/data1/ycsb-berk-level1$round"
+                    BLOCK_SIZE=1
                 fi
                 rm -r $AC_DIR
+                rm -r /tmp/berk_level1$round
                 BLOCK_SIZE_KB=$BLOCK_SIZE
-                BLK_EVICT=$((20480 / $BLOCK_SIZE_KB))
+                #BLK_EVICT=$((102400 / $BLOCK_SIZE_KB))
+                BLK_EVICT=$((102400 / $BLOCK_SIZE_KB))
+                #BLK_EVICT=$((409600 / $BLOCK_SIZE_KB))
 
                 #OUTPUT_PREFIX="$OUTPUT_DIR/$round-ycsb1G-$block-DRAM-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}"
-                OUTPUT_PREFIX="$OUTPUT_DIR/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}-reuseBlock"
+                OUTPUT_PREFIX="$OUTPUT_DIR/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}"
                 LOG_PREFIX="logs/ycsb-nvm/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}"
                 echo "log = $LOG_PREFIX"
                 echo $OUTPUT_PREFIX
@@ -151,12 +155,13 @@ for BLOCK_MERGE in 'false'; do
 
 # Anti-Caching Experiments
                         "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
+                        "-Dsite.anticache_enable_multilevel=true" \
                         "-Dsite.anticache_timestamps=${ENABLE_TIMESTAMPS}" \
                         "-Dsite.anticache_batching=true" \
                         "-Dsite.anticache_profiling=true" \
                         "-Dsite.anticache_reset=false" \
                         "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
-                        "-Dsite.anticache_check_interval=5000" \
+                        "-Dsite.anticache_check_interval=2000" \
                         "-Dsite.anticache_threshold_mb=${AC_THRESH}" \
                         "-Dsite.anticache_blocks_per_eviction=${BLK_EVICT}" \
                         "-Dsite.anticache_max_evicted_blocks=5000000" \
@@ -168,9 +173,11 @@ for BLOCK_MERGE in 'false'; do
                         "-Dsite.anticache_dir=${AC_DIR}" \
                         #"-Dsite.anticache_dir=/mnt/pmfs/aclevel0" \
                         #"-Dsite.anticache_dir=/data1/berk-level$round" \
+                        "-Dsite.anticache_levels=$DB,$BLOCKING,${ANTICACHE_BLOCK_SIZE}B,100M;BERKELEY,false,${ANTICACHE_BLOCK_SIZE}B,5G" \
+                        "-Dsite.anticache_multilevel_dirs=${AC_DIR};tmp/berk-level7$DB$RANDOM" \
                         "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
                         "-Dclient.anticache_enable=false" \
-                        "-Dclient.anticache_evict_interval=5000" \
+                        "-Dclient.anticache_evict_interval=3000" \
                         "-Dclient.anticache_evict_size=${ANTICACHE_BLOCK_SIZE}" \
                         "-Dclient.output_csv=${OUTPUT_PREFIX}-results.csv" \
 

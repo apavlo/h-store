@@ -33,13 +33,13 @@ BASE_SITE_MEMORY=2048
 BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_PROJECT="voter"
 BASE_DIR=`pwd`
-OUTPUT_DIR="data-hstore/voter/voter-multitier"
+OUTPUT_DIR="data-voter-new/voter/voter-multitier"
 #BLK_CON=1
 BLK_EVICT=600
 AC_THRESH=250
 SCALE=100
-BLOCK_SIZE_KB=256
-DURATION_S=90
+BLOCK_SIZE_KB=4
+DURATION_S=150
 WARMUP_S=30
 INTERVAL_S=2
 PARTITIONS=8
@@ -47,10 +47,10 @@ PARTITIONS=8
 mkdir -p $OUTPUT_DIR
 
 for BLK_CON in 100 ; do
-for BLOCK_SIZE in 256; do
+for BLOCK_SIZE in 16; do
 for BLOCKING in 'false';  do
 for BLOCK_MERGE in 'true'; do
-    for DB in 'NVM' ; do
+    for DB in 'BERKELEY' ;do
             for round in 2; do
                 if [ "$BLOCKING" = "true" ]; then
                     block='sync'
@@ -63,9 +63,9 @@ for BLOCK_MERGE in 'true'; do
                     block_merge='tuple'
                 fi
                 BLOCK_SIZE_KB=$BLOCK_SIZE
-                #BLK_EVICT=$((51200 / $BLOCK_SIZE_KB))
-                OUTPUT_PREFIX="$OUTPUT_DIR/$round-voter-2-tier-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}"
-                LOG_PREFIX="logs/voter-nvm/$round-voter-2-tier-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}"
+                BLK_EVICT=$((102400 / $BLOCK_SIZE_KB))
+                OUTPUT_PREFIX="$OUTPUT_DIR/$round-voter-2-tier-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}-${DB}"
+                LOG_PREFIX="logs/voter-nvm/$round-voter-2-tier-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}-${DB}"
                 echo "log = $LOG_PREFIX"
                 echo $OUTPUT_PREFIX
 
@@ -136,7 +136,7 @@ for BLOCK_MERGE in 'true'; do
                         "-Dsite.anticache_profiling=true" \
                         "-Dsite.anticache_reset=false" \
                         "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
-                        "-Dsite.anticache_check_interval=10000" \
+                        "-Dsite.anticache_check_interval=2000" \
                         "-Dsite.anticache_threshold_mb=${AC_THRESH}" \
                         "-Dsite.anticache_blocks_per_eviction=${BLK_EVICT}" \
                         "-Dsite.anticache_max_evicted_blocks=1000000" \
@@ -146,9 +146,11 @@ for BLOCK_MERGE in 'true'; do
 #                        "-Dsite.anticache_dbtype=$DB" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
                         "-Dsite.anticache_dir=/mnt/pmfs/aclevel0" \
-                        "-Dsite.anticache_levels=NVM,false,256K,200M;BERKELEY,false,256K,16G" \
+                        "-Dsite.anticache_levels=${DB},true,${BLOCK_SIZE}K,500M;BERKELEY,true,${BLOCK_SIZE}K,5G" \
                         #"-Dsite.anticache_multilevel_dirs=tmp/pmfs/nvm-level0;tmp/berk-level1" \
-                        "-Dsite.anticache_multilevel_dirs=/mnt/pmfs/nvm-level0;/tmp/berk-level6" \
+                        "-Dsite.anticache_multilevel_dirs=/data1/berk-level$RANDOM;/data1/tmp/berk-level$RANDOM" \
+                        #"-Dsite.anticache_multilevel_dirs=/mnt/pmfs/nvm-level0;/data1/tmp/berk-level$RANDOM" \
+                        #"-Dsite.anticache_multilevel_dirs=/data1/tmp-voter/berk$RANDOM;/tmp/berk-level$RANDOM" \
                         "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
                         "-Dclient.anticache_enable=false" \
                         "-Dclient.anticache_evict_interval=5000" \
