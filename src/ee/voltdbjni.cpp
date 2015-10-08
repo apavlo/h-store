@@ -1529,6 +1529,12 @@ SHAREDLIB_JNIEXPORT jint JNICALL Java_org_voltdb_jni_ExecutionEngine_nativeAntiC
             VOLT_ERROR("No evicted tuple offsets were given to the EE");
             return (retval);
         }
+
+        /*
+        if (numBlockIds != 0) {
+            VOLT_ERROR("numBlock from jni: %d", numBlockIds);
+        }
+        */
         
         // XXX: Is this necessary?
         int32_t *blockIds = new int32_t[numBlockIds];

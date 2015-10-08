@@ -41,7 +41,7 @@ using namespace std;
 
 namespace voltdb {
 
-NVMAntiCacheBlock::NVMAntiCacheBlock(uint16_t blockId, char* block, long size) :
+NVMAntiCacheBlock::NVMAntiCacheBlock(uint32_t blockId, char* block, long size) :
     AntiCacheBlock(blockId) {
 
     /* m_block = block;
@@ -191,7 +191,7 @@ void NVMAntiCacheDB::flushBlocks() {
 }
 
 void NVMAntiCacheDB::writeBlock(const std::string tableName,
-                                uint16_t blockId,
+                                uint32_t blockId,
                                 const int tupleCount,
                                 const char* data,
                                 const long size,
@@ -203,7 +203,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
                 m_ACID, blockId, size);
         throw FullBackingStoreException(((int32_t)m_ACID << 16) & blockId, 0);
     }
-    uint16_t index = getFreeNVMBlockIndex();
+    uint32_t index = getFreeNVMBlockIndex();
     VOLT_TRACE("block index: %u", index);
     char* block = getNVMBlock(index); 
     long bufsize; 
@@ -219,33 +219,34 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     VOLT_DEBUG("Writing NVM Block: ID = %u, index = %u, tupleCount = %d, size = %ld, tableName = %s",
             blockId, index, tupleCount, bufsize, tableName.c_str()); 
 
-    tupleInBlock[blockId] = tupleCount;
-    evictedTupleInBlock[blockId] = evictedTupleCount;
-    blockSize[blockId] = bufsize;
     m_blocksEvicted++;
     if (!isBlockMerge()) {
+        tupleInBlock[blockId] = tupleCount;
+        evictedTupleInBlock[blockId] = evictedTupleCount;
+        blockSize[blockId] = bufsize;
         m_bytesEvicted += static_cast<int32_t>((int64_t)bufsize * evictedTupleCount / tupleCount);
     }
     else {
         m_bytesEvicted += static_cast<int32_t>(bufsize);
     }
 
-    m_blockMap.insert(std::pair<uint16_t, std::pair<int, int32_t> >(blockId, std::pair<uint16_t, int32_t>(index, static_cast<int32_t>(bufsize))));
+    m_blockMap.insert(std::pair<uint32_t, std::pair<int, int32_t> >(blockId, std::pair<uint32_t, int32_t>(index, static_cast<int32_t>(bufsize))));
     m_monoBlockID++;
     
+    // FIXME: I'm hacking!!!!!!!!!!!!!!!!!!!!!!!!!
     pushBlockLRU(blockId);
 }
 
-bool NVMAntiCacheDB::validateBlock(uint16_t blockId) {
+bool NVMAntiCacheDB::validateBlock(uint32_t blockId) {
     if (m_blockMap.find(blockId) == m_blockMap.end())
         return 0;
     else
         return 1;
 }
 
-AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {
+AntiCacheBlock* NVMAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate) {
     
-    std::map<uint16_t, std::pair<uint16_t, int32_t> >::iterator itr; 
+    std::map<uint32_t, std::pair<uint32_t, int32_t> >::iterator itr; 
     itr = m_blockMap.find(blockId); 
   
     if (itr == m_blockMap.end()) {
@@ -256,7 +257,7 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {
    
     }
 
-    uint16_t blockIndex = itr->second.first; 
+    uint32_t blockIndex = itr->second.first; 
     int blockSize = itr->second.second;
    
     char* block_ptr = getNVMBlock(blockIndex);
@@ -272,6 +273,7 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {
 
         m_blockMap.erase(itr); 
 
+        //FIXME: I'm hacking!!!!!!!!!!!!!!!!!!!!!!!!!
         removeBlockLRU(blockId);
 
         m_bytesUnevicted += blockSize;
@@ -292,14 +294,17 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {
             m_bytesUnevicted += static_cast<int32_t>( blockSize / tupleInBlock[blockId]);
             evictedTupleInBlock[blockId]--;
 
-            removeBlockLRU(blockId);
-            pushBlockLRU(blockId);
+            // FIXME: I'm hacking!!!!!!!!!!!!!!!!!!!!!!!!!
+            if (rand() % 100 == 0) {
+                removeBlockLRU(blockId);
+                pushBlockLRU(blockId);
+            }
         }
     }
     return (anticache_block);
 }
 
-char* NVMAntiCacheDB::getNVMBlock(uint16_t index) {
+char* NVMAntiCacheDB::getNVMBlock(uint32_t index) {
     //char* nvm_block = new char[NVM_BLOCK_SIZE];     
     //memcpy(nvm_block, m_NVMBlocks+(index*NVM_BLOCK_SIZE), NVM_BLOCK_SIZE); 
     
@@ -308,10 +313,10 @@ char* NVMAntiCacheDB::getNVMBlock(uint16_t index) {
     return (m_NVMBlocks+(index*m_blockSize));
 }
 
-uint16_t NVMAntiCacheDB::getFreeNVMBlockIndex() {
+uint32_t NVMAntiCacheDB::getFreeNVMBlockIndex() {
   
     
-    uint16_t free_index = 0; 
+    uint32_t free_index = 0; 
 
     if(m_NVMBlockFreeList.size() > 0) {
         free_index = m_NVMBlockFreeList.back(); 
@@ -333,7 +338,7 @@ uint16_t NVMAntiCacheDB::getFreeNVMBlockIndex() {
     return free_index; 
 }
 
-void NVMAntiCacheDB::freeNVMBlock(uint16_t index) {
+void NVMAntiCacheDB::freeNVMBlock(uint32_t index) {
     m_NVMBlockFreeList.push_back(index); 
     VOLT_DEBUG("list size: %d  back: %u", (int)m_NVMBlockFreeList.size(), m_NVMBlockFreeList.back());
     //m_blockIndex--; 

@@ -18,12 +18,12 @@ using namespace std;
 
 namespace voltdb {
 
-BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(uint16_t blockId, Dbt value) :
+BerkeleyAntiCacheBlock::BerkeleyAntiCacheBlock(uint32_t blockId, Dbt value) :
    AntiCacheBlock(blockId) 
     {
     m_buf = (char *) value.get_data();
-    uint16_t id = *((uint16_t *)m_buf);
-    long bufLen_ = sizeof(int16_t);
+    uint32_t id = *((uint32_t *)m_buf);
+    long bufLen_ = sizeof(blockId);
     std::string tableName = m_buf + bufLen_;
     bufLen_ += tableName.size()+1;
     int32_t size = *((int32_t *)(m_buf+bufLen_));
@@ -124,7 +124,7 @@ BerkeleyAntiCacheDB::~BerkeleyAntiCacheDB() {
 }
 
 void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
-                             uint16_t blockId,
+                             uint32_t blockId,
                              const int tupleCount,
                              const char* data,
                              const long size,
@@ -178,20 +178,21 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     }
 
 
+    // FIXME: I'm hacking!!!!!!!!!!!!!!!!!!!!!!!!!
     pushBlockLRU(blockId);
     m_blockSet.insert(blockId);
 
     delete [] databuf_;
 }
 
-bool BerkeleyAntiCacheDB::validateBlock(uint16_t blockId) {
+bool BerkeleyAntiCacheDB::validateBlock(uint32_t blockId) {
     
     //if (m_blockSet.find(blockId) == m_blockSet.end())
     //    printf("Berkeley block already unevicted!\n");
     return m_blockSet.find(blockId) != m_blockSet.end();
 }
 
-AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate) {
+AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate) {
     Dbt key;
     key.set_data(&blockId);
     key.set_size(sizeof(blockId));
@@ -219,27 +220,27 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint16_t blockId, bool isMigrate)
     m_blocksUnevicted++;
     if (isBlockMerge()) {
         m_bytesUnevicted += static_cast<int32_t>( block->getSize());
+        removeBlockLRU(blockId);
+        m_blockSet.erase(blockId);
     } else {
         if (isMigrate) {
             m_bytesUnevicted += static_cast<int32_t>((int64_t)block->getSize() - block->getSize() / tupleInBlock[blockId] *
                     (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
+            removeBlockLRU(blockId);
+            m_blockSet.erase(blockId);
         }
         else {
             m_bytesUnevicted += static_cast<int32_t>( block->getSize() / tupleInBlock[blockId]);
             evictedTupleInBlock[blockId]--;
             m_blocksUnevicted--;
+            if (rand() % 100 == 0) {
+                removeBlockLRU(blockId);
+                pushBlockLRU(blockId); // update block LRU
+            }
         }
     }
 
-    removeBlockLRU(blockId);
-    m_blockSet.erase(blockId);
-    
-    if (!(this->isBlockMerge()) && !isMigrate) { //i.e. tuple merge
-        pushBlockLRU(blockId); // update block LRU
-        m_blockSet.insert(blockId);
-    }
-
-    /*uint16_t rm_block = removeBlockLRU(blockId);
+    /*uint32_t rm_block = removeBlockLRU(blockId);
     if (rm_block != blockId) {
         VOLT_ERROR("LRU rm_block id: %d  and blockId %d not equal!", rm_block, blockId);
     }

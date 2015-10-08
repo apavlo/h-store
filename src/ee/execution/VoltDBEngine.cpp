@@ -2057,10 +2057,11 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
     // We can now ask it directly to read in the evicted blocks that they want
     bool finalResult = true;
     AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
-    std::map <int32_t, set <int32_t> > filter;
+    //std::map <int32_t, set <int32_t> > filter;
     try {
         for (int i = 0; i < numBlocks; i++) {
             VOLT_TRACE("inengine: %d", i);
+            /*
             if (filter.find(blockIds[i]) != filter.end())
                 if (filter[blockIds[i]].find(tupleOffsets[i]) != filter[blockIds[i]].end()) {
                     VOLT_WARN("skipping %d %d", blockIds[i], tupleOffsets[i]);
@@ -2068,8 +2069,13 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
                 }
 
             (filter[blockIds[i]]).insert(tupleOffsets[i]);
+            */
             VOLT_DEBUG("reading %d %d", blockIds[i], tupleOffsets[i]);
-            finalResult = eviction_manager->readEvictedBlock(table, blockIds[i], tupleOffsets[i]) && finalResult;
+            if (!(blockIds[i] & 0x10000000)) {
+                pthread_mutex_lock(&(eviction_manager->lock));
+                finalResult = eviction_manager->readEvictedBlock(table, blockIds[i], tupleOffsets[i]) && finalResult;
+                pthread_mutex_unlock(&(eviction_manager->lock));
+            }
         } // FOR
 
     } catch (SerializableEEException &e) {
@@ -2159,7 +2165,10 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
     VOLT_DEBUG("Merging unevicted blocks for table %d", tableId);
     // Merge all the newly unevicted blocks back into our regular table data
     try {
+        AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+        pthread_mutex_lock(&(eviction_manager->lock));
         m_executorContext->getAntiCacheEvictionManager()->mergeUnevictedTuples(table);
+        pthread_mutex_unlock(&(eviction_manager->lock));
     } catch (SerializableEEException &e) {
         VOLT_INFO("Failed to merge blocks for table %d", tableId);
 

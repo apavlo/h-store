@@ -101,6 +101,8 @@ public:
     void throwEvictedAccessException();
     bool blockingMerge();
     
+    pthread_mutex_t lock;
+
 protected:
     void initEvictResultTable();
     
@@ -135,6 +137,7 @@ protected:
     // m_numdbs > 1;
     bool m_migrate;
     //std::map<int16_t, AntiCacheDB*> m_db_lookup_table;
+
 
 }; // AntiCacheEvictionManager class
 

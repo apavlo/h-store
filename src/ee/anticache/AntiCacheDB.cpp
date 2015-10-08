@@ -40,7 +40,7 @@ using namespace std;
 
 namespace voltdb {
 
-AntiCacheBlock::AntiCacheBlock(uint16_t blockId) {
+AntiCacheBlock::AntiCacheBlock(uint32_t blockId) {
 
 //    for(int i=0;i<size;i++){
 //       VOLT_INFO("%x", data[i]);
@@ -87,7 +87,7 @@ AntiCacheDB::~AntiCacheDB() {
 }
 
 AntiCacheBlock* AntiCacheDB::getLRUBlock() {
-    uint16_t lru_block_id;
+    uint32_t lru_block_id;
     AntiCacheBlock* lru_block;
 
     VOLT_WARN("If you are using tuple merge, this is BROKEN BROKEN BROKEN");
@@ -102,8 +102,9 @@ AntiCacheBlock* AntiCacheDB::getLRUBlock() {
     }
 }
 
-void AntiCacheDB::removeBlockLRU(uint16_t blockId) {
-    std::deque<uint16_t>::iterator it;
+void AntiCacheDB::removeBlockLRU(uint32_t blockId) {
+    //VOLT_ERROR("Removing blockId %u into LRU", blockId);
+    std::deque<uint32_t>::iterator it;
     bool found = false;
            
     
@@ -123,14 +124,14 @@ void AntiCacheDB::removeBlockLRU(uint16_t blockId) {
     }
 }
 
-void AntiCacheDB::pushBlockLRU(uint16_t blockId) {
-    VOLT_INFO("Pushing blockId %u into LRU", blockId);
+void AntiCacheDB::pushBlockLRU(uint32_t blockId) {
+    //VOLT_ERROR("Pushing blockId %u into LRU, max size = %ld\n", blockId, m_block_lru.max_size());
     m_block_lru.push_back(blockId);
     m_totalBlocks++;
 }
 
-uint16_t AntiCacheDB::popBlockLRU() {
-    uint16_t blockId = m_block_lru.front();
+uint32_t AntiCacheDB::popBlockLRU() {
+    uint32_t blockId = m_block_lru.front();
     m_block_lru.pop_front();
     return blockId;
 }
@@ -139,7 +140,7 @@ void AntiCacheDB::setStatsSource() {
     //m_stats = new AntiCacheStats(NULL, this);
 }
 
-void AntiCacheDB::removeSingleTupleStats(uint16_t blockId, int32_t sign) {
+void AntiCacheDB::removeSingleTupleStats(uint32_t blockId, int32_t sign) {
     m_bytesUnevicted += static_cast<int32_t>( blockSize[blockId] / tupleInBlock[blockId]) * sign;
     evictedTupleInBlock[blockId] -= sign;
 }

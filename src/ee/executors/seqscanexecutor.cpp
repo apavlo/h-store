@@ -319,6 +319,7 @@ bool SeqScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *tra
             if (eviction_manager->hasBlockableEvictedAccesses()) {
                 eviction_manager->blockingMerge();
             } else {
+                //eviction_manager->blockingMerge();
                 eviction_manager->throwEvictedAccessException();
             } 
         }

@@ -550,6 +550,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
             if (eviction_manager->hasBlockableEvictedAccesses()) {
                 blockingMergeSuccessful = eviction_manager->blockingMerge();
             } else {
+                //blockingMergeSuccessful = eviction_manager->blockingMerge();
                 blockingMergeSuccessful = false;
                 continue;
             }

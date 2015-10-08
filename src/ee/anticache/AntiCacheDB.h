@@ -59,7 +59,7 @@ class AntiCacheBlock {
     public:
         virtual ~AntiCacheBlock() {};
         
-        inline uint16_t getBlockId() const {
+        inline uint32_t getBlockId() const {
             return m_blockId;
         }
 
@@ -75,7 +75,7 @@ class AntiCacheBlock {
         }
 
         struct payload{
-            uint16_t blockId;
+            uint32_t blockId;
             std::string tableName;
             char * data;
             long size;
@@ -87,8 +87,8 @@ class AntiCacheBlock {
     
     protected:
         // Why is this private/protected?
-        AntiCacheBlock(uint16_t blockId);
-        uint16_t m_blockId;
+        AntiCacheBlock(uint32_t blockId);
+        uint32_t m_blockId;
         payload m_payload;
         int32_t m_size;
         char * m_block;
@@ -108,16 +108,16 @@ class AntiCacheDB {
          * Write a block of serialized tuples out to the anti-cache database
          */
         virtual void writeBlock(const std::string tableName,
-                                uint16_t blockId,
+                                uint32_t blockId,
                                 const int tupleCount,
                                 const char* data,
                                 const long size, const int evictedTupleCount) = 0;
         /**
          * Read a block and return its contents
          */
-        virtual AntiCacheBlock* readBlock(uint16_t blockId, bool isMigrate) = 0;
+        virtual AntiCacheBlock* readBlock(uint32_t blockId, bool isMigrate) = 0;
 
-        virtual bool validateBlock(uint16_t blockId) = 0;
+        virtual bool validateBlock(uint32_t blockId) = 0;
 
 
         /**
@@ -130,7 +130,7 @@ class AntiCacheDB {
         /**
          * Return the next BlockId to use in the anti-cache database
          */
-        virtual uint16_t nextBlockId() = 0;
+        virtual uint32_t nextBlockId() = 0;
         /**
          * Return the AntiCacheDBType of the database
          */
@@ -181,12 +181,12 @@ class AntiCacheDB {
          * Removes a blockId from the LRU queue. This is used when reading a
          * specific block.
          */
-        void removeBlockLRU(uint16_t blockId);
+        void removeBlockLRU(uint32_t blockId);
         
         /** 
          * Adds a blockId to the LRU deque.
          */
-        void pushBlockLRU(uint16_t blockId);
+        void pushBlockLRU(uint32_t blockId);
 
         /**
          * Pops and returns the LRU blockID from the deque. This isn't a 
@@ -194,7 +194,7 @@ class AntiCacheDB {
          * but the blockId is no longer in the LRU. This shouldn't necessarily
          * be fatal, but it should be avoided.
          */
-        inline uint16_t popBlockLRU();
+        inline uint32_t popBlockLRU();
 
         /**
          * Set the AntiCacheID number. This should be done on initialization and
@@ -213,7 +213,7 @@ class AntiCacheDB {
          * Because of the structure of AnticacheDB we have to have this another
          * function.
          */
-        void removeSingleTupleStats(uint16_t blockId, int32_t sign);
+        void removeSingleTupleStats(uint32_t blockId, int32_t sign);
         
         /**
          * Return the AntiCacheID number.
@@ -307,11 +307,11 @@ class AntiCacheDB {
             return m_block_merge;
         }
 
-        inline int getTupleInBlock(uint16_t blockId) {
+        inline int getTupleInBlock(uint32_t blockId) {
             return tupleInBlock[blockId];
         }
         
-        inline int getEvictedTupleInBlock(uint16_t blockId) {
+        inline int getEvictedTupleInBlock(uint32_t blockId) {
             return evictedTupleInBlock[blockId];
         }
 
@@ -319,7 +319,7 @@ class AntiCacheDB {
         ExecutorContext *m_executorContext;
         string m_dbDir;
 
-        int16_t m_nextBlockId;
+        uint32_t m_nextBlockId;
         int16_t m_ACID;
         long m_blockSize;
         int m_partitionId; 
@@ -341,9 +341,9 @@ class AntiCacheDB {
         int64_t m_bytesUnevicted;
         int32_t m_blocksUnevicted;
 
-        std::map <uint16_t, int> tupleInBlock;
-        std::map <uint16_t, int> evictedTupleInBlock;
-        std::map <uint16_t, long> blockSize;
+        std::map <uint32_t, int> tupleInBlock;
+        std::map <uint32_t, int> evictedTupleInBlock;
+        std::map <uint32_t, long> blockSize;
 
         voltdb::AntiCacheStats* m_stats;
         
@@ -351,7 +351,7 @@ class AntiCacheDB {
          * remove, this is better. otherwise, let's use a list
          */
 
-        std::deque<uint16_t> m_block_lru;
+        std::deque<uint32_t> m_block_lru;
 
         /*
          * DB specific method of shutting down the database on destructor call

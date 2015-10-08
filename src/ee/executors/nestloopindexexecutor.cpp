@@ -349,6 +349,7 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
                 if (eviction_manager->hasBlockableEvictedAccesses()) {
                     eviction_manager->blockingMerge();
                 } else {
+                    //eviction_manager->blockingMerge();
                     continue;
                 }
             }

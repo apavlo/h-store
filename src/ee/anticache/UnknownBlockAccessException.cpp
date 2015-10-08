@@ -32,7 +32,7 @@ using namespace voltdb;
 
 std::string UnknownBlockAccessException::ERROR_MSG = std::string("Tried to access unknown block");
 
-UnknownBlockAccessException::UnknownBlockAccessException(std::string tableName, uint16_t blockId) :
+UnknownBlockAccessException::UnknownBlockAccessException(std::string tableName, uint32_t blockId) :
     SerializableEEException(VOLT_EE_EXCEPTION_TYPE_UNKNOWN_BLOCK, UnknownBlockAccessException::ERROR_MSG),
     	m_tableName(tableName),
         m_blockId(blockId) {
@@ -40,7 +40,7 @@ UnknownBlockAccessException::UnknownBlockAccessException(std::string tableName, 
     // Nothing to see, nothing to do...
 }
 
-UnknownBlockAccessException::UnknownBlockAccessException(uint16_t blockId) :
+UnknownBlockAccessException::UnknownBlockAccessException(uint32_t blockId) :
     SerializableEEException(VOLT_EE_EXCEPTION_TYPE_UNKNOWN_BLOCK, UnknownBlockAccessException::ERROR_MSG),
         m_blockId(blockId) {
 }
@@ -49,5 +49,5 @@ void UnknownBlockAccessException::p_serialize(ReferenceSerializeOutput *output) 
     if(!m_tableName.empty()){
 	output->writeTextString(m_tableName);
     }
-    output->writeShort(m_blockId);
+    output->writeInt(m_blockId);
 }
