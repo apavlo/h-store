@@ -1207,7 +1207,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
             return false;
         }
 
-        VOLT_WARN("Block %d has already been read from another table.", block_id);
+        VOLT_ERROR("Block %d has already been read from another table.", block_id);
         return true;
     }
 
@@ -1750,6 +1750,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
 // -----------------------------------------
 
 void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable, TableTuple *tuple) {
+    // FIXME: HACK HACK HACK
     if (m_evicted_block_ids.size() > 100000) {
         return;
     }
@@ -1771,8 +1772,15 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     int32_t block_id = peeker.peekInteger(m_evicted_tuple->getNValue(0));
     VOLT_DEBUG("Got blockId: 0x%x", block_id);
     // Updated internal tracking info
-    if (m_blockable_accesses && !(block_id & 0x10000000)) {
+    if (!(block_id & 0x10000000)) {
+        m_evicted_tables.push_back(catalogTable);
+        m_evicted_block_ids.push_back(block_id); 
+        m_evicted_offsets.push_back(tuple_id);
         m_blockable_accesses = false;
+    } else {
+        m_evicted_tables_sync.push_back(catalogTable);
+        m_evicted_block_ids_sync.push_back(block_id); 
+        m_evicted_offsets_sync.push_back(tuple_id);
     }
 
     /*
@@ -1785,12 +1793,8 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     (m_evicted_filter[block_id]).insert(tuple_id);*/
     //VOLT_ERROR("try reading %d %d", block_id, tuple_id);
 
-    m_evicted_tables.push_back(catalogTable);
-    m_evicted_block_ids.push_back(block_id); 
-    m_evicted_offsets.push_back(tuple_id);
-
-    if (m_evicted_block_ids.size() > 100000) {
-        VOLT_TRACE("Record evicted tuple access size: %ld", m_evicted_block_ids.size());
+    if (m_evicted_block_ids.size() > 10000 && m_evicted_block_ids.size() % 10000 == 0) {
+        VOLT_ERROR("Record evicted tuple access size: %ld", m_evicted_block_ids.size());
     }
 
     VOLT_DEBUG("Recording evicted tuple access [table=%s / blockId=%d / tupleId=%d /blockable = %d]",
@@ -1802,10 +1806,10 @@ void AntiCacheEvictionManager::throwEvictedAccessException() {
     // Do we really want to remove all the non-unique blockIds here?
     // m_evicted_block_ids.unique();
         
-    int num_block_ids = static_cast<int>(m_evicted_block_ids.size()); 
+    int num_block_ids = static_cast<int>(m_evicted_block_ids.size()) + static_cast<int>(m_evicted_block_ids_sync.size()); 
     assert(num_block_ids > 0); 
     
-    VOLT_DEBUG("Txn accessed data from %d evicted blocks", num_block_ids);
+    VOLT_DEBUG("Txn accessed data from %ld %ld evicted blocks", m_evicted_block_ids.size(), m_evicted_block_ids_sync.size());
         
     int32_t* block_ids = new int32_t[num_block_ids];
     int32_t* tuple_ids = new int32_t[num_block_ids];
@@ -1821,6 +1825,19 @@ void AntiCacheEvictionManager::throwEvictedAccessException() {
     int num_tuples = 0; 
     for(vector<int32_t>::iterator itr = m_evicted_offsets.begin(); itr != m_evicted_offsets.end(); ++itr) {
         VOLT_TRACE("Marking tuple %d from %s as being needed for uneviction", *itr, m_evicted_tables[num_tuples]->name().c_str()); 
+        tuple_ids[num_tuples++] = *itr;
+    }
+        
+    // copy the block ids into an array 
+    for(vector<int32_t>::iterator itr = m_evicted_block_ids_sync.begin(); itr != m_evicted_block_ids_sync.end(); ++itr) {
+        VOLT_TRACE("Marking block %d as being needed for uneviction", *itr); 
+        block_ids[num_blocks++] = *itr; 
+    }
+
+    // copy the tuple offsets into an array
+    for(vector<int32_t>::iterator itr = m_evicted_offsets_sync.begin(); itr != m_evicted_offsets_sync.end(); ++itr) {
+        VOLT_TRACE("Marking tuple %d from %s as being needed for uneviction", *itr, m_evicted_tables_sync[num_tuples - 
+                (int)m_evicted_block_ids.size()]->name().c_str()); 
         tuple_ids[num_tuples++] = *itr;
     }
     
@@ -1840,26 +1857,29 @@ bool AntiCacheEvictionManager::blockingMerge() {
 
     pthread_mutex_lock(&lock);
 
-    int num_block_ids = static_cast<int>(m_evicted_block_ids.size()); 
+    int num_block_ids = static_cast<int>(m_evicted_block_ids_sync.size()); 
+    //if (num_block_ids % 10000 == 0)
+    VOLT_DEBUG("blockingmerge: %d", num_block_ids);
     assert(num_block_ids > 0); 
+
     int32_t* block_ids = new int32_t[num_block_ids];
     int32_t* tuple_ids = new int32_t[num_block_ids];
 
     // copy the block ids into an array 
     int num_blocks = 0; 
-    for(vector<int32_t>::iterator itr = m_evicted_block_ids.begin(); itr != m_evicted_block_ids.end(); ++itr) {
-        VOLT_DEBUG("Marking block 0x%x as being needed for uneviction", *itr); 
+    for(vector<int32_t>::iterator itr = m_evicted_block_ids_sync.begin(); itr != m_evicted_block_ids_sync.end(); ++itr) {
+        VOLT_TRACE("Marking block 0x%x as being needed for uneviction", *itr); 
         block_ids[num_blocks++] = *itr; 
     }
 
     // copy the tuple offsets into an array
     int num_tuples = 0; 
-    for(vector<int32_t>::iterator itr = m_evicted_offsets.begin(); itr != m_evicted_offsets.end(); ++itr) {
-        VOLT_DEBUG("Marking tuple %d from %s as being needed for uneviction", *itr, m_evicted_tables[num_tuples]->name().c_str()); 
+    for(vector<int32_t>::iterator itr = m_evicted_offsets_sync.begin(); itr != m_evicted_offsets_sync.end(); ++itr) {
+        VOLT_TRACE("Marking tuple %d from %s as being needed for uneviction", *itr, m_evicted_tables_sync[num_tuples]->name().c_str()); 
         tuple_ids[num_tuples++] = *itr;
     }
      // HACK
-    catalog::Table *catalogTable = m_evicted_tables.front();
+    catalog::Table *catalogTable = m_evicted_tables_sync.front();
 
     // MJG: If we have only blockable merges, let's skip throwing the exception and just merge here
     // The process from above is:
@@ -1884,8 +1904,7 @@ bool AntiCacheEvictionManager::blockingMerge() {
         bool final_result = true;
         try {
             for(int i = 0; i < num_blocks; i++) {
-                if (block_ids[i] & 0x10000000)
-                    final_result = readEvictedBlock(table, block_ids[i], tuple_ids[i]) && final_result;
+                final_result = readEvictedBlock(table, block_ids[i], tuple_ids[i]) && final_result;
             }
         } catch (SerializableEEException &e) {
             VOLT_ERROR("blocking read failed to read %d blocks for table '%s'\n%s",
@@ -1901,6 +1920,9 @@ bool AntiCacheEvictionManager::blockingMerge() {
 
         delete [] block_ids;
         delete [] tuple_ids;
+        m_evicted_tables_sync.clear();
+        m_evicted_block_ids_sync.clear();
+        m_evicted_offsets_sync.clear();
         pthread_mutex_unlock(&lock);
         return true;           
     }

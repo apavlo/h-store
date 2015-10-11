@@ -347,6 +347,7 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
                 // TODO: possibly an alternate codepath that simply looks through all the tuples
                 // for evicted tuples and then see if we have any non-blockable accesses
                 if (eviction_manager->hasBlockableEvictedAccesses()) {
+                    //VOLT_ERROR("From nestloop!");
                     eviction_manager->blockingMerge();
                 } else {
                     //eviction_manager->blockingMerge();

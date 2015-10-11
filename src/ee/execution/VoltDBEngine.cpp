@@ -2052,7 +2052,7 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
     }
     VOLT_INFO("Preparing to read %d evicted blocks: [%s]", numBlocks, buffer.str().c_str());
     #endif
-    VOLT_DEBUG("Preparing to read %d evicted blocks: [%s]", numBlocks, (table->name()).c_str());
+    VOLT_DEBUG("Preparing to read %d evicted blocks asynchronously: [%s]", numBlocks, (table->name()).c_str());
     
     // We can now ask it directly to read in the evicted blocks that they want
     bool finalResult = true;
@@ -2071,11 +2071,9 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
             (filter[blockIds[i]]).insert(tupleOffsets[i]);
             */
             VOLT_DEBUG("reading %d %d", blockIds[i], tupleOffsets[i]);
-            if (!(blockIds[i] & 0x10000000)) {
-                pthread_mutex_lock(&(eviction_manager->lock));
-                finalResult = eviction_manager->readEvictedBlock(table, blockIds[i], tupleOffsets[i]) && finalResult;
-                pthread_mutex_unlock(&(eviction_manager->lock));
-            }
+            pthread_mutex_lock(&(eviction_manager->lock));
+            finalResult = eviction_manager->readEvictedBlock(table, blockIds[i], tupleOffsets[i]) && finalResult;
+            pthread_mutex_unlock(&(eviction_manager->lock));
         } // FOR
 
     } catch (SerializableEEException &e) {
