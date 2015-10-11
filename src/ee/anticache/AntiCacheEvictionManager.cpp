@@ -1793,9 +1793,10 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     (m_evicted_filter[block_id]).insert(tuple_id);*/
     //VOLT_ERROR("try reading %d %d", block_id, tuple_id);
 
+    /*
     if (m_evicted_block_ids.size() > 10000 && m_evicted_block_ids.size() % 10000 == 0) {
         VOLT_ERROR("Record evicted tuple access size: %ld", m_evicted_block_ids.size());
-    }
+    }*/
 
     VOLT_DEBUG("Recording evicted tuple access [table=%s / blockId=%d / tupleId=%d /blockable = %d]",
                catalogTable->name().c_str(), block_id, tuple_id, m_blockable_accesses);    
