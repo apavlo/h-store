@@ -27,7 +27,7 @@ public class UnknownBlockAccessException extends SerializableException {
         FastDeserializer fds = new FastDeserializer(buffer);
         int _block_id;
         try {
-            _block_id = fds.readShort();
+            _block_id = fds.readInt();
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
