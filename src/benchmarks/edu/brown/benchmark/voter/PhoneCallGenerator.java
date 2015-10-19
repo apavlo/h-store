@@ -80,7 +80,7 @@ public class PhoneCallGenerator {
     }
 	
 	public PhoneCallGenerator(int clientId, int contestantCount) {
-	    this.nextVoteId = clientId * 10000000l;
+	    this.nextVoteId = clientId * 100000000l;
         this.contestantCount = contestantCount;
 		
         // This is a just a small fudge to make the geographical voting map more interesting for the benchmark!
@@ -117,7 +117,7 @@ public class PhoneCallGenerator {
         }
 		
         // Build the phone number
-        long phoneNumber = AREA_CODES[areaCodeIndex] * 10000000L + rand.nextInt(10000000);
+        long phoneNumber = AREA_CODES[areaCodeIndex] * 100000000L + rand.nextInt(100000000);
 		
         // This needs to be globally unique
         

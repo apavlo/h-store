@@ -1730,7 +1730,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
         }
         table->clearUnevictedBlockIDs();
     }
-    table->clearUnevictedBlockIDs();
+    //table->clearUnevictedBlockIDs();
     table->clearUnevictedBlocks();
     table->clearMergeTupleOffsets();
     table->clearBlockIDs();

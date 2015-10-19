@@ -68,7 +68,7 @@ public class Vote extends VoltProcedure {
         // Queue up validation statements
         voltQueueSQL(checkContestantStmt, contestantNumber);
         voltQueueSQL(checkVoterStmt, phoneNumber);
-        voltQueueSQL(checkStateStmt, (short)(phoneNumber / 10000000l));
+        voltQueueSQL(checkStateStmt, (short)(phoneNumber / 100000000l));
         VoltTable validation[] = voltExecuteSQL();
 		
         if (validation[0].getRowCount() == 0) {
