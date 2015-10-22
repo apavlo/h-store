@@ -18,6 +18,7 @@ import org.voltdb.types.TimestampType;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.logging.LoggerUtil;
 import edu.brown.logging.LoggerUtil.LoggerBoolean;
+import edu.brown.hstore.AntiCacheManager;
 import edu.brown.profilers.AntiCacheManagerProfiler;
 import edu.brown.profilers.AntiCacheManagerProfiler.EvictionHistory;
 
@@ -120,6 +121,7 @@ public class EvictTuples extends VoltSystemProcedure {
             VoltTable vt = null;
             if (debug.val)
                 LOG.debug("****************"+hstore_conf.site.anticache_batching);
+            AntiCacheManager.getLock().lock();
             if (hstore_conf.site.anticache_batching == true){
                 if (debug.val) LOG.info("reached here!!!!!");
                 if (childrenTableNames.length!=0 && !childrenTableNames[i].isEmpty()){
@@ -131,6 +133,7 @@ public class EvictTuples extends VoltSystemProcedure {
             }else{
                 vt = ee.antiCacheEvictBlock(tables[i], blockSizes[i], numBlocks[i]);    
             }
+            AntiCacheManager.getLock().unlock();
             
             boolean adv = vt.advanceRow();
             

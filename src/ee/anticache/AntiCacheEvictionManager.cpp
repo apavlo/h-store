@@ -46,8 +46,8 @@
 #include <time.h>
 #include <stdlib.h>
 // FIXME: This is relatively small. 2500 might be a better guess
-#define MAX_EVICTED_TUPLE_SIZE 1060
-//#define MAX_EVICTED_TUPLE_SIZE 2500
+//#define MAX_EVICTED_TUPLE_SIZE 1060
+#define MAX_EVICTED_TUPLE_SIZE 2500
 
 namespace voltdb
 {
@@ -657,8 +657,8 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
             table->setEntryToNewAddressForAllIndexes(&tuple, evicted_tuple_address, tuple.address());
 
             block.addTuple(tuple);
-            if (block.getSerializedSize() - initSize - (int32_t)ValuePeeker::peekInteger(evicted_tuple.getNValue(1)) > 1053)
-                printf("BIG SIZE: %d\n", block.getSerializedSize() - initSize - (int32_t)ValuePeeker::peekInteger(evicted_tuple.getNValue(1)));
+            //if (block.getSerializedSize() - initSize - (int32_t)ValuePeeker::peekInteger(evicted_tuple.getNValue(1)) > 1053)
+            //    printf("BIG SIZE: %d\n", block.getSerializedSize() - initSize - (int32_t)ValuePeeker::peekInteger(evicted_tuple.getNValue(1)));
 
             // At this point it's safe for us to delete this mofo
             table->updateStringMemory(- ((int)tuple.getNonInlinedMemorySize()));
@@ -1796,7 +1796,8 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     /*
     if (m_evicted_block_ids.size() > 10000 && m_evicted_block_ids.size() % 10000 == 0) {
         VOLT_ERROR("Record evicted tuple access size: %ld", m_evicted_block_ids.size());
-    }*/
+    }
+    */
 
     VOLT_DEBUG("Recording evicted tuple access [table=%s / blockId=%d / tupleId=%d /blockable = %d]",
                catalogTable->name().c_str(), block_id, tuple_id, m_blockable_accesses);    
