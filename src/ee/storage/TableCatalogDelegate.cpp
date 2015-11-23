@@ -313,6 +313,21 @@ TableCatalogDelegate::init(ExecutorContext *executorContext,
         // It will be responsible for deleting it in its deconstructor
         dynamic_cast<PersistentTable*>(m_table)->setEvictedTable(evicted_table);
         dynamic_cast<PersistentTable*>(m_table)->setBatchEvicted(catalogTable.batchEvicted());
+
+        std::ostringstream nstream;
+        nstream << catalogTable.name() << "__NVM_EVICTED";
+        const std::string NVMEvictedName = nstream.str();
+        VOLT_INFO("Creating NVM EvictionTable '%s'", NVMEvictedName.c_str());
+        
+        evicted_table = TableFactory::getNVMEvictedTable(
+                                                        databaseId, 
+                                                        executorContext,
+                                                        NVMEvictedName,
+                                                        schema, 
+                                                        columnNames);
+        // We'll shove the NVMEvictedTable to the PersistentTable
+        // Persistent table is responsible for deleting it in its deconstructor
+        dynamic_cast<PersistentTable*>(m_table)->setNVMEvictedTable(evicted_table);
     } else {
         VOLT_DEBUG("Not creating EvictedTable for table '%s'", catalogTable.name().c_str());
     }

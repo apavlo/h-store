@@ -424,9 +424,11 @@ if CTX.ANTICACHE_BUILD:
         AntiCacheDB.cpp
         BerkeleyAntiCacheDB.cpp
         NVMAntiCacheDB.cpp
+        AllocatorNVMAntiCacheDB.cpp
         AntiCacheEvictionManager.cpp
         EvictionIterator.cpp
         EvictedTable.cpp
+        NVMEvictedTable.cpp
     """
     
     CTX.TESTS['anticache'] = """

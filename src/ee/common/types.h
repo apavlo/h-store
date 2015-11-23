@@ -361,7 +361,11 @@ enum AntiCacheDBType {
     /*
      * NVM file-based store
      */
-    ANTICACHEDB_NVM = 2
+    ANTICACHEDB_NVM = 2,
+    /*
+     * NVM allocator-based store
+     */
+    ANTICACHEDB_ALLOCATORNVM = 3
 };
 
 // ------------------------------------------------------------------

@@ -20,7 +20,11 @@ public enum AntiCacheDBType {
     /**
      * NVM file-based store
      */
-    NVM
+    NVM,
+    /**
+     * NVM allocator-based store
+     */
+    ALLOCATORNVM
     ;
 
     private static final Map<String, AntiCacheDBType> name_lookup = new HashMap<String, AntiCacheDBType>();

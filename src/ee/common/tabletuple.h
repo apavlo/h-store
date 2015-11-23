@@ -89,13 +89,13 @@ namespace voltdb {
 #ifdef ANTICACHE
     #ifdef ANTICACHE_TIMESTAMPS
     	#define TUPLE_HEADER_SIZE 5
-	#else
+    #else
     	#ifdef ANTICACHE_REVERSIBLE_LRU
         	#define TUPLE_HEADER_SIZE 9
     	#else
         	#define TUPLE_HEADER_SIZE 5
     	#endif
-	#endif
+    #endif
 #else
     #define TUPLE_HEADER_SIZE 1
 #endif
@@ -104,6 +104,7 @@ namespace voltdb {
 #define DIRTY_MASK 2
 #define MIGRATED_MASK 4
 #define EVICTED_MASK 8
+#define NVMEVICTED_MASK 16
 
 class TableColumn;
 
@@ -276,6 +277,10 @@ public:
         return (*(reinterpret_cast<const char*> (m_data)) & EVICTED_MASK) == 0 ? false : true;
     }
 
+    inline bool isNVMEvicted() const {
+        return (*(reinterpret_cast<const char*> (m_data)) & NVMEVICTED_MASK) == 0 ? false : true;
+    }
+
     /** Is the column value null? */
     inline bool isNull(const int idx) const {
         return getNValue(idx).isNull();
@@ -413,6 +418,12 @@ public:
     }
     inline void setEvictedFalse() {
         *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~EVICTED_MASK);
+    }
+    inline void setNVMEvictedTrue() {
+        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(NVMEVICTED_MASK);
+    }
+    inline void setNVMEvictedFalse() {
+        *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~NVMEVICTED_MASK);
     }
     inline void setDeletedFalse() {
         // treat the first "value" as a boolean flag

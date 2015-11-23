@@ -36,6 +36,7 @@
 #include "anticache/EvictionIterator.h"
 #include "boost/timer.hpp"
 #include "anticache/EvictedTable.h"
+#include "anticache/NVMEvictedTable.h"
 #include "anticache/UnknownBlockAccessException.h"
 #include "anticache/FullBackingStoreException.h"
 #include "anticache/AntiCacheDB.h"
@@ -541,6 +542,7 @@ Table* AntiCacheEvictionManager::evictBlock(PersistentTable *table, long blockSi
 
 bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const long block_size, int num_blocks) {
     voltdb::Table* evictedTable = table->getEvictedTable();
+    voltdb::Table* nvmEvictedTable = table->getNVMEvictedTable();
     int m_tuplesEvicted = table->getTuplesEvicted();
     int m_blocksEvicted = table->getBlocksEvicted();
     int64_t m_bytesEvicted = table->getBytesEvicted();
@@ -581,6 +583,67 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
         // method to get the AntiCacheDB will have to choose which AntiCacheDB from to
         // evict to
         antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
+
+        int32_t num_tuples_evicted;
+        if (antiCacheDB->getDBType() == ANTICACHEDB_ALLOCATORNVM) {
+            int64_t written_size = 0;
+            while (evict_itr.hasNext() && (written_size + MAX_EVICTED_TUPLE_SIZE < block_size)) {
+                if(!evict_itr.next(tuple))
+                    break;
+
+                #ifndef ANTICACHE_TIMESTAMPS
+                // remove the tuple from the eviction chain
+                removeTuple(table, &tuple);
+                #endif
+
+                if (tuple.isEvicted()) {
+                    VOLT_WARN("Tuple %d from %s is already evicted. Skipping",
+                              table->getTupleID(tuple.address()), table->name().c_str());
+                    continue;
+                }
+
+                // Then add it to this table's NVM EvictedTable
+                const void* NVM_evicted_tuple_address = static_cast<NVMEvictedTable*>(nvmEvictedTable)->insertNVMEvictedTuple(tuple);
+                // Change all of the indexes to point to our new evicted tuple
+                table->setEntryToNewAddressForAllIndexes(&tuple, NVM_evicted_tuple_address, tuple.address());
+
+                num_tuples_evicted++;
+                written_size += tuple.getNonInlinedMemorySize() + tuple.tupleLength();
+                
+                // At this point it's safe for us to delete this mofo
+                table->updateStringMemory(- ((int)tuple.getNonInlinedMemorySize()));
+                tuple.freeObjectColumns(); // will return memory for uninlined strings to the heap
+                table->deleteTupleStorage(tuple);
+
+                VOLT_TRACE("Added new evicted %s tuple to NVM EvictedTable [tuplesEvicted=%d]",
+                       table->name().c_str(), block_id, num_tuples_evicted);
+            }
+
+            m_tuplesEvicted += num_tuples_evicted;
+            m_blocksEvicted += 1;
+            m_bytesEvicted += written_size;
+
+            m_tuplesWritten += num_tuples_evicted;
+            m_blocksWritten += 1;
+            m_bytesWritten += written_size;
+
+            table->setTuplesEvicted(m_tuplesEvicted);
+            table->setBlocksEvicted(m_blocksEvicted);
+            table->setBytesEvicted(m_bytesEvicted);
+            table->setTuplesWritten(m_tuplesWritten);
+            table->setBlocksWritten(m_blocksWritten);
+            table->setBytesWritten(m_bytesWritten);
+
+            antiCacheDB->writeBlock(table->name(),
+                                    0,
+                                    num_tuples_evicted,
+                                    NULL,
+                                    written_size,
+                                    num_tuples_evicted
+                                    );
+
+            continue;
+        }
                
         // get the LS28B and send that to the antiCacheDB
         uint32_t _block_id = antiCacheDB->nextBlockId();
@@ -606,7 +669,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
 
         //size_t current_tuple_start_position;
 
-        int32_t num_tuples_evicted = 0;
+        num_tuples_evicted = 0;
         BerkeleyDBBlock block;
         std::vector<std::string> tableNames;
         tableNames.push_back(table->name());

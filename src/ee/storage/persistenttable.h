@@ -87,6 +87,7 @@ class RecoveryProtoMsg;
     
 #ifdef ANTICACHE
 class EvictedTable;
+class NVMEvictedTable;
 class AntiCacheEvictionManager; 
 class EvictionIterator;
 #endif
@@ -271,6 +272,8 @@ class PersistentTable : public Table {
     #ifdef ANTICACHE
     void setEvictedTable(voltdb::Table *evictedTable);
     voltdb::Table* getEvictedTable();
+    void setNVMEvictedTable(voltdb::Table *evictedTable);
+    voltdb::Table* getNVMEvictedTable();
     // needed for LRU chain eviction
     void setNewestTupleID(uint32_t id); 
     void setOldestTupleID(uint32_t id); 
@@ -382,6 +385,7 @@ protected:
     // ANTI-CACHE VARIABLES
     #ifdef ANTICACHE
     voltdb::Table *m_evictedTable;
+    voltdb::Table *m_NVMEvictedTable;
     
     std::map<int32_t, int32_t> m_unevictedBlockIDs; 
 //    std::vector<int16_t> m_unevictedBlockIDs;

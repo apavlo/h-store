@@ -26,6 +26,7 @@
 #include "anticache/AntiCacheDB.h"
 #include "anticache/BerkeleyAntiCacheDB.h"
 #include "anticache/NVMAntiCacheDB.h"
+#include "anticache/AllocatorNVMAntiCacheDB.h"
 #include "anticache/AntiCacheEvictionManager.h"
 #include "execution/VoltDBEngine.h"
 #define MAX_LEVELS 5
@@ -266,6 +267,9 @@ namespace voltdb {
 //              m_antiCacheEvictionManager->addAntiCacheDB(new BerkeleyAntiCacheDB(this, dbDir, blockSize, maxSize));
             } else if (dbType == ANTICACHEDB_NVM) {
                 m_antiCacheDB[m_levels] = new NVMAntiCacheDB(this, dbDir, blockSize, maxSize);
+                //m_antiCacheEvictionManager->addAntiCacheDB(new NVMAntiCacheDB(this, dbDir, blockSize, maxSize));
+            } else if (dbType == ANTICACHEDB_ALLOCATORNVM) {
+                m_antiCacheDB[m_levels] = new AllocatorNVMAntiCacheDB(this, dbDir, blockSize, maxSize);
                 //m_antiCacheEvictionManager->addAntiCacheDB(new NVMAntiCacheDB(this, dbDir, blockSize, maxSize));
             } else {
                 VOLT_ERROR("Invalid AntiCacheDBType: %d! Aborting...", (int)dbType);

@@ -78,6 +78,7 @@
 #ifdef ANTICACHE
 #include "boost/timer.hpp"
 #include "anticache/EvictedTable.h"
+#include "anticache/NVMEvictedTable.h"
 #include "anticache/AntiCacheDB.h"
 #include "anticache/EvictionIterator.h"
 #include "anticache/UnknownBlockAccessException.h"
@@ -105,6 +106,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
 
 #ifdef ANTICACHE
     m_evictedTable = NULL;
+    m_NVMEvictedTable = NULL;
     m_unevictedTuples = NULL; 
     m_numUnevictedTuples = 0;
     m_newestTupleID = 0;
@@ -132,6 +134,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, const std::string name, b
 
 #ifdef ANTICACHE
     m_evictedTable = NULL;
+    m_NVMEvictedTable = NULL;
     m_unevictedTuples = NULL;
     m_numUnevictedTuples = 0;
     m_newestTupleID = 0;
@@ -182,6 +185,7 @@ PersistentTable::~PersistentTable() {
     
     #ifdef ANTICACHE
 //     if (m_evictedTable) delete m_evictedTable;
+     if (m_NVMEvictedTable) delete m_NVMEvictedTable;
     #endif
 
     // note this class has ownership of the views, even if they
@@ -206,6 +210,15 @@ void PersistentTable::setEvictedTable(voltdb::Table *evictedTable) {
 
 voltdb::Table* PersistentTable::getEvictedTable() {
     return m_evictedTable; 
+}
+
+void PersistentTable::setNVMEvictedTable(voltdb::Table *NVMEvictedTable) {
+    VOLT_INFO("Initialized NVMEvictedTable for table '%s'", this->name().c_str());
+    m_NVMEvictedTable = NVMEvictedTable;
+}
+
+voltdb::Table* PersistentTable::getNVMEvictedTable() {
+    return m_NVMEvictedTable; 
 }
 
 void PersistentTable::setBatchEvicted(bool batchEvicted) {

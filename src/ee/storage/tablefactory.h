@@ -134,6 +134,11 @@ namespace voltdb {
                                       const std::string &name,
                                       TupleSchema* schema,
                                       const std::string* columnNames);
+        static Table* getNVMEvictedTable(voltdb::CatalogId databaseId,
+                                      ExecutorContext *ctx,
+                                      const std::string &name,
+                                      TupleSchema* schema,
+                                      const std::string* columnNames);
         #endif
         
         
