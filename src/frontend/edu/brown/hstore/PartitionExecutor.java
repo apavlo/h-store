@@ -111,7 +111,6 @@ import org.voltdb.utils.DBBPool;
 import org.voltdb.utils.DBBPool.BBContainer;
 import org.voltdb.utils.Encoder;
 import org.voltdb.utils.EstTime;
-import org.voltdb.utils.VoltTableUtil;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.RpcCallback;
@@ -1780,7 +1779,6 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
             // rollup the table memory stats for this site
             while (stats.advanceRow()) {
-                int idx = 7;
                 tupleCount += stats.getLong("TUPLE_COUNT");
                 tupleAccessCount += stats.getLong("TUPLE_ACCESSES");
                 tupleAllocatedMem += (int) stats.getLong("TUPLE_ALLOCATED_MEMORY");
