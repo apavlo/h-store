@@ -53,6 +53,10 @@ namespace voltdb
         char* get();
         const char* get() const;
 
+        inline bool isUsingPool() {
+            return m_tempPool;
+        }
+
     private:
         StringRef(std::size_t size);
         StringRef(std::size_t size, Pool* dataPool);

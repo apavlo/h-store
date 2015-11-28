@@ -68,8 +68,10 @@ void PersistentTableUndoUpdateAction::release() {
     for (std::vector<char*>::iterator i = oldUninlineableColumns.begin();
          i != oldUninlineableColumns.end(); i++)
     {
-        StringRef::destroy((StringRef*)(*i));
-        //delete [] (*i);
+        //if (!((StringRef*)(*i))->isUsingPool()) {
+            StringRef::destroy((StringRef*)(*i));
+            //delete [] (*i);
+        //}
     }
 }
 

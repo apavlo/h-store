@@ -29,7 +29,11 @@
 
 namespace voltdb {
 
-NVMEvictedTable::NVMEvictedTable(ExecutorContext *ctx) : PersistentTable(ctx, false) {
+//NVMEvictedTable::NVMEvictedTable(ExecutorContext *ctx) : PersistentTable(ctx, false) {
+NVMEvictedTable::NVMEvictedTable(ExecutorContext *ctx, const std::string name) : PersistentTable(ctx, false) {
+ 
+  delete m_pool;
+  m_pool = new Pool(1024 * 1024 * 1024, 1024, m_executorContext->getDBDir() + "/" + name, true);
     
 }
     
@@ -52,7 +56,8 @@ const void* NVMEvictedTable::insertNVMEvictedTuple(TableTuple &source) {
     m_tupleCount++;
     
     // Then copy the source into the target
-    m_tmpTarget1.copyForPersistentInsert(source);
+    //m_tmpTarget1.copyForPersistentInsert(source);
+    m_tmpTarget1.copyForPersistentInsert(source, m_pool);
     m_tmpTarget1.setDeletedFalse();
     
     // Make sure this tuple is marked as evicted, so that we know it is an

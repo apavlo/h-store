@@ -28,6 +28,7 @@
 
 #include "storage/persistenttable.h"
 #include "common/executorcontext.hpp"
+#include "common/Pool.hpp"
 
 
 namespace voltdb {
@@ -44,12 +45,38 @@ class NVMEvictedTable : public PersistentTable {
     
         void deleteNVMEvictedTuple(TableTuple source);
 
-    
+
     protected:
-        
-        NVMEvictedTable(ExecutorContext *ctx);
-    
-    };
+        inline void allocateNextBlock() {
+            #ifdef MEMCHECK
+            int bytes = m_schema->tupleLength() + TUPLE_HEADER_SIZE;
+            #else
+            int bytes = m_tableAllocationTargetSize;
+            #endif
+
+            char *memory = NULL;
+            VOLT_WARN("MMAP : PId:: %d Table: %s  Bytes:: %d ",
+                    m_executorContext->getPartitionId(), this->name().c_str(), bytes);
+
+            memory = (char*)m_pool->allocate(bytes);
+
+            VOLT_WARN("MMAP : Table: %s :: Memory Pointer : %p ",
+                    this->name().c_str(), memory);
+
+            if (memory == NULL) {
+                VOLT_ERROR("MMAP : initialization error.");
+                throwFatalException("Failed to map file.");
+            }
+
+            m_data.push_back(memory);
+
+
+            m_allocatedTuples += m_tuplesPerBlock;
+        } 
+
+        //NVMEvictedTable(ExecutorContext *ctx);
+        NVMEvictedTable(ExecutorContext *ctx, const std::string name);
+};
 }
 
 #endif

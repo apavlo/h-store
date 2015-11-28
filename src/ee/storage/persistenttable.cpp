@@ -707,7 +707,11 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
     }
 
     /** TODO : Not Using MMAP pool **/
-    target.copyForPersistentUpdate(source, NULL);
+    if (!target.isNVMEvicted()) {
+        target.copyForPersistentUpdate(source, NULL);
+    } else {
+        target.copyForPersistentUpdate(source, getNVMEvictedTable()->getPool());
+    }
 
     ptuua->setNewTuple(target, pool);
 

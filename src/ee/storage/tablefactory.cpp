@@ -224,7 +224,8 @@ Table* TableFactory::getNVMEvictedTable(voltdb::CatalogId databaseId,
         TupleSchema* schema,
         const std::string* columnNames) {
     VOLT_DEBUG("Creating %s", name.c_str());
-    Table *table = new NVMEvictedTable(ctx);
+    //Table *table = new NVMEvictedTable(ctx);
+    Table *table = new NVMEvictedTable(ctx, name);
     NVMEvictedTable *pTable = dynamic_cast<NVMEvictedTable*>(table);
     pTable->m_indexCount = 0;
 

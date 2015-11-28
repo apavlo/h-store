@@ -124,7 +124,8 @@ namespace voltdb {
 
         inline std::string getDBDir() const {
             if (m_MMAPDir.empty())
-                return "/tmp";          // Default : "/tmp"
+                return "/mnt/pmfs/mmap_file";          // Default : "/tmp"
+                //return "/tmp";          // Default : "/tmp"
             return (m_MMAPDir);
         }
 
