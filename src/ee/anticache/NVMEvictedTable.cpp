@@ -33,7 +33,13 @@ namespace voltdb {
 NVMEvictedTable::NVMEvictedTable(ExecutorContext *ctx, const std::string name) : PersistentTable(ctx, false) {
  
   delete m_pool;
-  m_pool = new Pool(1024 * 1024 * 1024, 1024, m_executorContext->getDBDir() + "/" + name, true);
+  std::string dbName;
+  if (m_executorContext->getAntiCacheDB(0)->getDBType() == ANTICACHEDB_ALLOCATORNVM)
+      dbName = m_executorContext->getAntiCacheDB(0)->getDBDir();
+  else
+      dbName = m_executorContext->getDBDir();
+  //VOLT_ERROR("dbname: %s\n", dbName.c_str());
+  m_pool = new Pool(1024 * 1024 * 1024, 1024, dbName + "/" + name, true);
     
 }
     

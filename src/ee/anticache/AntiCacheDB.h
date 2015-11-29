@@ -315,6 +315,10 @@ class AntiCacheDB {
             return evictedTupleInBlock[blockId];
         }
 
+        inline string getDBDir() {
+            return m_dbDir;
+        }
+
     protected:
         ExecutorContext *m_executorContext;
         string m_dbDir;
