@@ -594,6 +594,7 @@ inline void Table::deleteTupleStorage(TableTuple &tuple) {
 inline void Table::deleteTupleStorage(TableTuple &tuple) {
     tuple.setDeletedTrue(); // does NOT free strings
     tuple.setEvictedFalse();
+    tuple.setNVMEvictedFalse();
 
     // add to the free list
     m_tupleCount--;

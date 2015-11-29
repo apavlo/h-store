@@ -545,6 +545,7 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     m_tmpTarget1.copyForPersistentInsert(source, NULL); // tuple in freelist must be already cleared
     m_tmpTarget1.setDeletedFalse();
     m_tmpTarget1.setEvictedFalse();
+    m_tmpTarget1.setNVMEvictedFalse();
 
     /**
      * Inserts never "dirty" a tuple since the tuple is new, but...  The
