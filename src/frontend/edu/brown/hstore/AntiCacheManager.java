@@ -118,6 +118,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
     private final String[] evictableTables;
     protected int pendingEvictions = 0;
+    protected ArrayList<ByteBuffer> evictionQueue = new ArrayList<ByteBuffer>();
+
     /*
      *  Can't use a simple count because sometimes stats requests get lost and we must reissue them.
      *  Thus, we need to keep track of whether at least one stats request came back on a per-partition basis.
@@ -200,7 +202,12 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             LOG.info(String.format("Execution Time: %.1f sec\n", parameter.getClusterRoundtrip() / 1000d));
 
             synchronized(AntiCacheManager.this) {
-                pendingEvictions--;
+                if (pendingEvictions > 0) {
+                    pendingEvictions--;
+                    hstore_site.invocationProcess(evictionQueue.get(pendingEvictions), evictionCallback);
+                } else {
+                    evictionQueue.clear();
+                }
             };
         }
     };
@@ -592,9 +599,11 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
+            this.evictionQueue.add(b);
             this.pendingEvictions++;
-            this.hstore_site.invocationProcess(b, this.evictionCallback);
         } 
+        this.pendingEvictions--;
+        this.hstore_site.invocationProcess(this.evictionQueue.get(this.pendingEvictions), this.evictionCallback);
     }
 
     protected Map<Integer, Map<String, Integer>> getEvictionDistribution(long blocksToEvict) {
