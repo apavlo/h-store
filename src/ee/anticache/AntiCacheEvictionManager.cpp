@@ -584,7 +584,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
         // evict to
         antiCacheDB = table->getAntiCacheDB(chooseDB(block_size, m_migrate));
 
-        int32_t num_tuples_evicted;
+        int32_t num_tuples_evicted = 0;
         if (antiCacheDB->getDBType() == ANTICACHEDB_ALLOCATORNVM) {
             int64_t written_size = 0;
             while (evict_itr.hasNext() && (written_size + MAX_EVICTED_TUPLE_SIZE < block_size)) {
