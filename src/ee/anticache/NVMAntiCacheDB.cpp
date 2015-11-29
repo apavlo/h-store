@@ -195,7 +195,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
                                 const int tupleCount,
                                 const char* data,
                                 const long size,
-                                const int evictedTupleCount)  {
+                                const int evictedBytes)  {
    
     VOLT_TRACE("free blocks: %d", getFreeBlocks());
     if (getFreeBlocks() == 0) {
@@ -221,10 +221,16 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
 
     m_blocksEvicted++;
     if (!isBlockMerge()) {
+        /*
         tupleInBlock[blockId] = tupleCount;
         evictedTupleInBlock[blockId] = evictedTupleCount;
         blockSize[blockId] = bufsize;
         m_bytesEvicted += static_cast<int32_t>((int64_t)bufsize * evictedTupleCount / tupleCount);
+        */
+        if (evictedBytes >= 0)
+            m_bytesEvicted += static_cast<int32_t>((int64_t)evictedBytes);
+        else
+            m_bytesEvicted += static_cast<int32_t>((int64_t)size);
     }
     else {
         m_bytesEvicted += static_cast<int32_t>(bufsize);
@@ -286,13 +292,15 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate) {
 
             removeBlockLRU(blockId);
 
-            m_bytesUnevicted += static_cast<int32_t>( (int64_t)blockSize - blockSize / tupleInBlock[blockId] *
-                    (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
+            if ((m_blocksEvicted - m_blocksUnevicted) != 0)
+                m_bytesUnevicted += m_bytesEvicted / (m_blocksEvicted - m_blocksUnevicted);
+            //m_bytesUnevicted += static_cast<int32_t>( (int64_t)blockSize - blockSize / tupleInBlock[blockId] *
+            //        (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
 
             m_blocksUnevicted++;
         } else {
-            m_bytesUnevicted += static_cast<int32_t>( blockSize / tupleInBlock[blockId]);
-            evictedTupleInBlock[blockId]--;
+            //m_bytesUnevicted += static_cast<int32_t>( blockSize / tupleInBlock[blockId]);
+            //evictedTupleInBlock[blockId]--;
 
             // FIXME: I'm hacking!!!!!!!!!!!!!!!!!!!!!!!!!
             if (rand() % 100 == 0) {

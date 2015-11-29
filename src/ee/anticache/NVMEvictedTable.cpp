@@ -39,7 +39,7 @@ NVMEvictedTable::NVMEvictedTable(ExecutorContext *ctx, const std::string name) :
   else
       dbName = m_executorContext->getDBDir();
   //VOLT_ERROR("dbname: %s\n", dbName.c_str());
-  m_pool = new Pool(1024 * 1024 * 1024, 1024, dbName + "/" + name, true);
+  m_pool = new Pool(2047 * 1024 * 1024, 1024, dbName + "/" + name, true);
     
 }
     

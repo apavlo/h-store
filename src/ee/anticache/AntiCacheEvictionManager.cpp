@@ -639,7 +639,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                                     num_tuples_evicted,
                                     NULL,
                                     written_size,
-                                    num_tuples_evicted
+                                    -1
                                     );
 
             continue;
@@ -768,7 +768,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                                     num_tuples_evicted,
                                     blockdata,
                                     blocksize,
-                                    num_tuples_evicted
+                                    (int32_t)bytesWritten
                                     );
             
             // MJG: We need to check whether we're reusing a blockID.
@@ -1116,7 +1116,7 @@ bool AntiCacheEvictionManager::evictBlockToDiskInBatch(PersistentTable *table, P
                     num_tuples_evicted,
                     block.getSerializedData(),
                     block.getSerializedSize(),
-                    num_tuples_evicted
+                    (int32_t)(parentBytes + childBytes)
                     );
             needs_flush = true;
 
@@ -1286,7 +1286,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
         table->insertTupleOffset(tuple_offset);
         table->insertBlockID(block_id);
 
-        antiCacheDB->removeSingleTupleStats(_block_id, 1);
+        //antiCacheDB->removeSingleTupleStats(_block_id, 1);
 
         VOLT_DEBUG("BLOCK %u TUPLE %d - unevicted blocks size is %d",
                 block_id, tuple_offset, (int)table->unevictedBlocksSize());
@@ -1550,10 +1550,10 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
     block_id = ((int32_t)srcDB->isBlocking() << 28) | block_id;
     _new_block_id = dstDB->nextBlockId();
 
-    int tupleInBlock = srcDB->getTupleInBlock(_block_id);
-    int evictedTupleInBlock = srcDB->getEvictedTupleInBlock(_block_id);
+    //int tupleInBlock = srcDB->getTupleInBlock(_block_id);
+    int32_t evictedBytes = srcDB->getEvictedBytesPerBlock(_block_id);
 
-    VOLT_DEBUG("migrating LRU block   tuples: %d   evictedTuples: %d", tupleInBlock, evictedTupleInBlock);
+    //VOLT_DEBUG("migrating LRU block   tuples: %d   evictedTuples: %d", tupleInBlock, evictedTupleInBlock);
     
     //VOLT_ERROR("block_id: %8x _new_block_id: %8x", block_id, _new_block_id);
 
@@ -1561,14 +1561,14 @@ int32_t AntiCacheEvictionManager::migrateLRUBlock(AntiCacheDB* srcDB, AntiCacheD
     // then throw an exception. at this point, it's probably best for it to be fatal
     if (_new_block_id == -1) {
         _new_block_id = srcDB->nextBlockId();
-        srcDB->writeBlock(block->getTableName(), _new_block_id, tupleInBlock, block->getData(), block->getSize(), evictedTupleInBlock);
+        srcDB->writeBlock(block->getTableName(), _new_block_id, -1, block->getData(), block->getSize(), evictedBytes);
         VOLT_ERROR("No room in the destination backing store!");
         throw FullBackingStoreException((int32_t)_new_block_id, -1);
     }
     
     VOLT_DEBUG("tablename: %s _newBlockId: %d, data: %s, size: %ld\n", block->getTableName().c_str(), _new_block_id,
             block->getData(), block->getSize());
-    dstDB->writeBlock(block->getTableName(), _new_block_id, tupleInBlock, block->getData(), block->getSize(), evictedTupleInBlock);
+    dstDB->writeBlock(block->getTableName(), _new_block_id, -1, block->getData(), block->getSize(), evictedBytes);
     
     new_acid = dstDB->getACID();
     new_block_id = (int32_t) _new_block_id;
@@ -1708,10 +1708,8 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
             if(!table->mergeStrategy()) {
                 int64_t current_unevicted = tableInBlock->unevictTuple(&in, merge_tuple_offset, merge_tuple_offset, (bool)table->mergeStrategy());
                 bytes_unevicted += current_unevicted;
-                if (current_unevicted == 0) {
-                    antiCacheDB->removeSingleTupleStats(_block_id, -1);
-                    //printf("Add back: %u %u\n", ACID, _block_id);
-                }
+                antiCacheDB->removeSingleTupleStats(_block_id, current_unevicted);
+                //printf("Add back: %u %u\n", ACID, _block_id);
             } else {
                 for (int j = 0; j < num_tuples_in_block; j++)
                 {

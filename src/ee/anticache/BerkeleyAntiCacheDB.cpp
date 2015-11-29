@@ -128,7 +128,7 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
                              const int tupleCount,
                              const char* data,
                              const long size,
-                             const int evictedTupleCount) {
+                             const int evictedBytes) {
 
     //VOLT_ERROR("In BerkeleyDB:writeBlock");
 
@@ -166,12 +166,15 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     // TODO: Error checking
     m_db->put(NULL, &key, &value, 0);
     
+    /*
     tupleInBlock[blockId] = tupleCount;
     evictedTupleInBlock[blockId] = evictedTupleCount;
     blockSize[blockId] = size;
+    */
     m_blocksEvicted++;
-    if (!isBlockMerge()) {
-        m_bytesEvicted += static_cast<int32_t>((int64_t)size * evictedTupleCount / tupleCount);
+    if (!isBlockMerge() && evictedBytes >= 0) {
+        m_bytesEvicted += evictedBytes;
+        //m_bytesEvicted += static_cast<int32_t>((int64_t)size * evictedTupleCount / tupleCount);
     }
     else {
         m_bytesEvicted += static_cast<int32_t>(size);
@@ -224,14 +227,16 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate)
         m_blockSet.erase(blockId);
     } else {
         if (isMigrate) {
-            m_bytesUnevicted += static_cast<int32_t>((int64_t)block->getSize() - block->getSize() / tupleInBlock[blockId] *
-                    (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
+            if ((m_blocksEvicted - m_blocksUnevicted) != 0)
+                m_bytesUnevicted += m_bytesEvicted / (m_blocksEvicted - m_blocksUnevicted);
+            //m_bytesUnevicted += static_cast<int32_t>((int64_t)block->getSize() - block->getSize() / tupleInBlock[blockId] *
+            //        (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
             removeBlockLRU(blockId);
             m_blockSet.erase(blockId);
         }
         else {
-            m_bytesUnevicted += static_cast<int32_t>( block->getSize() / tupleInBlock[blockId]);
-            evictedTupleInBlock[blockId]--;
+            //m_bytesUnevicted += static_cast<int32_t>( block->getSize() / tupleInBlock[blockId]);
+            //evictedTupleInBlock[blockId]--;
             m_blocksUnevicted--;
             if (rand() % 100 == 0) {
                 removeBlockLRU(blockId);

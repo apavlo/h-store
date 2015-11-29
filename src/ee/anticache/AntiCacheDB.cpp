@@ -82,8 +82,8 @@ AntiCacheDB::AntiCacheDB(ExecutorContext *ctx, std::string db_dir, long blockSiz
 
 AntiCacheDB::~AntiCacheDB() {
     delete m_stats;
-    tupleInBlock.clear();
-    evictedTupleInBlock.clear();
+    //tupleInBlock.clear();
+    //evictedTupleInBlock.clear();
 }
 
 AntiCacheBlock* AntiCacheDB::getLRUBlock() {
@@ -138,11 +138,6 @@ uint32_t AntiCacheDB::popBlockLRU() {
 
 void AntiCacheDB::setStatsSource() {
     //m_stats = new AntiCacheStats(NULL, this);
-}
-
-void AntiCacheDB::removeSingleTupleStats(uint32_t blockId, int32_t sign) {
-    m_bytesUnevicted += static_cast<int32_t>( blockSize[blockId] / tupleInBlock[blockId]) * sign;
-    evictedTupleInBlock[blockId] -= sign;
 }
 
 }
