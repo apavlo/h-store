@@ -124,6 +124,7 @@ public:
     bool moveToKey(const TableTuple *searchKey) {
         ++m_lookups;
         m_tmp1.setFromKey(searchKey);
+        VOLT_TRACE("Key visited: %s\n", m_tmp1.debug(m_keySchema).c_str());
         m_keyIter = m_entries->find(m_tmp1);
         if (m_keyIter == m_entries->end()) {
             m_match.move(NULL);
