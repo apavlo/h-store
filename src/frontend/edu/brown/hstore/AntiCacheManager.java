@@ -153,7 +153,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             synchronized(AntiCacheManager.this) {
                 try {
                     // update all the partition sizes
-                	if (debug.val)
+                	//if (debug.val)
                 	    LOG.warn("In mem monitor");
                     for (int partition : hstore_site.getLocalPartitionIds().values()) {
                     	if (debug.val)
@@ -177,7 +177,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
                     // check to see if we should start eviction
                     if (debug.val)
                         LOG.warn("Checking and evicting");
-                    if (hstore_conf.site.anticache_enable && checkEviction()) {
+                    if (hstore_conf.site.anticache_enable && !hstore_conf.site.anticache_warmup_eviction_enable && checkEviction()) {
                         executeEviction();
                     }
                 } catch (Throwable ex) {
@@ -273,8 +273,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         this.statsMessage.getObservable().addObserver(new EventObserver<VoltTable>() {
             @Override
             public void update(EventObservable<VoltTable> o, VoltTable vt) {
-            	if (debug.val)
-            	    LOG.debug("updating partition stats in observer");
+            	//if (debug.val)
+            	    LOG.info("updating partition stats in observer");
                 AntiCacheManager.this.updatePartitionStats(vt);
             }
         });
@@ -920,7 +920,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             vt.advanceRow();
             int partition = (int) vt.getLong("PARTITION_ID");
             stats = this.partitionStats[partition];
-            // long oldSizeKb = stats.sizeKb;
+             long oldSizeKb = stats.sizeKb;
             stats.reset();
 
             //int tupleMem = 0;
@@ -944,8 +944,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             //LOG.info(String.format("Tuple Mem: %d; String Mem: %d\n", tupleMem, stringMem));
             //LOG.info(String.format("Index Mem: %d\n", indexMem));
 
-//            LOG.warn(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
-//                    partition, stats.sizeKb, oldSizeKb));
+            LOG.warn(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
+                    partition, stats.sizeKb, oldSizeKb));
 
             pendingStatsUpdates[partition] = false;
             boolean allBack = true;

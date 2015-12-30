@@ -101,6 +101,7 @@ import org.voltdb.sysprocs.NoOp;
 import org.voltdb.sysprocs.Quiesce;
 import org.voltdb.sysprocs.ResetProfiling;
 import org.voltdb.sysprocs.Statistics;
+import org.voltdb.sysprocs.SetConfiguration;
 import org.voltdb.utils.LogKeys;
 import org.voltdb.utils.Pair;
 import org.voltdb.utils.VoltTableUtil;
@@ -1174,7 +1175,7 @@ public class BenchmarkController {
             } catch (InterruptedException e) {
                 if (debug.val) LOG.debug("Warm-up was interrupted!");
             }
-            
+
             if (this.stop == false) {
                 // Recompute Markovs
                 // We don't need to save them to a file though
@@ -1208,6 +1209,26 @@ public class BenchmarkController {
             }
         }
         
+        if (hstore_conf.site.anticache_warmup_eviction_enable) {
+            try {
+                local_client.callProcedure(VoltSystemProcedure.procCallName(SetConfiguration.class),
+                                     new Object[]{ new String[] { "site.anticache_warmup_eviction_enable" },
+                                                   new String[] { "false" } });
+            } catch (Exception ex) {
+                throw new Exception("Failed to enable anticache", ex);
+            }
+
+            if (hstore_conf.site.anticache_warmup_eviction_time > 0) {
+                LOG.info(String.format("Letting system evict for %.01f seconds", hstore_conf.site.anticache_warmup_eviction_time / 1000.0));
+            
+                try {
+                    Thread.sleep(hstore_conf.site.anticache_warmup_eviction_time);
+                } catch (InterruptedException e) {
+                    if (debug.val) LOG.debug("Warm-up eviction was interrupted!");
+                }
+            }
+        }
+            
         // 
         long startTime = System.currentTimeMillis();
         nextIntervalTime += startTime;

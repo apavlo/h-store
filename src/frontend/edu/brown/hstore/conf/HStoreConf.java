@@ -622,7 +622,25 @@ public final class HStoreConf {
         public boolean anticache_enable;
 
         @ConfigProperty(
-            description="Enable multilevel anti-cachign feature. This requires that the system "+
+            description="Enable anti-caching warmup feature. This requires that the system "+
+                        "is compiled with both ${site.anticache_enabled} and ${site.anticache_build "+
+                        "set to true.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean anticache_warmup_eviction_enable;
+
+        @ConfigProperty(
+            description="Reserved eviction time for anti-caching after warmup of the benchmark. This requires that the system "+
+                        "is compiled with ${site.anticache_warmup_eviction_enable}  "+
+                        "set to true.",
+            defaultInt = 0,
+            experimental=true
+        )
+        public int anticache_warmup_eviction_time;
+
+        @ConfigProperty(
+            description="Enable multilevel anti-caching feature. This requires that the system "+
                         "is compiled with both ${site.anticache_enabled} and ${site.anticache_build "+
                         "set to true.",
             defaultBoolean=false,

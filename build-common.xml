@@ -142,6 +142,8 @@
 <arg value="site.commandlog_timeout=${site.commandlog_timeout}" />
 <arg value="site.commandlog_profiling=${site.commandlog_profiling}" />
 <arg value="site.anticache_enable=${site.anticache_enable}" />
+<arg value="site.anticache_warmup_eviction_enable=${site.anticache_warmup_eviction_enable}" />
+<arg value="site.anticache_warmup_eviction_time=${site.anticache_warmup_eviction_time}" />
 <arg value="site.anticache_enable_multilevel=${site.anticache_enable_multilevel}" />
 <arg value="site.anticache_build=${site.anticache_build}" />
 <arg value="site.anticache_reversible_lru=${site.anticache_reversible_lru}" />
