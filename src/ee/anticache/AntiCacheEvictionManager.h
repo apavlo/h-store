@@ -106,6 +106,11 @@ public:
     
     pthread_mutex_t lock;
 
+#ifdef ANTICACHE_COUNTER
+    bool m_update_access;
+    unsigned char m_sketch[3][150000];
+#endif
+
 protected:
     void initEvictResultTable();
     

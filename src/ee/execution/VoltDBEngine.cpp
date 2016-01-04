@@ -341,11 +341,33 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     // number of tuples that we modified
     bool send_tuple_count = false;
 
+    size_t ttl = execsForFrag->list.size();
+
+#ifdef ANTICACHE
+#ifdef ANTICACHE_COUNTER
+    // MA: Set the default value of m_update_access. If we have update/delete operation,
+    // then we need to bring back the tuple to memory anyway if it's evicted.
+    if (m_executorContext->getAntiCacheEvictionManager() != NULL) {
+        m_executorContext->getAntiCacheEvictionManager()->m_update_access = 
+            false;
+
+        for (int ctr = 0; ctr < ttl; ++ctr) {
+            AbstractExecutor *executor = execsForFrag->list[ctr];
+            PlanNodeType nodeType = executor->getPlanNode()->getPlanNodeType();
+            //printf("nodeType: %d\n", nodeType);
+            if (nodeType == PLAN_NODE_TYPE_UPDATE || nodeType == PLAN_NODE_TYPE_DELETE)
+                m_executorContext->getAntiCacheEvictionManager()->m_update_access = 
+                true;
+        }
+    }
+
+#endif
+#endif
+
     // Walk through the queue and execute each plannode.  The query
     // planner guarantees that for a given plannode, all of its
     // children are positioned before it in this list, therefore
     // dependency tracking is not needed here.
-    size_t ttl = execsForFrag->list.size();
     for (int ctr = 0; ctr < ttl; ++ctr) {
         AbstractExecutor *executor = execsForFrag->list[ctr];
         assert(executor);
@@ -365,10 +387,14 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                     m_currentOutputDepId);
         } else {
             VOLT_TRACE(
-                    "[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
+                    "[PlanFragment %jd] Executing PlanNode #%02d (type %d)for txn #%jd [OutputDep=%d]",
                     (intmax_t)planfragmentId,
-                    executor->getPlanNode()->getPlanNodeId(), (intmax_t)txnId,
+                    executor->getPlanNode()->getPlanNodeId(),
+                    executor->getPlanNode()->getPlanNodeType(),
+                    (intmax_t)txnId,
                     m_currentOutputDepId);
+            //if (m_executorContext->getAntiCacheEvictionManager() != NULL)
+            //    printf("update: %d\n", m_executorContext->getAntiCacheEvictionManager()->m_update_access);
             try {
                 // Now call the execute method to actually perform whatever action
                 // it is that the node is supposed to do...
@@ -962,6 +988,7 @@ bool VoltDBEngine::initPlanFragment(const int64_t fragId,
             new ExecutorVector());
     ev->tempTableMemoryInBytes = 0;
 
+
     // Initialize each node!
     for (int ctr = 0, cnt = (int) pnf->getExecuteList().size(); ctr < cnt;
             ctr++) {
@@ -989,6 +1016,7 @@ bool VoltDBEngine::initPlanNode(const int64_t fragId, AbstractPlanNode* node,
         int* tempTableMemoryInBytes) {
     assert(node);
     assert(node->getExecutor() == NULL);
+
 
     // Executor is created here. An executor is *devoted* to this plannode
     // so that it can cache anything for the plannode

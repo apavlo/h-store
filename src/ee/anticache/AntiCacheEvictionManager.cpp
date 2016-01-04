@@ -1326,8 +1326,8 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
             printf( "%X", unevicted_tuples[i]);
         }
         cout << "\n";*/
-        VOLT_INFO("***************** READ EVICTED BLOCK %d *****************", _block_id);
-        VOLT_INFO("Block Size = %d / Table = %s", value->getSize(), table->name().c_str());
+        VOLT_DEBUG("***************** READ EVICTED BLOCK %d *****************", _block_id);
+        VOLT_DEBUG("Block Size = %ld / Table = %s", value->getSize(), table->name().c_str());
         ReferenceSerializeInput in(unevicted_tuples, value->getSize());
         
         // Read in all the block meta-data
@@ -1681,6 +1681,7 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
 
         // Read in all the meta-data
         int num_tables = in.readInt();
+        VOLT_DEBUG("num tables is %d", num_tables);
         std::vector<std::string> tableNames;
         std::vector<int> numTuples;
         for(int j = 0; j < num_tables; j++){
@@ -1832,6 +1833,59 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
     VOLT_TRACE("Got tuple_id: %d", tuple_id);
     int32_t block_id = peeker.peekInteger(m_evicted_tuple->getNValue(0));
     VOLT_DEBUG("Got blockId: 0x%x", block_id);
+
+#ifdef ANTICACHE_COUNTER
+        if (!m_update_access && (block_id & 0x10000000)) {
+            uint32_t _block_id = (uint32_t)(block_id & 0x0FFFFFFF);
+            int16_t ACID = (int16_t)((block_id & 0xE0000000) >> 29);
+            AntiCacheDB* antiCacheDB = m_db_lookup[ACID]; 
+            AntiCacheBlock* value = antiCacheDB->readBlock(_block_id, 0);
+            //char* unevicted_tuples = new char[value->getSize()];
+            //memcpy(unevicted_tuples, value->getData(), value->getSize());
+            char* unevicted_tuples = value->getData();
+
+            VOLT_DEBUG("***************** READ EVICTED BLOCK %d *****************", _block_id);
+            VOLT_DEBUG("Block Size = %ld / Table = %s", value->getSize(), catalogTable->name().c_str());
+            ReferenceSerializeInput in(unevicted_tuples, 10485760);
+            //printf("%d %d %d %d\n", unevicted_tuples[0], unevicted_tuples[1], unevicted_tuples[2], unevicted_tuples[3]);
+            // Read in all the block meta-data
+            //printf("%d %d %d %d\n", unevicted_tuples[0], unevicted_tuples[1], unevicted_tuples[2], unevicted_tuples[3]);
+            //int num_tables = 
+            in.readInt();
+            VOLT_DEBUG("num tables is %d", num_tables);
+            //std::vector<std::string> tableNames;
+            //std::vector<int> numTuples;
+            
+            //for(int j = 0; j < num_tables; j++){
+            //    std::string name = 
+            in.readTextString();
+            //    tableNames.push_back(name);
+            //    VOLT_ERROR("tableName is %s", name.c_str());
+            //    int tuples = 
+            in.readInt();
+            //    numTuples.push_back(tuples);
+            //    VOLT_ERROR("num tuples is %d", tuples);
+            //} 
+
+            //printf("Before serialize.\n");
+
+            in.getRawPointer(tuple_id);
+
+            char* temp_data = new char[tuple->tupleLength()];
+            tuple->move(temp_data);
+            tuple->deserializeWithHeaderFrom(in);
+            //tuple->setEvictedFalse();
+            //tuple->setDeletedFalse();
+            tuple->setTempMergedTrue();
+
+            //printf("Read directly from anticacheDB.\n");
+
+            delete value;
+            return;
+        }
+#endif
+
+
     // Updated internal tracking info
     if (!(block_id & 0x10000000)) {
         m_evicted_tables.push_back(catalogTable);

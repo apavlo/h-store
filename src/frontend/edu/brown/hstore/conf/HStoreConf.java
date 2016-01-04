@@ -790,6 +790,15 @@ public final class HStoreConf {
         public boolean anticache_block_merge;
 
         @ConfigProperty(
+            description="Enable the anti-cache counted merge-back feature. This requires that the system " +
+            		    "is compiled with ${site.anticache_enable} set to true and " +
+                            "${site.anticache_db_blocks} set to true.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean anticache_counter;
+
+        @ConfigProperty(
             description="Enable the anti-cache timestamps feature. This requires that the system " +
             		    "is compiled with ${site.anticache_enable} set to true.",
             defaultBoolean=true,

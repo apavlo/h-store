@@ -105,6 +105,7 @@ namespace voltdb {
 #define MIGRATED_MASK 4
 #define EVICTED_MASK 8
 #define NVMEVICTED_MASK 16
+#define TEMPMERGED_MASK 32
 
 class TableColumn;
 
@@ -281,6 +282,12 @@ public:
         return (*(reinterpret_cast<const char*> (m_data)) & NVMEVICTED_MASK) == 0 ? false : true;
     }
 
+#ifdef ANTICACHE_COUNTER
+    inline bool isTempMerged() const {
+        return (*(reinterpret_cast<const char*> (m_data)) & TEMPMERGED_MASK) == 0 ? false : true;
+    }
+#endif
+
     /** Is the column value null? */
     inline bool isNull(const int idx) const {
         return getNValue(idx).isNull();
@@ -425,6 +432,14 @@ public:
     inline void setNVMEvictedFalse() {
         *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~NVMEVICTED_MASK);
     }
+#ifdef ANTICACHE_COUNTER
+    inline void setTempMergedTrue() {
+        *(reinterpret_cast<char*> (m_data)) |= static_cast<char>(TEMPMERGED_MASK);
+    }
+    inline void setTempMergedFalse() {
+        *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~TEMPMERGED_MASK);
+    }
+#endif
     inline void setDeletedFalse() {
         // treat the first "value" as a boolean flag
         *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~DELETED_MASK);

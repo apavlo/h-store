@@ -163,6 +163,7 @@
 <arg value="site.anticache_dbtype=${site.anticache_dbtype}" />
 <arg value="site.anticache_db_blocks=${site.anticache_db_blocks}" />
 <arg value="site.anticache_block_merge=${site.anticache_block_merge}" />
+<arg value="site.anticache_counter=${site.anticache_counter}" />
 <arg value="site.anticache_timestamps=${site.anticache_timestamps}" />
 <arg value="site.anticache_timestamps_prime=${site.anticache_timestamps_prime}" />
 <arg value="site.storage_mmap=${site.storage_mmap}" />

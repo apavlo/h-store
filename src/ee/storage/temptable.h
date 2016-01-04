@@ -169,10 +169,21 @@ inline void TempTable::deleteAllTuplesNonVirtual(bool freeAllocatedStrings) {
     // Mark tuples as deleted and free strings. No indexes to update.
     // Don't call deleteTuple() here.
     const uint16_t uninlinedStringColumnCount = m_schema->getUninlinedObjectColumnCount();
+#if defined(ANTICACHE) && defined(ANTICACHE_COUNTER)
+    if (!freeAllocatedStrings && uninlinedStringColumnCount > 0) {
+        for (int64_t i = m_tupleCount - 1; i >= 0; i--) {
+            m_tmpTarget1.move(dataPtrForTuple((int)i));
+            if (m_tmpTarget1.isTempMerged()) {
+                //printf("free object called!\n");
+                m_tmpTarget1.freeObjectColumns();
+            }
+        }
+    }
+#endif
     if (freeAllocatedStrings && uninlinedStringColumnCount > 0) {
         for (int64_t i = m_tupleCount - 1; i >= 0; i--) {
-          m_tmpTarget1.move(dataPtrForTuple((int)i));
-          m_tmpTarget1.freeObjectColumns();
+            m_tmpTarget1.move(dataPtrForTuple((int)i));
+            m_tmpTarget1.freeObjectColumns();
         }
     }
 

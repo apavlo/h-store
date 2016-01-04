@@ -153,7 +153,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             synchronized(AntiCacheManager.this) {
                 try {
                     // update all the partition sizes
-                	//if (debug.val)
+                	if (debug.val)
                 	    LOG.warn("In mem monitor");
                     for (int partition : hstore_site.getLocalPartitionIds().values()) {
                     	if (debug.val)
@@ -273,7 +273,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         this.statsMessage.getObservable().addObserver(new EventObserver<VoltTable>() {
             @Override
             public void update(EventObservable<VoltTable> o, VoltTable vt) {
-            	//if (debug.val)
+            	if (debug.val)
             	    LOG.info("updating partition stats in observer");
                 AntiCacheManager.this.updatePartitionStats(vt);
             }
@@ -944,8 +944,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             //LOG.info(String.format("Tuple Mem: %d; String Mem: %d\n", tupleMem, stringMem));
             //LOG.info(String.format("Index Mem: %d\n", indexMem));
 
-            LOG.warn(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
-                    partition, stats.sizeKb, oldSizeKb));
+            if (debug.val)
+                LOG.info(String.format("Partition #%d Size - New:%dkb / Old:%dkb",
+                        partition, stats.sizeKb, oldSizeKb));
 
             pendingStatsUpdates[partition] = false;
             boolean allBack = true;
