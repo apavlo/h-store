@@ -35,12 +35,23 @@
 #include "common/NValue.hpp"
 #include "common/ValuePeeker.hpp"
 #include "anticache/AntiCacheDB.h"
+#include "mmh3/MurmurHash3.h"
 
 #include <vector>
 #include <map>
 #include <pthread.h>
 
 #define MAX_DBS 8
+
+#ifdef ANTICACHE_COUNTER
+    //#define SKETCH_WIDTH 32768
+    //#define SKETCH_MASK 32767
+    #define SKETCH_WIDTH 16384
+    #define SKETCH_MASK 16383
+    //#define SKETCH_WIDTH 1048576
+    //#define SKETCH_MASK 1048575
+    #define SKETCH_HEIGHT 3
+#endif
 
 namespace voltdb {
 
@@ -108,7 +119,8 @@ public:
 
 #ifdef ANTICACHE_COUNTER
     bool m_update_access;
-    unsigned char m_sketch[3][150000];
+    unsigned char m_sketch[SKETCH_HEIGHT][SKETCH_WIDTH];
+    static const uint32_t m_hash_seed[3];
 #endif
 
 protected:

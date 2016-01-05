@@ -312,6 +312,9 @@ CTX.THIRD_PARTY_INPUT['json_spirit'] = """
  json_spirit_reader.cpp
  json_spirit_value.cpp
 """
+CTX.THIRD_PARTY_INPUT['mmh3'] = """
+ MurmurHash3.cpp
+"""
 
 ###############################################################################
 # SPECIFY THE TESTS

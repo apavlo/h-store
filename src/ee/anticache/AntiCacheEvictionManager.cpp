@@ -1811,6 +1811,10 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
 // Evicted Access Tracking Methods
 // -----------------------------------------
 
+#ifdef ANTICACHE_COUNTER
+const uint32_t AntiCacheEvictionManager::m_hash_seed[3] = {41, 239785, 878124560};
+#endif
+
 void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable, TableTuple *tuple) {
     // FIXME: HACK HACK HACK
     if (m_evicted_block_ids.size() > 100000) {
@@ -1838,6 +1842,35 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
         if (!m_update_access && (block_id & 0x10000000)) {
             uint32_t _block_id = (uint32_t)(block_id & 0x0FFFFFFF);
             int16_t ACID = (int16_t)((block_id & 0xE0000000) >> 29);
+
+            
+
+            uint64_t key = ((uint64_t)_block_id << 32) + tuple_id;
+            uint64_t hash[2];
+            
+            unsigned char min_sketch = 255;
+            for (int i = 0; i < SKETCH_HEIGHT; ++i) {
+                MurmurHash3_x64_128(&key, 8, m_hash_seed[i], hash);
+                //hash = MurmurHash64A(&key, 8, m_hash_seed[i]);
+                int j = hash[0] & SKETCH_MASK;
+                if (m_sketch[i][j] < 254) {
+                    m_sketch[i][j]++;
+                }
+                if (m_sketch[i][j] < min_sketch)
+                    min_sketch = m_sketch[i][j];
+            }
+
+            if (min_sketch > 10) {
+                m_evicted_tables_sync.push_back(catalogTable);
+                m_evicted_block_ids_sync.push_back(block_id); 
+                m_evicted_offsets_sync.push_back(tuple_id);
+                m_update_access = true;
+                return;
+                //printf("greater than: %u %d %d\n", min_sketch, _block_id, tuple_id);
+            } 
+
+
+
             AntiCacheDB* antiCacheDB = m_db_lookup[ACID]; 
             AntiCacheBlock* value = antiCacheDB->readBlock(_block_id, 0);
             //char* unevicted_tuples = new char[value->getSize()];

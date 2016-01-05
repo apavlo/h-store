@@ -1344,7 +1344,20 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                             VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION, message);
                 }
             }*/
+#ifdef ANTICACHE_COUNTER
+            AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+            if (eviction_manager != NULL) {
+                VOLT_ERROR("We have reset the sketch counter of size %ld :)", sizeof(eviction_manager->m_sketch));
+                /*
+                int sum = 0;
+                for (int i = 0; i < SKETCH_WIDTH; ++i)
+                    sum += eviction_manager->m_sketch[0][i];
+                printf("cardinality: %d\n", sum);
+                */
 
+                memset(eviction_manager->m_sketch, 0, sizeof(eviction_manager->m_sketch));
+            }
+#endif
             resultTable = m_statsManager.getStats(
                     (StatisticsSelectorType) selector, locatorIds, interval,
                     now);
