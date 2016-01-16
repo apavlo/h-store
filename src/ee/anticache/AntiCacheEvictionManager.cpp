@@ -90,10 +90,16 @@ AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
     m_migrate = false;
 
 
-    if (pthread_mutex_init(&lock, NULL) != 0) {
+    if (pthread_mutex_init(&(prio_lock.cv_mutex), NULL) != 0) {
         VOLT_ERROR("Mutex init failed!");
     }
-
+    if (pthread_mutex_init(&(prio_lock.cs_mutex), NULL) != 0) {
+        VOLT_ERROR("Mutex init failed!");
+    }
+    if (pthread_cond_init(&(prio_lock.cond), NULL) != 0) {
+        VOLT_ERROR("Mutex init failed!");
+    }
+    prio_lock.high_waiters = 0;
 }
 
 AntiCacheEvictionManager::~AntiCacheEvictionManager() {
@@ -101,7 +107,9 @@ AntiCacheEvictionManager::~AntiCacheEvictionManager() {
     delete m_evicted_tuple;
     TupleSchema::freeTupleSchema(m_evicted_schema);
     
-    pthread_mutex_destroy(&lock);
+    pthread_mutex_destroy(&prio_lock.cv_mutex);
+    pthread_mutex_destroy(&prio_lock.cs_mutex);
+    pthread_cond_destroy(&prio_lock.cond);
     // int i;
     //for (i = 1; i <= m_numdbs; i++) {
     //    delete m_db_lookup[i];
@@ -2005,7 +2013,7 @@ void AntiCacheEvictionManager::throwEvictedAccessException() {
 
 bool AntiCacheEvictionManager::blockingMerge() {
 
-    pthread_mutex_lock(&lock);
+    //pthread_mutex_lock(&lock);
 
     int num_block_ids = static_cast<int>(m_evicted_block_ids_sync.size()); 
     //if (num_block_ids % 10000 == 0)
@@ -2073,10 +2081,10 @@ bool AntiCacheEvictionManager::blockingMerge() {
         m_evicted_tables_sync.clear();
         m_evicted_block_ids_sync.clear();
         m_evicted_offsets_sync.clear();
-        pthread_mutex_unlock(&lock);
+        //pthread_mutex_unlock(&lock);
         return true;           
     }
-    pthread_mutex_unlock(&lock);
+    //pthread_mutex_unlock(&lock);
     return false;
 }     
 

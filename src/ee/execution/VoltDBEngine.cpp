@@ -2112,9 +2112,11 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
             (filter[blockIds[i]]).insert(tupleOffsets[i]);
             */
             VOLT_DEBUG("reading %d %d", blockIds[i], tupleOffsets[i]);
-            pthread_mutex_lock(&(eviction_manager->lock));
+            //pthread_mutex_lock(&(eviction_manager->lock));
+            eviction_manager->prio_lock_low(&eviction_manager->prio_lock);
             finalResult = eviction_manager->readEvictedBlock(table, blockIds[i], tupleOffsets[i]) && finalResult;
-            pthread_mutex_unlock(&(eviction_manager->lock));
+            eviction_manager->prio_unlock_low(&eviction_manager->prio_lock);
+            //pthread_mutex_unlock(&(eviction_manager->lock));
         } // FOR
 
     } catch (SerializableEEException &e) {
@@ -2205,9 +2207,11 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
     // Merge all the newly unevicted blocks back into our regular table data
     try {
         AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
-        pthread_mutex_lock(&(eviction_manager->lock));
-        m_executorContext->getAntiCacheEvictionManager()->mergeUnevictedTuples(table);
-        pthread_mutex_unlock(&(eviction_manager->lock));
+        //pthread_mutex_lock(&(eviction_manager->lock));
+        eviction_manager->prio_lock_high(&eviction_manager->prio_lock);
+        eviction_manager->mergeUnevictedTuples(table);
+        eviction_manager->prio_unlock_high(&eviction_manager->prio_lock);
+        //pthread_mutex_unlock(&(eviction_manager->lock));
     } catch (SerializableEEException &e) {
         VOLT_INFO("Failed to merge blocks for table %d", tableId);
 

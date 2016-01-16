@@ -116,7 +116,53 @@ public:
     void throwEvictedAccessException();
     bool blockingMerge();
     
-    pthread_mutex_t lock;
+    //pthread_mutex_t lock;
+    struct prio_lock_t {
+        pthread_cond_t cond;
+        pthread_mutex_t cv_mutex; /* Condition variable mutex */
+        pthread_mutex_t cs_mutex; /* Critical section mutex */
+        unsigned long high_waiters;
+    } prio_lock;
+
+    inline void prio_lock_low(prio_lock_t *prio_lock)
+    {
+        pthread_mutex_lock(&prio_lock->cv_mutex);
+        while (prio_lock->high_waiters || pthread_mutex_trylock(&prio_lock->cs_mutex))
+        {
+            pthread_cond_wait(&prio_lock->cond, &prio_lock->cv_mutex);
+        }
+        pthread_mutex_unlock(&prio_lock->cv_mutex);
+    }
+
+    inline void prio_unlock_low(prio_lock_t *prio_lock)
+    {
+        pthread_mutex_unlock(&prio_lock->cs_mutex);
+
+        pthread_mutex_lock(&prio_lock->cv_mutex);
+        if (!prio_lock->high_waiters)
+            pthread_cond_signal(&prio_lock->cond);
+        pthread_mutex_unlock(&prio_lock->cv_mutex);
+    }
+
+    inline void prio_lock_high(prio_lock_t *prio_lock)
+    {
+        pthread_mutex_lock(&prio_lock->cv_mutex);
+        prio_lock->high_waiters++;
+        pthread_mutex_unlock(&prio_lock->cv_mutex);
+
+        pthread_mutex_lock(&prio_lock->cs_mutex);
+    }
+
+    inline void prio_unlock_high(prio_lock_t *prio_lock)
+    {
+        pthread_mutex_unlock(&prio_lock->cs_mutex);
+
+        pthread_mutex_lock(&prio_lock->cv_mutex);
+        prio_lock->high_waiters--;
+        if (!prio_lock->high_waiters)
+            pthread_cond_signal(&prio_lock->cond);
+        pthread_mutex_unlock(&prio_lock->cv_mutex);
+    }
 
 #ifdef ANTICACHE_COUNTER
     bool m_update_access;
@@ -126,13 +172,13 @@ public:
 
 protected:
     void initEvictResultTable();
-    
+
     bool removeTupleSingleLinkedList(PersistentTable* table, uint32_t removal_id);
     bool removeTupleDoubleLinkedList(PersistentTable* table, TableTuple* tuple_to_remove, uint32_t removal_id);
-    
+
     void printLRUChain(PersistentTable* table, int max, bool forward);
     char *itoa(uint32_t i);
-    
+
     Table *m_evictResultTable;
     const VoltDBEngine *m_engine;
     Table *m_readResultTable;
@@ -140,7 +186,7 @@ protected:
     // Used at runtime to track what evicted tuples we touch and throw an exception
     ValuePeeker peeker; 
     TableTuple* m_evicted_tuple; 
-    
+
     std::vector<catalog::Table*> m_evicted_tables;
     std::vector<int32_t> m_evicted_block_ids;
     std::vector<int32_t> m_evicted_offsets;
