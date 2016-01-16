@@ -51,6 +51,7 @@
     //#define SKETCH_WIDTH 1048576
     //#define SKETCH_MASK 1048575
     #define SKETCH_HEIGHT 3
+    #define SKETCH_THRESH 255
 #endif
 
 namespace voltdb {

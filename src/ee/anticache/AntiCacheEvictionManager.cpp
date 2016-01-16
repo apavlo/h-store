@@ -1860,7 +1860,7 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
                     min_sketch = m_sketch[i][j];
             }
 
-            if (min_sketch > 10) {
+            if (min_sketch > SKETCH_THRESH) {
                 m_evicted_tables_sync.push_back(catalogTable);
                 m_evicted_block_ids_sync.push_back(block_id); 
                 m_evicted_offsets_sync.push_back(tuple_id);
