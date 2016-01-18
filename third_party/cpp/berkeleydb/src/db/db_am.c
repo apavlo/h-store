@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1998, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -205,6 +205,7 @@ __db_cursor_int(dbp, ip, txn, dbtype, root, flags, locker, dbcp)
 	/* Refresh the DBC structure. */
 	dbc->dbtype = dbtype;
 	RESET_RET_MEM(dbc);
+	dbc->db_stream = __dbc_db_stream;
 	dbc->set_priority = __dbc_set_priority;
 	dbc->get_priority = __dbc_get_priority;
 	dbc->priority = dbp->priority;
@@ -314,11 +315,11 @@ __db_cursor_int(dbp, ip, txn, dbtype, root, flags, locker, dbcp)
 	if (F2_ISSET(dbp, DB2_AM_EXCL)) {
 		F_SET(dbc, DBC_DONTLOCK);
 		if (IS_REAL_TXN(txn)&& !LF_ISSET(DBC_OPD | DBC_DUPLICATE)) {
-			/* 
-			 * Exclusive databases can only have one active 
-			 * transaction at a time since there are no internal 
+			/*
+			 * Exclusive databases can only have one active
+			 * transaction at a time since there are no internal
 			 * locks to prevent one transaction from reading and
-			 * writing another's uncommitted changes. 
+			 * writing another's uncommitted changes.
 			 */
 			if (dbp->cur_txn != NULL && dbp->cur_txn != txn) {
 			    __db_errx(env, DB_STR("0749",
@@ -332,7 +333,7 @@ __db_cursor_int(dbp, ip, txn, dbtype, root, flags, locker, dbcp)
 				memset(&req, 0, sizeof(req));
 				req.lock = dbp->handle_lock;
 				req.op = DB_LOCK_TRADE;
-				if ((ret = __lock_vec(env, txn->locker, 0, 
+				if ((ret = __lock_vec(env, txn->locker, 0,
 				    &req, 1, 0)) != 0)
 					goto err;
 				dbp->cur_txn = txn;
@@ -397,10 +398,11 @@ __db_cursor_int(dbp, ip, txn, dbtype, root, flags, locker, dbcp)
 	if (ip != NULL) {
 		dbc->thread_info = ip;
 #ifdef DIAGNOSTIC
-		if (dbc->locker != NULL)
+		if (dbc->locker != NULL) {
+			dbc->locker->prev_locker = ip->dbth_locker;
 			ip->dbth_locker =
 			    R_OFFSET(&(env->lk_handle->reginfo), dbc->locker);
-		else
+		} else
 			ip->dbth_locker = INVALID_ROFF;
 #endif
 	} else if (txn != NULL)

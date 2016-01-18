@@ -69,11 +69,11 @@ void BerkeleyAntiCacheDB::initializeDB() {
     
         u_int32_t env_flags =
         DB_CREATE       | // Create the environment if it does not exist
-//        DB_AUTO_COMMIT  | // Immediately commit every operation
+        //DB_AUTO_COMMIT  | // Immediately commit every operation
         DB_INIT_MPOOL   | // Initialize the memory pool (in-memory cache)
 //        DB_TXN_NOSYNC   | // Don't flush to disk every time, we will do that explicitly
-//        DB_INIT_LOCK    | // concurrent data store
-        DB_PRIVATE      |
+        DB_INIT_LOCK    | // concurrent data store
+        //DB_PRIVATE      |
         DB_THREAD       | // allow multiple threads
 //        DB_INIT_TXN     |
         DB_DIRECT_DB;     // Use O_DIRECT
@@ -85,7 +85,7 @@ void BerkeleyAntiCacheDB::initializeDB() {
         VOLT_INFO("created BerkeleyDB: %s\n", m_dbDir.c_str());
         // allocate and initialize new Berkeley DB instance
         m_db = new Db(m_dbEnv, 0); 
-        m_db->open(NULL, ANTICACHE_DB_NAME, NULL, DB_HASH, DB_CREATE, 0); 
+        m_db->open(NULL, ANTICACHE_DB_NAME, NULL, DB_HASH, DB_CREATE | DB_THREAD, 0); 
 
     } catch (DbException &e) {
         VOLT_ERROR("Anti-Cache initialization error: %s", e.what());
@@ -164,7 +164,13 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     VOLT_DEBUG("Writing out a block #%u to anti-cache database [tuples=%d / size=%ld]",
                blockId, tupleCount, size);
     // TODO: Error checking
-    m_db->put(NULL, &key, &value, 0);
+    try {
+        //m_dbEnv->lock_get(1, 0, NULL, DB_LOCK_WRITE, &m_lock);
+        m_db->put(NULL, &key, &value, 0);
+        //m_dbEnv->lock_put(&m_lock);
+    } catch (DbException &e) {
+        VOLT_ERROR("Put ERROR! I CATCH YOU!!!");
+    }
     
     /*
     tupleInBlock[blockId] = tupleCount;
@@ -186,6 +192,7 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     m_blockSet.insert(blockId);
 
     delete [] databuf_;
+    //VOLT_ERROR("Finish writing to BerkeleyDB");
 }
 
 bool BerkeleyAntiCacheDB::validateBlock(uint32_t blockId) {
@@ -205,7 +212,9 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate)
     
     VOLT_INFO("Reading evicted block with id %u", blockId);
     
+    //m_dbEnv->lock_get(1, 0, NULL, DB_LOCK_READ, &m_lock);
     int ret_value = m_db->get(NULL, &key, &value, 0);
+    //m_dbEnv->lock_put(&m_lock);
 
     if (ret_value != 0) 
     {

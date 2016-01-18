@@ -1355,6 +1355,21 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                 printf("cardinality: %d\n", sum);
                 */
 
+                int tot = 0;
+                int i = 0;
+                unsigned char* sketch = eviction_manager->m_sketch[0];
+                while (tot < 200) {
+                    if (sketch[i]) {
+                        eviction_manager->m_sample[tot] = sketch[i];
+                        tot++;
+                    }
+                    i++;
+                }
+                std::sort(eviction_manager->m_sample.begin(), eviction_manager->m_sample.end(), std::greater <unsigned int>());
+                eviction_manager->m_sketch_thresh = (unsigned char)(eviction_manager->m_sketch_thresh >> 1);
+                eviction_manager->m_sketch_thresh = (unsigned char)(eviction_manager->m_sketch_thresh + (eviction_manager->m_sample[SKETCH_THRESH] >> 1));
+                printf("sketch thresh: %d\n", eviction_manager->m_sketch_thresh);
+
                 memset(eviction_manager->m_sketch, 0, sizeof(eviction_manager->m_sketch));
             }
 #endif
@@ -2113,9 +2128,9 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
             */
             VOLT_DEBUG("reading %d %d", blockIds[i], tupleOffsets[i]);
             //pthread_mutex_lock(&(eviction_manager->lock));
-            eviction_manager->prio_lock_low(&eviction_manager->prio_lock);
+            //eviction_manager->prio_lock_low(&eviction_manager->prio_lock);
             finalResult = eviction_manager->readEvictedBlock(table, blockIds[i], tupleOffsets[i]) && finalResult;
-            eviction_manager->prio_unlock_low(&eviction_manager->prio_lock);
+            //eviction_manager->prio_unlock_low(&eviction_manager->prio_lock);
             //pthread_mutex_unlock(&(eviction_manager->lock));
         } // FOR
 
@@ -2147,10 +2162,11 @@ int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize, int numBl
         throwFatalException("Invalid table id %d", tableId);
     }
 
-    VOLT_DEBUG("Attempting to evict a block of %ld bytes from table '%s'",
+    VOLT_ERROR("Attempting to evict a block of %ld bytes from table '%s'",
             blockSize, table->name().c_str());
     size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
     Table *resultTable = m_executorContext->getAntiCacheEvictionManager()->evictBlock(table, blockSize, numBlocks);
+    VOLT_ERROR("Write finish!");
     if (resultTable != NULL) {
         resultTable->serializeTo(m_resultOutput);
         m_resultOutput.writeIntAt(lengthPosition,
@@ -2203,14 +2219,14 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
         throwFatalException("Invalid table id %d", tableId);
     }
 
-    VOLT_DEBUG("Merging unevicted blocks for table %d", tableId);
+    //VOLT_ERROR("Merging unevicted blocks for table %d", tableId);
     // Merge all the newly unevicted blocks back into our regular table data
     try {
         AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
         //pthread_mutex_lock(&(eviction_manager->lock));
-        eviction_manager->prio_lock_high(&eviction_manager->prio_lock);
+        //eviction_manager->prio_lock_high(&eviction_manager->prio_lock);
         eviction_manager->mergeUnevictedTuples(table);
-        eviction_manager->prio_unlock_high(&eviction_manager->prio_lock);
+        //eviction_manager->prio_unlock_high(&eviction_manager->prio_lock);
         //pthread_mutex_unlock(&(eviction_manager->lock));
     } catch (SerializableEEException &e) {
         VOLT_INFO("Failed to merge blocks for table %d", tableId);
@@ -2221,6 +2237,7 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
         e.serialize(getExceptionOutputSerializer());
         retval = ENGINE_ERRORCODE_ERROR;
     }
+    //VOLT_ERROR("Quit merge uneviction for table %d", tableId);
 
     return (retval);
 }

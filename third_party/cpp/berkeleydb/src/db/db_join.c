@@ -1,7 +1,7 @@
 /*
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1998, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -717,7 +717,6 @@ __db_join_close(dbc)
 	DBC *dbc;
 {
 	DB *dbp;
-	DB_THREAD_INFO *ip;
 	ENV *env;
 	JOIN_CURSOR *jc;
 	int ret, t_ret;
@@ -737,7 +736,6 @@ __db_join_close(dbc)
 	TAILQ_REMOVE(&dbp->join_queue, dbc, links);
 	MUTEX_UNLOCK(env, dbp->mutex);
 
-	ENV_ENTER(env, ip);
 	/*
 	 * Close any open scratch cursors.  In each case, there may
 	 * not be as many outstanding as there are cursors in
@@ -757,7 +755,6 @@ __db_join_close(dbc)
 		    (t_ret = __dbc_close(jc->j_fdupcurs[i])) != 0)
 			ret = t_ret;
 	}
-	ENV_LEAVE(env, ip);
 
 	__os_free(env, jc->j_exhausted);
 	__os_free(env, jc->j_curslist);
@@ -796,7 +793,7 @@ __db_join_getnext(dbc, key, data, exhausted, opmods)
 	int ret, cmp;
 	DB *dbp;
 	DBT ldata;
-	int (*func) __P((DB *, const DBT *, const DBT *));
+	int (*func) __P((DB *, const DBT *, const DBT *, size_t *));
 
 	dbp = dbc->dbp;
 	func = (dbp->dup_compare == NULL) ? __bam_defcmp : dbp->dup_compare;
@@ -812,7 +809,7 @@ __db_join_getnext(dbc, key, data, exhausted, opmods)
 		if ((ret = __dbc_get(dbc,
 		    key, &ldata, opmods | DB_CURRENT)) != 0)
 			break;
-		cmp = func(dbp, data, &ldata);
+		cmp = func(dbp, data, &ldata, NULL);
 		if (cmp == 0) {
 			/*
 			 * We have to return the real data value.  Copy

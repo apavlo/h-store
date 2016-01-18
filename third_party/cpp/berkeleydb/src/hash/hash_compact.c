@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  * $Id$
  */
 
@@ -118,7 +118,8 @@ __ham_compact_int(dbc, start, stop, factor, c_data, donep, flags)
 					break;
 				origpgno = pgno;
 				if ((ret = __db_truncate_root(dbc, hcp->page,
-				    H_DATAINDEX(hcp->indx), &pgno, 0)) != 0)
+				    H_DATAINDEX(hcp->indx),
+				    &pgno, 0, &pgs_done)) != 0)
 					break;
 				if (pgno != origpgno) {
 					memcpy(HOFFDUP_PGNO(H_PAIRDATA(dbp,
@@ -247,7 +248,7 @@ __ham_compact_bucket(dbc, c_data, pgs_donep)
 		if (check_trunc && PREV_PGNO(pg) != PGNO_INVALID  &&
 		    PGNO(pg) > c_data->compact_truncate &&
 		    (ret = __db_exchange_page(dbc, &pg,
-		    hcp->page, PGNO_INVALID, DB_EXCH_FREE)) != 0)
+		    hcp->page, PGNO_INVALID, DB_EXCH_FREE, pgs_donep)) != 0)
 			break;
 		if (pgno != PGNO(pg))
 			(*pgs_donep)++;
@@ -400,8 +401,8 @@ __ham_truncate_overflow(dbc, indx, c_data, pgs_done)
 		if ((ret = __memp_dirty(dbp->mpf, &hcp->page,
 		    dbc->thread_info, dbc->txn, dbc->priority, 0)) != 0)
 			return (ret);
-		if ((ret =
-		     __db_truncate_root(dbc, hcp->page, indx, &pgno, 0)) != 0)
+		if ((ret = __db_truncate_root(dbc,
+		    hcp->page, indx, &pgno, 0, pgs_done)) != 0)
 			return (ret);
 		if (pgno != origpgno) {
 			memcpy(HOFFPAGE_PGNO(P_ENTRY(dbp, hcp->page, indx)),
@@ -410,7 +411,8 @@ __ham_truncate_overflow(dbc, indx, c_data, pgs_done)
 			c_data->compact_pages--;
 		}
 	}
-	if ((ret = __db_truncate_overflow(dbc, pgno, NULL, c_data)) != 0)
+	if ((ret =
+	    __db_truncate_overflow(dbc, pgno, NULL, c_data, pgs_done)) != 0)
 		return (ret);
 	return (0);
 }
@@ -434,10 +436,11 @@ __ham_compact_hash(dbp, ip, txn, c_data)
 	HMETA *meta;
 	PAGE *oldpage;
 	db_pgno_t free_pgno, last_pgno, pgno, start_pgno;
-	int flags, local_txn, ret, t_ret;
+	int flags, local_txn, pgs_done, ret, t_ret;
 	u_int32_t bucket, i, size;
 
 	local_txn = IS_DB_AUTO_COMMIT(dbp, txn);
+	pgs_done = 0;
 	oldpage = NULL;
 	dbc = NULL;
 	LOCK_INIT(lock);
@@ -506,8 +509,8 @@ __ham_compact_hash(dbp, ip, txn, c_data)
 					flags = 0;
 				else
 					flags = DB_EXCH_FREE;
-				if ((ret = __db_exchange_page(dbc,
-				    &oldpage, NULL, free_pgno, flags)) != 0)
+				if ((ret = __db_exchange_page(dbc, &oldpage,
+				    NULL, free_pgno, flags, &pgs_done)) != 0)
 					goto err;
 			} else if (pgno >= last_pgno) {
 				if ((ret = __db_free(dbc, oldpage, 0)) != 0)
@@ -526,7 +529,8 @@ __ham_compact_hash(dbp, ip, txn, c_data)
 	}
 	if (ret == 0 && F_ISSET(dbp, DB_AM_SUBDB) &&
 	    PGNO(hcp->hdr) > c_data->compact_truncate)
-		ret = __db_move_metadata(dbc, (DBMETA**)&hcp->hdr, c_data);
+		ret = __db_move_metadata(dbc, (DBMETA**)&hcp->hdr,
+		    c_data, &pgs_done);
 
 err:	if (oldpage != NULL && (t_ret = __memp_fput(dbp->mpf,
 	    dbc->thread_info, oldpage, dbc->priority)) != 0 && ret == 0)

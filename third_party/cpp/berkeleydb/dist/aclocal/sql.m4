@@ -91,7 +91,12 @@ esac
 # !!! END COPIED from autoconf distribution
 
 sqlite_dir=$srcdir/../lang/sql/sqlite
-(cd sql && eval "\$SHELL ../$sqlite_dir/configure --disable-option-checking $ac_sub_configure_args CPPFLAGS=\"-I.. $CPPFLAGS\" --enable-amalgamation=$db_cv_sql_amalgamation --enable-readline=$with_readline" && cat build_config.h >> config.h) || exit 1
+orig_CPPFLAGS="$CPPFLAGS"
+jdbc_variables=""
+if test "$db_cv_build_cryptography" = "yes"; then
+	CPPFLAGS="$CPPFLAGS -DSQLITE_HAS_CODEC=1"
+fi
+(cd sql && eval "\$SHELL ../$sqlite_dir/configure --disable-option-checking $ac_sub_configure_args CPPFLAGS=\"-I.. $CPPFLAGS\" --enable-amalgamation=$db_cv_sql_amalgamation --enable-readline=$with_readline " && cat build_config.h >> config.h) || exit 1
 
 # Configure JDBC if --enable-jdbc
 if test "$db_cv_jdbc" != "no"; then
@@ -132,6 +137,7 @@ if test "$db_cv_jdbc" != "no"; then
     $CFLAGS $CPPFLAGS\""
   # Set LDFLAGS for JDBC driver
   test "$LDFLAGS" != "" && jdbc_flags="$jdbc_flags LDFLAGS=\"$LDFLAGS\""
+  test "$db_cv_build_cryptography" = "yes" && jdbc_flags="$jdbc_flags HAVE_SQLITE3_KEY=1"
 
   # Copy ../lang/sql/jdbc to build_unix/
   test ! -d jdbc && cp -r $jdbc_dir .
@@ -146,4 +152,6 @@ if test "$db_cv_jdbc" != "no"; then
   sed "s/@BDB_LIB@/$BDB_LIB/g" Makefile.in.tmp > Makefile.in
   eval "\$SHELL ./configure --with-sqlite3=../../lang/sql/generated $jdbc_args $jdbc_flags"
 fi
+
+CPPFLAGS="$orig_CPPFLAGS"
 ])

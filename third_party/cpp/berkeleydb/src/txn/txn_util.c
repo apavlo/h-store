@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2001, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -9,6 +9,7 @@
 #include "db_config.h"
 
 #include "db_int.h"
+#include "dbinc/blob.h"
 #include "dbinc/db_page.h"
 #include "dbinc/lock.h"
 #include "dbinc/mp.h"
@@ -209,7 +210,7 @@ __txn_remlock(env, txn, lock, locker)
 
 	for (e = TAILQ_FIRST(&txn->events); e != NULL; e = next_e) {
 		next_e = TAILQ_NEXT(e, links);
-		if ((e->op != TXN_TRADE && e->op != TXN_TRADED && 
+		if ((e->op != TXN_TRADE && e->op != TXN_TRADED &&
 		    e->op != TXN_XTRADE) ||
 		    (e->u.t.lock.off != lock->off && e->u.t.locker != locker))
 			continue;
@@ -280,13 +281,21 @@ __txn_doevents(env, txn, opcode, preprocess)
 		    e != NULL; e = enext) {
 			enext = TAILQ_NEXT(e, links);
 			/*
-			 * Move all exclusive handle locks and 
+			 * Move all exclusive handle locks and
 			 * read handle locks to the handle locker.
 			 */
 			if (!(opcode == TXN_COMMIT && e->op == TXN_XTRADE) &&
-			    (e->op != TXN_TRADE || 
-			    IS_WRITELOCK(e->u.t.lock.mode)))
+			    (e->op != TXN_TRADE ||
+			    IS_WRITELOCK(e->u.t.lock.mode))) {
+				if (opcode == TXN_PREPARE &&
+				    e->op == TXN_REMOVE) {
+					__db_errx(env, DB_STR_A("4501",
+"TXN->prepare is not allowed because this transaction removes \"%s\"", "%s"),
+					    e->u.r.name);
+					return (EINVAL);
+				}
 				continue;
+			}
 			DO_TRADE;
 			if (txn->parent != NULL) {
 				TAILQ_REMOVE(&txn->events, e, links);
@@ -321,17 +330,26 @@ __txn_doevents(env, txn, opcode, preprocess)
 				ret = t_ret;
 			break;
 		case TXN_REMOVE:
-			if (txn->parent != NULL)
+			if (txn->parent != NULL) {
 				TAILQ_INSERT_TAIL(
 				    &txn->parent->events, e, links);
-			else if (e->u.r.fileid != NULL) {
+				continue;
+			} else if (e->u.r.fileid != NULL) {
 				if ((t_ret = __memp_nameop(env,
 				    e->u.r.fileid, NULL, e->u.r.name,
 				    NULL, e->u.r.inmem)) != 0 && ret == 0)
 					ret = t_ret;
-			} else if ((t_ret =
-			    __os_unlink(env, e->u.r.name, 0)) != 0 && ret == 0)
-				ret = t_ret;
+			} else if ((t_ret = __os_unlink(
+			    env, e->u.r.name, 0)) != 0 && ret == 0) {
+				/*
+				 * It is possible for blob files to be deleted
+				 * multiple times when truncating a database,
+				 * so ignore ENOENT errors with blob files.
+				 */
+				if (t_ret != ENOENT || strstr(
+				    e->u.r.name, BLOB_FILE_PREFIX) == NULL)
+					ret = t_ret;
+			}
 			break;
 		case TXN_TRADE:
 		case TXN_XTRADE:
@@ -371,8 +389,6 @@ dofree:
 		/* Free resources here. */
 		switch (e->op) {
 		case TXN_REMOVE:
-			if (txn->parent != NULL)
-				continue;
 			if (e->u.r.fileid != NULL)
 				__os_free(env, e->u.r.fileid);
 			__os_free(env, e->u.r.name);
@@ -548,9 +564,8 @@ __txn_reset_fe_watermarks(txn)
 {
 	DB *db;
 
-	if (txn->parent) {
+	if (txn->parent)
 		DB_ASSERT(txn->mgrp->env, TAILQ_FIRST(&txn->femfs) == NULL);
-	}
 
 	while ((db = TAILQ_FIRST(&txn->femfs)))
 		__clear_fe_watermark(txn, db);

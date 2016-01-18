@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -36,6 +36,9 @@ static int __db_up_ovref __P((DB *, DB_FH *, db_pgno_t));
 /*
  * __db_31_offdup --
  *	Convert 3.0 off-page duplicates to 3.1 off-page duplicates.
+ *
+ *	This code and its descendants should be removed when support for
+ *	upgrading from a 3.0 database format is removed.
  *
  * PUBLIC: int __db_31_offdup __P((DB *, char *, DB_FH *, int, db_pgno_t *));
  */
@@ -317,7 +320,7 @@ __db_build_ri(dbp, fhp, ipage, page, indx, nomemp)
 
 /*
  * __db_up_ovref --
- *	Increment/decrement the reference count on an overflow page.
+ *	Increment the reference count on an overflow page.
  */
 static int
 __db_up_ovref(dbp, fhp, pgno)

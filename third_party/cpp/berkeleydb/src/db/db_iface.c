@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -159,9 +159,15 @@ __db_associate_arg(dbp, sdbp, callback, flags)
 
 	env = dbp->env;
 
+	if (dbp->blob_threshold || sdbp->blob_threshold) {
+		__db_errx(env, DB_STR("0751",
+		    "Secondary and primary databases cannot support blobs."));
+		return (EINVAL);
+	}
+
 	if (sdbp->type == DB_HEAP) {
-		__db_errx(env,
-		    "Heap databases may not be used as secondary databases");
+		__db_errx(env, DB_STR("0752",
+		    "Heap databases may not be used as secondary databases"));
 		return (EINVAL);
 	}
 
@@ -288,6 +294,7 @@ __db_cursor_pp(dbp, txn, dbcp, flags)
 	int rep_blocked, ret;
 
 	env = dbp->env;
+	(*dbcp) = NULL;
 
 	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->cursor");
 
@@ -331,7 +338,8 @@ __db_cursor_pp(dbp, txn, dbcp, flags)
 	 * If a family transaction was passed in, the transaction handle in
 	 * the cursor may not match.
 	 */
-	txn = (*dbcp)->txn;
+	if ((*dbcp) != NULL)
+	    txn = (*dbcp)->txn;
 	if (txn != NULL && ret == 0)
 		TAILQ_INSERT_HEAD(&(txn->my_cursors), *dbcp, txn_cursors);
 
@@ -432,6 +440,13 @@ __db_cursor_arg(dbp, flags)
 	if (LF_ISSET(DB_READ_COMMITTED | DB_READ_UNCOMMITTED)) {
 		if (!LOCKING_ON(env))
 			return (__db_fnl(env, "DB->cursor"));
+	}
+
+	if (dbp->blob_threshold &&
+	    LF_ISSET(DB_READ_UNCOMMITTED | DB_TXN_SNAPSHOT)) {
+		__db_errx(dbp->env, DB_STR("0753",
+"Blob enabled databases do not support READ_UNCOMMITTED and TXN_SNAPSHOT."));
+		return (EINVAL);
 	}
 
 	LF_CLR(DB_CURSOR_BULK |
@@ -828,6 +843,12 @@ __db_get_arg(dbp, key, data, flags)
 
 	env = dbp->env;
 
+	if (dbp->blob_threshold && LF_ISSET(DB_READ_UNCOMMITTED)) {
+		__db_errx(env, DB_STR("0754",
+	"Blob enabled databases do not support DB_READ_UNCOMMITTED."));
+		return (EINVAL);
+	}
+
 	/*
 	 * Check for read-modify-write validity.  DB_RMW doesn't make sense
 	 * with CDB cursors since if you're going to write the cursor, you
@@ -876,6 +897,9 @@ __db_get_arg(dbp, key, data, flags)
 		break;
 	case DB_CONSUME:
 	case DB_CONSUME_WAIT:
+		if (DB_IS_READONLY(dbp))
+			return (__db_rdonly(env,
+			    "DB->get CONSUME/CONSUME_WAIT"));
 		if (dirty) {
 			__db_errx(env, DB_STR_A("0583",
 		    "%s is not supported with DB_CONSUME or DB_CONSUME_WAIT",
@@ -1148,6 +1172,13 @@ __db_open_pp(dbp, txn, fname, dname, type, flags, mode)
 	/* Save the current DB handle flags for refresh. */
 	dbp->orig_flags = dbp->flags;
 
+	if (fname == 0 && PREFMAS_IS_SET(env)) {
+		__db_errx(env, DB_STR("0783", "In-memory databases are not "
+		    "supported in Replication Manager preferred master mode"));
+		ret = EINVAL;
+		goto err;
+	}
+
 	/* Check for replication block. */
 	handle_check = IS_ENV_REPLICATED(env);
 	if (handle_check &&
@@ -1386,6 +1417,18 @@ __db_open_arg(dbp, txn, fname, dname, type, flags)
 	if (LF_ISSET(DB_MULTIVERSION) && type == DB_QUEUE) {
 		__db_errx(env, DB_STR("0598",
 		    "DB_MULTIVERSION illegal with queue databases"));
+		return (EINVAL);
+	}
+
+	if (LF_ISSET(DB_MULTIVERSION) && dbp->blob_threshold) {
+		__db_errx(env, DB_STR("0755",
+		    "DB_MULTIVERSION illegal with blob enabled databases"));
+		return (EINVAL);
+	}
+
+	if (LF_ISSET(DB_READ_UNCOMMITTED) && dbp->blob_threshold) {
+		__db_errx(env, DB_STR("0756",
+	"DB_READ_UNCOMMITTED illegal with blob enabled databases"));
 		return (EINVAL);
 	}
 
@@ -1900,8 +1943,6 @@ __db_compact_pp(dbp, txn, start, stop, c_data, flags, end)
 	case DB_RECNO:
 		ret = __db_compact_int(dbp, ip,
 		    txn, start, stop, dp, flags, end);
-		break;
-	case DB_HEAP:
 		break;
 	default:
 		ret = __dbh_am_chk(dbp, DB_OK_BTREE);
@@ -2893,7 +2934,7 @@ __dbt_ferr(dbp, name, dbt, check_thread)
 	 * database, without having to clear flags.
 	 */
 	if ((ret = __db_fchk(env, name, dbt->flags,
-	    DB_DBT_APPMALLOC | DB_DBT_BULK | DB_DBT_DUPOK |
+	    DB_DBT_APPMALLOC | DB_DBT_BLOB | DB_DBT_BULK | DB_DBT_DUPOK |
 	    DB_DBT_MALLOC | DB_DBT_REALLOC | DB_DBT_USERCOPY |
 	    DB_DBT_USERMEM | DB_DBT_PARTIAL | DB_DBT_READONLY)) != 0)
 		return (ret);

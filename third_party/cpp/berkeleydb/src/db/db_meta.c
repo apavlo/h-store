@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  */
 /*
  * Copyright (c) 1990, 1993, 1994, 1995, 1996
@@ -939,12 +939,14 @@ done:	if (last_pgnop != NULL)
 		*last_pgnop = meta->last_pgno;
 
 	/*
-	 * The truncate point is the number of pages in the free
-	 * list back from the last page.  The number of pages
-	 * in the free list are the number that we can swap in.
-	 * Adjust it down slightly so if we find higher numbered
-	 * pages early and then free other pages later we can
-	 * truncate them.
+	 * Set the truncation point which determines which pages may be
+	 * relocated. Pages above are candidates to be swapped with a lower one
+	 * from the freelist by __db_exchange_page(); pages before the truncate
+	 * point are not relocated.
+	 * The truncation point starts as N pages less than the last_pgno, where
+	 * N is the size of the free list. This is reduced by 1/4 in the hope
+	 * that partially full pages will be coalesced together, creating
+	 * additional free pages during the compact.
 	 */
 	if (c_data) {
 		c_data->compact_truncate = (u_int32_t)meta->last_pgno - nelems;

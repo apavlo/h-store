@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2001, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -11,6 +11,7 @@
 #include "db_int.h"
 #include "dbinc/db_page.h"
 #include "dbinc/db_am.h"
+#include "dbinc/fop.h"
 #include "dbinc/mp.h"
 #include "dbinc/txn.h"
 
@@ -437,10 +438,18 @@ __rep_send_message(env, eid, rtype, lsnp, dbt, ctlflags, repflags)
 	    FLD_ISSET(ctlflags, REPCTL_LEASE | REPCTL_PERM)) {
 		F_SET(&cntrl, REPCTL_LEASE);
 		DB_ASSERT(env, rep->version == DB_REPVERSION);
-		__os_gettime(env, &msg_time, 1);
+		__os_gettime(env, &msg_time, 0);
 		cntrl.msg_sec = (u_int32_t)msg_time.tv_sec;
 		cntrl.msg_nsec = (u_int32_t)msg_time.tv_nsec;
 	}
+
+	/*
+	 * Inform clients that this master is encrypted so that a new client
+	 * will only try to synchronize with this master if it is also using
+	 * encryption.
+	 */
+	if (IS_REP_MASTER(env) && rtype == REP_NEWMASTER && CRYPTO_ON(env))
+		F_SET(&cntrl, REPCTL_ENCRYPTED);
 
 	REP_PRINT_MESSAGE(env, eid, &cntrl, "rep_send_message", myflags);
 #ifdef REP_DIAGNOSTIC
@@ -591,6 +600,15 @@ __rep_new_master(env, cntrl, eid)
 	ret = 0;
 	logc = NULL;
 	lockout_msg = 0;
+
+	/*
+	 * If REP_F_HOLD_GEN is set, we want to keep this site at its
+	 * current gen.  Do not process an incoming NEWMASTER, which
+	 * would change the gen.
+	 */
+	if (F_ISSET(rep, REP_F_HOLD_GEN))
+		return (ret);
+
 	REP_SYSTEM_LOCK(env);
 	change = rep->gen != cntrl->gen || rep->master_id != eid;
 	/*
@@ -600,6 +618,21 @@ __rep_new_master(env, cntrl, eid)
 	 */
 	FLD_CLR(rep->elect_flags, REP_E_PHASE0);
 	if (change) {
+
+		/*
+		 * Check that the client and master are either both encrypted
+		 * or both unencrypted.
+		 */
+		if ((F_ISSET(cntrl, REPCTL_ENCRYPTED) && !CRYPTO_ON(env)) ||
+		    (!F_ISSET(cntrl, REPCTL_ENCRYPTED) && CRYPTO_ON(env))) {
+			__db_errx(env, DB_STR_A("3713",
+    "%sncrypted client cannot join %sencrypted replication group", "%s %s"),
+			    CRYPTO_ON(env) ? "E" : "Une",
+			    CRYPTO_ON(env) ? "un" : "");
+			ret = DB_REP_JOIN_FAILURE;
+			goto lckout;
+		}
+
 		/*
 		 * If we are already locking out others, we're either
 		 * in the middle of sync-up recovery or internal init
@@ -1128,6 +1161,8 @@ __env_db_rep_exit(env)
 	rep = db_rep->region;
 
 	REP_SYSTEM_LOCK(env);
+	/* If we have a reference, it better not already be 0. */
+	DB_ASSERT(env, rep->handle_cnt != 0);
 	rep->handle_cnt--;
 	REP_SYSTEM_UNLOCK(env);
 
@@ -1190,7 +1225,7 @@ __db_rep_enter(dbp, checkgen, checklock, return_now)
 	 * get an exclusive lock on this database.
 	 */
 	if (checkgen && dbp->mpf->mfp && IS_REP_CLIENT(env)) {
-		if (dbp->mpf->mfp->excl_lockout) 
+		if (dbp->mpf->mfp->excl_lockout)
 			return (DB_REP_HANDLE_DEAD);
 	}
 
@@ -1328,7 +1363,8 @@ __op_rep_exit(env)
 	rep = db_rep->region;
 
 	REP_SYSTEM_LOCK(env);
-	DB_ASSERT(env, rep->op_cnt > 0);
+	/* If we have a reference, it better not already be 0. */
+	DB_ASSERT(env, rep->op_cnt != 0);
 	rep->op_cnt--;
 	REP_SYSTEM_UNLOCK(env);
 
@@ -1697,7 +1733,9 @@ __rep_msg_to_old(version, rectype)
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
-	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID },
+	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
+	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
+	    REP_INVALID },
 	/*
 	 * 4.2/DB_REPVERSION 1 no longer supported.
 	 */
@@ -1708,7 +1746,9 @@ __rep_msg_to_old(version, rectype)
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
-	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID },
+	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
+	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
+	    REP_INVALID },
 	/*
 	 * 4.3/DB_REPVERSION 2 no longer supported.
 	 */
@@ -1719,7 +1759,9 @@ __rep_msg_to_old(version, rectype)
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
-	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID },
+	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
+	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
+	    REP_INVALID },
 	/*
 	 * From 4.7 message number To 4.4/4.5 message number
 	 */
@@ -1727,6 +1769,11 @@ __rep_msg_to_old(version, rectype)
 	    1,			/* REP_ALIVE */
 	    2,			/* REP_ALIVE_REQ */
 	    3,			/* REP_ALL_REQ */
+	    REP_INVALID,	/* REP_BLOB_ALL_REQ */
+	    REP_INVALID,	/* REP_BLOB_CHUNK */
+	    REP_INVALID,	/* REP_BLOB_CHUNK_REQ */
+	    REP_INVALID,	/* REP_BLOB_UPDATE */
+	    REP_INVALID,	/* REP_BLOB_UPDATE_REQ */
 	    4,			/* REP_BULK_LOG */
 	    5,			/* REP_BULK_PAGE */
 	    6,			/* REP_DUPMASTER */
@@ -1765,6 +1812,11 @@ __rep_msg_to_old(version, rectype)
 	    1,			/* REP_ALIVE */
 	    2,			/* REP_ALIVE_REQ */
 	    3,			/* REP_ALL_REQ */
+	    REP_INVALID,	/* REP_BLOB_ALL_REQ */
+	    REP_INVALID,	/* REP_BLOB_CHUNK */
+	    REP_INVALID,	/* REP_BLOB_CHUNK_REQ */
+	    REP_INVALID,	/* REP_BLOB_UPDATE */
+	    REP_INVALID,	/* REP_BLOB_UPDATE_REQ */
 	    4,			/* REP_BULK_LOG */
 	    5,			/* REP_BULK_PAGE */
 	    6,			/* REP_DUPMASTER */
@@ -1803,6 +1855,11 @@ __rep_msg_to_old(version, rectype)
 	    1,			/* REP_ALIVE */
 	    2,			/* REP_ALIVE_REQ */
 	    3,			/* REP_ALL_REQ */
+	    REP_INVALID,	/* REP_BLOB_ALL_REQ */
+	    REP_INVALID,	/* REP_BLOB_CHUNK */
+	    REP_INVALID,	/* REP_BLOB_CHUNK_REQ */
+	    REP_INVALID,	/* REP_BLOB_UPDATE */
+	    REP_INVALID,	/* REP_BLOB_UPDATE_REQ */
 	    4,			/* REP_BULK_LOG */
 	    5,			/* REP_BULK_PAGE */
 	    6,			/* REP_DUPMASTER */
@@ -1841,6 +1898,53 @@ __rep_msg_to_old(version, rectype)
 	    1,			/* REP_ALIVE */
 	    2,			/* REP_ALIVE_REQ */
 	    3,			/* REP_ALL_REQ */
+	    REP_INVALID,	/* REP_BLOB_ALL_REQ */
+	    REP_INVALID,	/* REP_BLOB_CHUNK */
+	    REP_INVALID,	/* REP_BLOB_CHUNK_REQ */
+	    REP_INVALID,	/* REP_BLOB_UPDATE */
+	    REP_INVALID,	/* REP_BLOB_UPDATE_REQ */
+	    4,			/* REP_BULK_LOG */
+	    5,			/* REP_BULK_PAGE */
+	    6,			/* REP_DUPMASTER */
+	    7,			/* REP_FILE */
+	    8,			/* REP_FILE_FAIL */
+	    9,			/* REP_FILE_REQ */
+	    10,			/* REP_LEASE_GRANT */
+	    11,			/* REP_LOG */
+	    12,			/* REP_LOG_MORE */
+	    13,			/* REP_LOG_REQ */
+	    14,			/* REP_MASTER_REQ */
+	    15,			/* REP_NEWCLIENT */
+	    16,			/* REP_NEWFILE */
+	    17,			/* REP_NEWMASTER */
+	    18,			/* REP_NEWSITE */
+	    19,			/* REP_PAGE */
+	    20,			/* REP_PAGE_FAIL */
+	    21,			/* REP_PAGE_MORE */
+	    22,			/* REP_PAGE_REQ */
+	    23,			/* REP_REREQUEST */
+	    24,			/* REP_START_SYNC */
+	    25,			/* REP_UPDATE */
+	    26,			/* REP_UPDATE_REQ */
+	    27,			/* REP_VERIFY */
+	    28,			/* REP_VERIFY_FAIL */
+	    29,			/* REP_VERIFY_REQ */
+	    30,			/* REP_VOTE1 */
+	    31			/* REP_VOTE2 */
+	},
+	/*
+	 * From 6.1 message number To 5.3 message number.  Messages
+	 * handling BLOBs were added.
+	 */
+	{   REP_INVALID,	/* NO message 0 */
+	    1,			/* REP_ALIVE */
+	    2,			/* REP_ALIVE_REQ */
+	    3,			/* REP_ALL_REQ */
+	    REP_INVALID,	/* REP_BLOB_ALL_REQ */
+	    REP_INVALID,	/* REP_BLOB_CHUNK */
+	    REP_INVALID,	/* REP_BLOB_CHUNK_REQ */
+	    REP_INVALID,	/* REP_BLOB_UPDATE */
+	    REP_INVALID,	/* REP_BLOB_UPDATE_REQ */
 	    4,			/* REP_BULK_LOG */
 	    5,			/* REP_BULK_PAGE */
 	    6,			/* REP_DUPMASTER */
@@ -1901,7 +2005,9 @@ __rep_msg_from_old(version, rectype)
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
-	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID },
+	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
+	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
+	    REP_INVALID },
 	/*
 	 * 4.2/DB_REPVERSION 1 no longer supported.
 	 */
@@ -1912,7 +2018,9 @@ __rep_msg_from_old(version, rectype)
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
-	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID },
+	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
+	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
+	    REP_INVALID },
 	/*
 	 * 4.3/DB_REPVERSION 2 no longer supported.
 	 */
@@ -1923,7 +2031,9 @@ __rep_msg_from_old(version, rectype)
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
 	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
-	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID },
+	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
+	    REP_INVALID, REP_INVALID, REP_INVALID, REP_INVALID,
+	    REP_INVALID },
 	/*
 	 * From 4.4/4.5 message number To 4.7 message number
 	 */
@@ -1931,36 +2041,41 @@ __rep_msg_from_old(version, rectype)
 	    1,			/* 1, REP_ALIVE */
 	    2,			/* 2, REP_ALIVE_REQ */
 	    3,			/* 3, REP_ALL_REQ */
-	    4,			/* 4, REP_BULK_LOG */
-	    5,			/* 5, REP_BULK_PAGE */
-	    6,			/* 6, REP_DUPMASTER */
-	    7,			/* 7, REP_FILE */
-	    8,			/* 8, REP_FILE_FAIL */
-	    9,			/* 9, REP_FILE_REQ */
-	    /* 10, REP_LEASE_GRANT doesn't exist */
-	    11,			/* 10, REP_LOG */
-	    12,			/* 11, REP_LOG_MORE */
-	    13,			/* 12, REP_LOG_REQ */
-	    14,			/* 13, REP_MASTER_REQ */
-	    15,			/* 14, REP_NEWCLIENT */
-	    16,			/* 15, REP_NEWFILE */
-	    17,			/* 16, REP_NEWMASTER */
-	    18,			/* 17, REP_NEWSITE */
-	    19,			/* 18, REP_PAGE */
-	    20,			/* 19, REP_PAGE_FAIL */
-	    21,			/* 20, REP_PAGE_MORE */
-	    22,			/* 21, REP_PAGE_REQ */
-	    23,			/* 22, REP_REREQUEST */
-	    /* 24, REP_START_SYNC doesn't exist */
-	    25,			/* 23, REP_UPDATE */
-	    26,			/* 24, REP_UPDATE_REQ */
-	    27,			/* 25, REP_VERIFY */
-	    28,			/* 26, REP_VERIFY_FAIL */
-	    29,			/* 27, REP_VERIFY_REQ */
-	    30,			/* 28, REP_VOTE1 */
-	    31,			/* 29, REP_VOTE2 */
+	    9,			/* 4, REP_BULK_LOG */
+	    10,			/* 5, REP_BULK_PAGE */
+	    11,			/* 6, REP_DUPMASTER */
+	    12,			/* 7, REP_FILE */
+	    13,			/* 8, REP_FILE_FAIL */
+	    14,			/* 9, REP_FILE_REQ */
+	    /* 15, REP_LEASE_GRANT doesn't exist */
+	    16,			/* 10, REP_LOG */
+	    17,			/* 11, REP_LOG_MORE */
+	    18,			/* 12, REP_LOG_REQ */
+	    19,			/* 13, REP_MASTER_REQ */
+	    20,			/* 14, REP_NEWCLIENT */
+	    21,			/* 15, REP_NEWFILE */
+	    22,			/* 16, REP_NEWMASTER */
+	    23,			/* 17, REP_NEWSITE */
+	    24,			/* 18, REP_PAGE */
+	    25,			/* 19, REP_PAGE_FAIL */
+	    26,			/* 20, REP_PAGE_MORE */
+	    27,			/* 21, REP_PAGE_REQ */
+	    28,			/* 22, REP_REREQUEST */
+	    /* 29, REP_START_SYNC doesn't exist */
+	    30,			/* 23, REP_UPDATE */
+	    31,			/* 24, REP_UPDATE_REQ */
+	    32,			/* 25, REP_VERIFY */
+	    33,			/* 26, REP_VERIFY_FAIL */
+	    34,			/* 27, REP_VERIFY_REQ */
+	    35,			/* 28, REP_VOTE1 */
+	    36,			/* 29, REP_VOTE2 */
 	    REP_INVALID,	/* 30, 4.4/4.5 no message */
-	    REP_INVALID		/* 31, 4.4/4.5 no message */
+	    REP_INVALID,	/* 31, 4.4/4.5 no message */
+	    REP_INVALID,	/* 32, 4.4/4.5 no message */
+	    REP_INVALID,	/* 33, 4.4/4.5 no message */
+	    REP_INVALID,	/* 34, 4.4/4.5 no message */
+	    REP_INVALID,	/* 35, 4.4/4.5 no message */
+	    REP_INVALID		/* 36, 4.4/4.5 no message */
 	},
 	/*
 	 * From 4.6 message number To 4.7 message number.  There are
@@ -1971,34 +2086,39 @@ __rep_msg_from_old(version, rectype)
 	    1,			/* 1, REP_ALIVE */
 	    2,			/* 2, REP_ALIVE_REQ */
 	    3,			/* 3, REP_ALL_REQ */
-	    4,			/* 4, REP_BULK_LOG */
-	    5,			/* 5, REP_BULK_PAGE */
-	    6,			/* 6, REP_DUPMASTER */
-	    7,			/* 7, REP_FILE */
-	    8,			/* 8, REP_FILE_FAIL */
-	    9,			/* 9, REP_FILE_REQ */
-	    10,			/* 10, REP_LEASE_GRANT */
-	    11,			/* 11, REP_LOG */
-	    12,			/* 12, REP_LOG_MORE */
-	    13,			/* 13, REP_LOG_REQ */
-	    14,			/* 14, REP_MASTER_REQ */
-	    15,			/* 15, REP_NEWCLIENT */
-	    16,			/* 16, REP_NEWFILE */
-	    17,			/* 17, REP_NEWMASTER */
-	    18,			/* 18, REP_NEWSITE */
-	    19,			/* 19, REP_PAGE */
-	    20,			/* 20, REP_PAGE_FAIL */
-	    21,			/* 21, REP_PAGE_MORE */
-	    22,			/* 22, REP_PAGE_REQ */
-	    23,			/* 22, REP_REREQUEST */
-	    24,			/* 24, REP_START_SYNC */
-	    25,			/* 25, REP_UPDATE */
-	    26,			/* 26, REP_UPDATE_REQ */
-	    27,			/* 27, REP_VERIFY */
-	    28,			/* 28, REP_VERIFY_FAIL */
-	    29,			/* 29, REP_VERIFY_REQ */
-	    30,			/* 30, REP_VOTE1 */
-	    31			/* 31, REP_VOTE2 */
+	    9,			/* 4, REP_BULK_LOG */
+	    10,			/* 5, REP_BULK_PAGE */
+	    11,			/* 6, REP_DUPMASTER */
+	    12,			/* 7, REP_FILE */
+	    13,			/* 8, REP_FILE_FAIL */
+	    14,			/* 9, REP_FILE_REQ */
+	    15,			/* 10, REP_LEASE_GRANT */
+	    16,			/* 11, REP_LOG */
+	    17,			/* 12, REP_LOG_MORE */
+	    18,			/* 13, REP_LOG_REQ */
+	    19,			/* 14, REP_MASTER_REQ */
+	    20,			/* 15, REP_NEWCLIENT */
+	    21,			/* 16, REP_NEWFILE */
+	    22,			/* 17, REP_NEWMASTER */
+	    23,			/* 18, REP_NEWSITE */
+	    24,			/* 19, REP_PAGE */
+	    25,			/* 20, REP_PAGE_FAIL */
+	    26,			/* 21, REP_PAGE_MORE */
+	    27,			/* 22, REP_PAGE_REQ */
+	    28,			/* 22, REP_REREQUEST */
+	    29,			/* 24, REP_START_SYNC */
+	    30,			/* 25, REP_UPDATE */
+	    31,			/* 26, REP_UPDATE_REQ */
+	    32,			/* 27, REP_VERIFY */
+	    33,			/* 28, REP_VERIFY_FAIL */
+	    34,			/* 29, REP_VERIFY_REQ */
+	    35,			/* 30, REP_VOTE1 */
+	    36,			/* 31, REP_VOTE2 */
+	    REP_INVALID,	/* 32, 4.6/4.7 no message */
+	    REP_INVALID,	/* 33, 4.6/4.7 no message */
+	    REP_INVALID,	/* 34, 4.6/4.7 no message */
+	    REP_INVALID,	/* 35, 4.6/4.7 no message */
+	    REP_INVALID		/* 36, 4.6/4.7 no message */
 	},
 	/*
 	 * From 4.7 message number To 5.2 message number.  There are
@@ -2009,34 +2129,39 @@ __rep_msg_from_old(version, rectype)
 	    1,			/* 1, REP_ALIVE */
 	    2,			/* 2, REP_ALIVE_REQ */
 	    3,			/* 3, REP_ALL_REQ */
-	    4,			/* 4, REP_BULK_LOG */
-	    5,			/* 5, REP_BULK_PAGE */
-	    6,			/* 6, REP_DUPMASTER */
-	    7,			/* 7, REP_FILE */
-	    8,			/* 8, REP_FILE_FAIL */
-	    9,			/* 9, REP_FILE_REQ */
-	    10,			/* 10, REP_LEASE_GRANT */
-	    11,			/* 11, REP_LOG */
-	    12,			/* 12, REP_LOG_MORE */
-	    13,			/* 13, REP_LOG_REQ */
-	    14,			/* 14, REP_MASTER_REQ */
-	    15,			/* 15, REP_NEWCLIENT */
-	    16,			/* 16, REP_NEWFILE */
-	    17,			/* 17, REP_NEWMASTER */
-	    18,			/* 18, REP_NEWSITE */
-	    19,			/* 19, REP_PAGE */
-	    20,			/* 20, REP_PAGE_FAIL */
-	    21,			/* 21, REP_PAGE_MORE */
-	    22,			/* 22, REP_PAGE_REQ */
-	    23,			/* 22, REP_REREQUEST */
-	    24,			/* 24, REP_START_SYNC */
-	    25,			/* 25, REP_UPDATE */
-	    26,			/* 26, REP_UPDATE_REQ */
-	    27,			/* 27, REP_VERIFY */
-	    28,			/* 28, REP_VERIFY_FAIL */
-	    29,			/* 29, REP_VERIFY_REQ */
-	    30,			/* 30, REP_VOTE1 */
-	    31			/* 31, REP_VOTE2 */
+	    9,			/* 4, REP_BULK_LOG */
+	    10,			/* 5, REP_BULK_PAGE */
+	    11,			/* 6, REP_DUPMASTER */
+	    12,			/* 7, REP_FILE */
+	    13,			/* 8, REP_FILE_FAIL */
+	    14,			/* 9, REP_FILE_REQ */
+	    15,			/* 10, REP_LEASE_GRANT */
+	    16,			/* 11, REP_LOG */
+	    17,			/* 12, REP_LOG_MORE */
+	    18,			/* 13, REP_LOG_REQ */
+	    19,			/* 14, REP_MASTER_REQ */
+	    20,			/* 15, REP_NEWCLIENT */
+	    21,			/* 16, REP_NEWFILE */
+	    22,			/* 17, REP_NEWMASTER */
+	    23,			/* 18, REP_NEWSITE */
+	    24,			/* 19, REP_PAGE */
+	    25,			/* 20, REP_PAGE_FAIL */
+	    26,			/* 21, REP_PAGE_MORE */
+	    27,			/* 22, REP_PAGE_REQ */
+	    28,			/* 22, REP_REREQUEST */
+	    29,			/* 24, REP_START_SYNC */
+	    30,			/* 25, REP_UPDATE */
+	    31,			/* 26, REP_UPDATE_REQ */
+	    32,			/* 27, REP_VERIFY */
+	    33,			/* 28, REP_VERIFY_FAIL */
+	    34,			/* 29, REP_VERIFY_REQ */
+	    35,			/* 30, REP_VOTE1 */
+	    36,			/* 31, REP_VOTE2 */
+	    REP_INVALID,	/* 32, 4.7/5.2 no message */
+	    REP_INVALID,	/* 33, 4.7/5.2 no message */
+	    REP_INVALID,	/* 34, 4.7/5.2 no message */
+	    REP_INVALID,	/* 35, 4.7/5.2 no message */
+	    REP_INVALID		/* 36, 4.7/5.2 no message */
 	},
 	/*
 	 * From 4.7 message number To 5.3 message number.  There are
@@ -2047,34 +2172,86 @@ __rep_msg_from_old(version, rectype)
 	    1,			/* 1, REP_ALIVE */
 	    2,			/* 2, REP_ALIVE_REQ */
 	    3,			/* 3, REP_ALL_REQ */
-	    4,			/* 4, REP_BULK_LOG */
-	    5,			/* 5, REP_BULK_PAGE */
-	    6,			/* 6, REP_DUPMASTER */
-	    7,			/* 7, REP_FILE */
-	    8,			/* 8, REP_FILE_FAIL */
-	    9,			/* 9, REP_FILE_REQ */
-	    10,			/* 10, REP_LEASE_GRANT */
-	    11,			/* 11, REP_LOG */
-	    12,			/* 12, REP_LOG_MORE */
-	    13,			/* 13, REP_LOG_REQ */
-	    14,			/* 14, REP_MASTER_REQ */
-	    15,			/* 15, REP_NEWCLIENT */
-	    16,			/* 16, REP_NEWFILE */
-	    17,			/* 17, REP_NEWMASTER */
-	    18,			/* 18, REP_NEWSITE */
-	    19,			/* 19, REP_PAGE */
-	    20,			/* 20, REP_PAGE_FAIL */
-	    21,			/* 21, REP_PAGE_MORE */
-	    22,			/* 22, REP_PAGE_REQ */
-	    23,			/* 22, REP_REREQUEST */
-	    24,			/* 24, REP_START_SYNC */
-	    25,			/* 25, REP_UPDATE */
-	    26,			/* 26, REP_UPDATE_REQ */
-	    27,			/* 27, REP_VERIFY */
-	    28,			/* 28, REP_VERIFY_FAIL */
-	    29,			/* 29, REP_VERIFY_REQ */
-	    30,			/* 30, REP_VOTE1 */
-	    31			/* 31, REP_VOTE2 */
+	    9,			/* 4, REP_BULK_LOG */
+	    10,			/* 5, REP_BULK_PAGE */
+	    11,			/* 6, REP_DUPMASTER */
+	    12,			/* 7, REP_FILE */
+	    13,			/* 8, REP_FILE_FAIL */
+	    14,			/* 9, REP_FILE_REQ */
+	    15,			/* 10, REP_LEASE_GRANT */
+	    16,			/* 11, REP_LOG */
+	    17,			/* 12, REP_LOG_MORE */
+	    18,			/* 13, REP_LOG_REQ */
+	    19,			/* 14, REP_MASTER_REQ */
+	    20,			/* 15, REP_NEWCLIENT */
+	    21,			/* 16, REP_NEWFILE */
+	    22,			/* 17, REP_NEWMASTER */
+	    23,			/* 18, REP_NEWSITE */
+	    24,			/* 19, REP_PAGE */
+	    25,			/* 20, REP_PAGE_FAIL */
+	    26,			/* 21, REP_PAGE_MORE */
+	    27,			/* 22, REP_PAGE_REQ */
+	    28,			/* 22, REP_REREQUEST */
+	    29,			/* 24, REP_START_SYNC */
+	    30,			/* 25, REP_UPDATE */
+	    31,			/* 26, REP_UPDATE_REQ */
+	    32,			/* 27, REP_VERIFY */
+	    33,			/* 28, REP_VERIFY_FAIL */
+	    34,			/* 29, REP_VERIFY_REQ */
+	    35,			/* 30, REP_VOTE1 */
+	    36,			/* 31, REP_VOTE2 */
+	    REP_INVALID,	/* 32, 4.7/5.3 no message */
+	    REP_INVALID,	/* 33, 4.7/5.3 no message */
+	    REP_INVALID,	/* 34, 4.7/5.3 no message */
+	    REP_INVALID,	/* 35, 4.7/5.3 no message */
+	    REP_INVALID		/* 36, 4.7/5.3 no message */
+	},
+	/*
+	 * From 5.3 message number To 6.1 message number.  Messages to
+	 * handle BLOBs were added.
+	 */
+	{   REP_INVALID,	/* NO message 0 */
+	    1,			/* 1, REP_ALIVE */
+	    2,			/* 2, REP_ALIVE_REQ */
+	    3,			/* 3, REP_ALL_REQ */
+	    /* 4, REP_BLOB_ALL_REQ doesn't exist */
+	    /* 5, REP_BLOB_CHUNK doesn't exist */
+	    /* 6, REP_BLOB_CHUNK_REQ doesn't exist */
+	    /* 7, REP_BLOB_UPDATE doesn't exist */
+	    /* 8, REP_BLOB_UPDATE_REQ doesn't exist */
+	    9,			/* 4, REP_BULK_LOG */
+	    10,			/* 5, REP_BULK_PAGE */
+	    11,			/* 6, REP_DUPMASTER */
+	    12,			/* 7, REP_FILE */
+	    13,			/* 8, REP_FILE_FAIL */
+	    14,			/* 9, REP_FILE_REQ */
+	    15,			/* 10, REP_LEASE_GRANT */
+	    16,			/* 11, REP_LOG */
+	    17,			/* 12, REP_LOG_MORE */
+	    18,			/* 13, REP_LOG_REQ */
+	    19,			/* 14, REP_MASTER_REQ */
+	    20,			/* 15, REP_NEWCLIENT */
+	    21,			/* 16, REP_NEWFILE */
+	    22,			/* 17, REP_NEWMASTER */
+	    23,			/* 18, REP_NEWSITE */
+	    24,			/* 19, REP_PAGE */
+	    25,			/* 20, REP_PAGE_FAIL */
+	    26,			/* 21, REP_PAGE_MORE */
+	    27,			/* 22, REP_PAGE_REQ */
+	    28,			/* 23, REP_REREQUEST */
+	    29,			/* 24, REP_START_SYNC */
+	    30,			/* 25, REP_UPDATE */
+	    31,			/* 26, REP_UPDATE_REQ */
+	    32,			/* 27, REP_VERIFY */
+	    33,			/* 28, REP_VERIFY_FAIL */
+	    34,			/* 29, REP_VERIFY_REQ */
+	    35,			/* 30, REP_VOTE1 */
+	    36,			/* 31, REP_VOTE2 */
+	    REP_INVALID,	/* 32, 5.3/6.1 no message */
+	    REP_INVALID,	/* 33, 5.3/6.1 no message */
+	    REP_INVALID,	/* 34, 5.3/6.1 no message */
+	    REP_INVALID,	/* 35, 5.3/6.1 no message */
+	    REP_INVALID		/* 36, 5.3/6.1 no message */
 	}
 	};
 	return (table[version][rectype]);
@@ -2215,9 +2392,9 @@ __rep_print_int(env, verbose, fmt, ap)
 	__os_id(env->dbenv, &pid, &tid);
 	if (diag_msg)
 		MUTEX_LOCK(env, rep->mtx_diag);
-	__os_gettime(env, &ts, 1);
+	__os_gettime(env, &ts, 0);
 	__db_msgadd(env, &mb, "[%lu:%lu][%s] %s: ",
-	    (u_long)ts.tv_sec, (u_long)ts.tv_nsec/NS_PER_US,
+	    (u_long)ts.tv_sec, (u_long)ts.tv_nsec / NS_PER_US,
 	    env->dbenv->thread_id_string(env->dbenv, pid, tid, buf), s);
 
 	__db_msgadd_ap(env, &mb, fmt, ap);
@@ -2259,6 +2436,26 @@ __rep_print_message(env, eid, rp, str, flags)
 	case REP_ALL_REQ:
 		FLD_SET(verbflag, DB_VERB_REP_MISC);
 		type = "all_req";
+		break;
+	case REP_BLOB_ALL_REQ:
+		FLD_SET(verbflag, DB_VERB_REP_MISC);
+		type = "all_blob_req";
+		break;
+	case REP_BLOB_CHUNK:
+		FLD_SET(verbflag, DB_VERB_REP_MISC);
+		type = "blob_chunk";
+		break;
+	case REP_BLOB_CHUNK_REQ:
+		FLD_SET(verbflag, DB_VERB_REP_MISC);
+		type = "blob_chunk_req";
+		break;
+	case REP_BLOB_UPDATE:
+		FLD_SET(verbflag, DB_VERB_REP_MISC);
+		type = "blob_update";
+		break;
+	case REP_BLOB_UPDATE_REQ:
+		FLD_SET(verbflag, DB_VERB_REP_MISC);
+		type = "blob_update_req";
 		break;
 	case REP_BULK_LOG:
 		FLD_SET(verbflag, DB_VERB_REP_MISC);
@@ -2650,9 +2847,19 @@ __rep_log_backup(env, logc, lsn, match)
 		 */
 		if ((match == REP_REC_COMMIT &&
 		    rectype == DB___txn_regop) ||
-		    (match == REP_REC_PERM &&
-		    (rectype == DB___txn_ckp || rectype == DB___txn_regop)))
+		    ((match == REP_REC_PERM || match == REP_REC_PERM_DEL) &&
+		    IS_PERM_RECTYPE(rectype)))
 			break;
+		/*
+		 * Break early if a file remove is discovered in the logs.
+		 * BDB cannot restore a deleted database or blob file from
+		 * logs, so trigger internal init to recover the file.
+		 * Used by Instant Internal Init in replication.
+		 */
+		if (match == REP_REC_PERM_DEL && rectype == DB___fop_remove) {
+			ret = DB_NOTFOUND;
+			break;
+		}
 	}
 	return (ret);
 }
@@ -2671,7 +2878,6 @@ __rep_get_maxpermlsn(env, max_perm_lsnp)
 {
 	DB_LOG *dblp;
 	DB_REP *db_rep;
-	DB_THREAD_INFO *ip;
 	LOG *lp;
 	REP *rep;
 
@@ -2680,11 +2886,9 @@ __rep_get_maxpermlsn(env, max_perm_lsnp)
 	dblp = env->lg_handle;
 	lp = dblp->reginfo.primary;
 
-	ENV_ENTER(env, ip);
 	MUTEX_LOCK(env, rep->mtx_clientdb);
 	*max_perm_lsnp = lp->max_perm_lsn;
 	MUTEX_UNLOCK(env, rep->mtx_clientdb);
-	ENV_LEAVE(env, ip);
 	return (0);
 }
 
@@ -2724,12 +2928,13 @@ __rep_get_datagen(env, data_genp)
 	u_int8_t data_buf[__REP_LSN_HIST_DATA_SIZE];
 	DBT key_dbt, data_dbt;
 	u_int32_t flags;
-	int ret, t_ret, tries;
+	int ret, t_ret, tries, was_open;
 
 	db_rep = env->rep_handle;
 	ret = 0;
 	*data_genp = 0;
 	tries = 0;
+	was_open = 0;
 	flags = DB_LAST;
 retry:
 	if ((ret = __txn_begin(env, NULL, NULL, &txn, DB_IGNORE_LEASE)) != 0)
@@ -2746,10 +2951,10 @@ retry:
 			 * That is not an error.
 			 */
 			ret = 0;
-			goto out;
+			goto noclose;
 		}
-		db_rep->lsn_db = dbp;
-	}
+	} else
+		was_open = 1;
 
 	if ((ret = __db_cursor(dbp, NULL, txn, &dbc, 0)) != 0)
 		goto out;
@@ -2784,8 +2989,126 @@ retry:
 	    &key, key_buf, __REP_LSN_HIST_KEY_SIZE, NULL)) == 0)
 		*data_genp = key.gen;
 out:
+	if (!was_open && dbp != NULL &&
+	    (t_ret = __db_close(dbp, txn, DB_NOSYNC)) != 0 && ret == 0)
+		ret = t_ret;
+noclose:
 	if ((t_ret = __txn_commit(txn, DB_TXN_NOSYNC)) != 0 && ret == 0)
 		ret = t_ret;
 err:
+	return (ret);
+}
+
+/*
+ * __rep_become_readonly_master --
+ *
+ * Put this master into a state where it no longer accepts writes but it
+ * is still a master that can respond to requests for missing messages.
+ * It fills in sync_lsn to provide a mechanism to know the LSN of the
+ * next log record expected on this site.  Generally, this site should
+ * be restarted as a client shortly after becoming a readonly master.
+ *
+ * PUBLIC: int __rep_become_readonly_master
+ * PUBLIC:      __P((ENV *, u_int32_t *, DB_LSN *));
+ */
+int
+__rep_become_readonly_master(env, gen, sync_lsnp)
+	ENV *env;
+	u_int32_t *gen;
+	DB_LSN *sync_lsnp;
+{
+	DB_LOG *dblp;
+	DB_REP *db_rep;
+	LOG *lp;
+	REP *rep;
+	int locked, ret;
+
+	db_rep = env->rep_handle;
+	rep = db_rep->region;
+	dblp = env->lg_handle;
+	lp = dblp->reginfo.primary;
+	*gen = 0;
+	ZERO_LSN(*sync_lsnp);
+	ret = 0;
+	locked = 0;
+
+	REP_SYSTEM_LOCK(env);
+	/*
+	 * Lock out replication message thread processing so that replication
+	 * world won't change (e.g. restart, client sync).
+	 */
+	if (FLD_ISSET(rep->lockout_flags, REP_LOCKOUT_MSG)) {
+		/* There is already someone in msg lockout, return. */
+		RPRINT(env, (env, DB_VERB_REP_MISC,
+		    "Readonly master: thread already in msg lockout"));
+		goto errunlock;
+	} else if ((ret = __rep_lockout_msg(env, rep, 0)) != 0)
+		goto errclearlockouts;
+
+	/*
+	 * Lock out API to wait for active txn/mpool operations to complete
+	 * and prevent new ones from starting.
+	 */
+	if ((ret = __rep_lockout_api(env, rep)) != 0)
+		goto errclearlockouts;
+	locked = 1;
+
+	/* Make this site a readonly master and get master generation. */
+	F_SET(rep, REP_F_READONLY_MASTER);
+	*gen = rep->gen;
+	REP_SYSTEM_UNLOCK(env);
+
+	/* Get the next log record the logging subsystem expects to write. */
+	LOG_SYSTEM_LOCK(env);
+	*sync_lsnp = lp->lsn;
+	LOG_SYSTEM_UNLOCK(env);
+
+	REP_SYSTEM_LOCK(env);
+errclearlockouts:
+	FLD_CLR(rep->lockout_flags, REP_LOCKOUT_MSG);
+	if (locked)
+		CLR_LOCKOUT_BDB(rep);
+errunlock:
+	REP_SYSTEM_UNLOCK(env);
+	return (ret);
+}
+
+/*
+ * __rep_get_lsnhist_data --
+ *
+ * A utility function to get the full LSN history database record for a
+ * particular gen.
+ *
+ * PUBLIC: int __rep_get_lsnhist_data __P((ENV *, DB_THREAD_INFO *,
+ * PUBLIC:     u_int32_t, __rep_lsn_hist_data_args *));
+ */
+int
+__rep_get_lsnhist_data(env, ip, gen, lsnhist_data)
+	ENV *env;
+	DB_THREAD_INFO *ip;
+	u_int32_t gen;
+	__rep_lsn_hist_data_args *lsnhist_data;
+{
+	DB_TXN *txn;
+	DBC *dbc;
+	struct rep_waitgoal reason;
+	int ret, t_ret;
+
+	txn = NULL;
+	dbc = NULL;
+
+	/*
+	 * Cannot use cached LSN history values because we need the
+	 * timestamp value here, which is not cached.
+	 */
+	ret = __rep_read_lsn_history(env,
+	    ip, &txn, &dbc, gen, lsnhist_data, &reason, DB_SET, 0);
+
+	if (dbc != NULL &&
+	    (t_ret = __dbc_close(dbc)) != 0 && ret == 0)
+		ret = t_ret;
+	if (txn != NULL &&
+	    (t_ret = __db_txn_auto_resolve(env, txn, 1, ret)) != 0 && ret == 0)
+		ret = t_ret;
 	return (ret);
 }

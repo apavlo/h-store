@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  */
 /*
  * Copyright (c) 1995, 1996
@@ -37,12 +37,16 @@
 #include "db_config.h"
 
 #include "db_int.h"
+#include "dbinc/blob.h"
 #include "dbinc/db_page.h"
 #include "dbinc/db_am.h"
 #include "dbinc/txn.h"
 
 static int __dbreg_open_file __P((ENV *,
     DB_TXN *, __dbreg_register_args *, void *));
+static int __dbreg_register_recover_int
+    __P((ENV *, DBT *, db_recops, void *, __dbreg_register_args *));
+
 /*
  * PUBLIC: int __dbreg_register_recover
  * PUBLIC:     __P((ENV *, DBT *, DB_LSN *, db_recops, void *));
@@ -56,21 +60,97 @@ __dbreg_register_recover(env, dbtp, lsnp, op, info)
 	void *info;
 {
 	__dbreg_register_args *argp;
+	int ret;
+
+	argp = NULL;
+
+	if ((ret = __dbreg_register_read(env, dbtp->data, &argp)) != 0)
+		goto out;
+
+	ret = __dbreg_register_recover_int(env, dbtp, op, info, argp);
+
+	if (ret == 0)
+		*lsnp = argp->prev_lsn;
+out:	if (argp != NULL)
+		__os_free(env, argp);
+	return (ret);
+}
+
+/*
+ * PUBLIC: int __dbreg_register_42_recover
+ * PUBLIC:     __P((ENV *, DBT *, DB_LSN *, db_recops, void *));
+ */
+int
+__dbreg_register_42_recover(env, dbtp, lsnp, op, info)
+	ENV *env;
+	DBT *dbtp;
+	DB_LSN *lsnp;
+	db_recops op;
+	void *info;
+{
+	__dbreg_register_42_args *argp;
+	__dbreg_register_args arg;
+	int ret;
+
+	argp = NULL;
+	if ((ret = __dbreg_register_42_read(env, dbtp->data, &argp)) != 0)
+		goto err;
+
+	/*
+	 * Databases before 6.0 cannot support blobs, so the blob_fid is 0.
+	 * After 6.0 they can support blobs, so it is possible it has a non-0
+	 * blob_fid, but since logging that value in dbreg_register
+	 * is only used in replication, and replication does not support blobs
+	 * until 6.1, this is safe.
+	 */
+	memcpy(&arg, argp, sizeof(__dbreg_register_42_args));
+	arg.blob_fid_lo = 0;
+	arg.blob_fid_hi = 0;
+
+	ret = __dbreg_register_recover_int(env, dbtp, op, info, &arg);
+
+	if (ret == 0)
+		*lsnp = argp->prev_lsn;
+err:	if (argp != NULL)
+		__os_free(env, argp);
+	return (ret);
+}
+
+/*
+ * Internal register recovery function for both the 42 log version and the
+ * 61 log version.
+ */
+static int
+__dbreg_register_recover_int(env, dbtp, op, info, argp)
+	ENV *env;
+	DBT *dbtp;
+	db_recops op;
+	void *info;
+	__dbreg_register_args *argp;
+{
 	DB_ENTRY *dbe;
 	DB_LOG *dblp;
 	DB *dbp;
 	u_int32_t opcode, status;
 	int do_close, do_open, do_rem, ret, t_ret;
+#ifdef	HAVE_REPLICATION
+	DB_REP *db_rep;
+	DELAYED_BLOB_LIST *dbl;
+	int view_partial;
+
+	dbl = NULL;
+#endif
 
 	dblp = env->lg_handle;
 	dbp = NULL;
+	ret = 0;
 
 #ifdef DEBUG_RECOVER
 	REC_PRINT(__dbreg_register_print);
+#else
+	COMPQUIET(dbtp, NULL);
 #endif
 	do_open = do_close = 0;
-	if ((ret = __dbreg_register_read(env, dbtp->data, &argp)) != 0)
-		goto out;
 
 	opcode = FLD_ISSET(argp->opcode, DBREG_OP_MASK);
 	switch (opcode) {
@@ -123,12 +203,54 @@ __dbreg_register_recover(env, dbtp, lsnp, op, info)
 	}
 
 	if (do_open) {
+#ifdef	HAVE_REPLICATION
+		/*
+		 * Partial replication may apply at this time.  Invoke
+		 * the callback if several conditions are met:
+		 * - We are a view.
+		 * - This is the OPENFILES pass of recovery.
+		 * - The file is not a BDB owned database.
+		 * - The dbreg operation is a create (id != TXN_INVALID).
+		 *
+		 * If the file is to be skipped, then we have to TXN_IGNORE
+		 * the txnlist for that create operation.
+		 */
+		if (IS_VIEW_SITE(env) && op == DB_TXN_OPENFILES &&
+		    (!IS_DB_FILE(argp->name.data) ||
+		    IS_BLOB_META(argp->name.data)) &&
+		    argp->id != TXN_INVALID) {
+			db_rep = env->rep_handle;
+			/*
+			 * Once a view, always a view.  Must have set
+			 * a callback already.
+			 */
+			if (db_rep->partial == NULL) {
+				__db_errx(env, DB_STR("1592",
+				    "Must set a view callback."));
+				ret = EINVAL;
+				goto out;
+			}
+			if ((ret = __rep_call_partial(env,
+			    argp->name.data, &view_partial, 0, &dbl)) != 0)
+				goto out;
+			DB_ASSERT(env, dbl == NULL);
+
+			/*
+			 * If this should not be replicated, then set
+			 * the child txnlist to TXN_IGNORE.
+			 */
+			if (view_partial == 0 &&
+			    (ret = __db_txnlist_update(env, info,
+			    argp->id, TXN_IGNORE, NULL, &status, 1)) != 0)
+				goto out;
+		}
+#endif
 		/*
 		 * We must open the db even if the meta page is not
 		 * yet written as we may be creating subdatabase.
 		 */
-		if (op == DB_TXN_OPENFILES && opcode != DBREG_CHKPNT
-		    && opcode != DBREG_XCHKPNT)
+		if (op == DB_TXN_OPENFILES && opcode != DBREG_CHKPNT &&
+		    opcode != DBREG_XCHKPNT)
 			F_SET(dblp, DBLOG_FORCE_OPEN);
 
 		/*
@@ -205,7 +327,7 @@ __dbreg_register_recover(env, dbtp, lsnp, op, info)
 			if (dbe->dbp == NULL && !dbe->deleted) {
 				/* No valid entry here. Nothing to do. */
 				MUTEX_UNLOCK(env, dblp->mtx_dbreg);
-				goto done;
+				goto out;
 			}
 
 			/* We have either an open entry or a deleted entry. */
@@ -273,11 +395,7 @@ __dbreg_register_recover(env, dbtp, lsnp, op, info)
 			}
 		}
 	}
-done:	if (ret == 0)
-		*lsnp = argp->prev_lsn;
-out:	if (argp != NULL)
-		__os_free(env, argp);
-	return (ret);
+out:	return (ret);
 }
 
 /*
@@ -296,11 +414,13 @@ __dbreg_open_file(env, txn, argp, info)
 	DB *dbp;
 	DB_ENTRY *dbe;
 	DB_LOG *dblp;
+	db_seq_t blob_file_id;
 	u_int32_t id, opcode, status;
 	int ret;
 
 	dblp = env->lg_handle;
 	opcode = FLD_ISSET(argp->opcode, DBREG_OP_MASK);
+	ret = 0;
 
 	/*
 	 * When we're opening, we have to check that the name we are opening
@@ -336,7 +456,7 @@ __dbreg_open_file(env, txn, argp, info)
 		 * bit and try to open it again.
 		 */
 		if ((dbp = dbe->dbp) != NULL) {
-			if (opcode == DBREG_REOPEN || 
+			if (opcode == DBREG_REOPEN ||
 			    opcode == DBREG_XREOPEN ||
 			    !F_ISSET(dbp, DB_AM_OPEN_CALLED) ||
 			    dbp->meta_pgno != argp->meta_pgno ||
@@ -393,7 +513,11 @@ reopen:
 		txn->mgrp = env->tx_handle;
 	}
 
-	return (__dbreg_do_open(env,
-	    txn, dblp, argp->uid.data, argp->name.data, argp->ftype,
-	    argp->fileid, argp->meta_pgno, info, argp->id, opcode));
+	GET_LO_HI(env,
+	    argp->blob_fid_lo, argp->blob_fid_hi, blob_file_id, ret);
+	if (ret != 0)
+		return (ret);
+	return (__dbreg_do_open(env, txn, dblp, argp->uid.data,
+	    argp->name.data, argp->ftype, argp->fileid,
+	    argp->meta_pgno, info, argp->id, opcode, blob_file_id));
 }

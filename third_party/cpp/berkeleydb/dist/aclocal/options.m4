@@ -175,6 +175,13 @@ AC_ARG_ENABLE(debug_wop,
 	[db_cv_debug_wop="$enable_debug_wop"], [db_cv_debug_wop="no"])
 AC_MSG_RESULT($db_cv_debug_wop)
 
+AC_MSG_CHECKING(if --enable-error_history option specified)
+AC_ARG_ENABLE(error_history,
+	[AC_HELP_STRING([--enable-error_history],
+			[Build a version that records extra information about errors])],
+	[db_cv_error_history="$enable_error_history"], [db_cv_error_history="no"])
+AC_MSG_RESULT($db_cv_error_history)
+
 AC_MSG_CHECKING(if --enable-diagnostic option specified)
 AC_ARG_ENABLE(diagnostic,
 	[AC_HELP_STRING([--enable-diagnostic],
@@ -354,6 +361,21 @@ AC_ARG_ENABLE(perfmon_statistics,
 	[db_cv_perfmon_statistics="$enable_perfmon_statistics"], [db_cv_perfmon_statistics="no"])
 AC_MSG_RESULT($db_cv_perfmon_statistics)
 
+# Application which use failchk can choose to inform all threads waiting on
+# mutexes to be notified as soon as possible after a crash thread is detected.
+AC_MSG_CHECKING(if --enable-failchk_broadcast option specified)
+AC_ARG_ENABLE(failchk_broadcast,
+	[AC_HELP_STRING([--enable-failchk_broadcast],
+			[Add support for immediately broadcasting failchk events to all waiting threads])],
+	[db_cv_failchk_broadcast="$enable_failchk_broadcast"], [db_cv_failchk_broadcast="no"])
+AC_MSG_RESULT($db_cv_failchk_broadcast)
+if test "$db_cv_failchk_broadcast" = "yes"; then
+	AC_DEFINE(HAVE_FAILCHK_BROADCAST)
+	AH_TEMPLATE(HAVE_FAILCHK_BROADCAST,
+    [Define to 1 for failchk to inform all waiting threads about crashes.])
+	ADDITIONAL_PROGS="$ADDITIONAL_PROGS test_failchk"
+fi
+
 AC_MSG_CHECKING(if --enable-uimutexes option specified)
 AC_ARG_ENABLE(uimutexes,
 	[AC_HELP_STRING([--enable-uimutexes],
@@ -387,30 +409,6 @@ if test "$db_cv_atomicfileread" = "yes"; then
 	AH_TEMPLATE(HAVE_ATOMICFILEREAD,
     [Define to 1 if platform reads and writes files atomically.])
 fi
-
-# Cryptography support.
-# Until Berkeley DB 5.0, this was a simple yes/no decision.
-# With the addition of support for Intel Integrated Performance Primitives (ipp)
-# things are more complex.  There are now three options:
-#   1) don't build cryptography (no)
-#   2) build using the built-in software implementation (yes)
-#   3) build using the Intel IPP implementation (ipp)
-# We handle this by making the primary configuration method:
-#   --with-cryptography={yes|no|ipp}
-# which defaults to yes.  The old enable/disable-cryptography argument is still
-# supported for backwards compatibility.
-AC_MSG_CHECKING(if --with-cryptography option specified)
-AC_ARG_ENABLE(cryptography, [], [], enableval=$db_cv_build_full)
-enable_cryptography="$enableval"
-AC_ARG_WITH([cryptography],
-	AC_HELP_STRING([--with-cryptography=yes|no|ipp], [Build database cryptography support @<:@default=yes@:>@.]),
-	[], [with_cryptography=$enable_cryptography])
-case "$with_cryptography" in
-yes|no|ipp) ;;
-*) AC_MSG_ERROR([unknown --with-cryptography argument \'$with_cryptography\']) ;;
-esac
-db_cv_build_cryptography="$with_cryptography"
-AC_MSG_RESULT($db_cv_build_cryptography)
 
 AC_MSG_CHECKING(if --with-mutex=MUTEX option specified)
 AC_ARG_WITH(mutex,
@@ -478,6 +476,40 @@ fi
 # --enable-jdbc implies --enable-sql
 if test "$db_cv_jdbc" = "yes" -a "$db_cv_sql" = "no"; then
 	db_cv_sql=$db_cv_jdbc
+fi
+
+# Cryptography support.
+# Until Berkeley DB 5.0, this was a simple yes/no decision.
+# With the addition of support for Intel Integrated Performance Primitives (ipp)
+# things are more complex.  There are now three options:
+#   1) don't build cryptography (no)
+#   2) build using the built-in software implementation (yes)
+#   3) build using the Intel IPP implementation (ipp)
+# We handle this by making the primary configuration method:
+#   --with-cryptography={yes|no|ipp}
+# which defaults to yes, unless building the SQL library(--enable-sql).
+# The old enable/disable-cryptography argument is still
+# supported for backwards compatibility.
+AC_MSG_CHECKING(if --with-cryptography option specified)
+build_cryptography="$db_cv_build_full";
+if test "$db_cv_sql" = "yes" -a "$build_cryptography" = "yes"; then
+	build_cryptography="no";
+fi
+AC_ARG_ENABLE(cryptography, [], [], [enableval=$build_cryptography])
+enable_cryptography="$enableval"
+AC_ARG_WITH([cryptography],
+	AC_HELP_STRING([--with-cryptography=yes|no|ipp], [Build database cryptography support. The default value is "yes", unless building the SQL library.]),
+	[], [with_cryptography=$enable_cryptography])
+case "$with_cryptography" in
+yes|no|ipp) ;;
+*) AC_MSG_ERROR([unknown --with-cryptography argument \'$with_cryptography\']) ;;
+esac
+db_cv_build_cryptography="$with_cryptography"
+if test -d "$topdir/src/crypto" ; then
+	AC_MSG_RESULT($db_cv_build_cryptography)
+else
+	db_cv_build_cryptography="no"
+	AC_MSG_WARN(Ignoring --with-cryptography flag value. The NC package builds a Berkeley DB library that does not support encryption.)
 fi
 
 # Testing requires Tcl.

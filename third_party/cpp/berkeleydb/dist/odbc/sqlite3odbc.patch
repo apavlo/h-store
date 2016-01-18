@@ -1,0 +1,19 @@
+--- a/sqlite3odbc.c     Sun Dec  8 15:19:27 2013 
++++ b/sqlite3odbc.c     Fri Mar 28 11:59:54 2014 
+@@ -401,6 +401,7 @@
+ #define snprintf    _snprintf
+ #define strcasecmp  _stricmp
+ #define strncasecmp _strnicmp
++#define strtoll     _strtoi64
+ 
+ static HINSTANCE NEAR hModule;	/* Saved module handle for resources */
+ 
+@@ -13916,7 +13916,7 @@
+ 		dlen -= 2;
+ 		dp += 2;
+ 		dlen = dlen / 2;
+-		s->bincache = bin = xmalloc(dlen);
++		s->bincache = bin = xmalloc(dlen + 1);
+ 		if (!bin) {
+ 		    return nomem(s);
+ 		}

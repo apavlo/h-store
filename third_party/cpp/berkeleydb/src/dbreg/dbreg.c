@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -9,6 +9,7 @@
 #include "db_config.h"
 
 #include "db_int.h"
+#include "dbinc/blob.h"
 #include "dbinc/db_page.h"
 #include "dbinc/log.h"
 #include "dbinc/txn.h"
@@ -171,6 +172,7 @@ __dbreg_setup(dbp, fname, dname, create_txnid)
 		F_SET(fnp, DBREG_EXCL);
 	fnp->txn_ref = 1;
 	fnp->mutex = dbp->mutex;
+	fnp->blob_file_id = dbp->blob_file_id;
 
 	dbp->log_filename = fnp;
 
@@ -722,7 +724,7 @@ __dbreg_failchk(env)
 	MUTEX_LOCK(env, lp->mtx_filelist);
 	for (fnp = SH_TAILQ_FIRST(&lp->fq, __fname); fnp != NULL; fnp = nnp) {
 		nnp = SH_TAILQ_NEXT(fnp, q, __fname);
-		if (dbenv->is_alive(dbenv, 
+		if (dbenv->is_alive(dbenv,
 		    fnp->pid, unused, DB_MUTEX_PROCESS_ONLY))
 			continue;
 		MUTEX_LOCK(env, fnp->mutex);
@@ -773,6 +775,7 @@ __dbreg_log_close(env, fnp, txn, op)
 	DB_LOG *dblp;
 	DB_LSN r_unused;
 	int ret;
+	u_int32_t blob_file_lo, blob_file_hi;
 
 	dblp = env->lg_handle;
 	ret = 0;
@@ -788,10 +791,12 @@ __dbreg_log_close(env, fnp, txn, op)
 	memset(&fid_dbt, 0, sizeof(fid_dbt));
 	fid_dbt.data = fnp->ufid;
 	fid_dbt.size = DB_FILE_ID_LEN;
+	SET_LO_HI_VAR(fnp->blob_file_id, blob_file_lo, blob_file_hi);
 	if ((ret = __dbreg_register_log(env, txn, &r_unused,
 	    F_ISSET(fnp, DB_FNAME_DURABLE) ? 0 : DB_LOG_NOT_DURABLE,
 	    op, dbtp, &fid_dbt, fnp->id,
-	    fnp->s_type, fnp->meta_pgno, TXN_INVALID)) != 0) {
+	    fnp->s_type, fnp->meta_pgno, TXN_INVALID, blob_file_lo,
+	    blob_file_hi)) != 0) {
 		/*
 		 * We are trying to close, but the log write failed.
 		 * Unfortunately, close needs to plow forward, because
@@ -958,6 +963,7 @@ __dbreg_log_id(dbp, txn, id, needlock)
 	LOG *lp;
 	u_int32_t op;
 	int i, ret;
+	u_int32_t blob_file_lo, blob_file_hi;
 
 	env = dbp->env;
 	dblp = env->lg_handle;
@@ -996,14 +1002,16 @@ __dbreg_log_id(dbp, txn, id, needlock)
 	fid_dbt.size = DB_FILE_ID_LEN;
 
 	op = !F_ISSET(dbp, DB_AM_OPEN_CALLED) ? DBREG_PREOPEN :
-	    (F_ISSET(dbp, DB_AM_INMEM) ? 
+	    (F_ISSET(dbp, DB_AM_INMEM) ?
 	    (F2_ISSET(dbp, DB2_AM_EXCL) ? DBREG_XREOPEN : DBREG_REOPEN):
 	    (F2_ISSET(dbp, DB2_AM_EXCL) ? DBREG_XOPEN : DBREG_OPEN));
+	SET_LO_HI_VAR(fnp->blob_file_id, blob_file_lo, blob_file_hi);
 	ret = __dbreg_register_log(env, txn, &unused,
 	    F_ISSET(dbp, DB_AM_NOT_DURABLE) ? DB_LOG_NOT_DURABLE : 0,
 	    op | F_ISSET(fnp, DB_FNAME_DBREG_MASK),
 	    r_name.size == 0 ? NULL : &r_name, &fid_dbt, id,
-	    fnp->s_type, fnp->meta_pgno, fnp->create_txnid);
+	    fnp->s_type, fnp->meta_pgno, fnp->create_txnid,
+	    blob_file_lo, blob_file_hi);
 
 	if (needlock)
 		MUTEX_UNLOCK(env, lp->mtx_filelist);

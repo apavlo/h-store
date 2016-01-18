@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2001, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -32,10 +32,7 @@ __os_ctime(tod, time_buf)
 	 * int.
 	 */
 #if defined(HAVE_VXWORKS)
-	{
-	size_t buflen = CTIME_BUFLEN;
-	(void)ctime_r(tod, time_buf, &buflen);
-	}
+	(void)ctime_r(tod, time_buf);
 #elif defined(HAVE_CTIME_R_3ARG)
 	(void)ctime_r(tod, time_buf, CTIME_BUFLEN);
 #elif defined(HAVE_CTIME_R)

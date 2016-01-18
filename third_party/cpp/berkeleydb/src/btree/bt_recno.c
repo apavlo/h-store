@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1997, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -234,7 +234,7 @@ __ramc_del(dbc, flags)
 retry:	if ((ret = __bam_rsearch(dbc, &cp->recno, SR_DELETE, 1, &exact)) != 0)
 		goto err;
 	if (!exact) {
-		ret = DB_NOTFOUND;
+		ret = DBC_ERR(dbc, DB_NOTFOUND);
 		goto err;
 	}
 	stack = 1;
@@ -256,7 +256,7 @@ retry:	if ((ret = __bam_rsearch(dbc, &cp->recno, SR_DELETE, 1, &exact)) != 0)
 	 * if the record was "deleted", we could never have found it.
 	 */
 	if (B_DISSET(GET_BKEYDATA(dbp, cp->page, cp->indx)->type)) {
-		ret = DB_KEYEMPTY;
+		ret = DBC_ERR(dbc, DB_KEYEMPTY);
 		goto err;
 	}
 
@@ -391,7 +391,7 @@ retry:	switch (flags) {
 		 * a dup, so we set flags to DB_NEXT and keep going.
 		 */
 		if (!F_ISSET(dbc, DBC_OPD))
-			return (DB_NOTFOUND);
+			return (DBC_ERR(dbc, DB_NOTFOUND));
 		/* FALLTHROUGH */
 	case DB_NEXT_NODUP:
 		/*
@@ -431,7 +431,7 @@ retry:	switch (flags) {
 		 * is a dup, so we set flags to DB_PREV and keep going.
 		 */
 		if (!F_ISSET(dbc, DBC_OPD))
-			return (DB_NOTFOUND);
+			return (DBC_ERR(dbc, DB_NOTFOUND));
 		/* FALLTHROUGH */
 	case DB_PREV_NODUP:
 		/*
@@ -443,7 +443,7 @@ retry:	switch (flags) {
 		flags = DB_PREV;
 		if (cp->recno != RECNO_OOB) {
 			if (cp->recno == 1) {
-				ret = DB_NOTFOUND;
+				ret = DBC_ERR(dbc, DB_NOTFOUND);
 				goto err;
 			}
 			--cp->recno;
@@ -458,7 +458,7 @@ retry:	switch (flags) {
 		if ((ret = __bam_nrecs(dbc, &cp->recno)) != 0)
 			goto err;
 		if (cp->recno == 0) {
-			ret = DB_NOTFOUND;
+			ret = DBC_ERR(dbc, DB_NOTFOUND);
 			goto err;
 		}
 		break;
@@ -476,7 +476,7 @@ retry:	switch (flags) {
 			cp->recno++;
 			break;
 		}
-		ret = DB_NOTFOUND;
+		ret = DBC_ERR(dbc, DB_NOTFOUND);
 		goto err;
 		/* NOTREACHED */
 	case DB_GET_BOTH:
@@ -522,7 +522,7 @@ retry:	switch (flags) {
 		    1, &exact)) != 0)
 			goto err;
 		if (!exact) {
-			ret = DB_NOTFOUND;
+			ret = DBC_ERR(dbc, DB_NOTFOUND);
 			goto err;
 		}
 
@@ -561,22 +561,22 @@ retry:	switch (flags) {
 					(void)__bam_stkrel(dbc, STK_CLRDBC);
 					continue;
 				}
-				ret = DB_NOTFOUND;
+				ret = DBC_ERR(dbc, DB_NOTFOUND);
 				goto err;
 			default:
-				ret = DB_KEYEMPTY;
+				ret = DBC_ERR(dbc, DB_KEYEMPTY);
 				goto err;
 			}
 
 		if (flags == DB_GET_BOTH ||
 		    flags == DB_GET_BOTHC || flags == DB_GET_BOTH_RANGE) {
 			if ((ret = __bam_cmp(dbc, data, cp->page, cp->indx,
-			    __bam_defcmp, &cmp)) != 0)
+			    __bam_defcmp, &cmp, NULL)) != 0)
 				return (ret);
 			if (cmp == 0)
 				break;
 			if (!F_ISSET(dbc, DBC_OPD)) {
-				ret = DB_NOTFOUND;
+				ret = DBC_ERR(dbc, DB_NOTFOUND);
 				goto err;
 			}
 			(void)__bam_stkrel(dbc, STK_CLRDBC);
@@ -1331,7 +1331,7 @@ __ram_sread(dbc, top)
 
 	if (0) {
 eof:		t->re_eof = 1;
-		ret = DB_NOTFOUND;
+		ret = DBC_ERR(dbc, DB_NOTFOUND);
 	}
 err:	if (!was_modified)
 		t->re_modified = 0;
@@ -1368,7 +1368,7 @@ retry:	/* Find the slot for insertion. */
 
 	if (exact && flags == DB_NOOVERWRITE && !CD_ISSET(cp) &&
 	    !B_DISSET(GET_BKEYDATA(dbc->dbp, cp->page, cp->indx)->type)) {
-		ret = DB_KEYEXIST;
+		ret = DBC_ERR(dbc, DB_KEYEXIST);
 		goto err;
 	}
 

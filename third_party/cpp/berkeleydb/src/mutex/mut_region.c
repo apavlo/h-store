@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -34,7 +34,7 @@ __mutex_open(env, create_ok)
 	DB_MUTEXMGR *mtxmgr;
 	DB_MUTEXREGION *mtxregion;
 	size_t size;
-	u_int32_t cpu_count;
+	u_int32_t cpu_count, tas_spins;
 	int ret;
 #ifndef HAVE_ATOMIC_SUPPORT
 	u_int i;
@@ -55,8 +55,14 @@ __mutex_open(env, create_ok)
 		dbenv->mutex_align = MUTEX_ALIGN;
 	if (dbenv->mutex_tas_spins == 0) {
 		cpu_count = __os_cpu_count();
-		if ((ret = __mutex_set_tas_spins(dbenv, cpu_count == 1 ?
-		    cpu_count : cpu_count * MUTEX_SPINS_PER_PROCESSOR)) != 0)
+		if (cpu_count == 1)
+			tas_spins = 1;
+		else {
+			tas_spins = cpu_count * MUTEX_SPINS_PER_PROCESSOR;
+			if (tas_spins > MUTEX_SPINS_DEFAULT_MAX)
+			    tas_spins = MUTEX_SPINS_DEFAULT_MAX;
+		}
+		if ((ret = __mutex_set_tas_spins(dbenv, tas_spins)) != 0)
 			return (ret);
 	}
 
@@ -118,11 +124,29 @@ __mutex_open(env, create_ok)
 
 	return (0);
 
-err:	env->mutex_handle = NULL;
-	if (mtxmgr->reginfo.addr != NULL)
-		(void)__env_region_detach(env, &mtxmgr->reginfo, 0);
+err:	(void)__mutex_region_detach(env, mtxmgr);
+	return (ret);
+}
 
-	__os_free(env, mtxmgr);
+/*
+ * __mutex_region_detach --
+ *
+ * PUBLIC: int __mutex_region_detach __P((ENV *, DB_MUTEXMGR *));
+ */
+int
+__mutex_region_detach(env, mtxmgr)
+	ENV *env;
+	DB_MUTEXMGR *mtxmgr;
+{
+	int ret;
+
+	ret = 0;
+	if (mtxmgr != NULL) {
+		if (mtxmgr->reginfo.addr != NULL)
+			ret = __env_region_detach(env, &mtxmgr->reginfo, 0);
+		__os_free(env, mtxmgr);
+		env->mutex_handle = NULL;
+	}
 	return (ret);
 }
 
@@ -136,15 +160,12 @@ __mutex_region_init(env, mtxmgr)
 	DB_MUTEXMGR *mtxmgr;
 {
 	DB_ENV *dbenv;
-	DB_MUTEX *mutexp;
 	DB_MUTEXREGION *mtxregion;
 	db_mutex_t mutex;
 	int ret;
 	void *mutex_array;
 
 	dbenv = env->dbenv;
-
-	COMPQUIET(mutexp, NULL);
 
 	if ((ret = __env_alloc(&mtxmgr->reginfo,
 	    sizeof(DB_MUTEXREGION), &mtxmgr->reginfo.primary)) != 0) {
@@ -205,26 +226,11 @@ __mutex_region_init(env, mtxmgr)
 	 * in each link.
 	 */
 	env->mutex_handle = mtxmgr;
-	if (F_ISSET(env, ENV_PRIVATE)) {
-		mutexp = (DB_MUTEX *)mutex_array;
-		mutexp++;
-		mutexp = ALIGNP_INC(mutexp, mtxregion->stat.st_mutex_align);
-		mtxregion->mutex_next = (db_mutex_t)mutexp;
-	} else {
-		mtxregion->mutex_next = 1;
-		mutexp = MUTEXP_SET(env, 1);
-	}
-	for (mutex = 1; mutex < mtxregion->stat.st_mutex_cnt; ++mutex) {
-		mutexp->flags = 0;
-		if (F_ISSET(env, ENV_PRIVATE))
-			mutexp->mutex_next_link = (db_mutex_t)(mutexp + 1);
-		else
-			mutexp->mutex_next_link = mutex + 1;
-		mutexp++;
-		mutexp = ALIGNP_INC(mutexp, mtxregion->stat.st_mutex_align);
-	}
-	mutexp->flags = 0;
-	mutexp->mutex_next_link = MUTEX_INVALID;
+	mtxregion->mutex_next = (F_ISSET(env, ENV_PRIVATE) ?
+	    ((uintptr_t)mutex_array + mtxregion->mutex_size) : 1);
+	MUTEX_BULK_INIT(env,
+	    mtxregion, mtxregion->mutex_next, mtxregion->stat.st_mutex_cnt);
+
 	mtxregion->stat.st_mutex_free = mtxregion->stat.st_mutex_cnt;
 	mtxregion->stat.st_mutex_inuse = mtxregion->stat.st_mutex_inuse_max = 0;
 	if ((ret = __mutex_alloc(env, MTX_MUTEX_REGION, 0, &mutex)) != 0)

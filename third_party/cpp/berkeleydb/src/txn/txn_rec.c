@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  */
 /*
  * Copyright (c) 1996
@@ -210,11 +210,12 @@ __txn_prepare_recover(env, dbtp, lsnp, op, info)
 		 */
 		else if ((ret = __db_txnlist_remove(env,
 		    info, argp->txnp->txnid)) != 0) {
-txn_err:		__db_errx(env,
+txn_err:
+			ret = USR_ERR(env, DB_NOTFOUND);
+			__db_errx(env,
 			    DB_STR_A("4515",
 			    "transaction not in list %lx", "%lx"),
 			    (u_long)argp->txnp->txnid);
-			ret = DB_NOTFOUND;
 		} else if (IS_ZERO_LSN(headp->trunc_lsn) ||
 		    LOG_COMPARE(&headp->trunc_lsn, lsnp) >= 0) {
 			if ((ret = __db_txnlist_add(env,

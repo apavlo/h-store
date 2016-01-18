@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -278,6 +278,8 @@ __bam_stat_print(dbc, flags)
 		    "%#x\tFixed-length record pad", (u_int)sp->bt_re_pad);
 	}
 	__db_dl(env,
+	    "Number of pages in the database", (u_long)sp->bt_pagecnt);
+	__db_dl(env,
 	    "Underlying database page size", (u_long)sp->bt_pagesize);
 	if (dbp->type == DB_BTREE)
 		__db_dl(env, "Overflow key/data size",
@@ -288,6 +290,10 @@ __bam_stat_print(dbc, flags)
 	    "Number of records in the tree", (u_long)sp->bt_nkeys);
 	__db_dl(env,
 	    "Number of data items in the tree", (u_long)sp->bt_ndata);
+	if (dbp->type == DB_BTREE) {
+		__db_dl(env,
+		    "Number of blobs in the tree", (u_long)sp->bt_nblobs);
+	}
 
 	__db_dl(env,
 	    "Number of tree internal pages", (u_long)sp->bt_int_pg);
@@ -372,6 +378,10 @@ __bam_stat_callback(dbc, h, cookie, putp)
 			/* Ignore off-page duplicates. */
 			if (B_TYPE(type) != B_DUPLICATE)
 				++sp->bt_ndata;
+
+			/* Count blobs. */
+			if (B_TYPE(type) == B_BLOB)
+				++sp->bt_nblobs;
 		}
 
 		++sp->bt_leaf_pg;

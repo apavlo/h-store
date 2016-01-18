@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2001, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2001, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -18,7 +18,7 @@
 #include "dbinc/txn.h"
 
 static int __db_dbtxn_remove __P((DB *,
-    DB_THREAD_INFO *, DB_TXN *, const char *, const char *));
+    DB_THREAD_INFO *, DB_TXN *, const char *, const char *, APPNAME));
 static int __db_subdb_remove __P((DB *,
     DB_THREAD_INFO *, DB_TXN *, const char *, const char *, u_int32_t));
 
@@ -264,7 +264,7 @@ __db_remove_int(dbp, ip, txn, name, subdb, flags)
 
 	/* Handle transactional file removes separately. */
 	if (IS_REAL_TXN(txn)) {
-		ret = __db_dbtxn_remove(dbp, ip, txn, name, subdb);
+		ret = __db_dbtxn_remove(dbp, ip, txn, name, subdb, DB_APP_DATA);
 		goto err;
 	}
 
@@ -291,6 +291,10 @@ __db_remove_int(dbp, ip, txn, name, subdb, flags)
 
 	if (dbp->db_am_remove != NULL &&
 	    (ret = dbp->db_am_remove(dbp, ip, NULL, name, subdb, flags)) != 0)
+		goto err;
+
+	if (dbp->db_am_remove == NULL &&
+	    (ret = __blob_del_all(dbp, txn, 0)) != 0)
 		goto err;
 
 	ret = F_ISSET(dbp, DB_AM_INMEM) ?
@@ -407,6 +411,10 @@ __db_subdb_remove(dbp, ip, txn, name, subdb, flags)
 	    txn, name, subdb, DB_UNKNOWN, DB_WRITEOPEN, 0, PGNO_BASE_MD)) != 0)
 		goto err;
 
+	if (sdbp->blob_threshold != 0)
+		if ((ret = __blob_del_all(sdbp, txn, 0)) != 0)
+			goto err;
+
 	DB_TEST_RECOVERY(sdbp, DB_TEST_PREDESTROY, ret, name);
 
 	/* Have the handle locked so we will not lock pages. */
@@ -460,18 +468,21 @@ err:
 }
 
 static int
-__db_dbtxn_remove(dbp, ip, txn, name, subdb)
+__db_dbtxn_remove(dbp, ip, txn, name, subdb, appname)
 	DB *dbp;
 	DB_THREAD_INFO *ip;
 	DB_TXN *txn;
 	const char *name, *subdb;
+	APPNAME appname;
 {
 	ENV *env;
 	int ret;
 	char *tmpname;
+	u_int32_t flags;
 
 	env = dbp->env;
 	tmpname = NULL;
+	flags = DB_NOSYNC;
 
 	/*
 	 * This is a transactional remove, so we have to keep the name
@@ -488,7 +499,12 @@ __db_dbtxn_remove(dbp, ip, txn, name, subdb)
 	DB_TEST_RECOVERY(dbp, DB_TEST_PREDESTROY, ret, name);
 
 	if ((ret = __db_rename_int(dbp,
-	    txn->thread_info, txn, name, subdb, tmpname, DB_NOSYNC)) != 0)
+	    txn->thread_info, txn, name, subdb, tmpname, flags)) != 0)
+		goto err;
+
+	/* Delete all blob files, if this database supports blobs. */
+	if (appname != DB_APP_BLOB && (dbp->blob_file_id != 0 ||
+	    dbp->blob_sdb_id != 0) && (ret = __blob_del_all(dbp, txn, 0)) != 0)
 		goto err;
 
 	/*
@@ -501,7 +517,7 @@ __db_dbtxn_remove(dbp, ip, txn, name, subdb)
 	ret = F_ISSET(dbp, DB_AM_INMEM) ?
 	     __db_inmem_remove(dbp, txn, tmpname) :
 	    __fop_remove(env,
-	    txn, dbp->fileid, tmpname, &dbp->dirname, DB_APP_DATA,
+	    txn, dbp->fileid, tmpname, &dbp->dirname, appname,
 	    F_ISSET(dbp, DB_AM_NOT_DURABLE) ? DB_LOG_NOT_DURABLE : 0);
 
 	DB_TEST_RECOVERY(dbp, DB_TEST_POSTDESTROY, ret, name);

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1999, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -64,6 +64,19 @@
 } while (0)
 
 /*
+ * !!!
+ * Solaris bug workaround: pthread_cond_wait() sometimes returns ETIME  -- out
+ * of sheer paranoia, check both ETIME and ETIMEDOUT.  We believe this happens
+ * when the application uses SIGALRM for some purpose, e.g., the C library sleep
+ * call, and Solaris delivers the signal to the wrong LWP.
+ */
+#ifdef ETIME
+#define	ETIME_TO_ETIMEDOUT(ret)	((ret) == ETIME ? ETIMEDOUT : (ret))
+#else
+#define	ETIME_TO_ETIMEDOUT(ret)	(ret)
+#endif
+
+/*
  * __db_pthread_mutex_init --
  *	Initialize a pthread mutex: either a native one or
  *	just the mutex for block/wakeup of a hybrid test-and-set mutex
@@ -104,18 +117,18 @@ __db_pthread_mutex_init(env, mutex, flags)
 		pthread_rwlockattr_t rwlockattr, *rwlockattrp = NULL;
 #ifndef HAVE_MUTEX_THREAD_ONLY
 		if (!LF_ISSET(DB_MUTEX_PROCESS_ONLY)) {
-			RET_SET((pthread_rwlockattr_init(&rwlockattr)), ret);
+			RET_SET(pthread_rwlockattr_init(&rwlockattr), ret);
 			if (ret != 0)
 				goto err;
-			RET_SET((pthread_rwlockattr_setpshared(
-			    &rwlockattr, PTHREAD_PROCESS_SHARED)), ret);
+			RET_SET(pthread_rwlockattr_setpshared(
+			    &rwlockattr, PTHREAD_PROCESS_SHARED), ret);
 			rwlockattrp = &rwlockattr;
 		}
 #endif
 
 		if (ret == 0)
-			RET_SET((pthread_rwlock_init(&mutexp->u.rwlock,
-			    rwlockattrp)), ret);
+			RET_SET(pthread_rwlock_init(&mutexp->u.rwlock,
+			    rwlockattrp), ret);
 		if (rwlockattrp != NULL)
 			(void)pthread_rwlockattr_destroy(rwlockattrp);
 
@@ -127,18 +140,18 @@ __db_pthread_mutex_init(env, mutex, flags)
 #endif
 #ifndef HAVE_MUTEX_THREAD_ONLY
 	if (!LF_ISSET(DB_MUTEX_PROCESS_ONLY)) {
-		RET_SET((pthread_mutexattr_init(&mutexattr)), ret);
+		RET_SET(pthread_mutexattr_init(&mutexattr), ret);
 		if (ret != 0)
 			goto err;
-		RET_SET((pthread_mutexattr_setpshared(
-		    &mutexattr, PTHREAD_PROCESS_SHARED)), ret);
+		RET_SET(pthread_mutexattr_setpshared(
+		    &mutexattr, PTHREAD_PROCESS_SHARED), ret);
 		mutexattrp = &mutexattr;
 	}
 #endif
 
 	if (ret == 0)
 		RET_SET(
-		    (pthread_mutex_init(&mutexp->u.m.mutex, mutexattrp)), ret);
+		    pthread_mutex_init(&mutexp->u.m.mutex, mutexattrp), ret);
 
 	if (mutexattrp != NULL)
 		(void)pthread_mutexattr_destroy(mutexattrp);
@@ -147,19 +160,19 @@ __db_pthread_mutex_init(env, mutex, flags)
 	if (LF_ISSET(DB_MUTEX_SELF_BLOCK)) {
 #ifndef HAVE_MUTEX_THREAD_ONLY
 		if (!LF_ISSET(DB_MUTEX_PROCESS_ONLY)) {
-			RET_SET((pthread_condattr_init(&condattr)), ret);
+			RET_SET(pthread_condattr_init(&condattr), ret);
 			if (ret != 0)
 				goto err;
 
 			condattrp = &condattr;
-			RET_SET((pthread_condattr_setpshared(
-			    &condattr, PTHREAD_PROCESS_SHARED)), ret);
+			RET_SET(pthread_condattr_setpshared(
+			    &condattr, PTHREAD_PROCESS_SHARED), ret);
 		}
 #endif
 
 		if (ret == 0)
-			RET_SET((pthread_cond_init(
-			    &mutexp->u.m.cond, condattrp)), ret);
+			RET_SET(pthread_cond_init(
+			    &mutexp->u.m.cond, condattrp), ret);
 
 		F_SET(mutexp, DB_MUTEX_SELF_BLOCK);
 		if (condattrp != NULL)
@@ -239,6 +252,9 @@ __db_pthread_mutex_prep(env, mutex, mutexp, exclusive)
 {
 	DB_ENV *dbenv;
 	DB_THREAD_INFO *ip;
+#ifdef HAVE_FAILCHK_BROADCAST
+	db_timespec timespec;
+#endif
 	int ret;
 
 	dbenv = env->dbenv;
@@ -266,13 +282,32 @@ __db_pthread_mutex_prep(env, mutex, mutexp, exclusive)
 					 * hadn't gone down the 'if
 					 * DB_ENV_FAILCHK' path to start with.
 					 */
-				    RET_SET_PTHREAD_LOCK(mutexp, ret);
-				    break;
+					goto lockit;
 				}
+				__os_yield(env, 0, 10);
 			}
 		}
-	} else
-		RET_SET_PTHREAD_LOCK(mutexp, ret);
+	} else {
+lockit:
+#ifdef HAVE_FAILCHK_BROADCAST
+		if (dbenv->mutex_failchk_timeout != 0) {
+			timespecclear(&timespec);
+			__clock_set_expires(env,
+			    &timespec, dbenv->mutex_failchk_timeout);
+			do {
+				RET_SET_PTHREAD_TIMEDLOCK(mutexp,
+				    (struct timespec *)&timespec, ret);
+				ret = ETIME_TO_ETIMEDOUT(ret);
+				if (ret == ETIMEDOUT &&
+				    F_ISSET(mutexp, DB_MUTEX_OWNER_DEAD) &&
+				    !F_ISSET(dbenv, DB_ENV_FAILCHK))
+					ret = USR_ERR(env,
+					    __mutex_died(env, mutex));
+			} while  (ret == ETIMEDOUT);
+		} else
+#endif
+			RET_SET_PTHREAD_LOCK(mutexp, ret);
+	}
 
 	PERFMON4(env,
 	    mutex, resume, mutex, exclusive, mutexp->alloc_id, mutexp);
@@ -302,49 +337,75 @@ __db_pthread_mutex_condwait(env, mutex, mutexp, timespec)
 	DB_MUTEX *mutexp;
 	db_timespec *timespec;
 {
+	DB_ENV *dbenv;
 	int ret;
-
-#ifdef MUTEX_DIAG
-	printf("condwait %ld %x wait busy %x count %d\n",
-	    mutex, pthread_self(), MUTEXP_BUSY_FIELD(mutexp), mutexp->wait);
+#ifdef HAVE_FAILCHK_BROADCAST
+	db_timespec failchk_timespec;
 #endif
+
+	dbenv = env->dbenv;
 	PERFMON4(env, mutex, suspend, mutex, TRUE, mutexp->alloc_id, mutexp);
 
+#ifdef HAVE_FAILCHK_BROADCAST
+	/*
+	 * If the failchk timeout would be soon than the timeout passed in,
+	 * argument, use the failchk timeout. The caller handles "short" waits.
+	 */
+	if (dbenv->mutex_failchk_timeout != 0) {
+		timespecclear(&failchk_timespec);
+		__clock_set_expires(env,
+		    &failchk_timespec, dbenv->mutex_failchk_timeout);
+		if (timespec == NULL ||
+		    timespeccmp(timespec, &failchk_timespec, >))
+			timespec = &failchk_timespec;
+	}
+#endif
+
 	if (timespec != NULL) {
-		RET_SET((pthread_cond_timedwait(&mutexp->u.m.cond,
-		    &mutexp->u.m.mutex, (struct timespec *) timespec)), ret);
+		RET_SET(pthread_cond_timedwait(&mutexp->u.m.cond,
+		    &mutexp->u.m.mutex, (struct timespec *) timespec), ret);
+		ret = ETIME_TO_ETIMEDOUT(ret);
+#ifdef HAVE_FAILCHK_BROADCAST
+		if (F_ISSET(mutexp, DB_MUTEX_OWNER_DEAD) &&
+		    !F_ISSET(dbenv, DB_ENV_FAILCHK)) {
+			ret = USR_ERR(env, __mutex_died(env, mutex));
+			goto err;
+		}
+#endif
 		if (ret == ETIMEDOUT) {
 			ret = DB_TIMEOUT;
-			goto ret;
+			goto err;
 		}
 	} else
-		RET_SET((pthread_cond_wait(&mutexp->u.m.cond,
-		    &mutexp->u.m.mutex)), ret);
-#ifdef MUTEX_DIAG
-	printf("condwait %ld %x wait returns %d busy %x\n",
-	    mutex, pthread_self(), ret, MUTEXP_BUSY_FIELD(mutexp));
+		RET_SET(pthread_cond_wait(&mutexp->u.m.cond,
+		    &mutexp->u.m.mutex), ret);
+#ifdef HAVE_FAILCHK_BROADCAST
+	if (ret == 0 && F_ISSET(mutexp, DB_MUTEX_OWNER_DEAD) &&
+	    !F_ISSET(dbenv, DB_ENV_FAILCHK)) {
+		ret = USR_ERR(env, __mutex_died(env, mutex));
+		goto err;
+	}
 #endif
 	/*
 	 * !!!
 	 * Solaris bug workaround: pthread_cond_wait() sometimes returns ETIME
-	 * -- out  of sheer paranoia, check both ETIME and ETIMEDOUT.  We
+	 * -- out of sheer paranoia, check both ETIME and ETIMEDOUT.  We
 	 * believe this happens when the application uses SIGALRM for some
 	 * purpose, e.g., the C library sleep call, and Solaris delivers the
-	 * signal to the wrong  LWP.
+	 * signal to the wrong LWP.
 	 */
 	if (ret != 0) {
-		if (ret == ETIMEDOUT ||
-#ifdef ETIME
-		    ret == ETIME ||
-#endif
+		if ((ret = ETIME_TO_ETIMEDOUT(ret)) == ETIMEDOUT ||
 		    ret == EINTR)
 			ret = 0;
-		else
+		else {
 			/* Failure, caller shouldn't condwait again. */
 			(void)pthread_mutex_unlock(&mutexp->u.m.mutex);
+			(void)MUTEX_ERR(env, mutex, ret);
+		}
 	}
 
-ret:
+err:
 	PERFMON4(env, mutex, resume, mutex, TRUE, mutexp->alloc_id, mutexp);
 
 	COMPQUIET(mutex, 0);
@@ -356,7 +417,10 @@ ret:
 /*
  * __db_pthread_mutex_lock
  *	Lock on a mutex, blocking if necessary.
- *	Timeouts are supported only for self-blocking mutexes.
+ *	Timeouts are supported only for self-blocking mutexes. When both a
+ *	given timeout and a dbenv-wide failchk timeout are specified, the
+ *	given timeout takes precedence -- a process failure might not be noticed
+ *	for a little while.
  *
  *	Self-blocking shared latches are not supported.
  *
@@ -372,6 +436,7 @@ __db_pthread_mutex_lock(env, mutex, timeout)
 {
 	DB_ENV *dbenv;
 	DB_MUTEX *mutexp;
+	db_timeout_t checktimeout;
 	db_timespec timespec;
 	int ret, t_ret;
 
@@ -385,7 +450,6 @@ __db_pthread_mutex_lock(env, mutex, timeout)
 
 	CHECK_MTX_THREAD(env, mutexp);
 
-#if defined(HAVE_STATISTICS)
 	/*
 	 * We want to know which mutexes are contentious, but don't want to
 	 * do an interlocked test here -- that's slower when the underlying
@@ -398,6 +462,11 @@ __db_pthread_mutex_lock(env, mutex, timeout)
 	else
 		STAT_INC(env,
 		    mutex, set_nowait, mutexp->mutex_set_nowait, mutex);
+
+	checktimeout = timeout;
+#ifdef HAVE_FAILCHK_BROADCAST
+	if (checktimeout == 0 || checktimeout > dbenv->mutex_failchk_timeout)
+		checktimeout = dbenv->mutex_failchk_timeout;
 #endif
 
 	/* Single-thread the next block, except during the possible condwait. */
@@ -405,14 +474,12 @@ __db_pthread_mutex_lock(env, mutex, timeout)
 		goto err;
 
 	if (F_ISSET(mutexp, DB_MUTEX_SELF_BLOCK)) {
-		if (timeout != 0)
+		if (checktimeout != 0)
 			timespecclear(&timespec);
 		while (MUTEXP_IS_BUSY(mutexp)) {
 			/* Set expiration timer upon first need. */
-			if (timeout != 0 && !timespecisset(&timespec)) {
-				timespecclear(&timespec);
+			if (checktimeout != 0 && !timespecisset(&timespec))
 				__clock_set_expires(env, &timespec, timeout);
-			}
 			t_ret = __db_pthread_mutex_condwait(env,
 			    mutex, mutexp, timeout == 0 ? NULL : &timespec);
 			if (t_ret != 0) {
@@ -428,18 +495,20 @@ __db_pthread_mutex_lock(env, mutex, timeout)
 out:
 		/* #2471: HP-UX can sporadically return EFAULT. See above */
 		RETRY_ON_EFAULT(pthread_mutex_unlock(&mutexp->u.m.mutex), ret);
-		if (ret != 0)
+		if (ret != 0) {
+			(void)MUTEX_ERR(env, mutex, ret);
 			goto err;
+		}
 	} else {
 #ifdef DIAGNOSTIC
 		if (F_ISSET(mutexp, DB_MUTEX_LOCKED)) {
 			char buf[DB_THREADID_STRLEN];
 			(void)dbenv->thread_id_string(dbenv,
 			    mutexp->pid, mutexp->tid, buf);
+			ret = MUTEX_ERR(env, mutex, EINVAL);
 			__db_errx(env, DB_STR_A("2022",
 		    "pthread lock failed: lock currently in use: pid/tid: %s",
 			    "%s"), buf);
-			ret = EINVAL;
 			goto err;
 		}
 #endif
@@ -454,6 +523,13 @@ out:
 	 */
 	if (F_ISSET(dbenv, DB_ENV_YIELDCPU))
 		__os_yield(env, 0, 0);
+#endif
+#ifdef MUTEX_DIAG
+	if (t_ret == 0) {
+		__os_gettime(env, &mutexp->mutex_history.when, 0);
+		__os_stack_text(env, mutexp->mutex_history.stacktext,
+		    sizeof(mutexp->mutex_history.stacktext), 12, 2);
+	}
 #endif
 	return (t_ret);
 
@@ -479,6 +555,10 @@ __db_pthread_mutex_readlock(env, mutex)
 {
 	DB_ENV *dbenv;
 	DB_MUTEX *mutexp;
+	MUTEX_STATE *state;
+#ifdef HAVE_FAILCHK_BROADCAST
+	db_timespec timespec;
+#endif
 	int ret;
 
 	dbenv = env->dbenv;
@@ -491,7 +571,6 @@ __db_pthread_mutex_readlock(env, mutex)
 
 	CHECK_MTX_THREAD(env, mutexp);
 
-#if defined(HAVE_STATISTICS)
 	/*
 	 * We want to know which mutexes are contentious, but don't want to
 	 * do an interlocked test here -- that's slower when the underlying
@@ -505,15 +584,57 @@ __db_pthread_mutex_readlock(env, mutex)
 	else
 		STAT_INC(env,
 		    mutex, set_rd_nowait, mutexp->mutex_set_rd_nowait, mutex);
-#endif
+
+	state = NULL;
+	if (env->thr_hashtab != NULL && (ret = __mutex_record_lock(env,
+	    mutex, MUTEX_ACTION_INTEND_SHARE, &state)) != 0)
+		return (ret);
 
 	PERFMON4(env, mutex, suspend, mutex, FALSE, mutexp->alloc_id, mutexp);
-	RET_SET((pthread_rwlock_rdlock(&mutexp->u.rwlock)), ret);
+
+#ifdef HAVE_FAILCHK_BROADCAST
+	if (dbenv->mutex_failchk_timeout != 0) {
+		do {
+			timespecclear(&timespec);
+			__clock_set_expires(env,
+			    &timespec, dbenv->mutex_failchk_timeout);
+			RET_SET(pthread_rwlock_timedrdlock(&mutexp->u.rwlock,
+			    (struct timespec *)&timespec), ret);
+			ret = ETIME_TO_ETIMEDOUT(ret);
+			if (F_ISSET(mutexp, DB_MUTEX_OWNER_DEAD) &&
+			    !F_ISSET(dbenv, DB_ENV_FAILCHK)) {
+				if (ret == 0)
+					RETRY_ON_EFAULT(pthread_rwlock_unlock(
+					    &mutexp->u.rwlock), ret);
+				ret = USR_ERR(env, __mutex_died(env, mutex));
+				goto err;
+			}
+		} while (ret == ETIMEDOUT);
+		if (ret != 0)
+			ret = USR_ERR(env, ret);
+	} else
+#endif
+		RET_SET(pthread_rwlock_rdlock(&mutexp->u.rwlock), ret);
+
 	PERFMON4(env, mutex, resume, mutex, FALSE, mutexp->alloc_id, mutexp);
-	DB_ASSERT(env, !F_ISSET(mutexp, DB_MUTEX_LOCKED));
 	if (ret != 0)
 		goto err;
 
+	if (state != NULL)
+		state->action = MUTEX_ACTION_SHARED;
+
+#ifdef HAVE_FAILCHK_BROADCAST
+	if (F_ISSET(mutexp, DB_MUTEX_OWNER_DEAD) &&
+	    !F_ISSET(dbenv, DB_ENV_FAILCHK)) {
+		ret = USR_ERR(env, __mutex_died(env, mutex));
+		goto err;
+	}
+#endif
+#ifdef MUTEX_DIAG
+	__os_gettime(env, &mutexp->mutex_history.when, 0);
+	__os_stack_text(env, mutexp->mutex_history.stacktext,
+	    sizeof(mutexp->mutex_history.stacktext), 12, 2);
+#endif
 #ifdef DIAGNOSTIC
 	/*
 	 * We want to switch threads as often as possible.  Yield every time
@@ -522,18 +643,70 @@ __db_pthread_mutex_readlock(env, mutex)
 	if (F_ISSET(dbenv, DB_ENV_YIELDCPU))
 		__os_yield(env, 0, 0);
 #endif
+	DB_ASSERT(env, !F_ISSET(mutexp, DB_MUTEX_LOCKED));
 	return (0);
 
-err:	__db_err(env, ret, DB_STR("2024", "pthread readlock failed"));
+err:
+	if (state != NULL)
+		state->action = MUTEX_ACTION_UNLOCKED;
+	__db_err(env, ret, DB_STR("2024", "pthread readlock failed"));
 	return (__env_panic(env, ret));
+}
+
+/*
+ * __db_pthread_mutex_tryreadlock
+ *	Take a shared lock on a mutex, blocking if necessary.
+ *
+ * PUBLIC: #if defined(HAVE_SHARED_LATCHES)
+ * PUBLIC: int __db_pthread_mutex_tryreadlock __P((ENV *, db_mutex_t));
+ * PUBLIC: #endif
+ */
+int
+__db_pthread_mutex_tryreadlock(env, mutex)
+	ENV *env;
+	db_mutex_t mutex;
+{
+	DB_MUTEX *mutexp;
+	MUTEX_STATE *state;
+	int ret;
+
+	if (!MUTEX_ON(env) || F_ISSET(env->dbenv, DB_ENV_NOLOCKING))
+		return (0);
+	mutexp = MUTEXP_SET(env, mutex);
+	if (!F_ISSET(mutexp, DB_MUTEX_SHARED))
+		return (USR_ERR(env, EINVAL));
+	/*
+	 * Failchk support: note that this thread is attempting to get this
+	 * lock. Afterwards, either reset the state to unlocked, or promote
+	 * it to say that the read-lock was acquired.
+	 */
+	state = NULL;
+	if (env->thr_hashtab != NULL && (ret = __mutex_record_lock(env,
+	    mutex, MUTEX_ACTION_INTEND_SHARE, &state)) != 0)
+	    	return (ret);
+	if ((ret = pthread_rwlock_tryrdlock(&mutexp->u.rwlock)) != 0) {
+		if (ret == EBUSY)
+			ret = DB_LOCK_NOTGRANTED;
+		ret = USR_ERR(env, ret);
+		if (state != NULL)
+			state->action = MUTEX_ACTION_UNLOCKED;
+	} else {
+		STAT_INC(env,
+		    mutex, set_rd_nowait, mutexp->mutex_set_nowait, mutex);
+		if (state != NULL)
+			state->action = MUTEX_ACTION_SHARED;
+	}
+	return (ret);
 }
 #endif
 
 #ifdef HAVE_MUTEX_HYBRID
 /*
  * __db_hybrid_mutex_suspend
- *	Suspend this thread until the mutex is free enough to give the caller a
- *	good chance of getting the mutex in the requested exclusivity mode.
+ *	Suspend this thread, usually until the mutex is free enough to give the
+ *	caller a good chance of getting the mutex in the requested exclusivity
+ *	mode. Return early if the timeout is reached or a dead mutex is found
+ *	to be dead.
  *
  *	The major difference between this and the old __db_pthread_mutex_lock()
  *	is the additional 'exclusive' parameter.
@@ -551,6 +724,9 @@ __db_hybrid_mutex_suspend(env, mutex, timespec, exclusive)
 	int exclusive;
 {
 	DB_MUTEX *mutexp;
+#ifdef HAVE_FAILCHECK_BROADCAST
+	db_timespec failchk_timespec;
+#endif
 	int ret, t_ret;
 
 	t_ret = 0;
@@ -571,7 +747,7 @@ __db_hybrid_mutex_suspend(env, mutex, timespec, exclusive)
 	 * before checking the wait counter.
 	 */
 	mutexp->wait++;
-	MUTEX_MEMBAR(mutexp->wait);
+	(void)MUTEX_MEMBAR(mutexp->wait);
 	while (exclusive ? MUTEXP_IS_BUSY(mutexp) :
 	    atomic_read(&mutexp->sharecount) == MUTEX_SHARE_ISEXCLUSIVE) {
 		t_ret = __db_pthread_mutex_condwait(env,
@@ -582,7 +758,7 @@ __db_hybrid_mutex_suspend(env, mutex, timespec, exclusive)
 			ret = t_ret;
 			goto err;
 		}
-		MUTEX_MEMBAR(mutexp->flags);
+		(void)MUTEX_MEMBAR(mutexp->flags);
 	}
 
 	mutexp->wait--;
@@ -627,8 +803,8 @@ __db_pthread_mutex_unlock(env, mutex)
 	DB_ENV *dbenv;
 	DB_MUTEX *mutexp;
 	int ret;
-#if defined(MUTEX_DIAG) && defined(HAVE_MUTEX_HYBRID)
-	int waiters;
+#ifndef HAVE_MUTEX_HYBRID
+	char description[DB_MUTEX_DESCRIBE_STRLEN];
 #endif
 
 	dbenv = env->dbenv;
@@ -637,14 +813,13 @@ __db_pthread_mutex_unlock(env, mutex)
 		return (0);
 
 	mutexp = MUTEXP_SET(env, mutex);
-#if defined(MUTEX_DIAG) && defined(HAVE_MUTEX_HYBRID)
-	waiters = mutexp->wait;
-#endif
 
-#if !defined(HAVE_MUTEX_HYBRID) && defined(DIAGNOSTIC)
+#if !defined(HAVE_MUTEX_HYBRID)
 	if (!F_ISSET(mutexp, DB_MUTEX_LOCKED | DB_MUTEX_SHARED)) {
-		__db_errx(env, DB_STR("2025",
-		    "pthread unlock failed: lock already unlocked"));
+		if (!PANIC_ISSET(env))
+			__db_errx(env, DB_STR("2069",
+			    "pthread unlock %s: already unlocked"),
+			    __mutex_describe(env, mutex, description));
 		return (__env_panic(env, EACCES));
 	}
 #endif
@@ -662,14 +837,19 @@ __db_pthread_mutex_unlock(env, mutex)
 
 		if (F_ISSET(mutexp, DB_MUTEX_SHARED))
 			RET_SET(
-			    (pthread_cond_broadcast(&mutexp->u.m.cond)), ret);
+			    pthread_cond_broadcast(&mutexp->u.m.cond), ret);
 		else
-			RET_SET((pthread_cond_signal(&mutexp->u.m.cond)), ret);
+			RET_SET(pthread_cond_signal(&mutexp->u.m.cond), ret);
 		if (ret != 0)
 			goto err;
 	} else {
 #ifndef HAVE_MUTEX_HYBRID
-		F_CLR(mutexp, DB_MUTEX_LOCKED);
+
+		if (F_ISSET(mutexp, DB_MUTEX_LOCKED))
+			F_CLR(mutexp, DB_MUTEX_LOCKED);
+		else if (env->thr_hashtab != NULL &&
+		    (ret = __mutex_record_unlock(env, mutex)) != 0)
+		    	goto err;
 #endif
 	}
 
@@ -685,12 +865,6 @@ err:	if (ret != 0) {
 		__db_err(env, ret, "pthread unlock failed");
 		return (__env_panic(env, ret));
 	}
-#if defined(MUTEX_DIAG) && defined(HAVE_MUTEX_HYBRID)
-	if (!MUTEXP_IS_BUSY(mutexp) && mutexp->wait != 0)
-		printf("unlock %ld %x busy %x waiters %d/%d\n",
-		    mutex, pthread_self(), ret,
-		    MUTEXP_BUSY_FIELD(mutexp), waiters, mutexp->wait);
-#endif
 	return (ret);
 }
 
@@ -739,7 +913,7 @@ __db_pthread_mutex_destroy(env, mutex)
 		if (!failchk_thread)
 #endif
 			RET_SET(
-			    (pthread_rwlock_destroy(&mutexp->u.rwlock)), ret);
+			    pthread_rwlock_destroy(&mutexp->u.rwlock), ret);
 		/* For rwlocks, we're done - must not destroy rest of union */
 		return (ret);
 #endif
@@ -754,15 +928,14 @@ __db_pthread_mutex_destroy(env, mutex)
 #ifdef HAVE_PTHREAD_COND_REINIT_OKAY
 		if (!failchk_thread)
 #endif
-			RET_SET((pthread_cond_destroy(&mutexp->u.m.cond)), ret);
+			RET_SET(pthread_cond_destroy(&mutexp->u.m.cond), ret);
 		if (ret != 0)
 			__db_err(env, ret, DB_STR("2026",
 			    "unable to destroy cond"));
 	}
-	RET_SET((pthread_mutex_destroy(&mutexp->u.m.mutex)), t_ret);
+	RET_SET(pthread_mutex_destroy(&mutexp->u.m.mutex), t_ret);
 	if (t_ret != 0 && !failchk_thread) {
-		__db_err(env, t_ret, DB_STR("2027",
-		    "unable to destroy mutex"));
+		__db_err(env, t_ret, DB_STR("2027", "unable to destroy mutex"));
 		if (ret == 0)
 			ret = t_ret;
 	}

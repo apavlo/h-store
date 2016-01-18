@@ -79,7 +79,7 @@ head defonly _DB_INT_DEF_IN_ > $i_dfile
 
 # Process the standard directories, creating per-directory prototype
 # files and adding to the external prototype and #define files.
-for i in db btree clib common crypto dbreg env fileops hash heap \
+for i in db blob btree clib common crypto dbreg env fileops hash heap \
     hmac lock log mp mutex os qam rep repmgr sequence tcl txn xa; do
 	head "_${i}_ext_h_" > $i_pfile
 

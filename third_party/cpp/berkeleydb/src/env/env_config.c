@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -84,8 +84,10 @@ static const CFG_DESC config_descs[] = {
     { "rep_set_clockskew",	CFG_2UINT,	__rep_set_clockskew	},
     { "rep_set_limit",		CFG_2UINT,	__rep_set_limit		},
     { "rep_set_nsites",		CFG_UINT,	__rep_set_nsites_pp	},
-    { "rep_set_priority",	CFG_UINT,	__rep_set_priority	},
+    { "rep_set_priority",	CFG_UINT,	__rep_set_priority_pp	},
     { "rep_set_request",	CFG_2UINT,	__rep_set_request	},
+    { "set_blob_dir",		CFG_STRING,	__env_set_blob_dir	},
+    { "set_blob_threshold",	CFG_2UINT,	__env_set_blob_threshold },
     { "set_cache_max",		CFG_2UINT,	__memp_set_cache_max	},
     { "set_create_dir",		CFG_STRING,	__env_set_create_dir	},
     { "set_data_dir",		CFG_STRING,	__env_set_data_dir	},
@@ -133,11 +135,16 @@ static const FN config_rep_config[] = {
 	{ DB_REP_CONF_AUTOROLLBACK,	"db_rep_conf_autorollback" },
 	{ DB_REP_CONF_BULK,		"db_rep_conf_bulk" },
 	{ DB_REP_CONF_DELAYCLIENT,	"db_rep_conf_delayclient" },
+	{ DB_REP_CONF_ELECT_LOGLENGTH,	"db_rep_conf_elect_loglength" },
 	{ DB_REP_CONF_INMEM,		"db_rep_conf_inmem" },
 	{ DB_REP_CONF_LEASE,		"db_rep_conf_lease" },
 	{ DB_REP_CONF_NOWAIT,		"db_rep_conf_nowait" },
 	{ DB_REPMGR_CONF_2SITE_STRICT,	"db_repmgr_conf_2site_strict" },
 	{ DB_REPMGR_CONF_ELECTIONS,	"db_repmgr_conf_elections" },
+	{ DB_REPMGR_CONF_PREFMAS_CLIENT,
+		"db_repmgr_conf_prefmas_client" },
+	{ DB_REPMGR_CONF_PREFMAS_MASTER,
+		"db_repmgr_conf_prefmas_master" },
 	{ 0, NULL }
 };
 
@@ -198,7 +205,9 @@ static const FN config_set_flags_forlog[] = {
 	{ DB_LOG_DIRECT,	"db_direct_log" },
 	{ DB_LOG_DSYNC,		"db_dsync_log" },
 	{ DB_LOG_AUTO_REMOVE,	"db_log_autoremove" },
+	{ DB_LOG_BLOB,		"db_log_blob" },
 	{ DB_LOG_IN_MEMORY,	"db_log_inmemory" },
+	{ DB_LOG_NOSYNC,	"db_log_nosync" },
 	{ 0, NULL }
 };
 
@@ -206,7 +215,9 @@ static const FN config_log_set_config[] = {
 	{ DB_LOG_DIRECT,	"db_log_direct" },
 	{ DB_LOG_DSYNC,		"db_log_dsync" },
 	{ DB_LOG_AUTO_REMOVE,	"db_log_auto_remove" },
+	{ DB_LOG_BLOB,		"db_log_blob" },
 	{ DB_LOG_IN_MEMORY,	"db_log_in_memory" },
+	{ DB_LOG_NOSYNC,	"db_log_nosync" },
 	{ DB_LOG_ZERO,		"db_log_zero" },
 	{ 0, NULL }
 };
@@ -237,6 +248,7 @@ static const FN config_set_verbose[] = {
 	{ DB_VERB_DEADLOCK,	"db_verb_deadlock" },
 	{ DB_VERB_FILEOPS,	"db_verb_fileops" },
 	{ DB_VERB_FILEOPS_ALL,	"db_verb_fileops_all" },
+	{ DB_VERB_MVCC,		"db_verb_mvcc" },
 	{ DB_VERB_RECOVERY,	"db_verb_recovery" },
 	{ DB_VERB_REGISTER,	"db_verb_register" },
 	{ DB_VERB_REPLICATION,	"db_verb_replication" },
@@ -462,7 +474,7 @@ format:		__db_errx(env, DB_STR_A("1584",
 		if ((lv1 = __db_name_to_val(config_rep_timeout, argv[1])) == -1)
 			goto format;
 		CFG_GET_UINT32(argv[2], &uv2);
-		return (__rep_set_timeout(dbenv, lv1, (db_timeout_t)uv2));
+		return (__rep_set_timeout_pp(dbenv, lv1, (db_timeout_t)uv2));
 	}
 
 	/* repmgr_set_ack_policy db_repmgr_acks_XXX */
@@ -473,6 +485,15 @@ format:		__db_errx(env, DB_STR_A("1584",
 		    __db_name_to_val(config_repmgr_ack_policy, argv[1])) == -1)
 			goto format;
 		return (__repmgr_set_ack_policy(dbenv, lv1));
+	}
+
+	if (strcasecmp(argv[0], "repmgr_set_incoming_queue_max") == 0) {
+		if (nf != 3)
+			goto format;
+		CFG_GET_UINT32(argv[1], &uv1);
+		CFG_GET_UINT32(argv[2], &uv2);
+		return (__repmgr_set_incoming_queue_max(
+		    dbenv, (u_int32_t)uv1, (u_int32_t)uv2));
 	}
 
 	/*
@@ -503,7 +524,7 @@ format:		__db_errx(env, DB_STR_A("1584",
 				uv2 = 0;
 			else
 				CFG_GET_UINT32(argv[i + 1], &uv2);
-			if ((ret = __repmgr_site_config(site,
+			if ((ret = __repmgr_site_config_int(site,
 			    (u_int32_t)lv1, (u_int32_t)uv2)) != 0)
 				break;
 		}
@@ -628,6 +649,15 @@ format:		__db_errx(env, DB_STR_A("1584",
 			goto format;
 		return (__env_set_flags(
 		    dbenv, DB_REGION_INIT, lv1 == 0 ? 0 : 1));
+	}
+
+	/* set_mutex_failchk_timeout <unsigned timeout> */
+	if (strcasecmp(argv[0], "set_mutex_failchk_timeout") == 0) {
+		if (nf != 2)
+			goto format;
+		CFG_GET_UINT32(argv[1], &uv1);
+		return (__env_set_timeout(
+		    dbenv, (u_int32_t)uv1, DB_SET_MUTEX_FAILCHK_TIMEOUT));
 	}
 
 	/* set_reg_timeout <unsigned timeout> */

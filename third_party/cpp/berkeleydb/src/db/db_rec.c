@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -1194,8 +1194,9 @@ __db_pg_init_recover(env, dbtp, lsnp, op, info)
 	DB_LSN copy_lsn;
 	DB_MPOOLFILE *mpf;
 	PAGE *pagep;
-	int cmp_n, cmp_p, ret, type;
+	int cmp_n, cmp_p, ret, t_ret, type;
 
+	pagep = NULL;
 	ip = ((DB_TXNHEAD *)info)->thread_info;
 	REC_PRINT(__db_pg_init_print);
 	REC_INTRO(__db_pg_init_read, ip, 0);
@@ -1247,11 +1248,12 @@ __db_pg_init_recover(env, dbtp, lsnp, op, info)
 			memcpy((u_int8_t*)pagep + HOFFSET(pagep),
 			     argp->data.data, argp->data.size);
 	}
-	if ((ret = __memp_fput(mpf, ip, pagep, file_dbp->priority)) != 0)
-		goto out;
 
 done:	*lsnp = argp->prev_lsn;
 out:
+	if (pagep != NULL && (t_ret =
+	     __memp_fput(mpf, ip, pagep, file_dbp->priority)) != 0 && ret == 0)
+	    	ret = t_ret;
 	REC_CLOSE;
 }
 

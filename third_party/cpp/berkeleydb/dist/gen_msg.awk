@@ -1,7 +1,7 @@
 #
 # See the file LICENSE for redistribution information.
 #
-# Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+# Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
 #
 # $Id$
 #
@@ -120,7 +120,7 @@ END {
 #
 function type_length(type)
 {
-	if (type == "DB_LSN")
+	if (type == "DB_LSN" || type == "u_int64_t")
 		return (8);
 	if (type == "DBT" || type == "u_int32_t" || type == "db_pgno_t")
 		return (4);
@@ -257,6 +257,17 @@ function emit_marshal()
                             vars[i], vars[i]) >> CFILE;
 			printf("\t\tbp += argp->%s.size;\n", vars[i]) >> CFILE;
 			printf("\t}\n") >> CFILE;
+		} else if (types[i] == "u_int64_t") {
+			if (version) {
+				printf("\tif (copy_only) {\n") >> CFILE;
+				printf(\
+    "\t\tmemcpy(bp, &argp->%s, sizeof(u_int64_t));\n", vars[i]) >> CFILE;
+				printf(\
+    "\t\tbp += sizeof(u_int64_t);\n") >> CFILE;
+				printf("\t} else\n\t") >> CFILE;
+			}
+			printf("\tDB_HTONLL_COPYOUT(env, bp, argp->%s);\n", \
+                            vars[i]) >> CFILE;
 		} else {
 			printf("unknown field type: %s", types[i]);
 			exit(1);
@@ -413,6 +424,17 @@ function emit_unmarshal()
 			printf("\tif (max < needed)\n") >> CFILE;
 			printf("\t\tgoto too_few;\n") >> CFILE;
 			printf("\tbp += argp->%s.size;\n", vars[i]) >> CFILE;
+		} else if (types[i] == "u_int64_t") {
+			if (version) {
+				printf("\tif (copy_only) {\n") >> CFILE;
+				printf(\
+    "\t\tmemcpy(&argp->%s, bp, sizeof(u_int64_t));\n", vars[i]) >> CFILE;
+				printf(\
+    "\t\tbp += sizeof(u_int64_t);\n") >> CFILE;
+				printf("\t} else\n\t") >> CFILE;
+			}
+			printf("\tDB_NTOHLL_COPYIN(env, argp->%s, bp);\n", \
+                            vars[i]) >> CFILE;
 		} else {
 			printf("unknown field type: %s", types[i]);
 			exit(1);

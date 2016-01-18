@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -117,6 +117,15 @@ __db_open(dbp, ip, txn, fname, dname, type, flags, mode, meta_pgno)
 	if ((dname != NULL &&
 	    (ret = __os_strdup(env, dname, &dbp->dname)) != 0))
 		goto err;
+
+	/*
+	 * Silently disabled blobs in databases that cannot support them.
+	 * Most illegal configurations will have already been caught, this
+	 * is to allow a user to set an environment wide blob threshold, but
+	 * not have to explicitly turn it off for in-memory or queue databases.
+	 */
+	if (!__db_blobs_enabled(dbp))
+		dbp->blob_threshold = 0;
 
 	/*
 	 * If both fname and subname are NULL, it's always a create, so make
@@ -258,6 +267,11 @@ __db_open(dbp, ip, txn, fname, dname, type, flags, mode, meta_pgno)
 	}
 	if (ret != 0)
 		goto err;
+
+	if (dbp->blob_file_id != 0)
+		if ((ret = __blob_make_sub_dir(env, &dbp->blob_sub_dir,
+		    dbp->blob_file_id, dbp->blob_sdb_id)) != 0)
+			goto err;
 
 #ifdef HAVE_PARTITION
 	if (dbp->p_internal != NULL && (ret =
@@ -432,8 +446,10 @@ err:	return (ret);
 
 /*
  * __db_chk_meta --
- *	Take a buffer containing a meta-data page and check it for a valid LSN,
- *	checksum (and verify the checksum if necessary) and possibly decrypt it.
+ *	Validate a buffer containing a possible meta-data page. It is
+ *      byte-swapped as necessary and checked for having a valid magic number.
+ *      If it does, then it can validate the LSN, checksum (if necessary),
+ *      and possibly decrypt it.
  *
  *	Return 0 on success, >0 (errno).
  *
@@ -447,44 +463,64 @@ __db_chk_meta(env, dbp, meta, flags)
 	u_int32_t flags;
 {
 	DB_LSN swap_lsn;
-	int is_hmac, ret, swapped;
-	u_int32_t magic, orig_chk;
+	int is_hmac, needs_swap, ret;
+	u_int32_t magic;
 	u_int8_t *chksum;
 
 	ret = 0;
-	swapped = 0;
+	needs_swap = 0;
 
+	/*
+	 * We can verify that this is some kind of db now, before any potential
+	 * decryption, because the first P_OVERHEAD() bytes of most pages are
+	 * cleartext. This gets called both before and after swapping, so we
+	 * need to check for byte swapping ourselves.
+	 */
+	magic = meta->magic;
+magic_retry:
+	switch (magic) {
+	case DB_BTREEMAGIC:
+	case DB_HASHMAGIC:
+	case DB_HEAPMAGIC:
+	case DB_QAMMAGIC:
+	case DB_RENAMEMAGIC:
+		break;
+	default:
+		if (needs_swap)
+			/* It's already been swapped, so it isn't a BDB file. */
+			return (USR_ERR(env, EINVAL));
+		M_32_SWAP(magic);
+		needs_swap = 1;
+		goto magic_retry;
+	}
+
+	if (LOGGING_ON(env) && !LF_ISSET(DB_CHK_NOLSN)) {
+		swap_lsn = meta->lsn;
+		if (needs_swap) {
+			M_32_SWAP(swap_lsn.file);
+			M_32_SWAP(swap_lsn.offset);
+		}
+		if (!IS_REP_CLIENT(env) && !IS_NOT_LOGGED_LSN(swap_lsn) &&
+		    !IS_ZERO_LSN(swap_lsn) && (ret =
+		    __log_check_page_lsn(env, dbp, &swap_lsn)) != 0)
+			return (ret);
+	}
 	if (FLD_ISSET(meta->metaflags, DBMETA_CHKSUM)) {
 		if (dbp != NULL)
 			F_SET(dbp, DB_AM_CHKSUM);
-
-		is_hmac = meta->encrypt_alg == 0 ? 0 : 1;
-		chksum = ((BTMETA *)meta)->chksum;
-
-		/*
-		 * If we need to swap, the checksum function overwrites the
-		 * original checksum with 0, so we need to save a copy of the
-		 * original for swapping later.
-		 */
-		orig_chk = *(u_int32_t *)chksum;
-
 		/*
 		 * We cannot add this to __db_metaswap because that gets done
 		 * later after we've verified the checksum or decrypted.
 		 */
 		if (LF_ISSET(DB_CHK_META)) {
-			swapped = 0;
-chk_retry:		if ((ret =
+			is_hmac = meta->encrypt_alg != 0;
+			chksum = ((BTMETA *)meta)->chksum;
+			if (needs_swap && !is_hmac)
+				M_32_SWAP(*(u_int32_t *)chksum);
+			if ((ret =
 			    __db_check_chksum(env, NULL, env->crypto_handle,
-			    chksum, meta, DBMETASIZE, is_hmac)) != 0) {
-				if (is_hmac || swapped)
-					return (DB_CHKSUM_FAIL);
-
-				M_32_SWAP(orig_chk);
-				swapped = 1;
-				*(u_int32_t *)chksum = orig_chk;
-				goto chk_retry;
-			}
+			    chksum, meta, DBMETASIZE, is_hmac)) != 0)
+				return (USR_ERR(env, DB_CHKSUM_FAIL));
 		}
 	} else if (dbp != NULL)
 		F_CLR(dbp, DB_AM_CHKSUM);
@@ -492,44 +528,8 @@ chk_retry:		if ((ret =
 #ifdef HAVE_CRYPTO
 	if (__crypto_decrypt_meta(env,
 	     dbp, (u_int8_t *)meta, LF_ISSET(DB_CHK_META)) != 0)
-	     	ret = DB_CHKSUM_FAIL;
-	else
+		ret = USR_ERR(env, DB_CHKSUM_FAIL);
 #endif
-
-	/* Now that we're decrypted, we can check LSN. */
-	if (LOGGING_ON(env) && !LF_ISSET(DB_CHK_NOLSN)) {
-		/*
-		 * This gets called both before and after swapping, so we
-		 * need to check ourselves.  If we already swapped it above,
-		 * we'll know that here.
-		 */
-
-		swap_lsn = meta->lsn;
-		magic = meta->magic;
-lsn_retry:
-		if (swapped) {
-			M_32_SWAP(swap_lsn.file);
-			M_32_SWAP(swap_lsn.offset);
-			M_32_SWAP(magic);
-		}
-		switch (magic) {
-		case DB_BTREEMAGIC:
-		case DB_HASHMAGIC:
-		case DB_HEAPMAGIC:
-		case DB_QAMMAGIC:
-		case DB_RENAMEMAGIC:
-			break;
-		default:
-			if (swapped)
-				return (EINVAL);
-			swapped = 1;
-			goto lsn_retry;
-		}
-		if (!IS_REP_CLIENT(env) &&
-		    !IS_NOT_LOGGED_LSN(swap_lsn) && !IS_ZERO_LSN(swap_lsn))
-			/* Need to do check. */
-			ret = __log_check_page_lsn(env, dbp, &swap_lsn);
-	}
 	return (ret);
 }
 
@@ -598,7 +598,6 @@ swap_retry:
 	}
 
 	/*
-	 * We can only check the meta page if we are sure we have a meta page.
 	 * If it is random data, then this check can fail.  So only now can we
 	 * checksum and decrypt.  Don't distinguish between configuration and
 	 * checksum match errors here, because we haven't opened the database
@@ -606,9 +605,9 @@ swap_retry:
 	 * If DB_SKIP_CHK is set, it means the checksum was already checked
 	 * and the page was already decrypted.
 	 */
-	if (!LF_ISSET(DB_SKIP_CHK) && 
+	if (!LF_ISSET(DB_SKIP_CHK) &&
 	    (ret = __db_chk_meta(env, dbp, meta, flags)) != 0) {
-		if (ret == DB_CHKSUM_FAIL) 
+		if (ret == DB_CHKSUM_FAIL)
 			__db_errx(env, DB_STR_A("0640",
 			    "%s: metadata page checksum error", "%s"), name);
 		goto bad_format;
@@ -669,10 +668,9 @@ swap_retry:
 	}
 
 	if (FLD_ISSET(meta->metaflags,
-	    DBMETA_PART_RANGE | DBMETA_PART_CALLBACK))
-		if ((ret =
-		    __partition_init(dbp, meta->metaflags)) != 0)
-			return (ret);
+	    DBMETA_PART_RANGE | DBMETA_PART_CALLBACK) &&
+	    (ret = __partition_init(dbp, meta->metaflags)) != 0)
+		return (ret);
 	return (0);
 
 bad_format:

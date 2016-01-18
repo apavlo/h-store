@@ -1,9 +1,9 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1999, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
- * $Id: env_method.c,v dabaaeb7d839 2010/08/03 17:28:53 mike $
+ * $Id$
  */
 
 #include "db_config.h"
@@ -40,6 +40,7 @@ static int  __env_get_app_dispatch
 		__P((DB_ENV *, int (**)(DB_ENV *, DBT *, DB_LSN *, db_recops)));
 static int  __env_set_app_dispatch
 		__P((DB_ENV *, int (*)(DB_ENV *, DBT *, DB_LSN *, db_recops)));
+static int  __env_get_blob_dir __P((DB_ENV *, const char **));
 static int __env_set_event_notify
 		__P((DB_ENV *, void (*)(DB_ENV *, u_int32_t, void *)));
 static int  __env_get_feedback __P((DB_ENV *, void (**)(DB_ENV *, int, int)));
@@ -80,6 +81,11 @@ db_env_create(dbenvpp, flags)
 	 */
 	if (flags != 0)
 		return (EINVAL);
+
+#ifdef HAVE_ERROR_HISTORY
+	/* Call thread local storage initializer at least once per process. */
+	__db_thread_init();
+#endif
 
 	/* Allocate the DB_ENV and ENV structures -- we always have both. */
 	if ((ret = __os_calloc(NULL, 1, sizeof(DB_ENV), &dbenv)) != 0)
@@ -159,7 +165,7 @@ __db_env_init(dbenv)
 	 */
 	/* DB_ENV PUBLIC HANDLE LIST BEGIN */
 	dbenv->add_data_dir = __env_add_data_dir;
-	dbenv->backup = __db_backup;
+	dbenv->backup = __db_backup_pp;
 	dbenv->dbbackup = __db_dbbackup_pp;
 	dbenv->cdsgroup_begin = __cdsgroup_begin_pp;
 	dbenv->close = __env_close_pp;
@@ -175,6 +181,8 @@ __db_env_init(dbenv)
 	dbenv->get_cachesize = __memp_get_cachesize;
 	dbenv->get_backup_callbacks = __env_get_backup_callbacks;
 	dbenv->get_backup_config = __env_get_backup_config;
+	dbenv->get_blob_dir = __env_get_blob_dir;
+	dbenv->get_blob_threshold = __env_get_blob_threshold_pp;
 	dbenv->get_create_dir = __env_get_create_dir;
 	dbenv->get_data_dirs = __env_get_data_dirs;
 	dbenv->get_data_len = __env_get_data_len;
@@ -269,7 +277,7 @@ __db_env_init(dbenv)
 	dbenv->open = __env_open_pp;
 	dbenv->remove = __env_remove;
 	dbenv->rep_elect = __rep_elect_pp;
-	dbenv->rep_flush = __rep_flush;
+	dbenv->rep_flush = __rep_flush_pp;
 	dbenv->rep_get_clockskew = __rep_get_clockskew;
 	dbenv->rep_get_config = __rep_get_config;
 	dbenv->rep_get_limit = __rep_get_limit;
@@ -282,29 +290,34 @@ __db_env_init(dbenv)
 	dbenv->rep_set_config = __rep_set_config;
 	dbenv->rep_set_limit = __rep_set_limit;
 	dbenv->rep_set_nsites = __rep_set_nsites_pp;
-	dbenv->rep_set_priority = __rep_set_priority;
+	dbenv->rep_set_priority = __rep_set_priority_pp;
 	dbenv->rep_set_request = __rep_set_request;
-	dbenv->rep_set_timeout = __rep_set_timeout;
+	dbenv->rep_set_timeout = __rep_set_timeout_pp;
 	dbenv->rep_set_transport = __rep_set_transport_pp;
+	dbenv->rep_set_view = __rep_set_view;
 	dbenv->rep_start = __rep_start_pp;
 	dbenv->rep_stat = __rep_stat_pp;
 	dbenv->rep_stat_print = __rep_stat_print_pp;
 	dbenv->rep_sync = __rep_sync;
 	dbenv->repmgr_channel = __repmgr_channel;
 	dbenv->repmgr_get_ack_policy = __repmgr_get_ack_policy;
+	dbenv->repmgr_get_incoming_queue_max = __repmgr_get_incoming_queue_max;
 	dbenv->repmgr_local_site = __repmgr_local_site;
 	dbenv->repmgr_msg_dispatch = __repmgr_set_msg_dispatch;
 	dbenv->repmgr_set_ack_policy = __repmgr_set_ack_policy;
+	dbenv->repmgr_set_incoming_queue_max = __repmgr_set_incoming_queue_max;
 	dbenv->repmgr_site = __repmgr_site;
 	dbenv->repmgr_site_by_eid = __repmgr_site_by_eid;
-	dbenv->repmgr_site_list = __repmgr_site_list;
-	dbenv->repmgr_start = __repmgr_start;
+	dbenv->repmgr_site_list = __repmgr_site_list_pp;
+	dbenv->repmgr_start = __repmgr_start_pp;
 	dbenv->repmgr_stat = __repmgr_stat_pp;
 	dbenv->repmgr_stat_print = __repmgr_stat_print_pp;
 	dbenv->set_alloc = __env_set_alloc;
 	dbenv->set_app_dispatch = __env_set_app_dispatch;
 	dbenv->set_backup_callbacks = __env_set_backup_callbacks;
 	dbenv->set_backup_config = __env_set_backup_config;
+	dbenv->set_blob_dir = __env_set_blob_dir;
+	dbenv->set_blob_threshold = __env_set_blob_threshold;
 	dbenv->set_cache_max = __memp_set_cache_max;
 	dbenv->set_cachesize = __memp_set_cachesize;
 	dbenv->set_create_dir = __env_set_create_dir;
@@ -370,10 +383,11 @@ __db_env_init(dbenv)
 	dbenv->thread_id = __os_id;
 	dbenv->thread_id_string = __env_thread_id_string;
 
+	dbenv->mutex_failchk_timeout = US_PER_SEC;
+
 	env = dbenv->env;
 	__os_id(NULL, &env->pid_cache, NULL);
 
-	env->db_ref = 0;
 	env->log_verify_wrap = __log_verify_wrap;
 	env->data_len = ENV_DEF_DATA_LEN;
 	TAILQ_INIT(&env->fdlist);
@@ -561,6 +575,97 @@ __env_get_memory_init(dbenv, type, countp)
 }
 
 /*
+ * __env_get_blob_threshold_pp --
+ * Get the blob threshold for the environment.  Any data item larger
+ * than the blob threshold is automatically saved as a blob file.
+ *
+ * PUBLIC: int  __env_get_blob_threshold_pp
+ * PUBLIC:         __P ((DB_ENV *, u_int32_t *));
+ */
+int
+__env_get_blob_threshold_pp(dbenv, bytes)
+	DB_ENV *dbenv;
+	u_int32_t *bytes;
+{
+	ENV *env;
+	DB_THREAD_INFO *ip;
+	int ret;
+
+	env = dbenv->env;
+
+	ENV_ENTER(env, ip);
+	ret = __env_get_blob_threshold_int(env, bytes);
+	ENV_LEAVE(env, ip);
+
+	return (ret);
+}
+
+/*
+ * __env_get_blob_threshold_int --
+ * Get the blob threshold for the environment.  Any data item larger
+ * than the blob threshold is automatically saved as a blob file.
+ *
+ * PUBLIC: int  __env_get_blob_threshold_int
+ * PUBLIC:         __P ((ENV *, u_int32_t *));
+ */
+int
+__env_get_blob_threshold_int(env, bytes)
+	ENV *env;
+	u_int32_t *bytes;
+{
+	REGENV *renv;
+	REGINFO *infop;
+
+	if (F_ISSET(env, ENV_OPEN_CALLED)) {
+		infop = env->reginfo;
+		renv = infop->primary;
+		MUTEX_LOCK(env, renv->mtx_regenv);
+		*bytes = renv->blob_threshold;
+		MUTEX_UNLOCK(env, renv->mtx_regenv);
+	} else
+		*bytes = env->dbenv->blob_threshold;
+
+	return (0);
+}
+
+/*
+ * __env_set_blob_threshold --
+ * Set the default blob threshold for the environment.  Any data item larger
+ * than the blob threshold is automatically saved as a blob file.
+ *
+ * PUBLIC: int  __env_set_blob_threshold __P((DB_ENV *, u_int32_t, u_int32_t));
+ */
+int
+__env_set_blob_threshold(dbenv, bytes, flags)
+	DB_ENV *dbenv;
+	u_int32_t bytes;
+	u_int32_t flags;
+{
+	ENV *env;
+	REGENV *renv;
+	REGINFO *infop;
+	DB_THREAD_INFO *ip;
+
+	env = dbenv->env;
+
+	if (__db_fchk(dbenv->env, "DB_ENV->set_blob_threshold", flags, 0) != 0)
+		return (EINVAL);
+
+	if (F_ISSET(env, ENV_OPEN_CALLED)) {
+		infop = env->reginfo;
+		renv = infop->primary;
+		ENV_ENTER(env, ip);
+		MUTEX_LOCK(env, renv->mtx_regenv);
+		renv->blob_threshold = bytes;
+		MUTEX_UNLOCK(env, renv->mtx_regenv);
+		ENV_LEAVE(env, ip);
+	} else
+		dbenv->blob_threshold = bytes;
+
+	return (0);
+}
+
+/*
  * __env_set_memory_init --
  *	DB_ENV->set_memory_init.
  *
@@ -693,6 +798,43 @@ __env_set_app_dispatch(dbenv, app_dispatch)
 	ENV_ILLEGAL_AFTER_OPEN(env, "DB_ENV->set_app_dispatch");
 
 	dbenv->app_dispatch = app_dispatch;
+	return (0);
+}
+
+/*
+ * __env_set_blob_dir --
+ * API to allow the user to override the default blob file
+ * root directory. Must be set if blobs are enabled and an
+ * unnamed environment is created.
+ *
+ * PUBLIC:  int  __env_set_blob_dir __P((DB_ENV *, const char *));
+ */
+int
+__env_set_blob_dir(dbenv, dir)
+	DB_ENV *dbenv;
+	const char *dir;
+{
+	ENV *env;
+
+	env = dbenv->env;
+
+	ENV_ILLEGAL_AFTER_OPEN(env, "DB_ENV->set_blob_dir");
+
+	if (dbenv->db_blob_dir != NULL)
+		__os_free(env, dbenv->db_blob_dir);
+	return (__os_strdup(env, dir, &dbenv->db_blob_dir));
+}
+
+/*
+ * __env_get_blob_dir --
+ * Get the blob file root directory.
+ */
+static int
+__env_get_blob_dir(dbenv, dirp)
+    DB_ENV *dbenv;
+    const char **dirp;
+{
+	*dirp = dbenv->db_blob_dir;
 	return (0);
 }
 
@@ -1061,6 +1203,10 @@ __env_set_backup(env, on)
 		return (EINVAL);
 	}
 
+	/*
+	 * This code does not need env_rep_enter for the checkpoint because
+	 * it can only happen if there is an active bulk txn existing.
+	 */
 	if (needs_checkpoint && (ret = __txn_checkpoint(env, 0, 0, 0)))
 		return (ret);
 	return (0);
@@ -1244,6 +1390,11 @@ __env_set_data_len(dbenv, data_len)
 	DB_ENV *dbenv;
 	u_int32_t data_len;
 {
+	if (data_len == 0) {
+		__db_errx(dbenv->env, DB_STR("1593",
+"Maximum number of bytes to display for each key/data item can not be 0."));
+		return (EINVAL);
+	}
 
 	dbenv->env->data_len = data_len;
 	return (0);
@@ -1720,6 +1871,7 @@ __env_get_verbose(dbenv, which, onoffp)
 	case DB_VERB_DEADLOCK:
 	case DB_VERB_FILEOPS:
 	case DB_VERB_FILEOPS_ALL:
+	case DB_VERB_MVCC:
 	case DB_VERB_RECOVERY:
 	case DB_VERB_REGISTER:
 	case DB_VERB_REPLICATION:
@@ -1758,6 +1910,7 @@ __env_set_verbose(dbenv, which, on)
 	case DB_VERB_DEADLOCK:
 	case DB_VERB_FILEOPS:
 	case DB_VERB_FILEOPS_ALL:
+	case DB_VERB_MVCC:
 	case DB_VERB_RECOVERY:
 	case DB_VERB_REGISTER:
 	case DB_VERB_REPLICATION:
@@ -1888,9 +2041,15 @@ __env_get_timeout(dbenv, timeoutp, flags)
 	int ret;
 
 	ret = 0;
-	if (flags == DB_SET_REG_TIMEOUT) {
+	if (flags == DB_SET_REG_TIMEOUT)
 		*timeoutp = dbenv->envreg_timeout;
-	} else
+	else if (flags == DB_SET_MUTEX_FAILCHK_TIMEOUT)
+#ifdef HAVE_FAILCHK_BROADCAST
+		*timeoutp = dbenv->mutex_failchk_timeout;
+#else
+		ret = USR_ERR(dbenv->env, DB_OPNOTSUP);
+#endif
+	else
 		ret = __lock_get_env_timeout(dbenv, timeoutp, flags);
 	return (ret);
 }
@@ -1912,6 +2071,12 @@ __env_set_timeout(dbenv, timeout, flags)
 	ret = 0;
 	if (flags == DB_SET_REG_TIMEOUT)
 		dbenv->envreg_timeout = timeout;
+	else if (flags == DB_SET_MUTEX_FAILCHK_TIMEOUT)
+#ifdef HAVE_FAILCHK_BROADCAST
+		dbenv->mutex_failchk_timeout = timeout;
+#else
+		ret = USR_ERR(dbenv->env, DB_OPNOTSUP);
+#endif
 	else
 		ret = __lock_set_env_timeout(dbenv, timeout, flags);
 	return (ret);

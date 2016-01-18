@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2009, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -856,7 +856,7 @@ public:
 	/// \sa db_vector_base_iterator::operator++()
 	inline self& operator++()
 	{
-		move_by(*this, 1, false);
+		this->move_by(*this, 1, false);
 		return *this;
 	}
 
@@ -866,7 +866,7 @@ public:
 	inline self operator++(int)
 	{
 		self itr(*this);
-		move_by(*this, 1, false);
+		this->move_by(*this, 1, false);
 
 		return itr;
 	}
@@ -876,7 +876,7 @@ public:
 	/// \sa db_vector_base_iterator::operator--()
 	inline self& operator--()
 	{
-		move_by(*this, 1, true);
+		this->move_by(*this, 1, true);
 		return *this;
 	}
 
@@ -886,7 +886,7 @@ public:
 	inline self operator--(int)
 	{
 		self itr = *this;
-		move_by(*this, 1, true);
+		this->move_by(*this, 1, true);
 		return itr;
 	}
 
@@ -919,7 +919,7 @@ public:
 	inline self operator+(difference_type n) const
 	{
 		self itr(*this);
-		move_by(itr, n, false);
+		this->move_by(itr, n, false);
 		return itr;
 	}
 
@@ -930,7 +930,7 @@ public:
 	/// \sa db_vector_base_iterator::operator+=(difference_type n) 
 	inline const self& operator+=(difference_type n)
 	{
-		move_by(*this, n, false);
+		this->move_by(*this, n, false);
 		return *this;
 	}
 
@@ -945,7 +945,7 @@ public:
 	inline self operator-(difference_type n) const
 	{
 		self itr(*this);
-		move_by(itr, n);
+		this->move_by(itr, n);
 
 		return itr;
 	}
@@ -957,7 +957,7 @@ public:
 	/// \sa db_vector_base_iterator::operator-=(difference_type n) 
 	inline const self& operator-=(difference_type n)
 	{
-		move_by(*this, n);
+		this->move_by(*this, n);
 		return *this;
 	}
 	//@} // itr_movement

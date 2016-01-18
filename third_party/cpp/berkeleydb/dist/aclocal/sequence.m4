@@ -43,7 +43,9 @@ AC_DEFUN(AM_SEQUENCE_CONFIGURE, [
 	# test, which won't test for the appropriate printf format strings.
 	if test "$db_cv_build_sequence" = "yes"; then
 		AC_TRY_RUN([
-		main() {
+		#include <stdio.h>
+		#include <string.h>
+		int main() {
 			$db_cv_seq_type l;
 			unsigned $db_cv_seq_type u;
 			char buf@<:@100@:>@;
@@ -59,7 +61,9 @@ AC_DEFUN(AM_SEQUENCE_CONFIGURE, [
 				return (1);
 			return (0);
 		}],, [db_cv_build_sequence="no"],
-		AC_TRY_LINK(,[
+		AC_TRY_LINK([
+		#include <stdio.h>
+		#include <string.h>],[
 			$db_cv_seq_type l;
 			unsigned $db_cv_seq_type u;
 			char buf@<:@100@:>@;

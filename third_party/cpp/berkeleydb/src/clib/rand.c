@@ -13,6 +13,7 @@
  * PUBLIC: void srand __P((unsigned int));
  * PUBLIC: #endif
  */
+#ifndef HAVE_RAND
 int rand(void)	/* RAND_MAX assumed to be 32767 */
 {
 	DB_GLOBAL(rand_next) = DB_GLOBAL(rand_next) * 1103515245 + 12345;
@@ -23,3 +24,4 @@ void srand(unsigned int seed)
 {
 	DB_GLOBAL(rand_next) = seed;
 }
+#endif

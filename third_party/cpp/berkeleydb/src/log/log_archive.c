@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1997, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -304,7 +304,7 @@ __log_get_stable_lsn(env, stable_lsn, group_wide)
 		 * so that the caller knows it may be done.
 		 */
 		if (IS_ZERO_LSN(*stable_lsn)) {
-			ret = DB_NOTFOUND;
+			ret = USR_ERR(env, DB_NOTFOUND);
 			goto err;
 		}
 	} else if ((ret = __txn_getckp(env, stable_lsn)) != 0)

@@ -302,9 +302,9 @@ class PersistentTable : public Table {
     voltdb::TableTuple * getTempTarget1();
     void insertUnevictedBlockID(std::pair<int32_t,int32_t>);
     bool removeUnevictedBlockID(int32_t blockId);
-    void insertUnevictedBlock(char* unevicted_tuples);
-    void insertTupleOffset(int32_t tuple_offset);
-    void insertBlockID(int32_t);
+    void insertUnevictedBlock(char* unevicted_tuples, int i);
+    void insertTupleOffset(int32_t tuple_offset, int i);
+    void insertBlockID(int32_t, int i);
     int isAlreadyUnEvicted(int32_t blockId);
     int32_t getTuplesRead();
     void setTuplesRead(int32_t tuplesRead);
@@ -405,6 +405,9 @@ protected:
     
     bool m_blockMerge;
     bool m_batchEvicted;
+    
+    int m_read_pivot;
+    int m_merge_pivot;
 
     #endif
     

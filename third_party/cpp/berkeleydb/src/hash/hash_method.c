@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1999, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -20,7 +20,7 @@ static int __ham_set_h_hash
 static int __ham_set_h_nelem __P((DB *, u_int32_t));
 
 static int __ham_get_h_compare
-	__P((DB *, int (**)(DB *, const DBT *, const DBT *)));
+	__P((DB *, int (**)(DB *, const DBT *, const DBT *, size_t *)));
 
 /*
  * __ham_db_create --
@@ -153,7 +153,7 @@ __ham_set_h_hash(dbp, func)
 static int
 __ham_get_h_compare(dbp, funcp)
 	DB *dbp;
-	int (**funcp) __P((DB *, const DBT *, const DBT *));
+	int (**funcp) __P((DB *, const DBT *, const DBT *, size_t *));
 {
 	HASH *t;
 
@@ -170,13 +170,13 @@ __ham_get_h_compare(dbp, funcp)
  * __ham_set_h_compare --
  *	Set the comparison function.
  *
- * PUBLIC: int __ham_set_h_compare
- * PUBLIC:         __P((DB *, int (*)(DB *, const DBT *, const DBT *)));
+ * PUBLIC: int __ham_set_h_compare __P((DB *,
+ * PUBLIC:     int (*)(DB *, const DBT *, const DBT *, size_t *)));
  */
 int
 __ham_set_h_compare(dbp, func)
 	DB *dbp;
-	int (*func) __P((DB *, const DBT *, const DBT *));
+	int (*func) __P((DB *, const DBT *, const DBT *, size_t *));
 {
 	HASH *t;
 

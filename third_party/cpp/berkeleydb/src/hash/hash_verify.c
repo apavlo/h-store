@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1999, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -9,6 +9,7 @@
 #include "db_config.h"
 
 #include "db_int.h"
+#include "dbinc/blob.h"
 #include "dbinc/db_page.h"
 #include "dbinc/db_verify.h"
 #include "dbinc/btree.h"
@@ -47,6 +48,7 @@ __ham_vrfy_meta(dbp, vdp, m, pgno, flags)
 	int i, ret, t_ret, isbad;
 	u_int32_t pwr, mbucket;
 	u_int32_t (*hfunc) __P((DB *, const void *, u_int32_t));
+	db_seq_t blob_id;
 
 	env = dbp->env;
 	isbad = 0;
@@ -164,6 +166,55 @@ __ham_vrfy_meta(dbp, vdp, m, pgno, flags)
 		}
 	}
 
+/*
+ * Where 64-bit integer support is not available,
+ * return an error if the file has any blobs.
+ */
+	t_ret = 0;
+#ifdef HAVE_64BIT_TYPES
+	GET_BLOB_FILE_ID(env, m, blob_id, t_ret);
+	if (t_ret != 0) {
+		isbad = 1;
+		EPRINT((env, DB_STR_A("1178",
+		    "Page %lu: blob file id overflow.", "%lu"), (u_long)pgno));
+		if (ret == 0)
+			ret = t_ret;
+	}
+	t_ret = 0;
+	GET_BLOB_SDB_ID(env, m, blob_id, t_ret);
+	if (t_ret != 0) {
+		isbad = 1;
+		EPRINT((env, DB_STR_A("1179",
+		    "Page %lu: blob subdatabase id overflow.",
+		    "%lu"), (u_long)pgno));
+		if (ret == 0)
+			ret = t_ret;
+	}
+#else /* HAVE_64BIT_TYPES */
+	/*
+	 * db_seq_t is an int on systems that do not have 64 integer types, so
+	 * this will compile and run.
+	 */
+	GET_BLOB_FILE_ID(env, m, blob_id, t_ret);
+	if (t_ret != 0 || blob_id != 0) {
+		isbad = 1;
+		EPRINT((env, DB_STR_A("1203",
+		    "Page %lu: blobs require 64 integer compiler support.",
+		    "%lu"), (u_long)pgno));
+		if (ret == 0)
+			ret = t_ret;
+	}
+	GET_BLOB_SDB_ID(env, m, blob_id, t_ret);
+	if (t_ret != 0 || blob_id != 0) {
+		isbad = 1;
+		EPRINT((env, DB_STR_A("1204",
+		    "Page %lu: blobs require 64 integer compiler support.",
+		    "%lu"), (u_long)pgno));
+		if (ret == 0)
+			ret == t_ret;
+	}
+#endif
+
 err:	if ((t_ret = __db_vrfy_putpageinfo(env, vdp, pip)) != 0 && ret == 0)
 		ret = t_ret;
 	if (LF_ISSET(DB_SALVAGE) &&
@@ -246,6 +297,15 @@ __ham_vrfy(dbp, vdp, h, pgno, flags)
 				goto err;
 		}
 
+	/* The high free byte offset should equal the offset of the last item. */
+	if (HOFFSET(h) != (u_int16_t)himark) {
+		EPRINT((env, DB_STR_A("1210",
+		    "Page %lu: items do not begin immediately after the free area",
+		    "%lu"), (u_long)pgno));
+		isbad = 1;
+		goto err;
+	}
+
 	if ((ret = __db_cursor_int(dbp, vdp->thread_info, NULL, DB_HASH,
 	    PGNO_INVALID, 0, DB_LOCK_INVALIDID, &dbc)) != 0)
 		return (ret);
@@ -272,20 +332,63 @@ __ham_vrfy_item(dbp, vdp, pgno, h, i, flags)
 	PAGE *h;
 	u_int32_t i, flags;
 {
+	HBLOB hblob;
 	HOFFDUP hod;
 	HOFFPAGE hop;
 	VRFY_CHILDINFO child;
 	VRFY_PAGEINFO *pip;
-	db_indx_t offset, len, dlen, elen;
+	db_indx_t offset, len, dlen, elen, item_offset;
 	int ret, t_ret;
+	off_t blob_size;
+	db_seq_t blob_id, file_id, sdb_id;
 	u_int8_t *databuf;
 
 	if ((ret = __db_vrfy_getpageinfo(vdp, pgno, &pip)) != 0)
 		return (ret);
 
+	item_offset = P_INP(dbp, h)[i];
 	switch (HPAGE_TYPE(dbp, h, i)) {
 	case H_KEYDATA:
 		/* Nothing to do here--everything but the type field is data */
+		break;
+	case H_BLOB:
+		/*
+		 * Blob item.  Check that the blob file exists and is the same
+		 * file size as is stored in the database record.
+		 */
+		if ((dbp->pgsize - HBLOB_SIZE) < item_offset) {
+			EPRINT((dbp->env, DB_STR_A("1211",
+			    "Page %lu: offset (%u) at blob item %u has overflowed",
+			    "%lu %lu %lu"), (u_long)pip->pgno, item_offset, i));
+			ret = DB_VERIFY_BAD;
+			goto err;
+		}
+		memcpy(&hblob, P_ENTRY(dbp, h, i), HBLOB_SIZE);
+		blob_id = (db_seq_t)hblob.id;
+		GET_BLOB_SIZE(dbp->env, hblob, blob_size, ret);
+		if (ret != 0 || blob_size < 0) {
+			EPRINT((dbp->env, DB_STR_A("1181",
+			    "Page %lu: blob file size value has overflowed",
+			    "%lu"), (u_long)pip->pgno));
+			ret = DB_VERIFY_BAD;
+			goto err;
+		}
+		file_id = (db_seq_t)hblob.file_id;
+		sdb_id = (db_seq_t)hblob.sdb_id;
+		if (file_id == 0 && sdb_id == 0) {
+			EPRINT((dbp->env, DB_STR_A("1184",
+		"Page %lu: invalid blob dir ids %llu %llu at item %lu",
+			    "%lu %llu %llu %lu"),
+			    (u_long)pip->pgno, (unsigned long long)file_id,
+			    (unsigned long long)sdb_id, (u_long)i));
+			ret = DB_VERIFY_BAD;
+			goto err;
+		}
+		if ((ret = __blob_vrfy(dbp->env, blob_id,
+		    blob_size, file_id, sdb_id, pip->pgno, flags)) != 0) {
+			ret = DB_VERIFY_BAD;
+			goto err;
+		}
 		break;
 	case H_DUPLICATE:
 		/* Are we a datum or a key?  Better be the former. */
@@ -339,6 +442,13 @@ __ham_vrfy_item(dbp, vdp, pgno, h, i, flags)
 			F_SET(pip, VRFY_DUPS_UNSORTED);
 		break;
 	case H_OFFPAGE:
+		if ((dbp->pgsize - HOFFPAGE_SIZE) < item_offset) {
+			EPRINT((dbp->env, DB_STR_A("1212",
+			    "Page %lu: offset (%u) at offpage item %u has overflowed",
+			    "%lu %lu %lu"), (u_long)pip->pgno, item_offset, i));
+			ret = DB_VERIFY_BAD;
+			goto err;
+		}
 		/* Offpage item.  Make sure pgno is sane, save off. */
 		memcpy(&hop, P_ENTRY(dbp, h, i), HOFFPAGE_SIZE);
 		if (!IS_VALID_PGNO(hop.pgno) || hop.pgno == pip->pgno ||
@@ -358,6 +468,13 @@ __ham_vrfy_item(dbp, vdp, pgno, h, i, flags)
 			goto err;
 		break;
 	case H_OFFDUP:
+		if ((dbp->pgsize - HOFFDUP_SIZE) < item_offset) {
+			EPRINT((dbp->env, DB_STR_A("1213",
+			    "Page %lu: offset (%u) at offpage duplicate item %u has overflowed",
+			    "%lu %lu %lu"), (u_long)pip->pgno, item_offset, i));
+			ret = DB_VERIFY_BAD;
+			goto err;
+		}
 		/* Offpage duplicate item.  Same drill. */
 		memcpy(&hod, P_ENTRY(dbp, h, i), HOFFDUP_SIZE);
 		if (!IS_VALID_PGNO(hod.pgno) || hod.pgno == pip->pgno ||
@@ -822,15 +939,23 @@ __ham_salvage(dbp, vdp, pgno, h, handle, callback, flags)
 	u_int32_t flags;
 {
 	DBT dbt, key_dbt, unkdbt;
+	ENV *env;
+	HBLOB hblob;
+	char *prefix;
 	db_pgno_t dpgno;
 	int ret, err_ret, t_ret;
-	u_int32_t himark, i, ovfl_bufsz;
-	u_int8_t *hk, *p;
+	off_t blob_size, blob_offset, remaining;
+	u_int32_t blob_buf_size, himark, i, ovfl_bufsz;
+	u_int8_t *blob_buf, *hk, *p;
+	db_seq_t blob_id, file_id, sdb_id;
 	void *buf, *key_buf;
 	db_indx_t dlen, len, tlen;
 
 	memset(&dbt, 0, sizeof(DBT));
 	dbt.flags = DB_DBT_REALLOC;
+	blob_buf = NULL;
+	blob_buf_size = 0;
+	env = dbp->env;
 
 	DB_INIT_DBT(unkdbt, "UNKNOWN", sizeof("UNKNOWN") - 1);
 
@@ -840,9 +965,9 @@ __ham_salvage(dbp, vdp, pgno, h, handle, callback, flags)
 	 * Allocate a buffer for overflow items.  Start at one page;
 	 * __db_safe_goff will realloc as needed.
 	 */
-	if ((ret = __os_malloc(dbp->env, dbp->pgsize, &buf)) != 0)
+	if ((ret = __os_malloc(env, dbp->pgsize, &buf)) != 0)
 		return (ret);
-    ovfl_bufsz = dbp->pgsize;
+	ovfl_bufsz = dbp->pgsize;
 
 	himark = dbp->pgsize;
 	for (i = 0;; i++) {
@@ -885,6 +1010,70 @@ keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 				if ((ret = __db_vrfy_prdbt(&dbt,
 				    0, " ", handle, callback, 0, 0, vdp)) != 0)
 					err_ret = ret;
+				break;
+			case H_BLOB:
+				memcpy(&hblob, hk, HBLOB_SIZE);
+				blob_id = (db_seq_t)hblob.id;
+				GET_BLOB_SIZE(env, hblob, blob_size, ret);
+				if (ret != 0 || blob_size < 0) {
+					err_ret = DB_VERIFY_BAD;
+					continue;
+				}
+				file_id = (db_seq_t)hblob.file_id;
+				sdb_id = (db_seq_t)hblob.sdb_id;
+				/* Read the blob, in pieces if too large.*/
+				blob_offset = 0;
+				if (blob_size > MEGABYTE) {
+					if (blob_buf_size < MEGABYTE) {
+						if ((ret = __os_realloc(
+						    env, MEGABYTE,
+						    &blob_buf)) != 0) {
+							err_ret = ret;
+							continue;
+						}
+						blob_buf_size = MEGABYTE;
+					}
+				} else if (blob_buf_size < blob_size) {
+					blob_buf_size = (u_int32_t)blob_size;
+					if ((ret = __os_realloc(env,
+					    blob_buf_size, &blob_buf)) != 0) {
+						err_ret = ret;
+						continue;
+					}
+				}
+				dbt.data = blob_buf;
+				dbt.ulen = blob_buf_size;
+				remaining = blob_size;
+				prefix = " ";
+				do {
+					if ((ret = __blob_salvage(env, blob_id,
+					    blob_offset,
+					    (remaining < blob_buf_size ?
+					    (size_t)remaining : blob_buf_size),
+					    file_id, sdb_id, &dbt)) != 0) {
+						err_ret = DB_VERIFY_BAD;
+						break;
+					}
+					if (remaining > blob_buf_size)
+						F_SET(
+						    vdp, SALVAGE_STREAM_BLOB);
+					else
+						F_CLR(
+						    vdp, SALVAGE_STREAM_BLOB);
+					if ((ret = __db_vrfy_prdbt(
+					    &dbt, 0, prefix, handle,
+					    callback, 0, 0, vdp)) != 0) {
+						err_ret = ret;
+						break;
+					}
+					prefix = NULL;
+					blob_offset += dbt.size;
+					if (remaining < blob_buf_size)
+						remaining = 0;
+					else
+						remaining -= blob_buf_size;
+				} while (remaining > 0);
+				F_CLR(vdp, SALVAGE_STREAM_BLOB);
 				break;
 			case H_OFFPAGE:
 				if (len < HOFFPAGE_SIZE) {
@@ -960,7 +1149,7 @@ keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 				 */
 				memset(&key_dbt, 0, sizeof(key_dbt));
 				if ((ret = __os_malloc(
-				    dbp->env, dbt.size, &key_buf)) != 0)
+				    env, dbt.size, &key_buf)) != 0)
 					return (ret);
 				memcpy(key_buf, buf, dbt.size);
 				key_dbt.data = key_buf;
@@ -1002,7 +1191,7 @@ keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 					    handle, callback, 0, 0, vdp)) != 0)
 						err_ret = ret;
 				}
-				__os_free(dbp->env, key_buf);
+				__os_free(env, key_buf);
 				break;
 			default:
 				if (!LF_ISSET(DB_AGGRESSIVE))
@@ -1013,7 +1202,9 @@ keydata:			memcpy(buf, HKEYDATA_DATA(hk), len);
 		}
 	}
 
-	__os_free(dbp->env, buf);
+	if (blob_buf != NULL)
+		__os_free(env, blob_buf);
+	__os_free(env, buf);
 	if ((t_ret = __db_salvage_markdone(vdp, pgno)) != 0)
 		return (t_ret);
 	return ((ret == 0 && err_ret != 0) ? err_ret : ret);
@@ -1129,7 +1320,7 @@ __ham_dups_unsorted(dbp, buf, len)
 {
 	DBT a, b;
 	db_indx_t offset, dlen;
-	int (*func) __P((DB *, const DBT *, const DBT *));
+	int (*func) __P((DB *, const DBT *, const DBT *, size_t *));
 
 	memset(&a, 0, sizeof(DBT));
 	memset(&b, 0, sizeof(DBT));
@@ -1146,7 +1337,7 @@ __ham_dups_unsorted(dbp, buf, len)
 		b.data = buf + offset + sizeof(db_indx_t);
 		b.size = dlen;
 
-		if (a.data != NULL && func(dbp, &a, &b) > 0)
+		if (a.data != NULL && func(dbp, &a, &b, NULL) > 0)
 			return (1);
 
 		a.data = b.data;

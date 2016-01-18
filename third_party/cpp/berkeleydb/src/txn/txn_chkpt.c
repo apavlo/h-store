@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  */
 /*
  * Copyright (c) 1995, 1996
@@ -377,7 +377,7 @@ __txn_getckp(env, lsnp)
 	TXN_SYSTEM_UNLOCK(env);
 
 	if (IS_ZERO_LSN(lsn))
-		return (DB_NOTFOUND);
+		return (USR_ERR(env, DB_NOTFOUND));
 
 	*lsnp = lsn;
 	return (0);

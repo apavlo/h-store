@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  */
 /*
  * Copyright (c) 1990, 1993, 1994, 1995, 1996
@@ -44,6 +44,7 @@
 #include "db_config.h"
 
 #include "db_int.h"
+#include "dbinc/blob.h"
 #include "dbinc/crypto.h"
 #include "dbinc/db_page.h"
 #include "dbinc/db_swap.h"
@@ -87,12 +88,7 @@ __bam_open(dbp, ip, txn, name, base_pgno, flags)
 		return (EINVAL);
 	}
 
-	/*
-	 * Verify that the bt_minkey value specified won't cause the
-	 * calculation of ovflsize to underflow [#2406] for this pagesize.
-	 */
-	if (B_MINKEY_TO_OVFLSIZE(dbp, t->bt_minkey, dbp->pgsize) >
-	    B_MINKEY_TO_OVFLSIZE(dbp, DEFMINKEYPAGE, dbp->pgsize)) {
+	if (t->bt_minkey > B_MINKEY_UPPER_LIMIT(dbp)) {
 		__db_errx(dbp->env, DB_STR_A("1007",
 		    "bt_minkey value of %lu too high for page size of %lu",
 		    "%lu %lu"), (u_long)t->bt_minkey, (u_long)dbp->pgsize);
@@ -119,6 +115,7 @@ __bam_metachk(dbp, name, btm)
 	int ret;
 
 	env = dbp->env;
+	ret = 0;
 
 	/*
 	 * At this point, all we know is that the magic number is for a Btree.
@@ -136,6 +133,7 @@ __bam_metachk(dbp, name, btm)
 		return (DB_OLD_VERSION);
 	case 8:
 	case 9:
+	case 10:
 		break;
 	default:
 		__db_errx(env, DB_STR_A("1009",
@@ -268,6 +266,29 @@ __bam_metachk(dbp, name, btm)
 
 	/* Set the page size. */
 	dbp->pgsize = btm->dbmeta.pagesize;
+
+	dbp->blob_threshold = btm->blob_threshold;
+	GET_BLOB_FILE_ID(env, btm, dbp->blob_file_id, ret);
+	if (ret != 0)
+		return (ret);
+	GET_BLOB_SDB_ID(env, btm, dbp->blob_sdb_id, ret);
+	if (ret != 0)
+		return (ret);
+	/* Blob databases must be upgraded. */
+	if (vers == 9 && (dbp->blob_file_id != 0 || dbp->blob_sdb_id != 0)) {
+	    __db_errx(env, DB_STR_A("1207",
+"%s: databases that support blobs must be upgraded.", "%s"),
+		    name);
+		return (EINVAL);
+	}
+#ifndef HAVE_64BIT_TYPES
+	if (dbp->blob_file_id != 0 || dbp->blob_sdb_id != 0) {
+		__db_errx(env, DB_STR_A("1199",
+		    "%s: blobs require 64 integer compiler support.", "%s"),
+		    name);
+		return (DB_OPNOTSUP);
+	}
+#endif
 
 	/* Copy the file's ID. */
 	memcpy(dbp->fileid, btm->dbmeta.uid, DB_FILE_ID_LEN);
@@ -442,6 +463,9 @@ __bam_init_meta(dbp, meta, pgno, lsnp)
 	meta->minkey = t->bt_minkey;
 	meta->re_len = t->re_len;
 	meta->re_pad = (u_int32_t)t->re_pad;
+	meta->blob_threshold = dbp->blob_threshold;
+	SET_BLOB_META_FILE_ID(meta, dbp->blob_file_id, BTMETA);
+	SET_BLOB_META_SDB_ID(meta, dbp->blob_sdb_id, BTMETA);
 
 #ifdef HAVE_PARTITION
 	if ((part = dbp->p_internal) != NULL) {
@@ -535,6 +559,12 @@ __bam_new_file(dbp, ip, txn, fhp, name)
 		pginfo.type = dbp->type;
 		pdbt.data = &pginfo;
 		pdbt.size = sizeof(pginfo);
+		if (dbp->blob_threshold) {
+			if ((ret = __blob_generate_dir_ids(dbp, txn,
+			    &dbp->blob_file_id)) != 0)
+				return (ret);
+
+		}
 		if ((ret = __os_calloc(env, 1, dbp->pgsize, &buf)) != 0)
 			return (ret);
 		meta = (BTMETA *)buf;
@@ -612,6 +642,12 @@ __bam_new_subdb(mdbp, dbp, ip, txn)
 	dbc = NULL;
 	meta = NULL;
 	root = NULL;
+
+	if (dbp->blob_threshold) {
+		if ((ret = __blob_generate_dir_ids(dbp, txn,
+		    &dbp->blob_sdb_id)) != 0)
+			return (ret);
+	}
 
 	if ((ret = __db_cursor(mdbp, ip, txn,
 	    &dbc, CDB_LOCKING(env) ?  DB_WRITECURSOR : 0)) != 0)

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -67,6 +67,7 @@ __memp_get_cachesize(dbenv, gbytesp, bytesp, ncachep)
 	int *ncachep;
 {
 	DB_MPOOL *dbmp;
+	DB_THREAD_INFO *ip;
 	ENV *env;
 	MPOOL *mp;
 
@@ -78,12 +79,16 @@ __memp_get_cachesize(dbenv, gbytesp, bytesp, ncachep)
 	if (MPOOL_ON(env)) {
 		dbmp = env->mp_handle;
 		mp = dbmp->reginfo[0].primary;
+		ENV_ENTER(env, ip);
+		MUTEX_LOCK(env, mp->mtx_resize);
 		if (gbytesp != NULL)
 			*gbytesp = mp->gbytes;
 		if (bytesp != NULL)
 			*bytesp = mp->bytes;
 		if (ncachep != NULL)
 			*ncachep = (int)mp->nreg;
+		MUTEX_UNLOCK(env, mp->mtx_resize);
+		ENV_LEAVE(env, ip);
 	} else {
 		if (gbytesp != NULL)
 			*gbytesp = dbenv->mp_gbytes;
@@ -380,7 +385,7 @@ __memp_set_mp_max_write(dbenv, maxwrite, maxwrite_sleep)
 	env = dbenv->env;
 
 	ENV_NOT_CONFIGURED(env,
-	    env->mp_handle, "DB_ENV->get_mp_max_write", DB_INIT_MPOOL);
+	    env->mp_handle, "DB_ENV->set_mp_max_write", DB_INIT_MPOOL);
 
 	if (MPOOL_ON(env)) {
 		dbmp = env->mp_handle;
@@ -448,7 +453,7 @@ __memp_set_mp_mmapsize(dbenv, mp_mmapsize)
 	env = dbenv->env;
 
 	ENV_NOT_CONFIGURED(env,
-	    env->mp_handle, "DB_ENV->set_mp_max_mmapsize", DB_INIT_MPOOL);
+	    env->mp_handle, "DB_ENV->set_mp_mmapsize", DB_INIT_MPOOL);
 
 	if (MPOOL_ON(env)) {
 		dbmp = env->mp_handle;
@@ -512,7 +517,7 @@ __memp_set_mp_pagesize(dbenv, mp_pagesize)
 	env = dbenv->env;
 
 	ENV_NOT_CONFIGURED(env,
-	    env->mp_handle, "DB_ENV->get_mp_max_mmapsize", DB_INIT_MPOOL);
+	    env->mp_handle, "DB_ENV->set_mp_pagesize", DB_INIT_MPOOL);
 	ENV_ILLEGAL_AFTER_OPEN(env, "DB_ENV->set_mp_pagesize");
 
 	dbenv->mp_pagesize = mp_pagesize;
@@ -561,7 +566,7 @@ __memp_set_mp_tablesize(dbenv, mp_tablesize)
 	env = dbenv->env;
 
 	ENV_NOT_CONFIGURED(env,
-	    env->mp_handle, "DB_ENV->get_mp_max_mmapsize", DB_INIT_MPOOL);
+	    env->mp_handle, "DB_ENV->set_mp_tablesize", DB_INIT_MPOOL);
 	ENV_ILLEGAL_AFTER_OPEN(env, "DB_ENV->set_mp_tablesize");
 
 	dbenv->mp_tablesize = mp_tablesize;
@@ -583,7 +588,7 @@ __memp_get_mp_mtxcount(dbenv, mp_mtxcountp)
 	env = dbenv->env;
 
 	ENV_NOT_CONFIGURED(env,
-	    env->mp_handle, "DB_ENV->get_mp_max_mtxcount", DB_INIT_MPOOL);
+	    env->mp_handle, "DB_ENV->get_mp_mtxcount", DB_INIT_MPOOL);
 
 	if (MPOOL_ON(env)) {
 		dbmp = env->mp_handle;
@@ -610,7 +615,7 @@ __memp_set_mp_mtxcount(dbenv, mp_mtxcount)
 	env = dbenv->env;
 
 	ENV_NOT_CONFIGURED(env,
-	    env->mp_handle, "DB_ENV->get_mp_max_mmapsize", DB_INIT_MPOOL);
+	    env->mp_handle, "DB_ENV->set_mp_mtxcount", DB_INIT_MPOOL);
 	ENV_ILLEGAL_AFTER_OPEN(env, "DB_ENV->set_mp_mtxcount");
 
 	dbenv->mp_mtxcount = mp_mtxcount;
@@ -870,7 +875,7 @@ __memp_ftruncate(dbmfp, txn, ip, pgno, flags)
 	    !mfp->no_backing_file && pgno <= mfp->last_flushed_pgno)
 #ifdef HAVE_FTRUNCATE
 		ret = __os_truncate(env,
-		    dbmfp->fhp, pgno, mfp->pagesize);
+		    dbmfp->fhp, pgno, mfp->pagesize, 0);
 #else
 		ret = __db_zero_extend(env,
 		    dbmfp->fhp, pgno, mfp->last_pgno, mfp->pagesize);

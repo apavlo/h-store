@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -370,6 +370,33 @@ __mutex_set_tas_spins(dbenv, tas_spins)
 		dbenv->mutex_tas_spins = tas_spins;
 	return (0);
 }
+
+#ifdef HAVE_ERROR_HISTORY
+/*
+ * __mutex_diags --
+ *
+ * PUBLIC: #ifdef HAVE_ERROR_HISTORY
+ * PUBLIC: int __mutex_diags __P((ENV *, db_mutex_t, int));
+ * PUBLIC: #endif
+ */
+int
+__mutex_diags(env, mutex, error)
+	ENV *env;
+	db_mutex_t mutex;
+	int error;
+{
+	DB_MSGBUF *mb;
+
+	if ((mb = __db_deferred_get()) != NULL) {
+		(void)__db_remember_context(env, mb, error);
+		__db_msgadd(env, mb, "Mutex %u ", (unsigned int)mutex);
+#ifdef HAVE_STATISTICS
+		__mutex_print_debug_stats(env, mb, mutex, 0);
+#endif
+	}
+	return (error);
+}
+#endif
 
 #if !defined(HAVE_ATOMIC_SUPPORT) && defined(HAVE_MUTEX_SUPPORT)
 /*

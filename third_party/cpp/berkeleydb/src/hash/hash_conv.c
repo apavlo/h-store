@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -104,7 +104,12 @@ __ham_mswap(env, pg)
 	SWAP32(p);		/* h_charkey */
 	for (i = 0; i < NCACHED; ++i)
 		SWAP32(p);	/* spares */
-	p += 59 * sizeof(u_int32_t); /* unused */
+	SWAP32(p);		/* threshold */
+	SWAP32(p);		/* file id lo */
+	SWAP32(p);		/* file id hi */
+	SWAP32(p);		/* sdb id lo */
+	SWAP32(p);		/* sdb id hi */
+	p += 54 * sizeof(u_int32_t); /* unused */
 	SWAP32(p);		/* crypto_magic */
 	return (0);
 }

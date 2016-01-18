@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -199,12 +199,16 @@ struct __db_foreign_info {
 #define	DB_IS_PRIMARY(dbp) (LIST_FIRST(&dbp->s_secondaries) != NULL)
 /*
  * A database should be required to be readonly if it's been explicitly
- * specified as such or if we're a client in a replicated environment
- * and the user did not specify DB_TXN_NOT_DURABLE.
+ * specified as such, if we're a client in a replicated environment
+ * and the user did not specify DB_TXN_NOT_DURABLE, or if we're a master
+ * in a replicated environment and the REP_F_READONLY_MASTER flag has been
+ * set in preparation for a preferred master takeover.
  */
 #define	DB_IS_READONLY(dbp)						\
     (F_ISSET(dbp, DB_AM_RDONLY) ||					\
-    (IS_REP_CLIENT((dbp)->env) && !F_ISSET((dbp), DB_AM_NOT_DURABLE)))
+    (IS_REP_CLIENT((dbp)->env) && !F_ISSET((dbp), DB_AM_NOT_DURABLE))	\
+    || (IS_REP_MASTER((dbp)->env) &&					\
+    F_ISSET((dbp)->env->rep_handle->region, REP_F_READONLY_MASTER)))
 
 #ifdef HAVE_COMPRESSION
 /*

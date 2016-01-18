@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char copyright[] =
-    "Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.\n";
+    "Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.\n";
 #endif
 
 void db_recover_feedback __P((DB_ENV *, int, int));
@@ -35,7 +35,7 @@ main(argc, argv)
 	time_t timestamp;
 	u_int32_t flags;
 	int ch, exitval, fatal_recover, ret, retain_env, set_feedback, verbose;
-	char *home, *passwd;
+	char *blob_dir, *home, *passwd;
 
 	if ((progname = __db_rpath(argv[0])) == NULL)
 		progname = argv[0];
@@ -45,11 +45,14 @@ main(argc, argv)
 	if ((ret = version_check()) != 0)
 		return (ret);
 
-	home = passwd = NULL;
+	blob_dir = home = passwd = NULL;
 	timestamp = 0;
 	exitval = fatal_recover = retain_env = set_feedback = verbose = 0;
-	while ((ch = getopt(argc, argv, "cefh:P:t:Vv")) != EOF)
+	while ((ch = getopt(argc, argv, "b:cefh:P:t:Vv")) != EOF)
 		switch (ch) {
+		case 'b':
+			blob_dir = optarg;
+			break;
 		case 'c':
 			fatal_recover = 1;
 			break;
@@ -119,6 +122,12 @@ main(argc, argv)
 	if (timestamp &&
 	    (ret = dbenv->set_tx_timestamp(dbenv, &timestamp)) != 0) {
 		dbenv->err(dbenv, ret, "DB_ENV->set_timestamp");
+		goto err;
+	}
+
+	if (blob_dir != NULL &&
+	    (ret = dbenv->set_blob_dir(dbenv, blob_dir)) != 0) {
+		dbenv->err(dbenv, ret, "set_blob_dir");
 		goto err;
 	}
 
@@ -299,7 +308,7 @@ int
 usage()
 {
 	(void)fprintf(stderr, "usage: %s %s\n", progname,
-	    "[-cefVv] [-h home] [-P password] [-t [[CC]YY]MMDDhhmm[.SS]]");
+"[-cefVv] [-h home] [-b blob_dir] [-P password] [-t [[CC]YY]MMDDhhmm[.SS]]");
 	return (EXIT_FAILURE);
 }
 

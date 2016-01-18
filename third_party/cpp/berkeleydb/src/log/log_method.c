@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1999, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -342,6 +342,10 @@ __log_get_flags(dbenv, flagsp)
 		LF_SET(DB_LOG_IN_MEMORY);
 	else
 		LF_CLR(DB_LOG_IN_MEMORY);
+	if (lp->nosync)
+		LF_SET(DB_LOG_NOSYNC);
+	else
+		LF_CLR(DB_LOG_NOSYNC);
 	*flagsp = flags;
 }
 
@@ -369,6 +373,8 @@ __log_set_flags(env, flags, on)
 		lp->db_log_autoremove = on ? 1 : 0;
 	if (LF_ISSET(DB_LOG_IN_MEMORY))
 		lp->db_log_inmemory = on ? 1 : 0;
+	if (LF_ISSET(DB_LOG_NOSYNC))
+		lp->nosync = on ? 1 : 0;
 }
 
 /*
@@ -377,13 +383,15 @@ __log_set_flags(env, flags, on)
  */
 #undef	OK_FLAGS
 #define	OK_FLAGS							\
-    (DB_LOG_AUTO_REMOVE | DB_LOG_DIRECT |				\
-    DB_LOG_DSYNC | DB_LOG_IN_MEMORY | DB_LOG_ZERO)
+    (DB_LOG_AUTO_REMOVE | DB_LOG_BLOB | DB_LOG_DIRECT |			\
+     DB_LOG_DSYNC | DB_LOG_IN_MEMORY | DB_LOG_NOSYNC | DB_LOG_ZERO)
 static const FLAG_MAP LogMap[] = {
 	{ DB_LOG_AUTO_REMOVE,	DBLOG_AUTOREMOVE},
+	{ DB_LOG_BLOB,		DBLOG_BLOB},
 	{ DB_LOG_DIRECT,	DBLOG_DIRECT},
 	{ DB_LOG_DSYNC,		DBLOG_DSYNC},
 	{ DB_LOG_IN_MEMORY,	DBLOG_INMEMORY},
+	{ DB_LOG_NOSYNC,	DBLOG_NOSYNC},
 	{ DB_LOG_ZERO,		DBLOG_ZERO}
 };
 /*
@@ -406,10 +414,14 @@ __log_get_config(dbenv, which, onp)
 	if (FLD_ISSET(which, ~OK_FLAGS))
 		return (__db_ferr(env, "DB_ENV->log_get_config", 0));
 	dblp = env->lg_handle;
-	ENV_REQUIRES_CONFIG(env, dblp, "DB_ENV->log_get_config", DB_INIT_LOG);
+	ENV_NOT_CONFIGURED(env, dblp, "DB_ENV->log_get_config", DB_INIT_LOG);
 
-	__env_fetch_flags(LogMap, sizeof(LogMap), &dblp->flags, &flags);
-	__log_get_flags(dbenv, &flags);
+	if (LOGGING_ON(env)) {
+		__env_fetch_flags(LogMap, sizeof(LogMap), &dblp->flags, &flags);
+		__log_get_flags(dbenv, &flags);
+	} else
+		flags = dbenv->lg_flags;
+
 	if (LF_ISSET(which))
 		*onp = 1;
 	else
@@ -457,6 +469,17 @@ __log_set_config_int(dbenv, flags, on, in_open)
 	if (LF_ISSET(DB_LOG_DIRECT) && __os_support_direct_io() == 0) {
 		__db_errx(env,
 "DB_ENV->log_set_config: direct I/O either not configured or not supported");
+		return (EINVAL);
+	}
+	if (REP_ON(env) && LF_ISSET(DB_LOG_BLOB) && !on) {
+		__db_errx(env,
+"DB_ENV->log_set_config: DB_LOG_BLOB must be enabled with replication.");
+		return (EINVAL);
+	}
+	if (FLD_ISSET(flags, DB_LOG_IN_MEMORY) && on > 0 &&
+	    PREFMAS_IS_SET(env)) {
+		__db_errx(env, DB_STR("2587", "DB_LOG_IN_MEMORY is not "
+		    "supported in Replication Manager preferred master mode"));
 		return (EINVAL);
 	}
 

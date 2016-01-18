@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char copyright[] =
-    "Copyright (c) 2010, 2012 Oracle and/or its affiliates.  All rights reserved.\n";
+    "Copyright (c) 2010, 2015 Oracle and/or its affiliates.  All rights reserved.\n";
 #endif
 
 int	 main __P((int, char *[]));
@@ -60,9 +60,9 @@ main(argc, argv)
 	time_t now;
 	long argval;
 	db_timeout_t max_req;
-	u_int32_t flags, repmgr_th, seconds, start_state;
+	u_int32_t repmgr_th, seconds, start_state;
 	int ch, count, done, exitval, ret, verbose;
-	char *home, *passwd, *prog, time_buf[CTIME_BUFLEN];
+	char *blob_dir, *home, *passwd, *prog, time_buf[CTIME_BUFLEN];
 
 	dbenv = NULL;
 	logfp = NULL;
@@ -107,13 +107,15 @@ main(argc, argv)
 	dbenv->set_errpfx(dbenv, progname);
 
 	exitval = verbose = 0;
-	flags = 0;
-	home = logfile = passwd = NULL;
+	blob_dir = home = logfile = passwd = NULL;
 	seconds = 30;
 	start_state = DB_REP_ELECTION;
 	repmgr_th = REP_NTHREADS;
-	while ((ch = getopt(argc, argv, "h:L:MP:T:t:Vv")) != EOF)
+	while ((ch = getopt(argc, argv, "b:h:L:MP:T:t:Vv")) != EOF)
 		switch (ch) {
+		case 'b':
+			blob_dir = optarg;
+			break;
 		case 'h':
 			home = optarg;
 			break;
@@ -180,6 +182,12 @@ main(argc, argv)
 			goto err;
 		if ((ret = db_replicate_logmsg(dbenv, "STARTED")) != 0)
 			goto err;
+	}
+
+	if (blob_dir != NULL && 
+	    (ret = dbenv->set_blob_dir(dbenv, blob_dir)) != 0) {
+		dbenv->err(dbenv, ret, "DB_ENV->set_blob_dir");
+		goto err;
 	}
 
 	/*

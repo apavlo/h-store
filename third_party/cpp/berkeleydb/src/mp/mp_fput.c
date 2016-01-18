@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -52,7 +52,8 @@ __memp_fput_pp(dbmfp, pgaddr, priority, flags)
 
 /*
  * __memp_fput --
- *	DB_MPOOLFILE->put.
+ *	DB_MPOOLFILE->put. Release this reference to the page. If the reference
+ * count drop to zero adjust the buffer's cache priority.
  *
  * PUBLIC: int __memp_fput __P((DB_MPOOLFILE *,
  * PUBLIC:      DB_THREAD_INFO *, void *, DB_CACHE_PRIORITY));

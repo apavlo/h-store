@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1997, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -76,6 +76,7 @@ class DbMpoolFile;                               // forward
 class DbPreplist;                                // forward
 class DbSequence;                                // forward
 class DbSite;                                    // forward
+class DbStream;                                  // forward
 class Dbt;                                       // forward
 class DbTxn;                                     // forward
 
@@ -159,13 +160,13 @@ extern "C" {
 	typedef void (*db_free_fcn_type)
 		(void *);
 	typedef int (*bt_compare_fcn_type)          /*C++ version available*/
-		(DB *, const DBT *, const DBT *);
+		(DB *, const DBT *, const DBT *, size_t *);
 	typedef size_t (*bt_prefix_fcn_type)        /*C++ version available*/
 		(DB *, const DBT *, const DBT *);
 	typedef int (*dup_compare_fcn_type)         /*C++ version available*/
-		(DB *, const DBT *, const DBT *);
+		(DB *, const DBT *, const DBT *, size_t *);
 	typedef int (*h_compare_fcn_type)          /*C++ version available*/
-		(DB *, const DBT *, const DBT *);
+		(DB *, const DBT *, const DBT *, size_t *);
 	typedef u_int32_t (*h_hash_fcn_type)        /*C++ version available*/
 		(DB *, const void *, u_int32_t);
 	typedef int (*pgin_fcn_type)
@@ -204,7 +205,10 @@ public:
 	virtual int get_alloc(
 	    db_malloc_fcn_type *, db_realloc_fcn_type *, db_free_fcn_type *);
 	virtual int get_append_recno(int (**)(Db *, Dbt *, db_recno_t));
-	virtual int get_bt_compare(int (**)(Db *, const Dbt *, const Dbt *));
+	virtual int get_blob_dir(const char **);
+	virtual int get_blob_threshold(u_int32_t *);
+	virtual int get_bt_compare(
+	    int (**)(Db *, const Dbt *, const Dbt *, size_t *));
 	virtual int get_bt_compress(
 	    int (**)(
 	    Db *, const Dbt *, const Dbt *, const Dbt *, const Dbt *, Dbt *),
@@ -215,7 +219,8 @@ public:
 	virtual int get_cachesize(u_int32_t *, u_int32_t *, int *);
 	virtual int get_create_dir(const char **);
 	virtual int get_dbname(const char **, const char **);
-	virtual int get_dup_compare(int (**)(Db *, const Dbt *, const Dbt *));
+	virtual int get_dup_compare(
+	    int (**)(Db *, const Dbt *, const Dbt *, size_t *));
 	virtual int get_encrypt_flags(u_int32_t *);
 	virtual void get_errcall(
 	    void (**)(const DbEnv *, const char *, const char *));
@@ -225,7 +230,8 @@ public:
 	virtual int get_flags(u_int32_t *);
 	virtual int get_heapsize(u_int32_t *, u_int32_t *);
 	virtual int get_heap_regionsize(u_int32_t *);
-	virtual int get_h_compare(int (**)(Db *, const Dbt *, const Dbt *));
+	virtual int get_h_compare(
+	    int (**)(Db *, const Dbt *, const Dbt *, size_t *));
 	virtual int get_h_ffactor(u_int32_t *);
 	virtual int get_h_hash(u_int32_t (**)(Db *, const void *, u_int32_t));
 	virtual int get_h_nelem(u_int32_t *);
@@ -261,8 +267,11 @@ public:
 	    db_malloc_fcn_type, db_realloc_fcn_type, db_free_fcn_type);
 	virtual void set_app_private(void *);
 	virtual int set_append_recno(int (*)(Db *, Dbt *, db_recno_t));
+	virtual int set_blob_dir(const char *);
+	virtual int set_blob_threshold(u_int32_t, u_int32_t);
 	virtual int set_bt_compare(bt_compare_fcn_type); /*deprecated*/
-	virtual int set_bt_compare(int (*)(Db *, const Dbt *, const Dbt *));
+	virtual int set_bt_compare(
+	    int (*)(Db *, const Dbt *, const Dbt *, size_t *));
 	virtual int set_bt_compress(
 	    int (*)
 	    (Db *, const Dbt *, const Dbt *, const Dbt *, const Dbt *, Dbt *),
@@ -273,7 +282,8 @@ public:
 	virtual int set_cachesize(u_int32_t, u_int32_t, int);
 	virtual int set_create_dir(const char *);
 	virtual int set_dup_compare(dup_compare_fcn_type); /*deprecated*/
-	virtual int set_dup_compare(int (*)(Db *, const Dbt *, const Dbt *));
+	virtual int set_dup_compare(
+	    int (*)(Db *, const Dbt *, const Dbt *, size_t *));
 	virtual int set_encrypt(const char *, u_int32_t);
 	virtual void set_errcall(
 	    void (*)(const DbEnv *, const char *, const char *));
@@ -284,7 +294,8 @@ public:
 	virtual int set_heapsize(u_int32_t, u_int32_t);
 	virtual int set_heap_regionsize(u_int32_t);
 	virtual int set_h_compare(h_compare_fcn_type); /*deprecated*/
-	virtual int set_h_compare(int (*)(Db *, const Dbt *, const Dbt *));
+	virtual int set_h_compare(
+	    int (*)(Db *, const Dbt *, const Dbt *, size_t *));
 	virtual int set_h_ffactor(u_int32_t);
 	virtual int set_h_hash(h_hash_fcn_type); /*deprecated*/
 	virtual int set_h_hash(u_int32_t (*)(Db *, const void *, u_int32_t));
@@ -383,16 +394,16 @@ public:
 	int (*associate_callback_)(Db *, const Dbt *, const Dbt *, Dbt *);
 	int (*associate_foreign_callback_)
 	    (Db *, const Dbt *, Dbt *, const Dbt *, int *);
-	int (*bt_compare_callback_)(Db *, const Dbt *, const Dbt *);
+	int (*bt_compare_callback_)(Db *, const Dbt *, const Dbt *, size_t *);
 	int (*bt_compress_callback_)(
 	    Db *, const Dbt *, const Dbt *, const Dbt *, const Dbt *, Dbt *);
 	int (*bt_decompress_callback_)(
 	    Db *, const Dbt *, const Dbt *, Dbt *, Dbt *, Dbt *);
 	size_t (*bt_prefix_callback_)(Db *, const Dbt *, const Dbt *);
 	u_int32_t (*db_partition_callback_)(Db *, Dbt *);
-	int (*dup_compare_callback_)(Db *, const Dbt *, const Dbt *);
+	int (*dup_compare_callback_)(Db *, const Dbt *, const Dbt *, size_t *);
 	void (*feedback_callback_)(Db *, int, int);
-	int (*h_compare_callback_)(Db *, const Dbt *, const Dbt *);
+	int (*h_compare_callback_)(Db *, const Dbt *, const Dbt *, size_t *);
 	u_int32_t (*h_hash_callback_)(Db *, const void *, u_int32_t);
 };
 
@@ -407,6 +418,7 @@ public:
 	int close();
 	int cmp(Dbc *other_csr, int *result, u_int32_t flags);
 	int count(db_recno_t *countp, u_int32_t flags);
+	int db_stream(DbStream **dbsp, u_int32_t flags);
 	int del(u_int32_t flags);
 	int dup(Dbc** cursorp, u_int32_t flags);
 	int get(Dbt* key, Dbt *data, u_int32_t flags);
@@ -527,6 +539,10 @@ public:
 	    int (*)(DbEnv *, const char *, void *));
 	virtual int get_backup_config(DB_BACKUP_CONFIG, u_int32_t *);
 	virtual int set_backup_config(DB_BACKUP_CONFIG, u_int32_t);
+	virtual int get_blob_dir(const char **);
+	virtual int set_blob_dir(const char *);
+	virtual int get_blob_threshold(u_int32_t *);
+	virtual int set_blob_threshold(u_int32_t, u_int32_t);
 	virtual int get_cachesize(u_int32_t *, u_int32_t *, int *);
 	virtual int set_cachesize(u_int32_t, u_int32_t, int);
 	virtual int get_cache_max(u_int32_t *, u_int32_t *);
@@ -761,10 +777,16 @@ public:
 	virtual int rep_set_priority(u_int32_t priority);
 	virtual int rep_get_timeout(int which, db_timeout_t *timeout);
 	virtual int rep_set_timeout(int which, db_timeout_t timeout);
+	virtual int rep_set_view(int (*)(DbEnv *,
+	    const char *, int *, u_int32_t));
 	virtual int repmgr_channel(int eid, DbChannel **channel,
 	    u_int32_t flags);
 	virtual int repmgr_get_ack_policy(int *policy);
 	virtual int repmgr_set_ack_policy(int policy);
+	virtual int repmgr_get_incoming_queue_max(u_int32_t *gbytesp,
+	    u_int32_t *bytesp);
+	virtual int repmgr_set_incoming_queue_max(u_int32_t gbytes,
+	    u_int32_t bytes);
 	virtual int repmgr_local_site(DbSite **site);
 	virtual int repmgr_msg_dispatch(void (*) (DbEnv *,
 	    DbChannel *, Dbt *, u_int32_t, u_int32_t), u_int32_t flags);
@@ -824,6 +846,8 @@ public:
 	static int _backup_write_intercept(DB_ENV *dbenv, u_int32_t off_gbytes,
 	    u_int32_t off_bytes, u_int32_t size, u_int8_t *buf, void *handle);
 	static void _paniccall_intercept(DB_ENV *dbenv, int errval);
+	static int _partial_rep_intercept(DB_ENV *dbenv,
+	    const char *name, int *result, u_int32_t flags);
 	static void _feedback_intercept(DB_ENV *dbenv, int opcode, int pct);
 	static void  _event_func_intercept(DB_ENV *dbenv, u_int32_t, void *);
 	static int _isalive_intercept(DB_ENV *dbenv, pid_t pid,
@@ -872,6 +896,7 @@ private:
 	void (*feedback_callback_)(DbEnv *, int, int);
 	void (*message_callback_)(const DbEnv *, const char *);
 	void (*paniccall_callback_)(DbEnv *, int);
+	int (*partial_rep_callback_)(DbEnv *, const char *, int *, u_int32_t);
 	void (*event_func_callback_)(DbEnv *, u_int32_t, void *);
 	int (*rep_send_callback_)(DbEnv *, const Dbt *, const Dbt *,
 	    const DbLsn *, int, u_int32_t);
@@ -1057,9 +1082,9 @@ public:
 	int stat(DB_SEQUENCE_STAT **sp, u_int32_t flags);
 	int stat_print(u_int32_t flags);
 
-	int get(DbTxn *txnid, int32_t delta, db_seq_t *retp, u_int32_t flags);
-	int get_cachesize(int32_t *sizep);
-	int set_cachesize(int32_t size);
+	int get(DbTxn *txnid, u_int32_t delta, db_seq_t *retp, u_int32_t flags);
+	int get_cachesize(u_int32_t *sizep);
+	int set_cachesize(u_int32_t size);
 	int get_flags(u_int32_t *flagsp);
 	int set_flags(u_int32_t flags);
 	int get_range(db_seq_t *minp, db_seq_t *maxp);
@@ -1134,6 +1159,34 @@ private:
 	DbSite(const DbSite &);
 	DbSite &operator = (const DbSite &);
 	DB_SITE *imp_;
+};
+
+//
+// DbStream
+//
+class _exported DbStream : protected DB_STREAM
+{
+	friend class Dbc;
+
+public:
+	int close(u_int32_t flags);
+	int read(Dbt *data, db_off_t offset, u_int32_t size, u_int32_t flags);
+	int size(db_off_t *size, u_int32_t flags);
+	int write(Dbt *data, db_off_t offset, u_int32_t flags);
+
+private:
+	// No data is permitted in this class (see comment at top)
+
+	// Note: use Dbc::dbstream() to get pointers to a DbStream,
+	// and call Dbstream::close() rather than delete to release them.
+	//
+	DbStream();
+	~DbStream();
+
+	// no copying
+	DbStream(const DbStream &);
+	DbStream &operator = (const DbStream &);
+
 };
 
 //
@@ -1245,6 +1298,7 @@ class _exported Dbt : private DBT
 	friend class DbEnv;
 	friend class DbLogc;
 	friend class DbSequence;
+	friend class DbStream;
 
 public:
 	// key/data

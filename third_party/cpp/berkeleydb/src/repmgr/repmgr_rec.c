@@ -1,3 +1,11 @@
+/*-
+ * See the file LICENSE for redistribution information.
+ *
+ * Copyright (c) 2014, 2015 Oracle and/or its affiliates.  All rights reserved.
+ *
+ * $Id$
+ */
+
 #include "db_config.h"
 
 #include "db_int.h"
@@ -31,7 +39,7 @@ __repmgr_member_recover(env, dbtp, lsnp, op, info)
 
 	/*
 	 * The annotation log record describes the update in enough detail for
-	 * us to be able to optimize our tracking of it at clients sites.
+	 * us to be able to optimize our tracking of it at client sites.
 	 * However, for now we just simply reread the whole (small) database
 	 * each time, since changes happen so seldom (and we need to have the
 	 * code for reading the whole thing anyway, for other cases).

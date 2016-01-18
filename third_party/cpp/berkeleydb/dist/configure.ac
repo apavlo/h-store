@@ -70,6 +70,7 @@ AC_SUBST(LIBTSO_LIBS)
 AC_SUBST(LIBTSO_MODSUFFIX)
 AC_SUBST(LIBTSO_MODULE)
 AC_SUBST(LIBXSO_LIBS)
+AC_SUBST(LIBSQLSO_LIBS)
 AC_SUBST(MAKEFILE_CC)
 AC_SUBST(MAKEFILE_CCLINK)
 AC_SUBST(MAKEFILE_CXX)
@@ -178,7 +179,7 @@ optimize_flag="-O"
 extra_cflags=""
 
 case "$host_os" in
-aix4.3.*|aix[[56]]*)
+aix4.3.*|aix[[5-9]]*)
 	case "$host_os" in
 	aix4.3.*)
 		CPPFLAGS="$CPPFLAGS -D_LINUX_SOURCE_COMPAT";;
@@ -231,7 +232,6 @@ else
 fi
 
 CFLAGS="$CFLAGS$extra_cflags"
-CXXFLAGS=${CXXFLAGS-"$CFLAGS"}
 
 # The default compiler is cc (NOT gcc), the default CFLAGS is as specified
 # above, NOT what is set by AC_PROG_CC, as it won't set optimization flags
@@ -254,11 +254,13 @@ if test "$GCC" = "yes"; then
 else
 	case "$host_os" in
 	hpux11.0*)	;;
-	hpux11*)	CPPFLAGS="$CPPFLAGS -mt"
-			test "$host_cpu" = "ia64" &&
-			    CFLAGS="$CFLAGS +u1";;
+	hpux11*)	CPPFLAGS="$CPPFLAGS -mt";;
+	solaris*)	CFLAGS="$CFLAGS "
+			CFLAGS=`echo "$CFLAGS" | sed 's/-O /-xO2 /g'`;;
 	esac
 fi
+
+CXXFLAGS=${CXXFLAGS-"$CFLAGS"}
 
 # Check for "const" and "inline" keywords.
 AC_C_CONST
@@ -500,7 +502,10 @@ if test "$db_cv_sql" = "yes"; then
 
 	# Link against libdl, if found. It is only needed for the load
 	# extension, but shouldn't hurt.
-	AC_HAVE_LIBRARY(dl, SQL_LIBS="$SQL_LIBS -ldl")
+	AC_HAVE_LIBRARY(dl, [
+		SQL_LIBS="$SQL_LIBS -ldl"
+		LIBSQLSO_LIBS=" -ldl"
+	])
 
 	# Link against libedit or readline for command-line editing.
 	if test x"$with_readline" != xno; then
@@ -691,9 +696,12 @@ AC_HAVE_LIBRARY(socket, TEST_LIBS="$TEST_LIBS -lsocket")
 # deleted getwd().
 AC_REPLACE_FUNCS(\
 	abort atoi atol bsearch getcwd getenv getopt isalpha isdigit isprint\
-	isspace memcmp memcpy memmove printf qsort raise rand strcasecmp\
+	isspace memcmp memcpy memmove printf qsort raise rand\
 	strcat strchr strdup strerror strncat strncmp strrchr strsep\
 	strtol strtoul)
+AH_TEMPLATE(HAVE_STRCASECMP,
+    [Define to 1 if you have the strcasecmp symbol.])
+AC_CHECK_DECL(strcasecmp, [AC_DEFINE(HAVE_STRCASECMP)], [AC_LIBOBJ(strcasecmp)])
 
 # Check for system functions we optionally use.
 AC_CHECK_FUNCS(\
@@ -702,6 +710,31 @@ AC_CHECK_FUNCS(\
 	getrusage getuid hstrerror mprotect pstat_getdynamic\
 	pthread_self pthread_yield random sched_yield select setgid setuid\
 	sigaction snprintf stat sysconf vsnprintf yield)
+
+# The random_r/initstate_r/srandom_r functions in AIX and OSF/1 (Tru64) have
+# atypical function signatures. Disable BerkeleyDB's use of those functions.
+case "$host_os" in
+aix*|osf*)
+	AC_MSG_WARN([random_r is ignored on $host_os.]);;
+*)
+	AC_CHECK_FUNCS(initstate_r random_r srandom_r);;
+esac
+
+if test "$db_cv_error_history" = "yes"; then
+	# Check for pthread thread local storage support
+	AC_CHECK_FUNCS(pthread_getspecific pthread_setspecific)
+	AC_CHECK_FUNCS(pthread_key_create pthread_once)
+	if test "x$ac_cv_func_pthread_getspecific" = "xyes" -a \
+		"x$ac_cv_func_pthread_setspecific" = "xyes" -a \
+		"x$ac_cv_func_pthread_key_create" = "xyes" -a \
+		"x$ac_cv_func_pthread_once" = "xyes"; then
+		AC_DEFINE(HAVE_ERROR_HISTORY)
+	else
+		AC_MSG_ERROR([--enable-error_history requires pthread thread local storage])
+	fi
+	AH_TEMPLATE(HAVE_ERROR_HISTORY,
+    [Define to 1 if you want a version that records extra information about errors.])
+fi
 
 AC_TIMERS
 

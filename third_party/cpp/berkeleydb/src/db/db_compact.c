@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1999, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -262,9 +262,11 @@ err:		if (txn_local && txn != NULL) {
 done:	if (LF_ISSET(DB_FREE_SPACE)) {
 		DBMETA *meta;
 		db_pgno_t pgno;
+		int pgs_done;
 
 		pgno = PGNO_BASE_MD;
 		isdone = 1;
+		pgs_done = 0;
 		if (ret == 0 && !LF_ISSET(DB_FREELIST_ONLY) &&
 		    __memp_fget(dbp->mpf, &pgno, ip, txn, 0, &meta) == 0) {
 			isdone = meta->free == PGNO_INVALID;
@@ -281,7 +283,8 @@ done:	if (LF_ISSET(DB_FREE_SPACE)) {
 		} else
 #endif
 		if (!isdone)
-			ret = __bam_truncate_ipages(dbp, ip, txn_orig, c_data);
+			ret = __bam_truncate_ipages(dbp,
+			    ip, txn_orig, c_data, &pgs_done);
 
 		/* Clean up the free list. */
 		if (list != NULL)
@@ -387,17 +390,26 @@ err:	if (dbc != NULL && (t_ret = __LPUT(dbc, lock)) != 0 && ret == 0)
 #endif
 
 /*
- * __db_exchange_page -- swap a page with a lower numbered page.
- * The routine will optionally free the higher numbered page.  The cursor
- * has a stack which includes at least the immediate parent of this page.
- * PUBLIC: int __db_exchange_page __P((DBC *, PAGE **, PAGE *, db_pgno_t, int));
+ * __db_exchange_page -- try to move a page 'down', to earlier in the file.
+ *
+ * This tries to move a page to a lower location the file, by swapping it
+ * with an earlier free page. The free page comes either from the free list or
+ * the newpgno parameter (e.g., __ham_compact_hash()).  If the new page turns
+ * out to be higher than the original one, the allocation is undone and
+ * the caller is left unchanged.  After a successful swap, this routine can
+ * optionally free the old, higher numbered page.
+ * The cursor's stack includes at least the immediate parent of this page.
+ *
+ * PUBLIC: int __db_exchange_page
+ * PUBLIC:    __P((DBC *, PAGE **, PAGE *, db_pgno_t, int, int *));
  */
 int
-__db_exchange_page(dbc, pgp, opg, newpgno, flags)
+__db_exchange_page(dbc, pgp, opg, newpgno, flags, pgs_donep)
 	DBC *dbc;
 	PAGE **pgp, *opg;
 	db_pgno_t newpgno;
 	int flags;
+	int *pgs_donep;
 {
 	BTREE_CURSOR *cp;
 	DB *dbp;
@@ -445,7 +457,9 @@ __db_exchange_page(dbc, pgp, opg, newpgno, flags)
 	 * are allocating at the same time, if so, just put it back.
 	 */
 	if (PGNO(newpage) > PGNO(*pgp)) {
-		/* Its unfortunate but you can't just free a new overflow. */
+		/* It is unfortunate but you can't just free a new overflow. */
+		/* XXX Is the above comment still true? */
+		/* XXX Should __db_new(OVERFLOW) zero OV_LEN()? */
 		if (TYPE(newpage) == P_OVERFLOW)
 			OV_LEN(newpage) = 0;
 		if ((ret = __LPUT(dbc, lock)) != 0)
@@ -572,7 +586,9 @@ __db_exchange_page(dbc, pgp, opg, newpgno, flags)
 	if ((ret = __TLPUT(dbc, lock)) != 0)
 		return (ret);
 
-done:	return (0);
+done:
+	(*pgs_donep)++;
+	return (0);
 
 err:	(void)__memp_fput(dbp->mpf, dbc->thread_info, newpage, dbc->priority);
 	(void)__TLPUT(dbc, lock);
@@ -584,15 +600,16 @@ err:	(void)__memp_fput(dbp->mpf, dbc->thread_info, newpage, dbc->priority);
  *	Walk the pages of an overflow chain and swap out
  * high numbered pages.  We are passed the first page
  * but only deal with the second and subsequent pages.
- * PUBLIC:  int __db_truncate_overflow __P((DBC *,
- * PUBLIC:     db_pgno_t, PAGE **, DB_COMPACT *));
+ * PUBLIC: int __db_truncate_overflow __P((DBC *, db_pgno_t,
+ * PUBLIC:    PAGE **, DB_COMPACT *, int *));
  */
 int
-__db_truncate_overflow(dbc, pgno, ppg, c_data)
+__db_truncate_overflow(dbc, pgno, ppg, c_data, pgs_donep)
 	DBC *dbc;
 	db_pgno_t pgno;
 	PAGE **ppg;
 	DB_COMPACT *c_data;
+	int *pgs_donep;
 {
 	DB *dbp;
 	DB_LOCK lock;
@@ -618,7 +635,7 @@ __db_truncate_overflow(dbc, pgno, ppg, c_data)
 			return (ret);
 		if (pgno <= c_data->compact_truncate)
 			continue;
-		if (have_lock == 0) {
+		if (!have_lock) {
 			DB_ASSERT(dbp->env, ppg != NULL);
 			ppgno = PGNO(*ppg);
 			if ((ret = __memp_fput(dbp->mpf, dbc->thread_info,
@@ -635,30 +652,32 @@ __db_truncate_overflow(dbc, pgno, ppg, c_data)
 			have_lock = 1;
 		}
 		if ((ret = __db_exchange_page(dbc,
-		    &page, NULL, PGNO_INVALID, DB_EXCH_FREE)) != 0)
+		    &page, NULL, PGNO_INVALID, DB_EXCH_FREE, pgs_donep)) != 0)
 			break;
 	}
 
 err:	if (page != NULL &&
-	    (t_ret = __memp_fput( dbp->mpf,
+	    (t_ret = __memp_fput(dbp->mpf,
 	    dbc->thread_info, page, dbc->priority)) != 0 && ret == 0)
 		ret = t_ret;
 	if ((t_ret = __TLPUT(dbc, lock)) != 0 && ret == 0)
 		ret = t_ret;
 	return (ret);
 }
+
 /*
  * __db_truncate_root -- swap a root page for a lower numbered page.
  * PUBLIC: int __db_truncate_root __P((DBC *,
- * PUBLIC:      PAGE *, u_int32_t, db_pgno_t *, u_int32_t));
+ * PUBLIC:      PAGE *, u_int32_t, db_pgno_t *, u_int32_t, int *));
  */
 int
-__db_truncate_root(dbc, ppg, indx, pgnop, tlen)
+__db_truncate_root(dbc, ppg, indx, pgnop, tlen, pgs_donep)
 	DBC *dbc;
 	PAGE *ppg;
 	u_int32_t indx;
 	db_pgno_t *pgnop;
 	u_int32_t tlen;
+	int *pgs_donep;
 {
 	DB *dbp;
 	DBT orig;
@@ -693,7 +712,7 @@ __db_truncate_root(dbc, ppg, indx, pgnop, tlen)
 	} else {
 		LOCK_CHECK_OFF(dbc->thread_info);
 		ret = __db_exchange_page(dbc,
-		    &page, NULL, PGNO_INVALID, DB_EXCH_FREE);
+		    &page, NULL, PGNO_INVALID, DB_EXCH_FREE, pgs_donep);
 		LOCK_CHECK_ON(dbc->thread_info);
 		if (ret != 0)
 			goto err;
@@ -705,8 +724,7 @@ __db_truncate_root(dbc, ppg, indx, pgnop, tlen)
 
 	/* Update the reference. */
 	if (DBC_LOGGING(dbc)) {
-		if ((ret = __db_pgno_log(dbp,
-		     dbc->txn, &LSN(ppg), 0, PGNO(ppg),
+		if ((ret = __db_pgno_log(dbp, dbc->txn, &LSN(ppg), 0, PGNO(ppg),
 		     &LSN(ppg), (u_int32_t)indx, *pgnop, newpgno)) != 0)
 			goto err;
 	} else
@@ -780,13 +798,13 @@ __db_find_free(dbc, type, size, bstart, freep)
 		goto err;
 
 	if (nelems == 0) {
-		ret = DB_NOTFOUND;
+		ret = DBC_ERR(dbc, DB_NOTFOUND);
 		goto err;
 	}
 
 	for (i = 0; i < nelems; i++) {
 		if (list[i] > bstart) {
-			ret = DB_NOTFOUND;
+			ret = DBC_ERR(dbc, DB_NOTFOUND);
 			goto err;
 		}
 		start = i;
@@ -812,7 +830,7 @@ __db_find_free(dbc, type, size, bstart, freep)
 			goto found;
 		}
 	}
-	ret = DB_NOTFOUND;
+	ret = DBC_ERR(dbc, DB_NOTFOUND);
 	goto err;
 
 found:	/* We have size range of pages.  Remove them. */
@@ -1005,13 +1023,15 @@ err:	if (np != NULL && np != otherp)
  * __db_move_metadata -- move a meta data page to a lower page number.
  * The meta data page must be exclusively latched on entry.
  *
- * PUBLIC: int __db_move_metadata __P((DBC *, DBMETA **, DB_COMPACT *));
+ * PUBLIC: int __db_move_metadata
+ * PUBLIC:     __P((DBC *, DBMETA **, DB_COMPACT *, int *));
  */
 int
-__db_move_metadata(dbc, metap, c_data)
+__db_move_metadata(dbc, metap, c_data, pgs_donep)
 	DBC *dbc;
 	DBMETA **metap;
 	DB_COMPACT *c_data;
+	int *pgs_donep;
 {
 	BTREE *bt;
 	DB *dbp, *mdbp;
@@ -1023,7 +1043,7 @@ __db_move_metadata(dbc, metap, c_data)
 
 	c_data->compact_pages_examine++;
 	if ((ret = __db_exchange_page(dbc,
-	     (PAGE**)metap, NULL, PGNO_INVALID, DB_EXCH_FREE)) != 0)
+	     (PAGE **)metap, NULL, PGNO_INVALID, DB_EXCH_FREE, pgs_donep)) != 0)
 		return (ret);
 
 	if (PGNO(*metap) == dbp->meta_pgno)

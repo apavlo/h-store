@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1998, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -36,7 +36,13 @@ extern "C" {
 #define	DB_ASSERT(env, e)						\
 	((e) ? (void)0 : __db_assert(env, #e, __FILE__, __LINE__))
 #else
-#define	DB_ASSERT(env, e)	NOP_STATEMENT
+#define	DB_ASSERT(env, e)	((void)0)
+#endif
+
+#if defined(HAVE_ERROR_HISTORY)
+#define DB_DEBUG_MSG	__db_debug_msg
+#else
+#define DB_DEBUG_MSG	if (0) __db_debug_msg
 #endif
 
 /*
@@ -55,10 +61,11 @@ extern "C" {
  * of structure fields whose only purpose is padding, as well as when heap
  * memory that was never initialized is written to disk.
  */
+#define	UMRW_SET(var)			UMRW_SET_VALUE((var), 0)
 #ifdef	UMRW
-#define	UMRW_SET(v)	(v) = 0
+#define	UMRW_SET_VALUE(var, value)	(var) = (value)
 #else
-#define	UMRW_SET(v)	NOP_STATEMENT
+#define	UMRW_SET_VALUE(var, value)	NOP_STATEMENT
 #endif
 
 /*
@@ -71,6 +78,34 @@ typedef enum {
 	DB_ERROR_SET=1,
 	DB_ERROR_SYSTEM=2
 } db_error_set_t;
+
+/*
+ * Use these macros wherever an error condition is initially noticed, e.g., when
+ * setting a value to any of the user visible error return codes, whether
+ * defined by Berkeley DB or by the operating environment (EINVAL).
+ * saving the specific source of an instance of an error code, including the
+ * time, stack, db name, current LSN, etc. If the error turns out to be
+ * important, the deferred message text is added to the text produced by
+ * __db_err(), __db_errx, and __db_syserr(). The additional information can be
+ * useful for diagnosing the behavior of applications under error conditions.
+ * It is enabled by configuring with --enable-error_history. The current
+ * implmentation requires pthreads' version of thread local storage.
+ */
+#ifdef HAVE_ERROR_HISTORY
+#define USR_ERR(env, errcode)		__db_diags((env), (errcode))
+#define DBC_ERR(dbc, errcode)		__dbc_diags((dbc), (errcode))
+#define MUTEX_ERR(env, mutex, errcode)	__mutex_diags((env), (mutex), (errcode))
+#define DISCARD_HISTORY(env)		__db_deferred_discard()
+/* Save at most 10KB of error history in an API call. Adjust this as desired. */
+#define DB_ERROR_HISTORY_SIZE		(10 * 1024)
+#else
+#define USR_ERR(env, errcode)		(errcode)
+#define DBC_ERR(dbc, errcode)		(errcode)
+#define MUTEX_ERR(env, mutex, errcode)	(errcode)
+#define DISCARD_HISTORY(env)		NOP_STATEMENT
+/* No space is needed when error history is disabled. */
+#define DB_ERROR_HISTORY_SIZE		0
+#endif
 
 /*
  * Message handling.  Use a macro instead of a function because va_list
@@ -102,6 +137,7 @@ typedef enum {
 	    ((app_call) || F_ISSET((dbenv)->env, ENV_NO_OUTPUT_SET))))	\
 		__db_errfile(dbenv, error, error_set, fmt, __ap);	\
 	va_end(__ap);							\
+	DISCARD_HISTORY((dbenv)->env);						\
 }
 #else
 #define	DB_REAL_ERR(dbenv, error, error_set, app_call, fmt) {		\
@@ -127,6 +163,7 @@ typedef enum {
 	    ((app_call) || F_ISSET((dbenv)->env, ENV_NO_OUTPUT_SET))))	\
 		 __db_errfile(env, error, error_set, fmt, __ap);	\
 	va_end(__ap);							\
+	DISCARD_HISTORY(env);						\
 }
 #endif
 #if defined(STDC_HEADERS) || defined(__cplusplus)
@@ -192,7 +229,7 @@ typedef enum {
 #define	LOG_OP(C, T, O, K, A, F) {					\
 	DB_LSN __lsn;							\
 	DBT __op;							\
-	if (DBC_LOGGING((C))) {						\
+	if ((C)->dbp->log_filename != NULL && DBC_LOGGING((C))) {	\
 		memset(&__op, 0, sizeof(__op));				\
 		__op.data = O;						\
 		__op.size = (u_int32_t)strlen(O) + 1;			\

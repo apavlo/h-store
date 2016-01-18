@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -157,7 +157,7 @@ __memp_bhwrite(dbmp, hp, mfp, bhp, open_extents)
 	opened = 1;
 	if ((ret = __memp_fopen(dbmfp, mfp, NULL,
 	    NULL, DB_FLUSH | DB_DURABLE_UNKNOWN, 0, mfp->pagesize)) != 0) {
-	    	dbmfp->ref--;
+		dbmfp->ref--;
 		(void)__memp_fclose(dbmfp, 0);
 
 		/*
@@ -264,7 +264,7 @@ __memp_pgread(dbmfp, bhp, can_create)
 		 * how to handle the error.
 		 */
 		if (!can_create) {
-			ret = DB_PAGE_NOTFOUND;
+			ret = USR_ERR(env, DB_PAGE_NOTFOUND);
 			goto err;
 		}
 
@@ -557,6 +557,9 @@ err:	__db_errx(env, DB_STR_A("3016",
  * __memp_bhfree --
  *	Free a bucket header and its referenced data.
  *
+ *	The hash bucket is unlocked before returning except when flags includes
+ *	BH_FREE_UNLOCKED -- or there was no hp passed in to begin with.
+ *
  * PUBLIC: int __memp_bhfree __P((DB_MPOOL *,
  * PUBLIC:	REGINFO *, MPOOLFILE *, DB_MPOOL_HASH *, BH *, u_int32_t));
  */
@@ -600,10 +603,13 @@ __memp_bhfree(dbmp, infop, mfp, hp, bhp, flags)
 	    (SH_CHAIN_NEXTP(bhp, vc, __bh)->td_off == bhp->td_off ||
 	    bhp->td_off == INVALID_ROFF ||
 	    IS_MAX_LSN(*VISIBLE_LSN(env, bhp)) ||
+	    F_ISSET(bhp, BH_UNREACHABLE) ||
 	    BH_OBSOLETE(bhp, hp->old_reader, vlsn))));
 
 	PERFMON3(env, mpool, evict, __memp_fns(dbmp, mfp), bhp->pgno, bhp);
-
+	if (FLD_ISSET(env->dbenv->verbose, DB_VERB_MVCC))
+		__db_msg(env, "bhfree pgno %lu roff %lx",
+		    (u_long)bhp->pgno, (u_long)R_OFFSET(dbmp->reginfo, bhp));
 	/*
 	 * Delete the buffer header from the hash bucket queue or the
 	 * version chain.

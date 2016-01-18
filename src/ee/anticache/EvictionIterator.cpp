@@ -271,7 +271,7 @@ bool EvictionIterator::hasNext()
         return false; 
     }
 #else
-    if (current_tuple_id == m_size)
+    if (current_tuple_id >= m_size)
         return false;
 #endif
 
@@ -314,9 +314,9 @@ bool EvictionIterator::next(TableTuple &tuple)
 #else
     tuple.move(candidates[current_tuple_id].m_addr);
     current_tuple_id++;
-    while (candidates[current_tuple_id].m_addr == candidates[current_tuple_id - 1].m_addr) {
+    while ((current_tuple_id < m_size) && candidates[current_tuple_id].m_addr == candidates[current_tuple_id - 1].m_addr) {
         current_tuple_id++;
-        if (current_tuple_id == m_size) break;
+        //if (current_tuple_id == m_size) break;
     }
 #endif
 

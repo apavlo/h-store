@@ -93,6 +93,7 @@ s/@uintmax_t_decl@//
 s/@uintptr_t_decl@//
 /@FILE_t_decl@/d
 /@off_t_decl@/d
+s/@db_off_t_decl@/typedef int64_t db_off_t;/
 /@pid_t_decl@/d
 /@size_t_decl@/d
 /@ssize_t_decl@/d

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -280,8 +280,7 @@ __log_put(env, lsnp, udbt, flags)
 		 * If the send fails and we're a commit or checkpoint,
 		 * there's nothing we can do;  the record's in the log.
 		 * Flush it, even if we're running with TXN_NOSYNC,
-		 * on the grounds that it should be in durable
-		 * form somewhere.
+		 * on the grounds that it should be in durable form somewhere.
 		 */
 		if (ret != 0 && FLD_ISSET(ctlflags, REPCTL_PERM))
 			LF_SET(DB_FLUSH);
@@ -473,12 +472,12 @@ __log_put_next(env, lsn, dbt, hdr, old_lsnp)
 	 */
 	if (adv_file || lp->lsn.offset == 0 ||
 	    lp->lsn.offset + hdr->size + dbt->size > lp->log_size) {
-		if (hdr->size + sizeof(LOGP) + dbt->size > lp->log_size) {
+		if (hdr->size + sizeof(LOGP) + dbt->size > lp->log_nsize) {
 			__db_errx(env, DB_STR_A("2513",
 	    "DB_ENV->log_put: record larger than maximum file size (%lu > %lu)",
 			    "%lu %lu"),
 			    (u_long)hdr->size + sizeof(LOGP) + dbt->size,
-			    (u_long)lp->log_size);
+			    (u_long)lp->log_nsize);
 			return (EINVAL);
 		}
 
@@ -561,7 +560,12 @@ __log_flush_commit(env, lsnp, flags)
 		    "Write failed on MASTER commit."));
 		return (__env_panic(env, ret));
 	}
-
+	/*
+	 * If this is a panic don't attempt to abort just this transaction;
+	 * it may trip over the panic, and the whole env needs to go anyway.
+	 */
+	if (ret == DB_RUNRECOVERY)
+		return (__env_panic(env, ret));
 	/*
 	 * Else, make sure that the commit record does not get out after we
 	 * abort the transaction.  Do this by overwriting the commit record
@@ -735,7 +739,7 @@ __log_newfile(dblp, lsnp, logfile, version)
 		__log_persistswap(tpersist);
 
 	if ((ret =
-	    __log_encrypt_record(env, &t, &hdr, (u_int32_t)tsize)) != 0)
+	    __log_encrypt_record(env, &t, &hdr, (u_int32_t)sizeof(LOGP))) != 0)
 		goto err;
 
 	if ((ret = __log_putr(dblp, &lsn,
@@ -1118,12 +1122,15 @@ flush:	MUTEX_LOCK(env, lp->mtx_flush);
 		LOG_SYSTEM_UNLOCK(env);
 
 	/* Sync all writes to disk. */
-	if ((ret = __os_fsync(env, dblp->lfhp)) != 0) {
-		MUTEX_UNLOCK(env, lp->mtx_flush);
-		if (release)
-			LOG_SYSTEM_LOCK(env);
-		lp->in_flush--;
-		goto done;
+	if (!lp->nosync) {
+		if ((ret = __os_fsync(env, dblp->lfhp)) != 0) {
+			MUTEX_UNLOCK(env, lp->mtx_flush);
+			if (release)
+				LOG_SYSTEM_LOCK(env);
+			lp->in_flush--;
+			goto done;
+		}
+		STAT(++lp->stat.st_scount);
 	}
 
 	/*
@@ -1143,7 +1150,6 @@ flush:	MUTEX_LOCK(env, lp->mtx_flush);
 		LOG_SYSTEM_LOCK(env);
 
 	lp->in_flush--;
-	STAT(++lp->stat.st_scount);
 
 	/*
 	 * How many flush calls (usually commits) did this call actually sync?
@@ -1440,7 +1446,7 @@ __log_newfh(dblp, create)
 		    "DB_ENV->log_newfh: %lu", (u_long)lp->lsn.file);
 	else if (status != DB_LV_NORMAL && status != DB_LV_INCOMPLETE &&
 	    status != DB_LV_OLD_READABLE)
-		ret = DB_NOTFOUND;
+		ret = USR_ERR(env, DB_NOTFOUND);
 
 	return (ret);
 }
@@ -1621,6 +1627,37 @@ err:
 	return (ret);
 }
 
+/*
+ * __log_rep_write --
+ *	Way for replication clients to write the log buffer for the
+ * DB_TXN_WRITE_NOSYNC option.  This is just a thin PUBLIC wrapper
+ * for __log_write that is similar to __log_flush_commit.
+ *
+ * Note that the REP->mtx_clientdb should be held when this is called.
+ * Note that we acquire the log region mutex while holding mtx_clientdb.
+ *
+ * PUBLIC: int __log_rep_write __P((ENV *));
+ */
+int
+__log_rep_write(env)
+	ENV *env;
+{
+	DB_LOG *dblp;
+	LOG *lp;
+	int ret;
+
+	dblp = env->lg_handle;
+	lp = dblp->reginfo.primary;
+	ret = 0;
+	LOG_SYSTEM_LOCK(env);
+	if (!lp->db_log_inmemory && lp->b_off != 0)
+		if ((ret = __log_write(dblp, dblp->bufp,
+		    (u_int32_t)lp->b_off)) == 0)
+			lp->b_off = 0;
+	LOG_SYSTEM_UNLOCK(env);
+	return (ret);
+}
+
 static int
 __log_encrypt_record(env, dbt, hdr, orig)
 	ENV *env;
@@ -1773,6 +1810,7 @@ __log_put_record_int(env, dbp, txnp, ret_lsnp,
 	DB_TXNLOGREC *lr;
 	LOG *lp;
 	PAGE *pghdrstart;
+	u_int64_t ulltmp;
 	u_int32_t hdrsize, op, zero, uinttmp, txn_num;
 	u_int npad;
 	u_int8_t *bp;
@@ -1819,7 +1857,7 @@ __log_put_record_int(env, dbp, txnp, ret_lsnp,
 			return (ret);
 		/*
 		 * We need to assign begin_lsn while holding region mutex.
-		 * That assignment is done inside the DbEnv->log_put call,
+		 * That assignment is done inside the __log_put call,
 		 * so pass in the appropriate memory location to be filled
 		 * in by the log_put code.
 		 */
@@ -1842,8 +1880,7 @@ __log_put_record_int(env, dbp, txnp, ret_lsnp,
 	}
 
 	if (is_durable || txnp == NULL) {
-		if ((ret =
-		    __os_malloc(env, logrec.size, &logrec.data)) != 0)
+		if ((ret = __os_malloc(env, logrec.size, &logrec.data)) != 0)
 			return (ret);
 	} else {
 		if ((ret = __os_malloc(env,
@@ -1891,10 +1928,15 @@ __log_put_record_int(env, dbp, txnp, ret_lsnp,
 			LOGCOPY_32(env, bp, &uinttmp);
 			bp += sizeof(uinttmp);
 			break;
+		case LOGREC_LONGARG:
+			ulltmp = va_arg(argp, u_int64_t);
+			LOGCOPY_64(env, bp, &ulltmp);
+			bp += sizeof(ulltmp);
+			break;
 		case LOGREC_OP:
 			op = va_arg(argp, u_int32_t);
 			LOGCOPY_32(env, bp, &op);
-			bp += sizeof(uinttmp);
+			bp += sizeof(op);
 			break;
 		case LOGREC_DBT:
 		case LOGREC_PGLIST:

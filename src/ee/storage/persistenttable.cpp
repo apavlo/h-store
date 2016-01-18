@@ -114,6 +114,11 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_numTuplesInEvictionChain = 0;
     m_blockMerge = ctx->isBlockMerge();
     m_batchEvicted = false;
+    m_read_pivot = 0;
+    m_merge_pivot = 0;
+    m_unevictedBlocks.resize(ANTICACHE_MERGE_BUFFER_SIZE);
+    m_mergeTupleOffset.resize(ANTICACHE_MERGE_BUFFER_SIZE);
+    m_blockIDs.resize(ANTICACHE_MERGE_BUFFER_SIZE);
 #endif
 
     if (exportEnabled) {
@@ -142,6 +147,12 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, const std::string name, b
     m_numTuplesInEvictionChain = 0;
     m_blockMerge = ctx->isBlockMerge();
     m_batchEvicted = false;
+    m_read_pivot = 0;
+    m_merge_pivot = 0;
+
+    m_unevictedBlocks.resize(ANTICACHE_MERGE_BUFFER_SIZE);
+    m_mergeTupleOffset.resize(ANTICACHE_MERGE_BUFFER_SIZE);
+    m_blockIDs.resize(ANTICACHE_MERGE_BUFFER_SIZE);
 #endif
 
     if (exportEnabled) {
@@ -367,9 +378,9 @@ std::vector<char*> PersistentTable::getUnevictedBlocks()
     return m_unevictedBlocks;
 }
 
-void PersistentTable::insertUnevictedBlock(char* unevicted_tuples)
+void PersistentTable::insertUnevictedBlock(char* unevicted_tuples, int i)
 {
-    m_unevictedBlocks.push_back(unevicted_tuples);
+    m_unevictedBlocks[i] = unevicted_tuples;
 }
 
 int32_t PersistentTable::getMergeTupleOffset(int i)
@@ -391,14 +402,14 @@ int PersistentTable::unevictedBlocksSize(){
     return static_cast<int> (m_unevictedBlocks.size());
 }
 
-void PersistentTable::insertTupleOffset(int32_t tuple_offset)
+void PersistentTable::insertTupleOffset(int32_t tuple_offset, int i)
 {
-    m_mergeTupleOffset.push_back(tuple_offset);
+    m_mergeTupleOffset[i] = tuple_offset;
 }
 
-void PersistentTable::insertBlockID(int32_t ACID)
+void PersistentTable::insertBlockID(int32_t ACID, int i)
 {
-    m_blockIDs.push_back(ACID);
+    m_blockIDs[i] = ACID;
 }
 
 int32_t PersistentTable::getTuplesRead()

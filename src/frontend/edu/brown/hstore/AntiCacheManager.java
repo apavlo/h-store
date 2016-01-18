@@ -202,9 +202,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             LOG.info(String.format("Execution Time: %.1f sec\n", parameter.getClusterRoundtrip() / 1000d));
 
             synchronized(AntiCacheManager.this) {
+                pendingEvictions--;
                 if (pendingEvictions > 0) {
-                    pendingEvictions--;
-                    hstore_site.invocationProcess(evictionQueue.get(pendingEvictions), evictionCallback);
+                    hstore_site.invocationProcess(evictionQueue.get(pendingEvictions - 1), evictionCallback);
                 } else {
                     evictionQueue.clear();
                 }
@@ -369,18 +369,20 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             // We need to get a new txnId for ourselves, since the one that we
             // were given before is now probably too far in the past
         	if(next.partition != next.ts.getBasePartition()){
-                lock.lock();
+                //lock.lock();
+                //LOG.debug("here1?");
         		ee.antiCacheMergeBlocks(next.catalog_tbl);
-                lock.unlock();
+                //lock.unlock();
         	}
             this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
 
             if (debug.val) LOG.debug("restartin on local");
         	this.hstore_site.transactionInit(next.ts);	
         } else {
-            lock.lock();
+            //lock.lock();
+            //    LOG.debug("here2?");
         	ee.antiCacheMergeBlocks(next.catalog_tbl);
-            lock.unlock();
+            //lock.unlock();
         	RemoteTransaction ts = (RemoteTransaction) next.ts; 
         	RpcCallback<UnevictDataResponse> callback = ts.getUnevictCallback();
         	UnevictDataResponse.Builder builder = UnevictDataResponse.newBuilder()
@@ -602,8 +604,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
             this.evictionQueue.add(b);
             this.pendingEvictions++;
         } 
-        this.pendingEvictions--;
-        this.hstore_site.invocationProcess(this.evictionQueue.get(this.pendingEvictions), this.evictionCallback);
+        this.hstore_site.invocationProcess(this.evictionQueue.get(this.pendingEvictions - 1), this.evictionCallback);
     }
 
     protected Map<Integer, Map<String, Integer>> getEvictionDistribution(long blocksToEvict) {

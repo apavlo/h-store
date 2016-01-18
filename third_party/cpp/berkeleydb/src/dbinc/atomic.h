@@ -1,7 +1,7 @@
 /*
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2009, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -79,12 +79,11 @@ typedef struct {
 #define	WINCE_ATOMIC_MAGIC(p)						\
 	/*								\
 	 * Memory mapped regions on Windows CE cause problems with	\
-	 * InterlockedXXX calls. Each page in a mapped region needs to	\
-	 * have been written to prior to an InterlockedXXX call, or the	\
-	 * InterlockedXXX call hangs. This does not seem to be		\
-	 * documented anywhere. For now, read/write a non-critical	\
-	 * piece of memory from the shared region prior to attempting	\
-	 * shared region prior to attempting an InterlockedExchange	\
+	 * InterlockedXXX calls. Each process making an InterlockedXXX	\
+	 * call must make sure that it has written to the page prior to	\
+	 * the call, or the InterlockedXXX call hangs. This does not	\
+	 * seem	to be documented anywhere. Write a non-critical piece	\
+	 * of memory from the shared region prior to attempting an	\
 	 * InterlockedXXX operation.					\
 	 */								\
 	(p)->dummy = 0
@@ -144,7 +143,7 @@ typedef LONG volatile *interlocked_val;
 #define	atomic_inc(env, p)	__atomic_inc(p)
 #define	atomic_dec(env, p)	__atomic_dec(p)
 #define	atomic_compare_exchange(env, p, o, n)	\
-	__atomic_compare_exchange((p), (o), (n))
+	__atomic_compare_exchange_int((p), (o), (n))
 static inline int __atomic_inc(db_atomic_t *p)
 {
 	int	temp;
@@ -176,7 +175,7 @@ static inline int __atomic_dec(db_atomic_t *p)
  * http://gcc.gnu.org/onlinedocs/gcc-4.1.0/gcc/Atomic-Builtins.html
  * which configure could be changed to use.
  */
-static inline int __atomic_compare_exchange(
+static inline int __atomic_compare_exchange_int(
 	db_atomic_t *p, atomic_value_t oldval, atomic_value_t newval)
 {
 	atomic_value_t was;

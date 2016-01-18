@@ -14,6 +14,10 @@
 # Each non-blank, non-comment line is of the form
 #   filename		module [ module ...]
 
+src/blob/blob_fileops.c						android vx vxsmall
+src/blob/blob_page.c						android vx vxsmall
+src/blob/blob_stream.c						android vx vxsmall
+src/blob/blob_util.c						android vx vxsmall
 src/btree/bt_compact.c						android vx vxsmall 
 src/btree/bt_compare.c						android vx vxsmall 
 src/btree/bt_compress.c						android vx vxsmall 
@@ -72,7 +76,7 @@ src/clib/strcasecmp.c						vx vxsmall
 src/clib/strdup.c						vx vxsmall
 src/clib/strsep.c						vx vxsmall
 src/common/clock.c						android vx vxsmall 
-src/common/crypto_stub.c					android vxsmall 
+src/common/crypto_stub.c					vxsmall 
 src/common/db_byteorder.c					android vx vxsmall 
 src/common/db_compint.c						android vx vxsmall 
 src/common/db_err.c						android vx vxsmall 
@@ -96,6 +100,7 @@ src/crypto/rijndael/rijndael-api-fst.c				vx
 lang/cxx/cxx_channel.cpp					vx6
 lang/cxx/cxx_db.cpp						vx6
 lang/cxx/cxx_dbc.cpp						vx6
+lang/cxx/cxx_dbstream.cpp					vx6
 lang/cxx/cxx_dbt.cpp						vx6
 lang/cxx/cxx_env.cpp						vx6
 lang/cxx/cxx_except.cpp						vx6
@@ -199,6 +204,7 @@ src/heap/heap_rec.c						vx
 src/heap/heap_reclaim.c						vx
 src/heap/heap_stat.c						vx
 src/heap/heap_stub.c						android vxsmall
+src/heap/heap_upgrade.c						vx
 src/heap/heap_verify.c						vx
 src/hmac/hmac.c							android vx vxsmall 
 src/hmac/sha1.c							android vx vxsmall 
@@ -244,7 +250,6 @@ src/mp/mp_sync.c						android vx vxsmall
 src/mp/mp_trickle.c						android vx vxsmall 
 src/mutex/mut_alloc.c						android vx vxsmall 
 src/mutex/mut_failchk.c						android vx vxsmall 
-src/mutex/mut_fcntl.c
 src/mutex/mut_method.c						android vx vxsmall 
 src/mutex/mut_region.c						android vx vxsmall 
 src/mutex/mut_stat.c						android vx vxsmall 
@@ -271,6 +276,7 @@ src/os/os_open.c						android vx vxsmall
 src/os/os_path.c						android vx vxsmall 
 src/os/os_pid.c							android vx vxsmall 
 src/os/os_rename.c						android vx vxsmall 
+src/os/os_rmdir.c						android vx vxsmall 
 src/os/os_root.c						android vx vxsmall 
 src/os/os_rpath.c						android 
 src/os/os_rw.c							android vx vxsmall 
