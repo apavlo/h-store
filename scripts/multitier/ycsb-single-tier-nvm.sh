@@ -33,33 +33,59 @@ BASE_SITE_MEMORY=12288
 BASE_SITE_MEMORY_PER_PARTITION=2024
 BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
-OUTPUT_DIR_PREFIX="data-read-heavy/ycsb-"
+#OUTPUT_DIR_PREFIX="data-sketch/mergeupdate"
+#OUTPUT_DIR_PREFIX="data-temp/"
+OUTPUT_DIR_PREFIX="data-sync-abort-10GB/"
+#OUTPUT_DIR_PREFIX="data-sketch-125T/"
 #BLK_CON=1
 #BLK_EVICT=800
-AC_THRESH=50
-SCALE=1
+AC_THRESH=500
+SCALE=100
 #BLOCK_SIZE_KB=256
-DURATION_S=300
-WARMUP_S=3
+DURATION_S=780
+WARMUP_S=60
 INTERVAL_S=2
 PARTITIONS=8
 
 for BLK_CON in 500; do
 for BLOCK_SIZE in 1; do
 #for BLOCK_SIZE in 4 16 64 256 1024; do
-for BLOCKING in 'false';  do
+for DB in 'HDD' 'SSD' 'NVM'; do
+for BLOCK_MERGE in 'false' 'true'; do
+for BLOCKING in 'false' 'true';do
+    if [ "$DB" = "HDD" -a "$BLOCK_MERGE" = "false" ]; then
+        continue
+    fi
 #for BLOCK_MERGE in 'false' 'true'; do
-for BLOCK_MERGE in 'false'; do
         #OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${BLK_EVICT}*${BLOCK_SIZE}kb
         #mkdir -p $OUTPUT_DIR
 
-    for DB in 'NVM'; do
-        #for skew in 1.01; do
-        for skew in 0.75 0.5 1.01 1.25; do
+    #for DB in 'NVM' ; do
+    #for latency in 160; do
+    #for latency in 160 320 640 1280; do
+     #    /data/devel/sdv-tools/sdv-release/ivt_pm_sdv.sh --enable --pm-latency=$latency
+    #for AC_THRESH in 500; do
+    for AC_THRESH in 1250; do
+        if [ "$DB" = "NVM" ]; then
+            BLOCK_SIZE=1
+        else
+            BLOCK_SIZE=4
+        fi
+    #for DB in 'NVM' 'ALLOCATORNVM' 'SSD'; do
+    #for DB in  'SSD' 'NVM' 'HDD' 'DRAM'; do
+        for skew in 1.01; do
+        for read_percent in 90; do
+        for sketch_thresh in 0; do
+        #    sed -i "54c\ \ \ \ #define SKETCH_THRESH ${sketch_thresh}" src/ee/anticache/AntiCacheEvictionManager.h
+        #    ant ee-build
+        #for skew in 0.75 0.5 1.01 1.25; do
         #for skew in 0.8 1.01 1.25 4 8; do
-            OUTPUT_DIR=${OUTPUT_DIR_PREFIX}S${skew}
-            mkdir -p $OUTPUT_DIR
-            for round in 1; do
+            OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${DB}
+            #OUTPUT_DIR=${OUTPUT_DIR_PREFIX}merge${sketch_thresh}
+            sudo -u user mkdir -p $OUTPUT_DIR
+            for round in 1 2 3; do
+                echo $BLK_EVICT
+
                 if [ "$BLOCKING" = "true" ]; then
                     block='sync'
                 else
@@ -71,19 +97,43 @@ for BLOCK_MERGE in 'false'; do
                     block_merge='tuple'
                 fi
 
-                if [ "$DB" = "NVM" ]; then
-                    AC_DIR='/mnt/pmfs/aclevel1'
-                    BLOCK_SIZE=1
+                #AC_THRESH=500
+                DB_TYPE="$DB"
+                if [ "$DB" = "ALLOCATORNVM" ]; then
+                    AC_DIR='/mnt/pmfs/mmap_file'
                 else
-                    AC_DIR="/data1/ycsb-berk-level$RANDOM"
-                    BLOCK_SIZE=16
+                if [ "$DB" = "NVM" ]; then
+                    AC_DIR='/mnt/pmfs/aclevel2'
+                else
+                    BLOCK_SIZE=4
+                    if [ "$DB" != "ALLOCATORNVM" ]; then
+                        DB_TYPE="BERKELEY"
+                    fi
+                    if [ "$DB" = "SSD" ]; then
+                        AC_DIR="/data1/ac_berk/ycsb-berk-level1"
+                        #AC_DIR="/data1/ac_berk/ycsb-berk-level$RANDOM"
+                    fi
+                    if [ "$DB" = "HDD" ]; then
+                        AC_DIR="tmp/ac_berk/ycsb-berk-level1"
+                        #AC_DIR="tmp/ac_berk/ycsb-berk-level$RANDOM"
+                    fi
+                    if [ "$DB" = "DRAM" ]; then
+                        AC_THRESH=5000
+                    fi
                 fi
-                rm -r $AC_DIR
-                BLOCK_SIZE_KB=$BLOCK_SIZE
-                BLK_EVICT=$((20480 / $BLOCK_SIZE_KB))
+                fi
+                rm -rf $AC_DIR
 
-                #OUTPUT_PREFIX="$OUTPUT_DIR/$round-ycsb1G-$block-DRAM-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}"
-                OUTPUT_PREFIX="$OUTPUT_DIR/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}-reuseBlock"
+                BLOCK_SIZE_KB=$BLOCK_SIZE
+                BLK_EVICT=$((204800 / $BLOCK_SIZE_KB))
+                #if [ "$BLOCK_SIZE" = "256" ]; then
+                    #BLK_EVICT=$((409600 / $BLOCK_SIZE_KB))
+                #    BLOCKING="false"
+                    #BLOCK_MERGE="true"
+                #fi
+
+                OUTPUT_PREFIX="$OUTPUT_DIR/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}-R${read_percent}"
+                #OUTPUT_PREFIX="$OUTPUT_DIR/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}"
                 LOG_PREFIX="logs/ycsb-nvm/$round-ycsb1G-$block-$DB-S$skew-${PARTITIONS}p-${BLK_CON}c-${N_HOSTS}h-${CLIENT_THREADS_PER_HOST}ct-sc$SCALE-${BLOCK_SIZE_KB}kb-${BLK_EVICT}b-${AC_THRESH}th-${DURATION_S}s-${block_merge}"
                 echo "log = $LOG_PREFIX"
                 echo $OUTPUT_PREFIX
@@ -93,7 +143,10 @@ for BLOCK_MERGE in 'false'; do
 #ANTICACHE_BLOCK_SIZE=65536
 
 #ANTICACHE_BLOCK_SIZE=262144
-                ANTICACHE_BLOCK_SIZE=$(($BLOCK_SIZE_KB * 1100))
+                ANTICACHE_BLOCK_SIZE=$(($BLOCK_SIZE_KB * 1024))
+                if [ "$BLOCK_SIZE" = "1" ]; then
+                    ANTICACHE_BLOCK_SIZE=$(($BLOCK_SIZE_KB * 1100))
+                fi
                 ANTICACHE_THRESHOLD=.5
                 DURATION=$((${DURATION_S} * 1000))
                 WARMUP=$((${WARMUP_S} * 1000))
@@ -124,7 +177,7 @@ for BLOCK_MERGE in 'false'; do
                         "-Dsite.txn_incoming_delay=5" \
                         "-Dsite.exec_postprocessing_threads=false" \
                         "-Dsite.anticache_eviction_distribution=even" \
-                        "-Dsite.log_dir=$LOG_PREFIX" \
+                        #"-Dsite.log_dir=$LOG_PREFIX" \
                         "-Dsite.specexec_enable=false" \
 
 #    "-Dsite.queue_allow_decrease=true" \
@@ -134,7 +187,7 @@ for BLOCK_MERGE in 'false'; do
 # Client Params
                         "-Dclient.scalefactor=${SCALE}" \
                         "-Dclient.memory=2048" \
-                        "-Dclient.txnrate=35000" \
+                        "-Dclient.txnrate=40000" \
                         "-Dclient.warmup=${WARMUP}" \
                         "-Dclient.duration=${DURATION}" \
                         "-Dclient.interval=${INTERVAL}" \
@@ -147,7 +200,7 @@ for BLOCK_MERGE in 'false'; do
 #                       "-Dclient.output_anticache_access=${OUTPUT_PREFIX}-accesses.csv" \
                         "-Dclient.output_memory_stats=${OUTPUT_PREFIX}-memory.csv" \
                         "-Dclient.output_anticache_memory_stats=${OUTPUT_PREFIX}-anticache-memory.csv" \
-                        "-Dclient.weights=\"ReadRecord:90,UpdateRecord:10,*:0\"" \
+                        "-Dclient.weights=\"ReadRecord:${read_percent},UpdateRecord:$((100 - ${read_percent})),*:0\"" \
 
 # Anti-Caching Experiments
                         "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
@@ -156,21 +209,21 @@ for BLOCK_MERGE in 'false'; do
                         "-Dsite.anticache_profiling=true" \
                         "-Dsite.anticache_reset=false" \
                         "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
-                        "-Dsite.anticache_check_interval=5000" \
+                        "-Dsite.anticache_check_interval=2000" \
                         "-Dsite.anticache_threshold_mb=${AC_THRESH}" \
                         "-Dsite.anticache_blocks_per_eviction=${BLK_EVICT}" \
                         "-Dsite.anticache_max_evicted_blocks=5000000" \
-                        "-Dsite.anticache_dbsize=5000M" \
+                        "-Dsite.anticache_dbsize=10000M" \
                         "-Dsite.anticache_db_blocks=$BLOCKING" \
                         "-Dsite.anticache_block_merge=$BLOCK_MERGE" \
-                        "-Dsite.anticache_dbtype=$DB" \
+                        "-Dsite.anticache_dbtype=$DB_TYPE" \
 #    "-Dsite.anticache_evict_size=${ANTICACHE_EVICT_SIZE}" \
                         "-Dsite.anticache_dir=${AC_DIR}" \
                         #"-Dsite.anticache_dir=/mnt/pmfs/aclevel0" \
                         #"-Dsite.anticache_dir=/data1/berk-level$round" \
                         "-Dsite.anticache_threshold=${ANTICACHE_THRESHOLD}" \
                         "-Dclient.anticache_enable=false" \
-                        "-Dclient.anticache_evict_interval=5000" \
+                        "-Dclient.anticache_evict_interval=2000" \
                         "-Dclient.anticache_evict_size=${ANTICACHE_BLOCK_SIZE}" \
                         "-Dclient.output_csv=${OUTPUT_PREFIX}-results.csv" \
 
@@ -247,14 +300,14 @@ for BLOCK_MERGE in 'false'; do
 # DISTRIBUTE PROJECT JAR
                 for HOST in ${HOSTS_TO_UPDATE[@]}; do
                     if [ "$HOST" != $(hostname) ]; then
-                        scp -r ${BASE_PROJECT}.jar ${HOST}:${BASE_DIR} &
+                        sudo -u user scp -r ${BASE_PROJECT}.jar ${HOST}:${BASE_DIR} &
                     fi
                 done
                 wait
 
                 echo "Client count $CLIENT_COUNT client hosts: $CLIENT_HOSTS_STR"
 # EXECUTE BENCHMARK
-                ant hstore-benchmark ${BASE_ARGS[@]} \
+                sudo -u user ant hstore-benchmark ${BASE_ARGS[@]} \
                                 -Dproject=${BASE_PROJECT} \
                                 -Dkillonzero=false \
                                 -Dclient.threads_per_host=${CLIENT_THREADS_PER_HOST} \
@@ -268,6 +321,9 @@ for BLOCK_MERGE in 'false'; do
             done
         done
     done
+done
+done
+done
 done
 done
 done #BLOCK_SIZE
