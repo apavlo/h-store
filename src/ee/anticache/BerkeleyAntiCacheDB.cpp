@@ -85,7 +85,7 @@ void BerkeleyAntiCacheDB::initializeDB() {
         VOLT_INFO("created BerkeleyDB: %s\n", m_dbDir.c_str());
         // allocate and initialize new Berkeley DB instance
         m_db = new Db(m_dbEnv, 0); 
-        m_db->open(NULL, ANTICACHE_DB_NAME, NULL, DB_HASH, DB_CREATE | DB_THREAD, 0); 
+        m_db->open(NULL, ANTICACHE_DB_NAME, NULL, DB_BTREE, DB_CREATE | DB_THREAD, 0); 
 
     } catch (DbException &e) {
         VOLT_ERROR("Anti-Cache initialization error: %s", e.what());
