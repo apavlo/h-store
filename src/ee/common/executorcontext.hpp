@@ -219,6 +219,13 @@ namespace voltdb {
         }
 
         /**
+         * This should only use for test purpose!!
+         */
+        inline void setAntiCacheLevels(int16_t levels) {
+            m_levels = levels;
+        }
+
+        /**
          * Return the handle to the anti-cache manager that will update tuple timestamps
          * and can select tuples for eviction.
          */

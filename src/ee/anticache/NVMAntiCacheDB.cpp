@@ -239,7 +239,7 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     m_blockMap.insert(std::pair<uint32_t, std::pair<int, int32_t> >(blockId, std::pair<uint32_t, int32_t>(index, static_cast<int32_t>(bufsize))));
     m_monoBlockID++;
     
-    if (m_executorContext->getAntiCacheLevels() > 1)
+    if (m_executorContext == NULL || m_executorContext->getAntiCacheLevels() > 1)
         pushBlockLRU(blockId);
     else
         m_totalBlocks++;
@@ -281,7 +281,7 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate) {
 
         m_blockMap.erase(itr); 
 
-        if (m_executorContext->getAntiCacheLevels() > 1)
+        if (m_executorContext == NULL || m_executorContext->getAntiCacheLevels() > 1)
             removeBlockLRU(blockId);
         else
             m_totalBlocks--;
@@ -306,7 +306,7 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate) {
             //m_bytesUnevicted += static_cast<int32_t>( blockSize / tupleInBlock[blockId]);
             //evictedTupleInBlock[blockId]--;
 
-            if (m_executorContext->getAntiCacheLevels() > 1)
+            if (m_executorContext == NULL || m_executorContext->getAntiCacheLevels() > 1)
                 if (rand() % 100 == 0) {
                     removeBlockLRU(blockId);
                     pushBlockLRU(blockId);

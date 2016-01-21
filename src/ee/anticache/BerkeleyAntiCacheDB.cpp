@@ -187,7 +187,7 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     }
 
 
-    if (m_executorContext->getAntiCacheLevels() > 1)
+    if (m_executorContext == NULL || m_executorContext->getAntiCacheLevels() > 1)
         pushBlockLRU(blockId);
     else
         m_totalBlocks++;
@@ -237,7 +237,7 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate)
     if (isBlockMerge()) {
         m_bytesUnevicted += static_cast<int32_t>( block->getSize());
 
-        if (m_executorContext->getAntiCacheLevels() > 1)
+        if (m_executorContext == NULL || m_executorContext->getAntiCacheLevels() > 1)
             removeBlockLRU(blockId);
         else
             m_totalBlocks--;
@@ -260,7 +260,7 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate)
             m_blocksUnevicted--;
 
 
-            if (m_executorContext->getAntiCacheLevels() > 1)
+            if (m_executorContext == NULL || m_executorContext->getAntiCacheLevels() > 1)
                 if (rand() % 100 == 0) {
                     removeBlockLRU(blockId);
                     pushBlockLRU(blockId); // update block LRU
