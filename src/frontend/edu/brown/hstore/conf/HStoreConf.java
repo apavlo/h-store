@@ -635,6 +635,7 @@ public final class HStoreConf {
                         "is compiled with ${site.anticache_warmup_eviction_enable}  "+
                         "set to true.",
             defaultInt = 480000,
+            defaultInt = 0,
             experimental=true
         )
         public int anticache_warmup_eviction_time;

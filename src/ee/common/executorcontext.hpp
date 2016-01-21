@@ -211,6 +211,14 @@ namespace voltdb {
         }
 
         /**
+         * Return the number of anticache levels the system is
+         * currently supporting.
+         */
+        inline int16_t getAntiCacheLevels() {
+            return m_levels;
+        }
+
+        /**
          * Return the handle to the anti-cache manager that will update tuple timestamps
          * and can select tuples for eviction.
          */

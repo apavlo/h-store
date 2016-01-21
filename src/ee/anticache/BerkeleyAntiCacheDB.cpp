@@ -187,9 +187,10 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     }
 
 
-    // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
-    //pushBlockLRU(blockId);
-    m_totalBlocks++;
+    if (m_executorContext->getAntiCacheLevels() > 1)
+        pushBlockLRU(blockId);
+    else
+        m_totalBlocks++;
 
     m_blockSet.insert(blockId);
 
@@ -236,9 +237,10 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate)
     if (isBlockMerge()) {
         m_bytesUnevicted += static_cast<int32_t>( block->getSize());
 
-        // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
-        //removeBlockLRU(blockId);
-        m_totalBlocks--;
+        if (m_executorContext->getAntiCacheLevels() > 1)
+            removeBlockLRU(blockId);
+        else
+            m_totalBlocks--;
 
         m_blockSet.erase(blockId);
     } else {
@@ -248,8 +250,7 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate)
             //m_bytesUnevicted += static_cast<int32_t>((int64_t)block->getSize() - block->getSize() / tupleInBlock[blockId] *
             //        (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
 
-            // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
-            //removeBlockLRU(blockId);
+            removeBlockLRU(blockId);
 
             m_blockSet.erase(blockId);
         }
@@ -258,11 +259,12 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate)
             //evictedTupleInBlock[blockId]--;
             m_blocksUnevicted--;
 
-            // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
-            //if (rand() % 100 == 0) {
-            //    removeBlockLRU(blockId);
-            //    pushBlockLRU(blockId); // update block LRU
-            //}
+
+            if (m_executorContext->getAntiCacheLevels() > 1)
+                if (rand() % 100 == 0) {
+                    removeBlockLRU(blockId);
+                    pushBlockLRU(blockId); // update block LRU
+                }
 
         }
     }
