@@ -198,6 +198,7 @@ public:
     
 };
 
+/*
 TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     ChTempDir tempdir;
 
@@ -343,7 +344,7 @@ TEST_F(AntiCacheEvictionManagerTest, FullBackingStore) {
     delete nvmdb;
     delete acem;
 }
-
+*/
 
  
 
