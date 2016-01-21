@@ -187,8 +187,9 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     }
 
 
-    // FIXME: I'm hacking!!!!!!!!!!!!!!!!!!!!!!!!!
-    pushBlockLRU(blockId);
+    // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
+    //pushBlockLRU(blockId);
+
     m_blockSet.insert(blockId);
 
     delete [] databuf_;
@@ -199,6 +200,7 @@ bool BerkeleyAntiCacheDB::validateBlock(uint32_t blockId) {
     
     //if (m_blockSet.find(blockId) == m_blockSet.end())
     //    printf("Berkeley block already unevicted!\n");
+
     return m_blockSet.find(blockId) != m_blockSet.end();
 }
 
@@ -232,7 +234,10 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate)
     m_blocksUnevicted++;
     if (isBlockMerge()) {
         m_bytesUnevicted += static_cast<int32_t>( block->getSize());
-        removeBlockLRU(blockId);
+
+        // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
+        //removeBlockLRU(blockId);
+
         m_blockSet.erase(blockId);
     } else {
         if (isMigrate) {
@@ -240,17 +245,23 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate)
                 m_bytesUnevicted += m_bytesEvicted / (m_blocksEvicted - m_blocksUnevicted);
             //m_bytesUnevicted += static_cast<int32_t>((int64_t)block->getSize() - block->getSize() / tupleInBlock[blockId] *
             //        (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
-            removeBlockLRU(blockId);
+
+            // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
+            //removeBlockLRU(blockId);
+
             m_blockSet.erase(blockId);
         }
         else {
             //m_bytesUnevicted += static_cast<int32_t>( block->getSize() / tupleInBlock[blockId]);
             //evictedTupleInBlock[blockId]--;
             m_blocksUnevicted--;
-            if (rand() % 100 == 0) {
-                removeBlockLRU(blockId);
-                pushBlockLRU(blockId); // update block LRU
-            }
+
+            // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
+            //if (rand() % 100 == 0) {
+            //    removeBlockLRU(blockId);
+            //    pushBlockLRU(blockId); // update block LRU
+            //}
+
         }
     }
 

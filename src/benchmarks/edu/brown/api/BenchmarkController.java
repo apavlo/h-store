@@ -1168,7 +1168,7 @@ public class BenchmarkController {
 
         // Warm-up
         if (hstore_conf.client.warmup > 0) {
-            LOG.info(String.format("Letting system warm-up for %.01f seconds", hstore_conf.client.warmup / 1000.0));
+            LOG.info(String.format("Letting the system warm-up for %.01f seconds", hstore_conf.client.warmup / 1000.0));
             
             try {
                 Thread.sleep(hstore_conf.client.warmup);
@@ -1220,12 +1220,14 @@ public class BenchmarkController {
 
             if (hstore_conf.site.anticache_warmup_eviction_time > 0) {
                 LOG.info(String.format("Letting system evict for %.01f seconds", hstore_conf.site.anticache_warmup_eviction_time / 1000.0));
+                clientPSM.writeToAll(ControlCommand.SUSPEND.name());
             
+                /*
                 try {
                     Thread.sleep(hstore_conf.site.anticache_warmup_eviction_time);
                 } catch (InterruptedException e) {
                     if (debug.val) LOG.debug("Warm-up eviction was interrupted!");
-                }
+                }*/
             }
         }
             
@@ -1238,16 +1240,19 @@ public class BenchmarkController {
             long sleep = nextIntervalTime - nowTime;
             try {
                 if (this.stop == false && sleep > 0) {
-                    if (debug.val) LOG.debug(String.format("Sleeping for %.1f sec [pollIndex=%d]",
+                    if (debug.val) 
+                        LOG.debug(String.format("Sleeping for %.1f sec [pollIndex=%d]",
                                                sleep / 1000d, m_pollIndex));
                     Thread.sleep(sleep);
                 }
             } catch (InterruptedException e) {
                 // Ignore...
-                if (debug.val) LOG.debug(String.format("Interrupted! [pollIndex=%d / stop=%s]",
+                if (debug.val)
+                    LOG.debug(String.format("Interrupted! [pollIndex=%d / stop=%s]",
                                            m_pollIndex, this.stop));
             } finally {
-                if (debug.val) LOG.debug(String.format("Awake! [pollIndex=%d / stop=%s]",
+                if (debug.val) 
+                    LOG.debug(String.format("Awake! [pollIndex=%d / stop=%s]",
                                            m_pollIndex, this.stop));
             }
             nowTime = System.currentTimeMillis();
@@ -1263,6 +1268,20 @@ public class BenchmarkController {
 
                 // get ready for the next interval
                 nextIntervalTime = hstore_conf.client.interval * (m_pollIndex + 1) + startTime;
+            }
+
+
+            if (hstore_conf.site.anticache_warmup_eviction_enable && hstore_conf.site.anticache_warmup_eviction_time > 0) {
+                if (nowTime >= startTime + hstore_conf.site.anticache_warmup_eviction_time - 500) {
+                    LOG.info("Finish eviction. Resume benchmark execution.");
+                    hstore_conf.site.anticache_warmup_eviction_enable = false;
+                    for (String clientName : m_clients) {
+                        if (debug.val)
+                            LOG.debug(String.format("Sending %s to %s", ControlCommand.START, clientName)); 
+                        clientPSM.writeToProcess(clientName, ControlCommand.RESUME.name());
+                        clientPSM.writeToProcess(clientName, ControlCommand.CLEAR.name());
+                    } // FOR
+                }
             }
         } // WHILE
         

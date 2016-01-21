@@ -1358,7 +1358,7 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                 int tot = 0;
                 int i = 0;
                 unsigned char* sketch = eviction_manager->m_sketch[0];
-                while (tot < 200) {
+                while (tot < SKETCH_SAMPLE_SIZE) {
                     if (sketch[i]) {
                         eviction_manager->m_sample[tot] = sketch[i];
                         tot++;

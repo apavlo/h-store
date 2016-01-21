@@ -239,8 +239,8 @@ void NVMAntiCacheDB::writeBlock(const std::string tableName,
     m_blockMap.insert(std::pair<uint32_t, std::pair<int, int32_t> >(blockId, std::pair<uint32_t, int32_t>(index, static_cast<int32_t>(bufsize))));
     m_monoBlockID++;
     
-    // FIXME: I'm hacking!!!!!!!!!!!!!!!!!!!!!!!!!
-    pushBlockLRU(blockId);
+    // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
+    //pushBlockLRU(blockId);
 }
 
 bool NVMAntiCacheDB::validateBlock(uint32_t blockId) {
@@ -279,8 +279,8 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate) {
 
         m_blockMap.erase(itr); 
 
-        //FIXME: I'm hacking!!!!!!!!!!!!!!!!!!!!!!!!!
-        removeBlockLRU(blockId);
+        // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
+        //removeBlockLRU(blockId);
 
         m_bytesUnevicted += blockSize;
         m_blocksUnevicted++;
@@ -302,11 +302,11 @@ AntiCacheBlock* NVMAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate) {
             //m_bytesUnevicted += static_cast<int32_t>( blockSize / tupleInBlock[blockId]);
             //evictedTupleInBlock[blockId]--;
 
-            // FIXME: I'm hacking!!!!!!!!!!!!!!!!!!!!!!!!!
-            if (rand() % 100 == 0) {
-                removeBlockLRU(blockId);
-                pushBlockLRU(blockId);
-            }
+            // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
+            //if (rand() % 100 == 0) {
+            //    removeBlockLRU(blockId);
+            //    pushBlockLRU(blockId);
+            //}
         }
     }
     return (anticache_block);

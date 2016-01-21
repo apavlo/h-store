@@ -634,7 +634,7 @@ public final class HStoreConf {
             description="Reserved eviction time for anti-caching after warmup of the benchmark. This requires that the system "+
                         "is compiled with ${site.anticache_warmup_eviction_enable}  "+
                         "set to true.",
-            defaultInt = 0,
+            defaultInt = 480000,
             experimental=true
         )
         public int anticache_warmup_eviction_time;
