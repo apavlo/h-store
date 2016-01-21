@@ -189,6 +189,7 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
 
     // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
     //pushBlockLRU(blockId);
+    m_totalBlocks++;
 
     m_blockSet.insert(blockId);
 
@@ -237,6 +238,7 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate)
 
         // FIXME: If we want to support multi-tier anti-caching, uncomment the following.
         //removeBlockLRU(blockId);
+        m_totalBlocks--;
 
         m_blockSet.erase(blockId);
     } else {
