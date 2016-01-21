@@ -101,7 +101,7 @@ AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
     }
     prio_lock.high_waiters = 0;
 #ifdef ANTICACHE_COUNTER
-    m_sample.resize(SKETCH_SAMPLE_SIZE);
+    m_sample.resize(SKETCH_SAMPLE_SIZE, 0);
     m_sketch_thresh = 255 - 255 * SKETCH_THRESH / SKETCH_SAMPLE_SIZE;
     memset(m_sketch, 0, sizeof(m_sketch));
 #endif
@@ -1903,7 +1903,7 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
                     min_sketch = m_sketch[i][j];
             }
 
-            if (min_sketch >= m_sketch_thresh) {
+            if (min_sketch > m_sketch_thresh) {
                 if (block_id & 0x10000000) {
                     m_evicted_tables_sync.push_back(catalogTable);
                     m_evicted_block_ids_sync.push_back(block_id); 
