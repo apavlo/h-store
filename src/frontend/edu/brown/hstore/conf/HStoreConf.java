@@ -616,6 +616,7 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Enable the anti-cache feature. This requires that the system " +
             		    "is compiled with ${site.anticache_build} set to true.",
+            defaultInt = 10000,
             defaultBoolean=false,
             experimental=true
         )
@@ -634,8 +635,9 @@ public final class HStoreConf {
             description="Reserved eviction time for anti-caching after warmup of the benchmark. This requires that the system "+
                         "is compiled with ${site.anticache_warmup_eviction_enable}  "+
                         "set to true.",
-            //defaultInt = 480000,
-            defaultInt = 0,
+            //defaultInt = 450000,
+            //defaultInt = 0000,
+            defaultInt = 10000,
             experimental=true
         )
         public int anticache_warmup_eviction_time;
@@ -1121,7 +1123,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="", // TODO
-            defaultBoolean=true,
+            defaultBoolean=true
             experimental=false
         )
         public boolean queue_allow_decrease;

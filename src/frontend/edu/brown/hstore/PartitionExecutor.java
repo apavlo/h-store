@@ -2731,7 +2731,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 LOG.trace(String.format("%s - Queuing ClientResponse [status=%s, origMode=%s, newMode=%s, dtxn=%s]",
                           ts, cresponse.getStatus(), before_mode, this.currentExecMode, this.currentDtxn));
             this.blockClientResponse(ts, cresponse);
-        }
+        } 
     }
     
     /**
@@ -4587,7 +4587,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (ts.isPredictSinglePartition()) {
                 if (ts.isMarkedFinished(this.partitionId) == false)
                     this.finishTransaction(ts, status);
-                this.hstore_site.transactionRequeue(ts, status);
+                //this.hstore_site.responseSend(ts, cresponse);
+                //this.hstore_site.transactionRequeue(ts, status);
+                this.hstore_site.transactionRestart(ts, status);
             }
             // Send a message all the partitions involved that the party is over
             // and that they need to abort the transaction. We don't actually care when we get the

@@ -52,7 +52,7 @@
     //#define SKETCH_WIDTH 1048576
     //#define SKETCH_MASK 1048575
     #define SKETCH_HEIGHT 3
-    #define SKETCH_THRESH 199
+    #define SKETCH_THRESH 200
     #define SKETCH_SAMPLE_SIZE 200
 #endif
 

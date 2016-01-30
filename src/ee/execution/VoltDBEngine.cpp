@@ -1366,8 +1366,13 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                     i++;
                 }
                 std::sort(eviction_manager->m_sample.begin(), eviction_manager->m_sample.end(), std::greater <unsigned int>());
-                eviction_manager->m_sketch_thresh = (unsigned char)((eviction_manager->m_sketch_thresh + eviction_manager->m_sample[SKETCH_THRESH]
-                            + 1) >> 1);
+                if (SKETCH_THRESH == 0)
+                    eviction_manager->m_sketch_thresh = 255;
+                else if (SKETCH_THRESH == SKETCH_SAMPLE_SIZE)
+                    eviction_manager->m_sketch_thresh = 0;
+                else
+                    eviction_manager->m_sketch_thresh = (unsigned char)((eviction_manager->m_sketch_thresh + eviction_manager->m_sample[SKETCH_THRESH]
+                                + 1) >> 1);
                 printf("sketch thresh: %d\n", eviction_manager->m_sketch_thresh);
 
                 memset(eviction_manager->m_sketch, 0, sizeof(eviction_manager->m_sketch));

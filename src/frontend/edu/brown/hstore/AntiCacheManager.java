@@ -343,11 +343,13 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
             //LOG.warn(Arrays.toString(next.block_ids) + "\n" + Arrays.toString(next.tuple_offsets));
             ee.antiCacheReadBlocks(next.catalog_tbl, next.block_ids, next.tuple_offsets);
+            //Thread.sleep(1);
 
             if (debug.val)
                 LOG.debug(String.format("Finished reading blocks from partition %d",
                           next.partition));
-        } catch (SerializableException ex) {
+        } catch (Exception ex) {
+        //} catch (SerializableException ex) {
             LOG.info("Caught unexpected SerializableException while reading anti-cache block.", ex);
 
             // merge_needed = false; 
@@ -363,6 +365,7 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
         //        if(merge_needed)
         next.ts.setAntiCacheMergeTable(next.catalog_tbl);
+        //LOG.warn(this.queue.size());
 
         if (next.ts instanceof LocalTransaction){
             // HACK HACK HACK HACK HACK HACK
@@ -374,10 +377,20 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
         		ee.antiCacheMergeBlocks(next.catalog_tbl);
                 //lock.unlock();
         	}
+                //LOG.info("queue size: " + this.hstore_site.getTransactionQueueManager().getLockQueue(next.partition).size());
             this.hstore_site.getTransactionInitializer().resetTransactionId(next.ts, next.partition);
 
             if (debug.val) LOG.debug("restartin on local");
-        	this.hstore_site.transactionInit(next.ts);	
+            /*
+                LOG.info("init size: " + this.hstore_site.getTransactionQueueManager().getInitQueueSize());
+                for (int p = 0; p < 8; p++) {
+                LOG.info("queue size: " + this.hstore_site.getTransactionQueueManager().getLockQueue(next.partition).size());
+                }
+                */
+                //LOG.info("queue size: " + this.hstore_site.getTransactionQueueManager().getLockQueue(next.partition).size());
+
+                this.hstore_site.transactionInit(next.ts);	
+                //LOG.info(this.hstore_site.getTransactionQueueManager().debug());
         } else {
             //lock.lock();
             //    LOG.debug("here2?");

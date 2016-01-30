@@ -1708,6 +1708,26 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
 #endif
     VOLT_INFO("Merging %d blocks for table %s.", num_blocks, table->name().c_str());
     //printf("%d %d\n", read_pivot, merge_pivot);
+    /*
+    for (int i = merge_pivot; i < merge_pivot + num_blocks; i++) {
+        int index;
+        if (i < ANTICACHE_MERGE_BUFFER_SIZE)
+            index = i;
+        else
+            index = i - ANTICACHE_MERGE_BUFFER_SIZE;
+        printf("%d ", table->getBlockID(index));
+    }
+    printf("\n");
+    for (int i = merge_pivot; i < merge_pivot + num_blocks; i++) {
+        int index;
+        if (i < ANTICACHE_MERGE_BUFFER_SIZE)
+            index = i;
+        else
+            index = i - ANTICACHE_MERGE_BUFFER_SIZE;
+        printf("%d ", table->getMergeTupleOffset(index));
+    }
+    printf("\n");
+    */
 
     for (int i = merge_pivot; i < merge_pivot + num_blocks; i++) {
         int index;
