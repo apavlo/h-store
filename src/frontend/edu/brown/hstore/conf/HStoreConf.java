@@ -1123,7 +1123,7 @@ public final class HStoreConf {
         
         @ConfigProperty(
             description="", // TODO
-            defaultBoolean=true
+            defaultBoolean=true,
             experimental=false
         )
         public boolean queue_allow_decrease;
