@@ -616,7 +616,6 @@ public final class HStoreConf {
         @ConfigProperty(
             description="Enable the anti-cache feature. This requires that the system " +
             		    "is compiled with ${site.anticache_build} set to true.",
-            defaultInt = 10000,
             defaultBoolean=false,
             experimental=true
         )
