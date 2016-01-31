@@ -90,6 +90,10 @@ AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
     m_migrate = false;
 
 
+    if (pthread_mutex_init(&lock, NULL) != 0) {
+        VOLT_ERROR("Mutex init failed!");
+    }
+
     if (pthread_mutex_init(&(prio_lock.cv_mutex), NULL) != 0) {
         VOLT_ERROR("Mutex init failed!");
     }
@@ -112,6 +116,8 @@ AntiCacheEvictionManager::~AntiCacheEvictionManager() {
     delete m_evicted_tuple;
     TupleSchema::freeTupleSchema(m_evicted_schema);
     
+    pthread_mutex_destroy(&lock);
+
     pthread_mutex_destroy(&prio_lock.cv_mutex);
     pthread_mutex_destroy(&prio_lock.cs_mutex);
     pthread_cond_destroy(&prio_lock.cond);
@@ -1364,6 +1370,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
             VOLT_DEBUG("num tuples is %d", tuples);
         }
 
+        //pthread_mutex_lock(&lock);
         table->insertUnevictedBlock(unevicted_tuples, table->m_read_pivot);
         table->insertTupleOffset(tuple_offset, table->m_read_pivot);
         table->insertBlockID(block_id, table->m_read_pivot);
@@ -1373,6 +1380,7 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
         }
         else
             table->m_read_pivot++;
+        //pthread_mutex_unlock(&lock);
 
         //if (table->m_read_pivot % 10000 == 0) 
             

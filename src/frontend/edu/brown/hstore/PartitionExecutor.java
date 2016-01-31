@@ -4587,9 +4587,16 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (ts.isPredictSinglePartition()) {
                 if (ts.isMarkedFinished(this.partitionId) == false)
                     this.finishTransaction(ts, status);
-                //this.hstore_site.responseSend(ts, cresponse);
-                //this.hstore_site.transactionRequeue(ts, status);
-                this.hstore_site.transactionRestart(ts, status);
+                if (this.hstore_site.getAntiCacheManager().checkQueueBound()) {
+                    this.hstore_site.transactionRequeue(ts, status);
+                //    this.hstore_site.transactionRestart(ts, status);
+                }
+                else {
+                    if (hstore_conf.site.exec_profiling) this.profiler.network_time.start();
+                    this.hstore_site.responseSend(ts, cresponse);
+                    if (hstore_conf.site.exec_profiling) this.profiler.network_time.stopIfStarted();
+                    this.hstore_site.queueDeleteTransaction(ts.getTransactionId(), status);
+                }
             }
             // Send a message all the partitions involved that the party is over
             // and that they need to abort the transaction. We don't actually care when we get the

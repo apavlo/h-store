@@ -72,7 +72,7 @@ void BerkeleyAntiCacheDB::initializeDB() {
         //DB_AUTO_COMMIT  | // Immediately commit every operation
         DB_INIT_MPOOL   | // Initialize the memory pool (in-memory cache)
 //        DB_TXN_NOSYNC   | // Don't flush to disk every time, we will do that explicitly
-        DB_INIT_LOCK    | // concurrent data store
+        //DB_INIT_LOCK    | // concurrent data store
         //DB_PRIVATE      |
         DB_THREAD       | // allow multiple threads
 //        DB_INIT_TXN     |

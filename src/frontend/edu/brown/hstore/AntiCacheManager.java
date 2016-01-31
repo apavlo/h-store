@@ -133,6 +133,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private final double UNEVICTION_RATIO_CLUSTER_THRESHOLD = .1;
     private final double ACCESS_RATE_CLUSTER_THRESHOLD = .1;
 
+    private final long throttleThreshold;
+
     /**
      * 
      */
@@ -286,6 +288,8 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
             numDBs = levels.length;
         }
+
+        this.throttleThreshold = hstore_conf.client.blocking_concurrent * hstore_site.getLocalPartitionIds().size() / 8 * 3;
     }
 
     public Collection<Table> getEvictableTables() {
@@ -294,6 +298,10 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
 
     public Runnable getMemoryMonitorThread() {
         return this.memoryMonitor;
+    }
+
+    public boolean checkQueueBound() {
+        return this.queue.size() < this.throttleThreshold;
     }
 
 

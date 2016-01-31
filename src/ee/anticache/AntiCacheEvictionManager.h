@@ -198,6 +198,8 @@ protected:
     std::vector<int32_t> m_evicted_block_ids_sync;
     std::vector<int32_t> m_evicted_offsets_sync;
 
+    pthread_mutex_t lock;
+
     std::map <int32_t, set <int32_t> > m_evicted_filter;
     // whether the block to be merged is blockable, that is, all blocks that are needed
     // are in blockable tiers
