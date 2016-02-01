@@ -1674,7 +1674,7 @@ public final class HStoreConf {
             description="When the BlockingClient is enabled with ${client.blocking}, this defines the number " +
                         "of concurrent transactions that each client instance can submit to the H-Store cluster " +
                         "before it will block.",
-            defaultInt=1,
+            defaultInt=500,
             experimental=false
         )
         public int blocking_concurrent;
