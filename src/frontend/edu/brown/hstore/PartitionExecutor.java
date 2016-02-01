@@ -4587,7 +4587,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (ts.isPredictSinglePartition()) {
                 if (ts.isMarkedFinished(this.partitionId) == false)
                     this.finishTransaction(ts, status);
-                if (this.hstore_site.getAntiCacheManager().checkQueueBound()) {
+                if (status != Status.ABORT_EVICTEDACCESS || this.hstore_site.getAntiCacheManager().checkQueueBound()) {
                     this.hstore_site.transactionRequeue(ts, status);
                 //    this.hstore_site.transactionRestart(ts, status);
                 }
