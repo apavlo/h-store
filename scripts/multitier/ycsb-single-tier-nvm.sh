@@ -23,10 +23,14 @@ CLIENT_HOSTS=( \
         "localhost" \
         "localhost" \
         "localhost" \
+        "localhost" \
+        "localhost" \
+        "localhost" \
+        "localhost" \
         )
 N_HOSTS=4
 BASE_CLIENT_THREADS=1
-CLIENT_THREADS_PER_HOST=2
+CLIENT_THREADS_PER_HOST=1
 #BASE_SITE_MEMORY=8192
 #BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_SITE_MEMORY=12288
@@ -34,8 +38,13 @@ BASE_SITE_MEMORY_PER_PARTITION=2024
 BASE_PROJECT="ycsb"
 BASE_DIR=`pwd`
 #OUTPUT_DIR_PREFIX="data-sketch/mergeupdate"
+#OUTPUT_DIR_PREFIX="data-DRAM/"
+OUTPUT_DIR_PREFIX="data-sketch-10GB-final/"
 #OUTPUT_DIR_PREFIX="data-temp/"
-OUTPUT_DIR_PREFIX="data-sync-abort-10GB/"
+#OUTPUT_DIR_PREFIX="data-blocksize-throttle-10GB-2/"
+#OUTPUT_DIR_PREFIX="data-allocator-10GB/"
+#OUTPUT_DIR_PREFIX="data-ALLOCATORNVM-10GB/"
+#OUTPUT_DIR_PREFIX="data-blocksize-10GB-HDD/"
 #OUTPUT_DIR_PREFIX="data-sketch-125T/"
 #BLK_CON=1
 #BLK_EVICT=800
@@ -48,14 +57,16 @@ INTERVAL_S=2
 PARTITIONS=8
 
 for BLK_CON in 500; do
-for BLOCK_SIZE in 1; do
-#for BLOCK_SIZE in 4 16 64 256 1024; do
-for DB in 'HDD' 'SSD' 'NVM'; do
-for BLOCK_MERGE in 'false' 'true'; do
-for BLOCKING in 'false' 'true';do
-    if [ "$DB" = "HDD" -a "$BLOCK_MERGE" = "false" ]; then
-        continue
-    fi
+for round in 1 2; do
+for DB in 'HDD' ; do
+for BLOCK_SIZE in 4; do
+#for DB in 'ALLOCATORNVM'; do
+#for device in 'NVM' 'SSD' 'DRAM'; do
+for BLOCK_MERGE in 'false'; do
+for BLOCKING in 'true';do
+    #if [ "$DB" = "HDD" -a "$BLOCK_MERGE" = "false" ]; then
+    #    continue
+    #fi
 #for BLOCK_MERGE in 'false' 'true'; do
         #OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${BLK_EVICT}*${BLOCK_SIZE}kb
         #mkdir -p $OUTPUT_DIR
@@ -66,24 +77,29 @@ for BLOCKING in 'false' 'true';do
      #    /data/devel/sdv-tools/sdv-release/ivt_pm_sdv.sh --enable --pm-latency=$latency
     #for AC_THRESH in 500; do
     for AC_THRESH in 1250; do
-        if [ "$DB" = "NVM" ]; then
-            BLOCK_SIZE=1
-        else
-            BLOCK_SIZE=4
+        #if [ "$DB" = "NVM" ]; then
+        #    BLOCK_SIZE=1
+        #fi
+        #if [ "$DB" = "SSD" ]; then
+        #    BLOCK_SIZE=16
+        #fi
+        if [ "$DB" = "HDD" ]; then
+            BLOCK_SIZE=16
+            BLOCKING='true'
         fi
     #for DB in 'NVM' 'ALLOCATORNVM' 'SSD'; do
     #for DB in  'SSD' 'NVM' 'HDD' 'DRAM'; do
         for skew in 1.01; do
-        for read_percent in 90; do
-        for sketch_thresh in 0; do
-        #    sed -i "54c\ \ \ \ #define SKETCH_THRESH ${sketch_thresh}" src/ee/anticache/AntiCacheEvictionManager.h
-        #    ant ee-build
-        #for skew in 0.75 0.5 1.01 1.25; do
-        #for skew in 0.8 1.01 1.25 4 8; do
-            OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${DB}
-            #OUTPUT_DIR=${OUTPUT_DIR_PREFIX}merge${sketch_thresh}
+        for read_percent in 90 100; do
+        #for sketch_thresh in 0; do
+        for sketch_thresh in 0 10 40 200; do
+            sed -i "55c\ \ \ \ #define SKETCH_THRESH ${sketch_thresh}" src/ee/anticache/AntiCacheEvictionManager.h
+            ant ee-build
+
+            #OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${device}
+            #OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${DB}
+            OUTPUT_DIR="${OUTPUT_DIR_PREFIX}${DB}/sketch${sketch_thresh}"
             sudo -u user mkdir -p $OUTPUT_DIR
-            for round in 1 2 3; do
                 echo $BLK_EVICT
 
                 if [ "$BLOCKING" = "true" ]; then
@@ -100,12 +116,21 @@ for BLOCKING in 'false' 'true';do
                 #AC_THRESH=500
                 DB_TYPE="$DB"
                 if [ "$DB" = "ALLOCATORNVM" ]; then
-                    AC_DIR='/mnt/pmfs/mmap_file'
+                    if [ "$device" = "NVM" ]; then
+                        AC_DIR='/mnt/pmfs/mmap_file'
+                    else
+                        AC_DIR='/data1/mmap_file'
+                    fi
+                    if [ "$device" = "DRAM" ]; then
+                        AC_THRESH=50000
+                    else
+                        AC_THRESH=1250
+                    fi
                 else
                 if [ "$DB" = "NVM" ]; then
                     AC_DIR='/mnt/pmfs/aclevel2'
                 else
-                    BLOCK_SIZE=4
+                    #BLOCK_SIZE=4
                     if [ "$DB" != "ALLOCATORNVM" ]; then
                         DB_TYPE="BERKELEY"
                     fi
@@ -172,17 +197,18 @@ for BLOCKING in 'false' 'true';do
                         "-Dsite.cpu_affinity_one_partition_per_core=true" \
 #"-Dsite.cpu_partition_blacklist=0,2,4,6,8,10,12,14,16,18" \
 #"-Dsite.cpu_utility_blacklist=0,2,4,6,8,10,12,14,16,18" \
-                        "-Dsite.network_incoming_limit_txns=500000" \
+                        "-Dsite.network_incoming_limit_txns=100000" \
                         "-Dsite.commandlog_enable=false" \
                         "-Dsite.txn_incoming_delay=5" \
                         "-Dsite.exec_postprocessing_threads=false" \
                         "-Dsite.anticache_eviction_distribution=even" \
                         #"-Dsite.log_dir=$LOG_PREFIX" \
+                        #"-Dclient.log_dir=$LOG_PREFIX" \
                         "-Dsite.specexec_enable=false" \
 
 #    "-Dsite.queue_allow_decrease=true" \
 #    "-Dsite.queue_allow_increase=true" \
-#    "-Dsite.queue_threshold_factor=0.5" \
+    "-Dsite.queue_threshold_factor=0.02" \
 
 # Client Params
                         "-Dclient.scalefactor=${SCALE}" \
@@ -196,7 +222,7 @@ for BLOCKING in 'false' 'true';do
                         "-Dclient.blocking_concurrent=${BLK_CON}" \ 
                         #"-Dclient.throttle_backoff=100" \
                         "-Dclient.output_anticache_evictions=${OUTPUT_PREFIX}-evictions.csv" \
-                        "-Dclient.output_anticache_profiling=${OUTPUT_PREFIX}-acprofiling.csv" \
+                        #"-Dclient.output_anticache_profiling=${OUTPUT_PREFIX}-acprofiling.csv" \
 #                       "-Dclient.output_anticache_access=${OUTPUT_PREFIX}-accesses.csv" \
                         "-Dclient.output_memory_stats=${OUTPUT_PREFIX}-memory.csv" \
                         "-Dclient.output_anticache_memory_stats=${OUTPUT_PREFIX}-anticache-memory.csv" \
@@ -206,13 +232,13 @@ for BLOCKING in 'false' 'true';do
                         "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
                         "-Dsite.anticache_timestamps=${ENABLE_TIMESTAMPS}" \
                         "-Dsite.anticache_batching=true" \
-                        "-Dsite.anticache_profiling=true" \
+                        "-Dsite.anticache_profiling=false" \
                         "-Dsite.anticache_reset=false" \
                         "-Dsite.anticache_block_size=${ANTICACHE_BLOCK_SIZE}" \
                         "-Dsite.anticache_check_interval=2000" \
                         "-Dsite.anticache_threshold_mb=${AC_THRESH}" \
                         "-Dsite.anticache_blocks_per_eviction=${BLK_EVICT}" \
-                        "-Dsite.anticache_max_evicted_blocks=5000000" \
+                        "-Dsite.anticache_max_evicted_blocks=50000000" \
                         "-Dsite.anticache_dbsize=10000M" \
                         "-Dsite.anticache_db_blocks=$BLOCKING" \
                         "-Dsite.anticache_block_merge=$BLOCK_MERGE" \
