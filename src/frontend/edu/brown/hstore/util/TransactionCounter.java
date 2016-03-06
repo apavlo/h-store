@@ -67,7 +67,8 @@ public enum TransactionCounter {
     // --------------------------------------------------------
     // Speculative Execution Stall Points
     // --------------------------------------------------------
-    SPECULATIVE_SP1,
+    SPECULATIVE_SP1_IDLE,
+    SPECULATIVE_SP1_LOCAL,
     SPECULATIVE_SP2,
     SPECULATIVE_SP3_BEFORE,
     SPECULATIVE_SP3_AFTER,
@@ -156,7 +157,8 @@ public enum TransactionCounter {
             case PREFETCH:
                 total = RECEIVED.get();
                 break;
-            case SPECULATIVE_SP1:
+            case SPECULATIVE_SP1_IDLE:
+            case SPECULATIVE_SP1_LOCAL:
             case SPECULATIVE_SP2:
             case SPECULATIVE_SP3_AFTER:
             case SPECULATIVE_SP3_BEFORE:

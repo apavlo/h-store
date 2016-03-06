@@ -3107,8 +3107,11 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (ts.isSpeculative() && status != Status.ABORT_SPECULATIVE) {
                 TransactionCounter.SPECULATIVE.inc(catalog_proc);
                 switch (ts.getSpeculationType()) {
+                    case SP1_IDLE:
+                        TransactionCounter.SPECULATIVE_SP1_IDLE.inc(catalog_proc);
+                        break;
                     case SP1_LOCAL:
-                        TransactionCounter.SPECULATIVE_SP1.inc(catalog_proc);
+                        TransactionCounter.SPECULATIVE_SP1_LOCAL.inc(catalog_proc);
                         break;
                     case SP2_LOCAL:
                         TransactionCounter.SPECULATIVE_SP2.inc(catalog_proc);

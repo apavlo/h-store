@@ -387,6 +387,7 @@ public class SpecExecScheduler implements Configurable {
                     // We can execute anything when we are in SP3 (i.e., 2PC) or IDLE
                     // For SP2, we can execute anything if the txn has not
                     // executed a query at this partition.
+                    case SP1_IDLE:
                     case SP1_LOCAL:
                     case SP3_REMOTE_BEFORE:
                     case SP4_LOCAL:

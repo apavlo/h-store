@@ -15,7 +15,12 @@ public enum SpeculationType {
      */
     NULL,
     /**
-     * This stall point occurs on any partition where the dtxn has acquired the lock
+     * This is when the partition executor is allowed to jump ahead in time and execute txns
+     * assuming that nobody is going to show up with a lower timestamp.
+     */
+    SP1_IDLE,
+    /**
+     * This stall point occurs on the local partition where the dtxn has acquired the lock
      * for it's local partition but it's waiting to hear back about getting the locks
      * from the other remote partitions.
      */

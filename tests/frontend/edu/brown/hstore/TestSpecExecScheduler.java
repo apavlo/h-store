@@ -197,7 +197,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
      */
     public void testLongestPolicy() throws Exception {
         LocalTransaction tsWithoutEstimatorState = this.populateQueue(this.addedTxns, 3);
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP1_LOCAL);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP1_IDLE);
         // System.err.println(this.dtxn.debug());
         assertNotNull(next);
         assertEquals(tsWithoutEstimatorState, next);
@@ -226,7 +226,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
         
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP1_LOCAL);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP1_IDLE);
         //System.err.println(this.dtxn.debug());
         assertNotNull(next);
         assertEquals(ts, next);

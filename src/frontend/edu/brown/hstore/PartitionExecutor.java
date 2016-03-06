@@ -1965,7 +1965,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
         if (this.currentDtxn == null) {
             // If the lock queue is not empty, then that doesn't mean we're really idle I suppose...
             // if (this.lockQueue.approximateIsEmpty() == false) {
-            specType = SpeculationType.SP1_LOCAL;
+            specType = SpeculationType.SP1_IDLE;
         }
         // LOCAL
         else if (this.currentDtxn.getBasePartition() == this.partitionId) {
