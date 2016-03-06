@@ -258,7 +258,7 @@ public class TestPartitionExecutor2PC extends BaseTestCase {
         final int remotePartition = BASE_PARTITION+1;
         final PartitionExecutor remoteExecutor = hstore_site.getPartitionExecutor(remotePartition);
         final AtomicBoolean remotePartitionCheck = new AtomicBoolean(false);
-        remoteExecutor.getDebugContext().getSpecExecScheduler().ignoreSpeculationType(SpeculationType.SP2_REMOTE_BEFORE);
+        remoteExecutor.getDebugContext().getSpecExecScheduler().ignoreSpeculationType(SpeculationType.SP3_REMOTE_BEFORE);
         hstore_conf.site.exec_early_prepare = false;
         
         // Load in some test data so the txn doesn't abort
@@ -358,7 +358,7 @@ public class TestPartitionExecutor2PC extends BaseTestCase {
         // We want to make sure that the PartitionExecutor only spec execs 
         // at the 2PC stall points.
         for (SpeculationType specType : SpeculationType.values()) {
-            if (specType == SpeculationType.SP3_REMOTE) continue;
+            if (specType == SpeculationType.SP4_REMOTE) continue;
             for (int i = 0; i < this.executors.length; i++) {
                 this.executorDbgs[i].getSpecExecScheduler().ignoreSpeculationType(specType);
             }

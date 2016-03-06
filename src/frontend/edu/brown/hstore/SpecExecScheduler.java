@@ -387,17 +387,17 @@ public class SpecExecScheduler implements Configurable {
                     // We can execute anything when we are in SP3 (i.e., 2PC) or IDLE
                     // For SP2, we can execute anything if the txn has not
                     // executed a query at this partition.
-                    case IDLE:
-                    case SP2_REMOTE_BEFORE:
-                    case SP3_LOCAL:
-                    case SP3_REMOTE: {
+                    case SP1_LOCAL:
+                    case SP3_REMOTE_BEFORE:
+                    case SP4_LOCAL:
+                    case SP4_REMOTE: {
                         break;
                     }
                     // Otherwise we have to use the ConflictChecker to determine whether
                     // it is safe to execute this txn given what the distributed txn
                     // is expected to execute in the future.
-                    case SP1_LOCAL:
-                    case SP2_REMOTE_AFTER: {
+                    case SP2_LOCAL:
+                    case SP3_REMOTE_AFTER: {
                         if (this.checker.hasConflictBefore(dtxn, localTxn, this.partitionId)) {
                             if (debug.val)
                                 LOG.debug(String.format("Skipping %s because it conflicts with current transaction", localTxn));

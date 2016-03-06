@@ -129,13 +129,13 @@ public class TestSpecExecScheduler extends BaseTestCase {
      */
     public void testFirstMatchPolicy() throws Exception {
         // We should be able to get one match with only one evaluation
-        SpecExecProfiler profiler = this.schedulerDebug.getProfiler(SpeculationType.SP2_REMOTE_BEFORE);
+        SpecExecProfiler profiler = this.schedulerDebug.getProfiler(SpeculationType.SP3_REMOTE_BEFORE);
         assertNotNull(profiler);
         assertTrue(profiler.num_comparisons.isEmpty());
         
         this.populateQueue(this.addedTxns, 10);
         this.scheduler.setPolicyType(SpecExecSchedulerPolicyType.FIRST);
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_BEFORE);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP3_REMOTE_BEFORE);
         assertNotNull(next);
         assertEquals(CollectionUtil.first(this.addedTxns), next);
         assertEquals(1, profiler.num_comparisons.get(1));
@@ -146,14 +146,14 @@ public class TestSpecExecScheduler extends BaseTestCase {
      */
     public void testLastMatchPolicy() throws Exception {
         // We should be able to get one match with only one evaluation
-        SpecExecProfiler profiler = this.schedulerDebug.getProfiler(SpeculationType.SP2_REMOTE_BEFORE);
+        SpecExecProfiler profiler = this.schedulerDebug.getProfiler(SpeculationType.SP3_REMOTE_BEFORE);
         assertNotNull(profiler);
         assertTrue(profiler.num_comparisons.isEmpty());
         this.scheduler.setPolicyType(SpecExecSchedulerPolicyType.LAST);
         this.scheduler.setWindowSize(Integer.MAX_VALUE);
         
         this.populateQueue(this.addedTxns, 10);
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_BEFORE);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP3_REMOTE_BEFORE);
         assertNotNull(next);
         assertEquals(CollectionUtil.last(this.addedTxns), next);
         assertEquals(this.addedTxns.size(), profiler.num_comparisons.getMaxValue().intValue());
@@ -164,7 +164,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
      */
     public void testShortestPolicy() throws Exception {
         // We should only evaluate the same # of txns as the WINDOW_SIZE
-        SpecExecProfiler profiler = this.schedulerDebug.getProfiler(SpeculationType.SP2_REMOTE_BEFORE);
+        SpecExecProfiler profiler = this.schedulerDebug.getProfiler(SpeculationType.SP3_REMOTE_BEFORE);
         assertNotNull(profiler);
         assertTrue(profiler.num_comparisons.isEmpty());
         
@@ -185,7 +185,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         int windowSize = this.work_queue.size();
         this.scheduler.setPolicyType(SpecExecSchedulerPolicyType.SHORTEST);
         this.scheduler.setWindowSize(windowSize);
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_BEFORE);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP3_REMOTE_BEFORE);
         assertNotNull(next);
         assertEquals(shortest, next);
         // System.err.println(profiler.num_comparisons.toString());
@@ -197,7 +197,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
      */
     public void testLongestPolicy() throws Exception {
         LocalTransaction tsWithoutEstimatorState = this.populateQueue(this.addedTxns, 3);
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.IDLE);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP1_LOCAL);
         // System.err.println(this.dtxn.debug());
         assertNotNull(next);
         assertEquals(tsWithoutEstimatorState, next);
@@ -226,7 +226,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
         
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.IDLE);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP1_LOCAL);
         //System.err.println(this.dtxn.debug());
         assertNotNull(next);
         assertEquals(ts, next);
@@ -261,7 +261,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP3_REMOTE_AFTER);
         assertNotNull(next);
         assertEquals(ts, next);
         assertFalse(this.work_queue.contains(next));
@@ -274,7 +274,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
         
-        next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
+        next = this.scheduler.next(this.dtxn, SpeculationType.SP3_REMOTE_AFTER);
         assertNull(next);
         ts.finish();
         
@@ -285,7 +285,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
         
-        next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
+        next = this.scheduler.next(this.dtxn, SpeculationType.SP3_REMOTE_AFTER);
         assertNull(next);
         ts.finish();
     }
@@ -320,7 +320,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
         
-        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_BEFORE);
+        LocalTransaction next = this.scheduler.next(this.dtxn, SpeculationType.SP3_REMOTE_BEFORE);
         assertNotNull(next);
         assertEquals(ts, next);
         assertFalse(this.work_queue.contains(next));
@@ -332,7 +332,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
-        next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
+        next = this.scheduler.next(this.dtxn, SpeculationType.SP3_REMOTE_AFTER);
         assertNotNull(next);
         assertEquals(ts, next);
         assertFalse(this.work_queue.contains(next));
@@ -344,7 +344,7 @@ public class TestSpecExecScheduler extends BaseTestCase {
         ts.testInit(this.idManager.getNextUniqueTransactionId(), BASE_PARTITION, null, catalogContext.getPartitionSetSingleton(BASE_PARTITION), proc);
         assertTrue(ts.isPredictSinglePartition());
         this.addToQueue(ts);
-        next = this.scheduler.next(this.dtxn, SpeculationType.SP2_REMOTE_AFTER);
+        next = this.scheduler.next(this.dtxn, SpeculationType.SP3_REMOTE_AFTER);
         assertNull(next);
     }
 

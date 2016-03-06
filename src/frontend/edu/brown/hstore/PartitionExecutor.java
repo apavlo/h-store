@@ -1963,26 +1963,29 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 
         // IDLE
         if (this.currentDtxn == null) {
-            specType = SpeculationType.IDLE;
+            // If the lock queue is not empty, then that doesn't mean we're really idle I suppose...
+            // if (this.lockQueue.approximateIsEmpty() == false) {
+            specType = SpeculationType.SP1_LOCAL;
         }
         // LOCAL
         else if (this.currentDtxn.getBasePartition() == this.partitionId) {
+            // Check whether the DTXN has started executing
             if (((LocalTransaction)this.currentDtxn).isMarkedControlCodeExecuted() == false) {
-                specType = SpeculationType.IDLE;
-            } else if (this.currentDtxn.isMarkedPrepared(this.partitionId)) {
-                specType = SpeculationType.SP3_LOCAL;
-            } else {
                 specType = SpeculationType.SP1_LOCAL;
+            } else if (this.currentDtxn.isMarkedPrepared(this.partitionId)) {
+                specType = SpeculationType.SP4_LOCAL;
+            } else {
+                specType = SpeculationType.SP2_LOCAL;
             }
         }
         // REMOTE
         else {
             if (this.currentDtxn.isMarkedPrepared(this.partitionId)) {
-                specType = SpeculationType.SP3_REMOTE;
+                specType = SpeculationType.SP4_REMOTE;
             } else if (this.currentDtxn.hasExecutedWork(this.partitionId) == false) {
-                specType = SpeculationType.SP2_REMOTE_BEFORE;
+                specType = SpeculationType.SP3_REMOTE_BEFORE;
             } else {
-                specType = SpeculationType.SP2_REMOTE_AFTER;
+                specType = SpeculationType.SP3_REMOTE_AFTER;
             }
         }
 
@@ -4721,7 +4724,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                         // Check whether we can quickly ignore this speculative txn because
                         // it was executed at a stall point where conflicts don't matter.
                         SpeculationType specType = spec_ts.getSpeculationType();
-                        if (specType != SpeculationType.SP2_REMOTE_AFTER && specType != SpeculationType.SP1_LOCAL) {
+                        if (specType != SpeculationType.SP3_REMOTE_AFTER && specType != SpeculationType.SP2_LOCAL) {
                             continue;
                         }
                         
