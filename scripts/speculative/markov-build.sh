@@ -2,7 +2,7 @@
 
 NUM_PARTITIONS=32
 
-for b in "tpcc"; do # "seats" "smallbank" 
+for b in "tpcc" "seats" "smallbank" ; do # "seats" "smallbank" 
     echo $b
     ant hstore-prepare -Dproject=$b -Dhosts=localhost:0:0-$(expr $NUM_PARTITIONS - 1)
     
@@ -15,6 +15,7 @@ for b in "tpcc"; do # "seats" "smallbank"
     for limit in 100 1000 10000 100000; do
         echo $limit
         ant markov-generate -Dproject=$b \
+            -Dnumcpus=8 \
             -Dglobal=false \
             -Dworkload=$workload \
             -Doutput=/tmp/$b.markov \
