@@ -1259,18 +1259,26 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 }
                 // Check if we have any utility work to do while we wait
                 else if (hstore_conf.site.specexec_enable) {
-//                    if (trace.val)
-//                        LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
-//                                  this.work_queue.getClass().getSimpleName(), this.partitionId));
+                    if (trace.val)
+                        LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
+                                  this.work_queue.getClass().getSimpleName(), this.partitionId));
                     // 2016-03-06 - We only want to invoke this if there is a distributed txn
                     // that holds the lock for this partition. 
-                    if (this.currentDtxn != null) {
-                        this.utilityWork();
-                        // I don't think this is needed
-                        // nextWork = UTIL_WORK_MSG;
+                    // if (this.currentDtxn != null) {
+                    if (this.utilityWork() == false) {
+                        ThreadUtil.sleep(1);
                     }
-                } else {
-                    ThreadUtil.sleep(1);
+                    //}
+                    // If there is no distributed txn, then we need to check whether we're allowed
+                    // to peek in the queue and take out the next txn...
+                    //else {
+                    //    ThreadUtil.sleep(1);
+                    //}
+                }
+                // Nothing else to do but sleep...
+                // Setting this sleep time too low will spike the CPUs
+                else {
+                    ThreadUtil.sleep(5);
                 }
             } // WHILE
         } catch (final Throwable ex) {

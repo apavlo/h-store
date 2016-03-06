@@ -141,21 +141,34 @@ public class SpecExecScheduler implements Configurable {
         if (this.checker.isDisabled())
             this.setDisabled(true);
         
+        if (HStoreConf.singleton().site.specexec_ignore_stallpoints != null) {
+            this.setIgnoreSpeculationTypes(HStoreConf.singleton().site.specexec_ignore_stallpoints);
+        }
+        
         if (debug.val)
             LOG.debug(String.format("Initialized %s for partition %d with %s",
                       this.getClass().getSimpleName(), this.partitionId,
                       this.checker.getClass().getSimpleName()));
     }
     
+    /**
+     * For the given comma-separated list of SpeculationTypes, set them
+     * to be ignored.
+     * @param ignore
+     */
+    private void setIgnoreSpeculationTypes(String ignore) {
+        if (this.ignore_types != null) this.ignore_types.clear();
+        for (String element : StringUtil.splitList(ignore)) {
+            SpeculationType specType = SpeculationType.get(element);
+            if (specType != null) this.ignoreSpeculationType(specType);
+        } // FOR
+    }
+    
     @Override
     public void updateConf(HStoreConf hstore_conf, String[] changed) {
         // Tell the SpecExecScheduler to ignore certain SpeculationTypes
         if (hstore_conf.site.specexec_ignore_stallpoints != null) {
-            if (this.ignore_types != null) this.ignore_types.clear();
-            for (String element : StringUtil.splitList(hstore_conf.site.specexec_ignore_stallpoints)) {
-                SpeculationType specType = SpeculationType.get(element);
-                if (specType != null) this.ignoreSpeculationType(specType);
-            } // FOR
+            this.setIgnoreSpeculationTypes(hstore_conf.site.specexec_ignore_stallpoints);
         }
         
         this.ignore_queue_size_change = hstore_conf.site.specexec_ignore_queue_size_change;

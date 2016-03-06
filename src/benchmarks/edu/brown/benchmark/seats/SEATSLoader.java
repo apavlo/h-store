@@ -1455,7 +1455,9 @@ public class SEATSLoader extends Loader {
                 } // FOR
                 if (!returning_customers.isEmpty()) returns.removeAll(returning_customers);
             } else if (returns == null) {
-                LOG.warn(String.format("Null return flights for departing airport '%s'", flightInfo.depart_airport));
+                // 2016-03-06
+                // I'm not sure why this is failing now?
+                if (trace.val) LOG.warn(String.format("Null return flights for departing airport '%s'", flightInfo.depart_airport));
             }
         }
         
