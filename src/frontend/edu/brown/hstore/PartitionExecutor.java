@@ -1262,9 +1262,9 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 //                    if (trace.val)
 //                        LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
 //                                  this.work_queue.getClass().getSimpleName(), this.partitionId));
-                    if (this.utilityWork()) {
-                        nextWork = UTIL_WORK_MSG;
-                    }
+                    // if (this.utilityWork()) {
+                    //    nextWork = UTIL_WORK_MSG;
+                    //}
                 } else {
                     ThreadUtil.sleep(5);
                 }

@@ -245,7 +245,7 @@ class AbstractFabric(object):
 
         ## HStore Clients
         for clientInst in self.getRunningInstances():
-            if clientInst.private_dns_name in site_hosts: continue
+            # if clientInst.private_dns_name in site_hosts: continue
             clients.append(clientInst.private_dns_name)
         ## FOR
         LOG.debug("Client Hosts: %s" % clients)

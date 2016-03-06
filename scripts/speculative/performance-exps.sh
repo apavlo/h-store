@@ -21,9 +21,9 @@ EXP_TYPES=( \
 #      "performance-nospec" \
 )
 PARTITIONS=( \
-#      8 \
+     4 \
 #     16 \
-    32 \
+#     32 \
 )
 
 # for b in seats smallbank tpcc ; do
@@ -46,6 +46,7 @@ for b in tpcc ; do
 #         --client.threads_per_host=100 \
 #         --client.scalefactor=1 \
 #         --debug-log4j-site \
+#         --debug \
     )
     
     i=0
