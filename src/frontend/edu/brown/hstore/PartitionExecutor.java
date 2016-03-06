@@ -1262,11 +1262,15 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
 //                    if (trace.val)
 //                        LOG.trace(String.format("The %s for partition %s empty. Checking for utility work...",
 //                                  this.work_queue.getClass().getSimpleName(), this.partitionId));
-                    // if (this.utilityWork()) {
-                    //    nextWork = UTIL_WORK_MSG;
-                    //}
+                    // 2016-03-06 - We only want to invoke this if there is a distributed txn
+                    // that holds the lock for this partition. 
+                    if (this.currentDtxn != null) {
+                        this.utilityWork();
+                        // I don't think this is needed
+                        // nextWork = UTIL_WORK_MSG;
+                    }
                 } else {
-                    ThreadUtil.sleep(5);
+                    ThreadUtil.sleep(1);
                 }
             } // WHILE
         } catch (final Throwable ex) {
