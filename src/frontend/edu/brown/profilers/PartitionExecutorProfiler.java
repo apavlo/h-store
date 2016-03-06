@@ -76,32 +76,45 @@ public class PartitionExecutorProfiler extends AbstractProfiler {
     // ----------------------------------------------------------------------------
     
     /**
+     * STALL POINT 1 - IDLE
+     * How much time the PartitionExecutor was idle just waiting to do anything...
+     */
+    public final ProfileMeasurement sp1_idle_time = new ProfileMeasurement("SP1_IDLE");
+    
+    /**
      * STALL POINT 1 - LOCAL
+     * How much time the PartitionExecutor was idle waiting to acquire locks
+     * from remote partitions
+     */
+    public final ProfileMeasurement sp1_local_time = new ProfileMeasurement("SP1_LOCAL");
+    
+    /**
+     * STALL POINT 2 - LOCAL
      * How much time the PartitionExecutor was idle waiting for responses 
      * from queries on remote partitions.
      */
-    public final ProfileMeasurement sp1_time = new ProfileMeasurement("SP1");
+    public final ProfileMeasurement sp2_time = new ProfileMeasurement("SP2");
 
     /**
-     * STALL POINT 2 - REMOTE
+     * STALL POINT 3 - REMOTE
      * How much time the PartitionExecutor was idle waiting for the first 
      * WorkResult response of distributed transaction on remote partitions.
      */
-    public final ProfileMeasurement sp2_time = new ProfileMeasurement("SP2");
+    public final ProfileMeasurement sp3_time = new ProfileMeasurement("SP3");
     
     /**
-     * STALL POINT 3 - LOCAL
+     * STALL POINT 4 - LOCAL
      * How much time the local PartitionExecutor was idle waiting for 2PC:PREPARE 
-     * responses from remote partitions. (SP3.local) 
+     * responses from remote partitions. (SP4.local) 
      */
-    public final ProfileMeasurement sp3_local_time = new ProfileMeasurement("SP3_LOCAL");
+    public final ProfileMeasurement sp4_local_time = new ProfileMeasurement("SP4_LOCAL");
     
     /**
-     * STALL POINT 3 - REMOTE
+     * STALL POINT 4 - REMOTE
      * How much time the remote PartitionExecutor was idle waiting for commit/abort
      * messages from base partition.
      */
-    public final ProfileMeasurement sp3_remote_time = new ProfileMeasurement("SP3_REMOTE");
+    public final ProfileMeasurement sp4_remote_time = new ProfileMeasurement("SP4_REMOTE");
     
     @Override
     public void reset() {

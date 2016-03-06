@@ -169,7 +169,7 @@ public class TestPartitionExecutor extends BaseTestCase {
             Map<String, Long> expected = new HashMap<String, Long>();
             expected.put("TRANSACTIONS", basePartitions.get(partition, 0l));
             expected.put("NETWORK_CNT", Math.min(basePartitions.get(partition, 0l), 1));
-            expected.put(profiler.sp3_local_time.getName()+"_CNT",
+            expected.put(profiler.sp4_local_time.getName()+"_CNT",
                          Math.min(basePartitions.get(partition, 0l), 1));
             
             for (String colName : expected.keySet()) {

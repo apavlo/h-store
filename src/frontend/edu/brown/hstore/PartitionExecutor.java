@@ -1234,7 +1234,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     if (hstore_conf.site.exec_profiling) {
                         profiler.numMessages.put(nextWork.getClass().getSimpleName());
                         profiler.exec_time.start();
-                        if (this.currentDtxn != null) profiler.sp2_time.stopIfStarted();
+                        if (this.currentDtxn != null) profiler.sp3_time.stopIfStarted();
                     }
                     try {
                         // -------------------------------
@@ -1252,7 +1252,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     } finally {
                         if (hstore_conf.site.exec_profiling) {
                             profiler.exec_time.stopIfStarted();
-                            if (this.currentDtxn != null) profiler.sp2_time.start();
+                            if (this.currentDtxn != null) profiler.sp3_time.start();
                         }
                     }
                     if (this.currentTxnId != null) this.lastExecutedTxnId = this.currentTxnId;
@@ -1278,7 +1278,14 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // Nothing else to do but sleep...
                 // Setting this sleep time too low will spike the CPUs
                 else {
+                    if (hstore_conf.site.exec_profiling) {
+                        (this.currentDtxn != null ? profiler.sp1_local_time : profiler.sp1_idle_time).start();
+                    }
                     ThreadUtil.sleep(5);
+                    if (hstore_conf.site.exec_profiling) {
+                        profiler.sp1_idle_time.stopIfStarted();
+                        profiler.sp1_local_time.stopIfStarted();
+                    }
                 }
             } // WHILE
         } catch (final Throwable ex) {
@@ -2189,7 +2196,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             this.lastDtxnDebug = this.currentDtxn.toString();
         }
         if (hstore_conf.site.exec_profiling && ts.getBasePartition() != this.partitionId) {
-            profiler.sp2_time.start();
+            profiler.sp3_time.start();
         }
     }
     
@@ -4203,7 +4210,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 // If we didn't get back a list of fragments here, then we will spin through
                 // and invoke utilityWork() to try to do something useful until what we need shows up
                 if (needs_profiling) ts.profiler.startExecDtxnWork();
-                if (hstore_conf.site.exec_profiling) this.profiler.sp1_time.start();
+                if (hstore_conf.site.exec_profiling) this.profiler.sp2_time.start();
                 try {
                     while (fragmentBuilders == null) {
                         // If there is more work that we could do, then we'll just poll the queue
@@ -4224,7 +4231,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                     return (null);
                 } finally {
                     if (needs_profiling) ts.profiler.stopExecDtxnWork();
-                    if (hstore_conf.site.exec_profiling) this.profiler.sp1_time.stopIfStarted();
+                    if (hstore_conf.site.exec_profiling) this.profiler.sp2_time.stopIfStarted();
                 }
             }
             assert(fragmentBuilders != null);
@@ -4456,7 +4463,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             long startTime = EstTime.currentTimeMillis();
             
             if (needs_profiling) ts.profiler.startExecDtxnWork();
-            if (hstore_conf.site.exec_profiling) this.profiler.sp1_time.start();
+            if (hstore_conf.site.exec_profiling) this.profiler.sp2_time.start();
             try {
                 while (latch.getCount() > 0 && ts.hasPendingError() == false) {
                     if (this.utilityWork() == false) {
@@ -4478,7 +4485,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
                 throw new ServerFaultException(msg, ex);
             } finally {
                 if (needs_profiling) ts.profiler.stopExecDtxnWork();
-                if (hstore_conf.site.exec_profiling) this.profiler.sp1_time.stopIfStarted();
+                if (hstore_conf.site.exec_profiling) this.profiler.sp2_time.stopIfStarted();
             }
             
             if (timeout && this.isShuttingDown() == false) {
@@ -4655,7 +4662,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (hstore_conf.site.txn_profiling && ts.profiler != null) ts.profiler.startPostPrepare();
             if (hstore_conf.site.exec_profiling) {
                 this.profiler.network_time.start();
-                this.profiler.sp3_local_time.start();
+                this.profiler.sp4_local_time.start();
             }
             
             // We will send a prepare message to all of our remote HStoreSites
@@ -4725,7 +4732,7 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             if (hstore_conf.site.exec_profiling && 
                    this.partitionId != ts.getBasePartition() &&
                    ts.needsFinish(this.partitionId)) {
-                profiler.sp3_remote_time.start();
+                profiler.sp4_remote_time.start();
             }
             
             if (hstore_conf.site.specexec_enable) {
@@ -5184,8 +5191,8 @@ public class PartitionExecutor implements Runnable, Configurable, Shutdownable {
             }
             
             if (hstore_conf.site.exec_profiling) {
-                this.profiler.sp3_local_time.stopIfStarted();
-                this.profiler.sp3_remote_time.stopIfStarted();
+                this.profiler.sp4_local_time.stopIfStarted();
+                this.profiler.sp4_remote_time.stopIfStarted();
             }
         }
         // We were told told to finish a dtxn that is not the current one
