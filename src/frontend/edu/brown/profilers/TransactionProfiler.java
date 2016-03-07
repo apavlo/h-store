@@ -81,6 +81,11 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * The number of queries that were dispatched as prefetched
      */
     private int num_prefetched = 0;
+    /**
+     * The number of queries that were dispatched as prefetched and used!
+     * This will only be at the txn's local site
+     */
+    private int num_prefetched_used = 0;
     
     /**
      * The number of queries that were dispatched as prefetched but never used.
@@ -598,6 +603,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     public void addPrefetchQuery(int num_queries) {
         this.num_prefetched += num_queries;
     }
+    public void addPrefetchUsedQuery(int num_queries) {
+        this.num_prefetched_used += num_queries;
+    }
     public void addPrefetchUnusedQuery(int num_queries) {
         this.num_prefetched_unused += num_queries;
     }
@@ -616,6 +624,9 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
     }
     public int getPrefetchQueryCount() {
         return (this.num_prefetched);
+    }
+    public int getPrefetchQueryUsedCount() {
+        return (this.num_prefetched_used);
     }
     public int getPrefetchQueryUnusedCount() {
         return (this.num_prefetched_unused);
@@ -672,6 +683,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         this.num_queries = 0;
         this.num_remote_queries = 0;
         this.num_prefetched = 0;
+        this.num_prefetched_used = 0;
         this.num_prefetched_unused = 0;
 //        this.num_speculative = 0;
     }
@@ -742,6 +754,7 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         m.put("# of Queries", this.num_queries);
         m.put("# of Remote Queries", this.num_queries);
         m.put("# of Prefetched Queries", this.num_prefetched);
+        m.put("# of Used Prefetched Queries", this.num_prefetched_used);
         m.put("# of Unused Prefetched Queries", this.num_prefetched_unused);
 //        m.put("# of Speculative Txns", this.num_speculative);
 

@@ -29,6 +29,7 @@ import org.voltdb.utils.Pair;
 
 import edu.brown.catalog.CatalogUtil;
 import edu.brown.hstore.HStoreConstants;
+import edu.brown.hstore.HStoreSite;
 import edu.brown.hstore.Hstoreservice.WorkFragment;
 import edu.brown.hstore.PartitionExecutor;
 import edu.brown.hstore.conf.HStoreConf;
@@ -486,6 +487,20 @@ public class DependencyTracker {
         }
         dinfo.prefetchOverride(round, dependencyId, stmtIndex);
         state.dependencies.put(dependencyId, dinfo);
+        
+        // XXX
+        // We want to increment a counter to keep track of the number of 
+        // times a txn is able to use a prefetch query result without having to
+        // actually invoke it themselves
+        if (HStoreConf.singleton().site.txn_profiling) { 
+            LocalTransaction ts = this.executor.getHStoreSite().getTransaction(state.txn_id);
+            if (ts != null && ts.profiler != null) {
+                // FIXME: This is not entirely accurate because this will be double-counting
+                //        results since the DependencyInfos are for PlanFragment results from
+                //        individual partitions and not entire queries...
+                ts.profiler.addPrefetchUsedQuery(1);
+            }
+        }
         
         return (dinfo);
     }

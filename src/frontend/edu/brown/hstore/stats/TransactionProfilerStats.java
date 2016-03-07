@@ -49,6 +49,7 @@ public class TransactionProfilerStats extends StatsSource {
         final FastIntHistogram num_queries = new FastIntHistogram();
         final FastIntHistogram num_remote = new FastIntHistogram();
         final FastIntHistogram num_prefetch = new FastIntHistogram();
+        final FastIntHistogram num_prefetch_used = new FastIntHistogram();
         final FastIntHistogram num_prefetch_unused = new FastIntHistogram();
 //        final FastIntHistogram num_speculative = new FastIntHistogram();
     }
@@ -67,7 +68,7 @@ public class TransactionProfilerStats extends StatsSource {
     public void addTxnProfile(Procedure catalog_proc, TransactionProfiler tp) {
         assert(catalog_proc != null);
         assert(tp.isStopped());
-        if (trace.val) LOG.info("Calculating TransactionProfile information");
+        if (trace.val) LOG.trace("Calculating TransactionProfile information");
 
         ProcedureStats stats = this.procStats.get(catalog_proc);
         if (stats == null) {
@@ -96,6 +97,8 @@ public class TransactionProfilerStats extends StatsSource {
                 stats.num_remote.put(tp.getRemoteQueryCount());
             if (tp.getPrefetchQueryCount() > 0)
                 stats.num_prefetch.put(tp.getPrefetchQueryCount());
+            if (tp.getPrefetchQueryUsedCount() > 0)
+                stats.num_prefetch_used.put(tp.getPrefetchQueryUsedCount());
             if (tp.getPrefetchQueryUnusedCount() > 0)
                 stats.num_prefetch_unused.put(tp.getPrefetchQueryUnusedCount());
 //            if (tp.getSpeculativeTransactionCount() > 0)
@@ -119,6 +122,7 @@ public class TransactionProfilerStats extends StatsSource {
             stats.num_queries,
             stats.num_remote,
             stats.num_prefetch,
+            stats.num_prefetch_used,
             stats.num_prefetch_unused,
 //            stats.num_speculative
         };
@@ -213,6 +217,8 @@ public class TransactionProfilerStats extends StatsSource {
         columns.add(new VoltTable.ColumnInfo("REMOTE_AVG", VoltType.FLOAT));
         columns.add(new VoltTable.ColumnInfo("PREFETCH_CNT", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("PREFETCH_AVG", VoltType.FLOAT));
+        columns.add(new VoltTable.ColumnInfo("PREFETCH_USED_CNT", VoltType.BIGINT));
+        columns.add(new VoltTable.ColumnInfo("PREFETCH_USED_AVG", VoltType.FLOAT));
         columns.add(new VoltTable.ColumnInfo("PREFETCH_UNUSED_CNT", VoltType.BIGINT));
         columns.add(new VoltTable.ColumnInfo("PREFETCH_UNUSED_AVG", VoltType.FLOAT));
 //        columns.add(new VoltTable.ColumnInfo("SPECULATIVE_CNT", VoltType.BIGINT));
