@@ -407,6 +407,10 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
      * The amount of time spent estimating what the transaction will do
      */
     protected final ProfileMeasurement pm_exec_est = new ProfileMeasurement("EXEC_EST");
+    /**
+     * The amount of time spent before the transaction access an evicted tuple
+     */
+    protected final ProfileMeasurement pm_exec_evicted_access = new ProfileMeasurement("EXEC_EVICTED_ACCESS");
 
     /**
      * Invoked when the txn has been removed from the queue and is starting to execute at a local PartitionExecutor
@@ -425,6 +429,8 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         if (this.singlePartitioned == false) {
             this.pm_first_remote_query.start(timestamp);
         }
+
+        this.pm_exec_evicted_access.start(timestamp);
     }
     
     /**
@@ -486,6 +492,16 @@ public class TransactionProfiler extends AbstractProfiler implements Poolable {
         this.stopInner(this.pm_exec_ee, this.pm_exec_total, false);
     }
 
+    public void stopExecEvictedAccess() {
+        if (this.disabled) return;
+        this.pm_exec_evicted_access.stop();
+    }
+
+    public void clearExecEvictedAccess() {
+        if (this.disabled) return;
+        this.pm_exec_evicted_access.clear();
+    }
+    
     // ---------------------------------------------------------------
     // CLEAN-UP TIMES
     // ---------------------------------------------------------------

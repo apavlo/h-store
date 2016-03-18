@@ -566,6 +566,8 @@ public abstract class VoltProcedure implements Poolable {
         if (hstore_conf.site.txn_profiling && this.localTxnState.profiler != null) {
             this.localTxnState.profiler.startExecJava();
         }
+        boolean evicted_access = false;
+
         try {
             if (trace.val)
                 LOG.trace(String.format("Invoking %s [params=%s, partition=%d]",
@@ -667,6 +669,11 @@ public abstract class VoltProcedure implements Poolable {
                 if (debug.val) LOG.warn("Caught EvictedTupleAccessException for " + this.localTxnState);
                 this.status = Status.ABORT_EVICTEDACCESS;
 
+                if (hstore_conf.site.txn_profiling && this.localTxnState.profiler != null) {
+                    this.localTxnState.profiler.stopExecEvictedAccess();
+                    evicted_access = true;
+                }
+
             // -------------------------------
             // ConstraintFailureException
             // -------------------------------
@@ -734,6 +741,10 @@ public abstract class VoltProcedure implements Poolable {
                 } else {
                     ProcedureProfiler.workloadTrace.stopTransaction(this.workloadTxnHandle);
                 }
+            }
+
+            if (hstore_conf.site.txn_profiling && this.localTxnState.profiler != null && !evicted_access) {
+                this.localTxnState.profiler.clearExecEvictedAccess();
             }
         }
 
