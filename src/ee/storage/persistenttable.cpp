@@ -469,14 +469,21 @@ int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int m
     if (!blockMerge) {
         in->getRawPointer(merge_tuple_offset);
     }
-        
+
     bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
 
     // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
     // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version
     m_tmpTarget2 = lookupTuple(m_tmpTarget1);       // lookup the tuple in the table
-    //printf("%d\n", m_tmpTarget2.isEvicted());
-    if (!m_tmpTarget2.isEvicted()) {
+
+    if (m_tmpTarget2.address() == NULL || !m_tmpTarget2.isEvicted()) {
+        if (m_tmpTarget2.address() == NULL) {
+            VOLT_ERROR("we found a non-exist evicted tuple");
+        }
+        else {
+            VOLT_DEBUG("evicted tuple already freed");
+        }
+        m_tmpTarget1.freeObjectColumns();
         deleteTupleStorage(m_tmpTarget1);
         return 0;
     }
