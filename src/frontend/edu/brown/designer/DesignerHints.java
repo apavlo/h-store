@@ -605,7 +605,7 @@ public class DesignerHints implements Cloneable, JSONSerializable {
         }
 
         // Target PartitionPlan
-        if (this.target_plan_path != null && this.target_plan_path != null) {
+        if (this.target_plan_path != null) {
             if (debug.val)
                 LOG.debug("Loading in target PartitionPlan from '" + this.target_plan_path + "'");
             this.target_plan = new PartitionPlan();
