@@ -47,7 +47,8 @@
 #include <time.h>
 #include <stdlib.h>
 // FIXME: This is relatively small. 2500 might be a better guess
-#define MAX_EVICTED_TUPLE_SIZE 1060
+#define MAX_EVICTED_TUPLE_SIZE 100
+//#define MAX_EVICTED_TUPLE_SIZE 1060
 //#define MAX_EVICTED_TUPLE_SIZE 2500
 
 namespace voltdb
@@ -2097,14 +2098,14 @@ bool AntiCacheEvictionManager::blockingMerge() {
     // copy the block ids into an array 
     int num_blocks = 0; 
     for(vector<int32_t>::iterator itr = m_evicted_block_ids_sync.begin(); itr != m_evicted_block_ids_sync.end(); ++itr) {
-        VOLT_TRACE("Marking block 0x%x as being needed for uneviction", *itr); 
+        VOLT_DEBUG("Marking block 0x%x as being needed for uneviction", *itr); 
         block_ids[num_blocks++] = *itr; 
     }
 
     // copy the tuple offsets into an array
     int num_tuples = 0; 
     for(vector<int32_t>::iterator itr = m_evicted_offsets_sync.begin(); itr != m_evicted_offsets_sync.end(); ++itr) {
-        VOLT_TRACE("Marking tuple %d from %s as being needed for uneviction", *itr, m_evicted_tables_sync[num_tuples]->name().c_str()); 
+        VOLT_DEBUG("Marking tuple %d from %s as being needed for uneviction", *itr, m_evicted_tables_sync[num_tuples]->name().c_str()); 
         tuple_ids[num_tuples++] = *itr;
     }
      // HACK

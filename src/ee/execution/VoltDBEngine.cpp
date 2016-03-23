@@ -354,7 +354,7 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
         for (int ctr = 0; ctr < ttl; ++ctr) {
             AbstractExecutor *executor = execsForFrag->list[ctr];
             PlanNodeType nodeType = executor->getPlanNode()->getPlanNodeType();
-            //printf("nodeType: %d\n", nodeType);
+            VOLT_TRACE("nodeType: %d\n", nodeType);
             if (nodeType == PLAN_NODE_TYPE_UPDATE || nodeType == PLAN_NODE_TYPE_DELETE)
                 m_executorContext->getAntiCacheEvictionManager()->m_update_access = 
                 true;

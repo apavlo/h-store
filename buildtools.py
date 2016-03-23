@@ -46,7 +46,7 @@ class BuildContext:
         self.ANTICACHE_NVM = False
         self.ANTICACHE_DRAM = False
         self.ARIES= False
-        self.ANTICACHE_COUNTER = False
+        self.ANTICACHE_COUNTER = True
         self.ANTICACHE_TIMESTAMPS = True
         self.ANTICACHE_TIMESTAMPS_PRIME = True
 
