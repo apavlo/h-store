@@ -47,9 +47,9 @@
 #include <time.h>
 #include <stdlib.h>
 // FIXME: This is relatively small. 2500 might be a better guess
-#define MAX_EVICTED_TUPLE_SIZE 100
+//#define MAX_EVICTED_TUPLE_SIZE 100
 //#define MAX_EVICTED_TUPLE_SIZE 1060
-//#define MAX_EVICTED_TUPLE_SIZE 2500
+#define MAX_EVICTED_TUPLE_SIZE 2500
 
 namespace voltdb
 {
