@@ -26,19 +26,20 @@ CLIENT_HOSTS=( \
         )
 N_HOSTS=4
 BASE_CLIENT_THREADS=1
-CLIENT_THREADS_PER_HOST=2
+CLIENT_THREADS_PER_HOST=4
 #BASE_SITE_MEMORY=8192
 #BASE_SITE_MEMORY_PER_PARTITION=1024
 BASE_SITE_MEMORY=12288
 BASE_SITE_MEMORY_PER_PARTITION=2024
-BASE_PROJECT="tm1"
+BASE_PROJECT="voter"
 BASE_DIR=`pwd`
 #OUTPUT_DIR_PREFIX="data-sketch/mergeupdate"
 #OUTPUT_DIR_PREFIX="data-DRAM/"
 #OUTPUT_DIR_PREFIX="data-tpcc-8GB/optimized/"
 #OUTPUT_DIR_PREFIX="data-tmp"
-OUTPUT_DIR_PREFIX="data-tm1-3GB/optimized/"
-#OUTPUT_DIR_PREFIX="data-tm1-3GB/default/"
+#OUTPUT_DIR_PREFIX="data-tm1-3GB/optimized/"
+OUTPUT_DIR_PREFIX="data-voter/optimized/"
+#OUTPUT_DIR_PREFIX="data-voter/default/"
 #OUTPUT_DIR_PREFIX="data-blocksize-throttle-10GB-2/"
 #OUTPUT_DIR_PREFIX="data-allocator-10GB/"
 #OUTPUT_DIR_PREFIX="data-ALLOCATORNVM-10GB/"
@@ -49,8 +50,8 @@ OUTPUT_DIR_PREFIX="data-tm1-3GB/optimized/"
 AC_THRESH=500
 SCALE=100
 #BLOCK_SIZE_KB=256
-DURATION_S=600
-WARMUP_S=30
+DURATION_S=150
+WARMUP_S=3
 INTERVAL_S=2
 PARTITIONS=8
 
@@ -58,8 +59,8 @@ CPU_SITE_BLACKLIST="1,2,4,6,8,10,12,14"
 
 for BLK_CON in 500; do
 for round in 1; do
-for DB in  'SSD' ; do
-#for DB in  'SSD' 'HDD' 'NVM'; do
+#for DB in 'NVM'; do
+for DB in  'SSD' 'HDD' 'ALLOCATORNVM'; do
 for BLOCK_SIZE in 1024; do
 #for DB in 'ALLOCATORNVM'; do
 #for device in 'NVM' 'SSD' 'DRAM'; do
@@ -76,7 +77,7 @@ for BLOCKING in 'true';do
     #for latency in 160; do
     #for latency in 160 320 640 1280; do
      #    /data/devel/sdv-tools/sdv-release/ivt_pm_sdv.sh --enable --pm-latency=$latency
-    for AC_THRESH in 700; do
+    for AC_THRESH in 250; do
     #for AC_THRESH in 9000; do
         #if [ "$DB" = "NVM" ]; then
         #    BLOCK_SIZE=1
@@ -84,9 +85,9 @@ for BLOCKING in 'true';do
         if [ "$DB" = "SSD" ]; then
             BLOCK_SIZE=4
         fi
-        #if [ "$DB" = "HDD" ]; then
-        #    BLOCK_SIZE=16
-        #fi
+        if [ "$DB" = "HDD" ]; then
+            BLOCK_SIZE=16
+        fi
     #for DB in 'NVM' 'ALLOCATORNVM' 'SSD'; do
     #for DB in  'SSD' 'NVM' 'HDD' 'DRAM'; do
         for skew in 1.01; do
@@ -141,7 +142,7 @@ for BLOCKING in 'true';do
                 rm -rf $AC_DIR
 
                 BLOCK_SIZE_KB=$BLOCK_SIZE
-                BLK_EVICT=$((204800 / $BLOCK_SIZE_KB))
+                BLK_EVICT=$((102400 / $BLOCK_SIZE_KB))
                 #if [ "$BLOCK_SIZE" = "256" ]; then
                     #BLK_EVICT=$((409600 / $BLOCK_SIZE_KB))
                 #    BLOCKING="false"
@@ -206,7 +207,7 @@ for BLOCKING in 'true';do
 # Client Params
                         "-Dclient.scalefactor=${SCALE}" \
                         "-Dclient.memory=2048" \
-                        "-Dclient.txnrate=60000" \
+                        "-Dclient.txnrate=16000" \
                         "-Dclient.warmup=${WARMUP}" \
                         "-Dclient.duration=${DURATION}" \
                         "-Dclient.interval=${INTERVAL}" \
@@ -257,9 +258,7 @@ for BLOCKING in 'true';do
                         )
 
                 EVICTABLE_TABLES=( \
-                    "ACCESS_INFO" \
-                    "SPECIAL_FACILITY" \
-                    "CALL_FORWARDING" \
+                    "votes" \
                                 )
                 EVICTABLES=""
                 if [ "$ENABLE_ANTICACHE" = "true" ]; then

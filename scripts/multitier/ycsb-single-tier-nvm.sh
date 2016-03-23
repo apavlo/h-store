@@ -41,7 +41,7 @@ BASE_DIR=`pwd`
 #OUTPUT_DIR_PREFIX="data-DRAM/"
 OUTPUT_DIR_PREFIX="data-sketch-10GB-final/"
 #OUTPUT_DIR_PREFIX="data-temp/"
-#OUTPUT_DIR_PREFIX="data-blocksize-throttle-10GB-2/"
+#OUTPUT_DIR_PREFIX="data-blocksize-throttle-10GB-4/"
 #OUTPUT_DIR_PREFIX="data-allocator-10GB/"
 #OUTPUT_DIR_PREFIX="data-ALLOCATORNVM-10GB/"
 #OUTPUT_DIR_PREFIX="data-blocksize-10GB-HDD/"
@@ -49,21 +49,22 @@ OUTPUT_DIR_PREFIX="data-sketch-10GB-final/"
 #BLK_CON=1
 #BLK_EVICT=800
 AC_THRESH=500
-SCALE=100
+SCALE=10
 #BLOCK_SIZE_KB=256
-DURATION_S=780
+DURATION_S=1200
 WARMUP_S=60
-INTERVAL_S=2
+INTERVAL_S=1
 PARTITIONS=8
 
 for BLK_CON in 500; do
 for round in 1 2; do
-for DB in 'HDD' ; do
-for BLOCK_SIZE in 4; do
+for DB in 'SMR' ; do
+for BLOCK_SIZE in 1024 16; do
+#for BLOCK_SIZE in 4 1024 1 16 64 256; do
 #for DB in 'ALLOCATORNVM'; do
 #for device in 'NVM' 'SSD' 'DRAM'; do
 for BLOCK_MERGE in 'false'; do
-for BLOCKING in 'true';do
+for BLOCKING in 'false' ;do
     #if [ "$DB" = "HDD" -a "$BLOCK_MERGE" = "false" ]; then
     #    continue
     #fi
@@ -75,8 +76,8 @@ for BLOCKING in 'true';do
     #for latency in 160; do
     #for latency in 160 320 640 1280; do
      #    /data/devel/sdv-tools/sdv-release/ivt_pm_sdv.sh --enable --pm-latency=$latency
-    #for AC_THRESH in 500; do
-    for AC_THRESH in 1250; do
+    for AC_THRESH in 500; do
+    #for AC_THRESH in 1250; do
         #if [ "$DB" = "NVM" ]; then
         #    BLOCK_SIZE=1
         #fi
@@ -89,16 +90,17 @@ for BLOCKING in 'true';do
         fi
     #for DB in 'NVM' 'ALLOCATORNVM' 'SSD'; do
     #for DB in  'SSD' 'NVM' 'HDD' 'DRAM'; do
+        #for skew in 0.5 0.75 1.01 1.25; do
         for skew in 1.01; do
-        for read_percent in 90 100; do
-        #for sketch_thresh in 0; do
+        for read_percent in 90; do
+        #for sketch_thresh in 10; do
         for sketch_thresh in 0 10 40 200; do
             sed -i "55c\ \ \ \ #define SKETCH_THRESH ${sketch_thresh}" src/ee/anticache/AntiCacheEvictionManager.h
             ant ee-build
 
             #OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${device}
             #OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${DB}
-            OUTPUT_DIR="${OUTPUT_DIR_PREFIX}${DB}/sketch${sketch_thresh}"
+            OUTPUT_DIR="${OUTPUT_DIR_PREFIX}${DB}-${BLOCK_SIZE}/sketch${sketch_thresh}"
             sudo -u user mkdir -p $OUTPUT_DIR
                 echo $BLK_EVICT
 
@@ -142,6 +144,10 @@ for BLOCKING in 'true';do
                         AC_DIR="tmp/ac_berk/ycsb-berk-level1"
                         #AC_DIR="tmp/ac_berk/ycsb-berk-level$RANDOM"
                     fi
+                    if [ "$DB" = "SMR" ]; then
+                        AC_DIR="/data2/ac_berk/ycsb-berk-level1"
+                        #AC_DIR="tmp/ac_berk/ycsb-berk-level$RANDOM"
+                    fi
                     if [ "$DB" = "DRAM" ]; then
                         AC_THRESH=5000
                     fi
@@ -150,7 +156,7 @@ for BLOCKING in 'true';do
                 rm -rf $AC_DIR
 
                 BLOCK_SIZE_KB=$BLOCK_SIZE
-                BLK_EVICT=$((204800 / $BLOCK_SIZE_KB))
+                BLK_EVICT=$((40960 / $BLOCK_SIZE_KB))
                 #if [ "$BLOCK_SIZE" = "256" ]; then
                     #BLK_EVICT=$((409600 / $BLOCK_SIZE_KB))
                 #    BLOCKING="false"
