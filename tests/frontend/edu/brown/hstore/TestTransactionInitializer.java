@@ -136,7 +136,6 @@ public class TestTransactionInitializer extends BaseTestCase {
         this.hstore_conf.site.markov_enable = true;
         this.hstore_conf.site.markov_path = markovsFile.getAbsolutePath();
         this.hstore_conf.site.markov_dtxn_updates = true;
-        this.hstore_conf.site.markov_dtxn_updates = true;
         this.initHStore();
         
         for (PartitionExecutor executor : this.executors) {
