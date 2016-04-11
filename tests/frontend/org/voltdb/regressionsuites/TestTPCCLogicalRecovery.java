@@ -434,6 +434,9 @@ public class TestTPCCLogicalRecovery extends RegressionSuite {
 
         builder.setGlobalConfParameter("site.anticache_enable", false);     
 
+        builder.setGlobalConfParameter("client.blocking_concurrent", 1);     
+
+
         TPCCProjectBuilder project = new TPCCProjectBuilder();
 
         project.addAllDefaults();
