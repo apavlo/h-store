@@ -575,7 +575,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
         throwFatalException("Trying to evict block from table '%s' before its "\
                             "EvictedTable has been initialized", table->name().c_str());
     }
-    VOLT_ERROR("Evicting a block of size %ld bytes from table '%s' with %d tuples",
+    VOLT_INFO("Evicting a block of size %ld bytes from table '%s' with %d tuples",
                block_size, table->name().c_str(), (int)table->allocatedTupleCount());
     VOLT_DEBUG("%s Table Schema:\n%s",
               evictedTable->name().c_str(), evictedTable->schema()->debug().c_str());
@@ -584,9 +584,9 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
     int tuple_length = -1;
     bool needs_flush = false;
 
-    //#ifdef VOLT_INFO_ENABLED
+    #ifdef VOLT_INFO_ENABLED
     int active_tuple_count = (int)table->activeTupleCount();
-    //#endif
+    #endif
 
     // Iterate through the table and pluck out tuples to put in our block
     TableTuple tuple(table->m_schema);
@@ -855,7 +855,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
         #endif
     }
 
-    VOLT_ERROR("Evicted block to disk...active tuple count difference: %d", (active_tuple_count - (int)table->activeTupleCount()));
+    VOLT_INFO("Evicted block to disk...active tuple count difference: %d", (active_tuple_count - (int)table->activeTupleCount()));
     return true;
 }
 

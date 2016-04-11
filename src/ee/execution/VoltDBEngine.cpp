@@ -1347,7 +1347,7 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
 #ifdef ANTICACHE_COUNTER
             AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
             if (eviction_manager != NULL) {
-                VOLT_ERROR("We have reset the sketch counter of size %ld :)", sizeof(eviction_manager->m_sketch));
+                VOLT_INFO("We have reset the sketch counter of size %ld :)", sizeof(eviction_manager->m_sketch));
                 /*
                 int sum = 0;
                 for (int i = 0; i < SKETCH_WIDTH; ++i)
@@ -1373,7 +1373,7 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                 else
                     eviction_manager->m_sketch_thresh = (unsigned char)((eviction_manager->m_sketch_thresh + eviction_manager->m_sample[SKETCH_THRESH]
                                 + 1) >> 1);
-                printf("sketch thresh: %d\n", eviction_manager->m_sketch_thresh);
+                VOLT_INFO("Current sketch thresh: %d\n", eviction_manager->m_sketch_thresh);
 
                 memset(eviction_manager->m_sketch, 0, sizeof(eviction_manager->m_sketch));
             }
@@ -2167,11 +2167,11 @@ int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize, int numBl
         throwFatalException("Invalid table id %d", tableId);
     }
 
-    VOLT_ERROR("Attempting to evict a block of %ld bytes from table '%s'",
+    VOLT_INFO("Attempting to evict a block of %ld bytes from table '%s'",
             blockSize, table->name().c_str());
     size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
     Table *resultTable = m_executorContext->getAntiCacheEvictionManager()->evictBlock(table, blockSize, numBlocks);
-    VOLT_ERROR("Write finish!");
+    VOLT_DEBUG("Write finish!");
     if (resultTable != NULL) {
         resultTable->serializeTo(m_resultOutput);
         m_resultOutput.writeIntAt(lengthPosition,
