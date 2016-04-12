@@ -118,54 +118,6 @@ public:
     void throwEvictedAccessException();
     bool blockingMerge();
     
-    //pthread_mutex_t lock;
-    struct prio_lock_t {
-        pthread_cond_t cond;
-        pthread_mutex_t cv_mutex; /* Condition variable mutex */
-        pthread_mutex_t cs_mutex; /* Critical section mutex */
-        unsigned long high_waiters;
-    } prio_lock;
-
-    inline void prio_lock_low(prio_lock_t *prio_lock)
-    {
-        pthread_mutex_lock(&prio_lock->cv_mutex);
-        while (prio_lock->high_waiters || pthread_mutex_trylock(&prio_lock->cs_mutex))
-        {
-            pthread_cond_wait(&prio_lock->cond, &prio_lock->cv_mutex);
-        }
-        pthread_mutex_unlock(&prio_lock->cv_mutex);
-    }
-
-    inline void prio_unlock_low(prio_lock_t *prio_lock)
-    {
-        pthread_mutex_unlock(&prio_lock->cs_mutex);
-
-        pthread_mutex_lock(&prio_lock->cv_mutex);
-        if (!prio_lock->high_waiters)
-            pthread_cond_signal(&prio_lock->cond);
-        pthread_mutex_unlock(&prio_lock->cv_mutex);
-    }
-
-    inline void prio_lock_high(prio_lock_t *prio_lock)
-    {
-        pthread_mutex_lock(&prio_lock->cv_mutex);
-        prio_lock->high_waiters++;
-        pthread_mutex_unlock(&prio_lock->cv_mutex);
-
-        pthread_mutex_lock(&prio_lock->cs_mutex);
-    }
-
-    inline void prio_unlock_high(prio_lock_t *prio_lock)
-    {
-        pthread_mutex_unlock(&prio_lock->cs_mutex);
-
-        pthread_mutex_lock(&prio_lock->cv_mutex);
-        prio_lock->high_waiters--;
-        if (!prio_lock->high_waiters)
-            pthread_cond_signal(&prio_lock->cond);
-        pthread_mutex_unlock(&prio_lock->cv_mutex);
-    }
-
 #ifdef ANTICACHE_COUNTER
     // Data used by the Count-Min Sketch to track the access frequency
     // of evicted tuples.
@@ -199,8 +151,6 @@ protected:
     std::vector<catalog::Table*> m_evicted_tables_sync;
     std::vector<int32_t> m_evicted_block_ids_sync;
     std::vector<int32_t> m_evicted_offsets_sync;
-
-    pthread_mutex_t lock;
 
     std::map <int32_t, set <int32_t> > m_evicted_filter;
     // whether the block to be merged is blockable, that is, all blocks that are needed

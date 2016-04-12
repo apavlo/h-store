@@ -90,21 +90,6 @@ AntiCacheEvictionManager::AntiCacheEvictionManager(const VoltDBEngine *engine) {
     m_numdbs = 0;
     m_migrate = false;
 
-
-    if (pthread_mutex_init(&lock, NULL) != 0) {
-        VOLT_ERROR("Mutex init failed!");
-    }
-
-    if (pthread_mutex_init(&(prio_lock.cv_mutex), NULL) != 0) {
-        VOLT_ERROR("Mutex init failed!");
-    }
-    if (pthread_mutex_init(&(prio_lock.cs_mutex), NULL) != 0) {
-        VOLT_ERROR("Mutex init failed!");
-    }
-    if (pthread_cond_init(&(prio_lock.cond), NULL) != 0) {
-        VOLT_ERROR("Mutex init failed!");
-    }
-    prio_lock.high_waiters = 0;
 #ifdef ANTICACHE_COUNTER
     m_sample.resize(SKETCH_SAMPLE_SIZE, 0);
     m_sketch_thresh = 255 - 255 * SKETCH_THRESH / SKETCH_SAMPLE_SIZE;
@@ -116,16 +101,6 @@ AntiCacheEvictionManager::~AntiCacheEvictionManager() {
     delete m_evictResultTable;
     delete m_evicted_tuple;
     TupleSchema::freeTupleSchema(m_evicted_schema);
-    
-    pthread_mutex_destroy(&lock);
-
-    pthread_mutex_destroy(&prio_lock.cv_mutex);
-    pthread_mutex_destroy(&prio_lock.cs_mutex);
-    pthread_cond_destroy(&prio_lock.cond);
-    // int i;
-    //for (i = 1; i <= m_numdbs; i++) {
-    //    delete m_db_lookup[i];
-    //}
 }
 
 void AntiCacheEvictionManager::initEvictResultTable() {
