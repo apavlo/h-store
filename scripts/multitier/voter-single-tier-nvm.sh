@@ -58,9 +58,9 @@ PARTITIONS=8
 CPU_SITE_BLACKLIST="1,2,4,6,8,10,12,14"
 
 for BLK_CON in 500; do
-for round in 1; do
+for round in 2 3; do
 #for DB in 'NVM'; do
-for DB in  'SSD' 'HDD' 'ALLOCATORNVM'; do
+for DB in  'CHATHAM' 'SMR'; do
 for BLOCK_SIZE in 1024; do
 #for DB in 'ALLOCATORNVM'; do
 #for device in 'NVM' 'SSD' 'DRAM'; do
@@ -82,10 +82,10 @@ for BLOCKING in 'true';do
         #if [ "$DB" = "NVM" ]; then
         #    BLOCK_SIZE=1
         #fi
-        if [ "$DB" = "SSD" ]; then
+        if [ "$DB" = "CHATHAM" ]; then
             BLOCK_SIZE=4
         fi
-        if [ "$DB" = "HDD" ]; then
+        if [ "$DB" = "SMR" ]; then
             BLOCK_SIZE=16
         fi
     #for DB in 'NVM' 'ALLOCATORNVM' 'SSD'; do
@@ -100,7 +100,7 @@ for BLOCKING in 'true';do
             #OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${device}
             OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${DB}
             #OUTPUT_DIR="${OUTPUT_DIR_PREFIX}${DB}/sketch${sketch_thresh}"
-            sudo -u user mkdir -p $OUTPUT_DIR
+            mkdir -p $OUTPUT_DIR
                 echo $BLK_EVICT
 
                 if [ "$BLOCKING" = "true" ]; then
@@ -132,8 +132,12 @@ for BLOCKING in 'true';do
                         #AC_DIR="tmp/ac_berk/ycsb-berk-level$RANDOM"
                     fi
                     if [ "$DB" = "SMR" ]; then
-                        AC_DIR="/data2/ac_berk/ycsb-berk-level1"
-                        #AC_DIR="tmp/ac_berk/ycsb-berk-level$RANDOM"
+                        AC_DIR="/smr/ac_berk/ycsb-berk-level1"
+                        #AC_DIR="/data1/ac_berk/ycsb-berk-level$RANDOM"
+                    fi
+                    if [ "$DB" = "CHATHAM" ]; then
+                        AC_DIR="/mnt/chatham/ac_berk/ycsb-berk-level1"
+                        #AC_DIR="/data1/ac_berk/ycsb-berk-level$RANDOM"
                     fi
                     if [ "$DB" = "DRAM" ]; then
                         AC_THRESH=5000
@@ -320,14 +324,14 @@ for BLOCKING in 'true';do
 # DISTRIBUTE PROJECT JAR
                 for HOST in ${HOSTS_TO_UPDATE[@]}; do
                     if [ "$HOST" != $(hostname) ]; then
-                        sudo -u user scp -r ${BASE_PROJECT}.jar ${HOST}:${BASE_DIR} &
+                        scp -r ${BASE_PROJECT}.jar ${HOST}:${BASE_DIR} &
                     fi
                 done
                 wait
 
                 echo "Client count $CLIENT_COUNT client hosts: $CLIENT_HOSTS_STR"
 # EXECUTE BENCHMARK
-                sudo -u user ant hstore-benchmark ${BASE_ARGS[@]} \
+                ant hstore-benchmark ${BASE_ARGS[@]} \
                                 -Dproject=${BASE_PROJECT} \
                                 -Dkillonzero=false \
                                 -Dclient.threads_per_host=${CLIENT_THREADS_PER_HOST} \
