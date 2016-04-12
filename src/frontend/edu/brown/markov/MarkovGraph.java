@@ -31,6 +31,7 @@ import edu.brown.markov.containers.MarkovGraphsContainerUtil;
 import edu.brown.markov.containers.MarkovGraphsContainer;
 import edu.brown.markov.containers.SEATSMarkovGraphsContainer;
 import edu.brown.markov.containers.TPCCMarkovGraphsContainer;
+import edu.brown.profilers.ProfileMeasurement;
 import edu.brown.utils.ArgumentsParser;
 import edu.brown.utils.MathUtil;
 import edu.brown.utils.PartitionEstimator;
@@ -702,6 +703,7 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
             MarkovGraphsContainerUtil.setHasher(markovs_map, p_estimator.getHasher());
         }
         
+        ProfileMeasurement pm = new ProfileMeasurement().start();
         if (markovs_map == null) {
             markovs_map = MarkovGraphsContainerUtil.createMarkovGraphsContainers(args.catalogContext,
                                                                                  args.workload,
@@ -714,6 +716,8 @@ public class MarkovGraph extends AbstractDirectedGraph<MarkovVertex, MarkovEdge>
                                                                                  containerClass,
                                                                                  markovs_map);
         }
+        pm.stop();
+        LOG.info(String.format("Completed processing in %.2f ms", pm.getTotalThinkTimeMS()));
         
         // Save the graphs
         assert(markovs_map != null);

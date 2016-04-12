@@ -3107,23 +3107,26 @@ public class HStoreSite implements VoltProcedureListener.Handler, Shutdownable, 
             if (ts.isSpeculative() && status != Status.ABORT_SPECULATIVE) {
                 TransactionCounter.SPECULATIVE.inc(catalog_proc);
                 switch (ts.getSpeculationType()) {
-                    case IDLE:
-                        TransactionCounter.SPECULATIVE_IDLE.inc(catalog_proc);
+                    case SP1_IDLE:
+                        TransactionCounter.SPECULATIVE_SP1_IDLE.inc(catalog_proc);
                         break;
                     case SP1_LOCAL:
-                        TransactionCounter.SPECULATIVE_SP1.inc(catalog_proc);
+                        TransactionCounter.SPECULATIVE_SP1_LOCAL.inc(catalog_proc);
                         break;
-                    case SP2_REMOTE_BEFORE:
-                        TransactionCounter.SPECULATIVE_SP2_BEFORE.inc(catalog_proc);
+                    case SP2_LOCAL:
+                        TransactionCounter.SPECULATIVE_SP2.inc(catalog_proc);
                         break;
-                    case SP2_REMOTE_AFTER:
-                        TransactionCounter.SPECULATIVE_SP2_AFTER.inc(catalog_proc);
+                    case SP3_REMOTE_BEFORE:
+                        TransactionCounter.SPECULATIVE_SP3_BEFORE.inc(catalog_proc);
                         break;
-                    case SP3_LOCAL:
-                        TransactionCounter.SPECULATIVE_SP3_LOCAL.inc(catalog_proc);
+                    case SP3_REMOTE_AFTER:
+                        TransactionCounter.SPECULATIVE_SP3_AFTER.inc(catalog_proc);
                         break;
-                    case SP3_REMOTE:
-                        TransactionCounter.SPECULATIVE_SP3_REMOTE.inc(catalog_proc);
+                    case SP4_LOCAL:
+                        TransactionCounter.SPECULATIVE_SP4_LOCAL.inc(catalog_proc);
+                        break;
+                    case SP4_REMOTE:
+                        TransactionCounter.SPECULATIVE_SP4_REMOTE.inc(catalog_proc);
                         break;
                     default:
                         throw new RuntimeException("Unexpected " + ts.getSpeculationType());

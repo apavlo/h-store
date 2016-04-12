@@ -67,12 +67,13 @@ public enum TransactionCounter {
     // --------------------------------------------------------
     // Speculative Execution Stall Points
     // --------------------------------------------------------
-    SPECULATIVE_IDLE,
-    SPECULATIVE_SP1,
-    SPECULATIVE_SP2_BEFORE,
-    SPECULATIVE_SP2_AFTER,
-    SPECULATIVE_SP3_LOCAL,
-    SPECULATIVE_SP3_REMOTE,
+    SPECULATIVE_SP1_IDLE,
+    SPECULATIVE_SP1_LOCAL,
+    SPECULATIVE_SP2,
+    SPECULATIVE_SP3_BEFORE,
+    SPECULATIVE_SP3_AFTER,
+    SPECULATIVE_SP4_LOCAL,
+    SPECULATIVE_SP4_REMOTE,
     ;
     
     private final FastIntHistogram h = new FastIntHistogram();
@@ -156,12 +157,13 @@ public enum TransactionCounter {
             case PREFETCH:
                 total = RECEIVED.get();
                 break;
-            case SPECULATIVE_IDLE:
-            case SPECULATIVE_SP1:
-            case SPECULATIVE_SP2_AFTER:
-            case SPECULATIVE_SP2_BEFORE:
-            case SPECULATIVE_SP3_LOCAL:
-            case SPECULATIVE_SP3_REMOTE:
+            case SPECULATIVE_SP1_IDLE:
+            case SPECULATIVE_SP1_LOCAL:
+            case SPECULATIVE_SP2:
+            case SPECULATIVE_SP3_AFTER:
+            case SPECULATIVE_SP3_BEFORE:
+            case SPECULATIVE_SP4_LOCAL:
+            case SPECULATIVE_SP4_REMOTE:
                 total = SPECULATIVE.get();
                 break;
             case COMPLETED:

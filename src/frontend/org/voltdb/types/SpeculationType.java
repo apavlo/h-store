@@ -15,34 +15,41 @@ public enum SpeculationType {
      */
     NULL,
     /**
-     * Idle because of empty queue
+     * This is when the partition executor is allowed to jump ahead in time and execute txns
+     * assuming that nobody is going to show up with a lower timestamp.
      */
-    IDLE,
+    SP1_IDLE,
+    /**
+     * This stall point occurs on the local partition where the dtxn has acquired the lock
+     * for it's local partition but it's waiting to hear back about getting the locks
+     * from the other remote partitions.
+     */
+    SP1_LOCAL,
     /**
      * This stall point occurs on the base partition when the
      * transaction is waiting for a WorkResponse from a remote partition.
      */
-    SP1_LOCAL,
-    /**
-     * This stall point occurs on the base partition while the executor is 
-     * waiting for the 2PC-PREPARE responses from all of the dtxn's remote partitions.
-     */
-    SP3_LOCAL,
+    SP2_LOCAL,
     /**
      * This stall point occurs on the remote partition while the executor
      * is waiting <b>before</b> the first query request for the distributed transaction
      */
-    SP2_REMOTE_BEFORE,
+    SP3_REMOTE_BEFORE,
     /**
      * This stall point occurs on the remote partition while the executor
      * is waiting <b>after</b> the first query request for the distributed transaction
      */
-    SP2_REMOTE_AFTER,
+    SP3_REMOTE_AFTER,
+    /**
+     * This stall point occurs on the base partition while the executor is 
+     * waiting for the 2PC-PREPARE responses from all of the dtxn's remote partitions.
+     */
+    SP4_LOCAL,
     /**
      * This stall point occurs on the remote partition while the executor is 
      * waiting for the 2PC-PREPARE acknowledgment from the dtxn's base partition.
      */
-    SP3_REMOTE,
+    SP4_REMOTE,
     ;
 
     private static final Map<String, SpeculationType> name_lookup = new HashMap<String, SpeculationType>();
