@@ -5,16 +5,13 @@ public abstract class TM1Constants {
     // ----------------------------------------------------------------
     // STORED PROCEDURE EXECUTION FREQUENCIES (0-100)
     // ----------------------------------------------------------------
-    public static final int FREQUENCY_DELETE_CALL_FORWARDING = 0; // Multi
-    //public static final int FREQUENCY_DELETE_CALL_FORWARDING = 2; // Multi
-    public static final int FREQUENCY_GET_ACCESS_DATA = 39; // Single
-    public static final int FREQUENCY_GET_NEW_DESTINATION = 15; // Single
-    public static final int FREQUENCY_GET_SUBSCRIBER_DATA = 39; // Single
-    public static final int FREQUENCY_INSERT_CALL_FORWARDING = 0; // Multi
-    //public static final int FREQUENCY_INSERT_CALL_FORWARDING = 2; // Multi
-    public static final int FREQUENCY_UPDATE_LOCATION = 0; // Multi
-    //public static final int FREQUENCY_UPDATE_LOCATION = 14; // Multi
-    public static final int FREQUENCY_UPDATE_SUBSCRIBER_DATA = 7; // Single
+    public static final int FREQUENCY_DELETE_CALL_FORWARDING = 2; // Multi
+    public static final int FREQUENCY_GET_ACCESS_DATA = 35; // Single
+    public static final int FREQUENCY_GET_NEW_DESTINATION = 10; // Single
+    public static final int FREQUENCY_GET_SUBSCRIBER_DATA = 35; // Single
+    public static final int FREQUENCY_INSERT_CALL_FORWARDING = 2; // Multi
+    public static final int FREQUENCY_UPDATE_LOCATION = 14; // Multi
+    public static final int FREQUENCY_UPDATE_SUBSCRIBER_DATA = 2; // Single
 
     // ----------------------------------------------------------------
     // TABLE NAMES
