@@ -1946,7 +1946,6 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
                     m_blockable_accesses = false;
                 }
                 return;
-                //printf("greater than: %u %d %d\n", min_sketch, _block_id, tuple_id);
             } 
 
 
@@ -1963,7 +1962,9 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
             //printf("%d %d %d %d\n", unevicted_tuples[0], unevicted_tuples[1], unevicted_tuples[2], unevicted_tuples[3]);
             // Read in all the block meta-data
             //printf("%d %d %d %d\n", unevicted_tuples[0], unevicted_tuples[1], unevicted_tuples[2], unevicted_tuples[3]);
-            //int num_tables = 
+            #ifdef VOLT_DEBUG_ENABLED
+            int num_tables = 
+            #endif
             in.readInt();
             VOLT_DEBUG("num tables is %d", num_tables);
             //std::vector<std::string> tableNames;
@@ -1980,7 +1981,7 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
             //    VOLT_ERROR("num tuples is %d", tuples);
             //} 
 
-            //printf("Before serialize.\n");
+            VOLT_TRACE("Before serialize.\n");
 
             in.getRawPointer(tuple_id);
 
@@ -1991,7 +1992,7 @@ void AntiCacheEvictionManager::recordEvictedAccess(catalog::Table* catalogTable,
             //tuple->setDeletedFalse();
             tuple->setTempMergedTrue();
 
-            //printf("Read directly from anticacheDB.\n");
+            VOLT_TRACE("Read directly from anticacheDB.\n");
 
             delete value;
             return;
