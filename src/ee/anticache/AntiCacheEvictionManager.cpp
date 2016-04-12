@@ -636,7 +636,7 @@ bool AntiCacheEvictionManager::evictBlockToDisk(PersistentTable *table, const lo
                 table->deleteTupleStorage(tuple);
 
                 VOLT_TRACE("Added new evicted %s tuple to NVM EvictedTable [tuplesEvicted=%d]",
-                       table->name().c_str(), block_id, num_tuples_evicted);
+                       table->name().c_str(), num_tuples_evicted);
             }
 
             m_tuplesEvicted += num_tuples_evicted;
