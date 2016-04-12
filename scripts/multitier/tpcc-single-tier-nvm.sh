@@ -35,8 +35,9 @@ BASE_PROJECT="tpcc"
 BASE_DIR=`pwd`
 #OUTPUT_DIR_PREFIX="data-sketch/mergeupdate"
 #OUTPUT_DIR_PREFIX="data-DRAM/"
-#OUTPUT_DIR_PREFIX="data-tpcc-8GB/optimized/"
-OUTPUT_DIR_PREFIX="data-evicted-access/"
+OUTPUT_DIR_PREFIX="data-tpcc-8GB/optimized/"
+#OUTPUT_DIR_PREFIX="data-tpcc-8GB/default/"
+#OUTPUT_DIR_PREFIX="data-evicted-access/"
 #OUTPUT_DIR_PREFIX="data-blocksize-throttle-10GB-2/"
 #OUTPUT_DIR_PREFIX="data-allocator-10GB/"
 #OUTPUT_DIR_PREFIX="data-ALLOCATORNVM-10GB/"
@@ -54,12 +55,12 @@ PARTITIONS=8
 
 for BLK_CON in 500; do
 for round in 2 3; do
-for DB in 'SSD'; do
+for DB in 'CHATHAM' 'SMR'; do
 for BLOCK_SIZE in 1024; do
 #for DB in 'ALLOCATORNVM'; do
 #for device in 'NVM' 'SSD' 'DRAM'; do
 for BLOCK_MERGE in 'false'; do
-for BLOCKING in 'false';do
+for BLOCKING in 'true';do
     #if [ "$DB" = "HDD" -a "$BLOCK_MERGE" = "false" ]; then
     #    continue
     #fi
@@ -76,12 +77,11 @@ for BLOCKING in 'false';do
         #if [ "$DB" = "NVM" ]; then
         #    BLOCK_SIZE=1
         #fi
-        if [ "$DB" = "SSD" ]; then
-            BLOCK_SIZE=256
+        if [ "$DB" = "SMR" ]; then
+            BLOCK_SIZE=16
         fi
-        if [ "$DB" = "HDD" ]; then
-            BLOCK_SIZE=1024
-            BLOCKING='false'
+        if [ "$DB" = "CHATHAM" ]; then
+            BLOCK_SIZE=4
         fi
     #for DB in 'NVM' 'ALLOCATORNVM' 'SSD'; do
     #for DB in  'SSD' 'NVM' 'HDD' 'DRAM'; do
@@ -95,7 +95,7 @@ for BLOCKING in 'false';do
             #OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${device}
             OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${DB}
             #OUTPUT_DIR="${OUTPUT_DIR_PREFIX}${DB}/sketch${sketch_thresh}"
-            sudo -u user mkdir -p $OUTPUT_DIR
+            mkdir -p $OUTPUT_DIR
                 echo $BLK_EVICT
 
                 if [ "$BLOCKING" = "true" ]; then
@@ -129,6 +129,14 @@ for BLOCKING in 'false';do
                     #BLOCK_SIZE=4
                     if [ "$DB" != "ALLOCATORNVM" ]; then
                         DB_TYPE="BERKELEY"
+                    fi
+                    if [ "$DB" = "SMR" ]; then
+                        AC_DIR="/smr/ac_berk/ycsb-berk-level1"
+                        #AC_DIR="/data1/ac_berk/ycsb-berk-level$RANDOM"
+                    fi
+                    if [ "$DB" = "CHATHAM" ]; then
+                        AC_DIR="/mnt/chatham/ac_berk/ycsb-berk-level1"
+                        #AC_DIR="/data1/ac_berk/ycsb-berk-level$RANDOM"
                     fi
                     if [ "$DB" = "SSD" ]; then
                         AC_DIR="/data1/ac_berk/ycsb-berk-level1"
@@ -325,14 +333,14 @@ for BLOCKING in 'false';do
 # DISTRIBUTE PROJECT JAR
                 for HOST in ${HOSTS_TO_UPDATE[@]}; do
                     if [ "$HOST" != $(hostname) ]; then
-                        sudo -u user scp -r ${BASE_PROJECT}.jar ${HOST}:${BASE_DIR} &
+                        scp -r ${BASE_PROJECT}.jar ${HOST}:${BASE_DIR} &
                     fi
                 done
                 wait
 
                 echo "Client count $CLIENT_COUNT client hosts: $CLIENT_HOSTS_STR"
 # EXECUTE BENCHMARK
-                sudo -u user ant hstore-benchmark ${BASE_ARGS[@]} \
+                ant hstore-benchmark ${BASE_ARGS[@]} \
                                 -Dproject=${BASE_PROJECT} \
                                 -Dkillonzero=false \
                                 -Dclient.threads_per_host=${CLIENT_THREADS_PER_HOST} \

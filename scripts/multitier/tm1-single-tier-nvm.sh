@@ -50,6 +50,7 @@ AC_THRESH=500
 SCALE=100
 #BLOCK_SIZE_KB=256
 DURATION_S=600
+EVICTION_WARMUP_S=300
 WARMUP_S=30
 INTERVAL_S=2
 PARTITIONS=8
@@ -57,8 +58,8 @@ PARTITIONS=8
 CPU_SITE_BLACKLIST="1,2,4,6,8,10,12,14"
 
 for BLK_CON in 500; do
-for round in 1; do
-for DB in  'SSD' ; do
+for round in 2 3; do
+for DB in  'SMR' 'CHATHAM'; do
 #for DB in  'SSD' 'HDD' 'NVM'; do
 for BLOCK_SIZE in 1024; do
 #for DB in 'ALLOCATORNVM'; do
@@ -81,12 +82,12 @@ for BLOCKING in 'true';do
         #if [ "$DB" = "NVM" ]; then
         #    BLOCK_SIZE=1
         #fi
-        if [ "$DB" = "SSD" ]; then
+        if [ "$DB" = "CHATHAM" ]; then
             BLOCK_SIZE=4
         fi
-        #if [ "$DB" = "HDD" ]; then
-        #    BLOCK_SIZE=16
-        #fi
+        if [ "$DB" = "SMR" ]; then
+            BLOCK_SIZE=16
+        fi
     #for DB in 'NVM' 'ALLOCATORNVM' 'SSD'; do
     #for DB in  'SSD' 'NVM' 'HDD' 'DRAM'; do
         for skew in 1.01; do
@@ -99,7 +100,7 @@ for BLOCKING in 'true';do
             #OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${device}
             OUTPUT_DIR=${OUTPUT_DIR_PREFIX}${DB}
             #OUTPUT_DIR="${OUTPUT_DIR_PREFIX}${DB}/sketch${sketch_thresh}"
-            sudo -u user mkdir -p $OUTPUT_DIR
+            mkdir -p $OUTPUT_DIR
                 echo $BLK_EVICT
 
                 if [ "$BLOCKING" = "true" ]; then
@@ -131,8 +132,12 @@ for BLOCKING in 'true';do
                         #AC_DIR="tmp/ac_berk/ycsb-berk-level$RANDOM"
                     fi
                     if [ "$DB" = "SMR" ]; then
-                        AC_DIR="/data2/ac_berk/ycsb-berk-level1"
-                        #AC_DIR="tmp/ac_berk/ycsb-berk-level$RANDOM"
+                        AC_DIR="/smr/ac_berk/ycsb-berk-level1"
+                        #AC_DIR="/data1/ac_berk/ycsb-berk-level$RANDOM"
+                    fi
+                    if [ "$DB" = "CHATHAM" ]; then
+                        AC_DIR="/mnt/chatham/ac_berk/ycsb-berk-level1"
+                        #AC_DIR="/data1/ac_berk/ycsb-berk-level$RANDOM"
                     fi
                     if [ "$DB" = "DRAM" ]; then
                         AC_THRESH=5000
@@ -167,6 +172,7 @@ for BLOCKING in 'true';do
                 DURATION=$((${DURATION_S} * 1000))
                 WARMUP=$((${WARMUP_S} * 1000))
                 INTERVAL=$((${INTERVAL_S} * 1000))
+				EVICTION_WARMUP=$((${EVICTION_WARMUP_S} * 1000))
 
                 BASE_ARGS=( \
 # SITE DEBUG
@@ -223,6 +229,7 @@ for BLOCKING in 'true';do
 
 # Anti-Caching Experiments
                         "-Dsite.anticache_enable=${ENABLE_ANTICACHE}" \
+                        "-Dsite.anticache_warmup_eviction_time=${EVICTION_WARMUP}" \
                         "-Dsite.anticache_timestamps=${ENABLE_TIMESTAMPS}" \
                         "-Dsite.anticache_batching=false" \
                         "-Dsite.anticache_profiling=false" \
@@ -321,14 +328,14 @@ for BLOCKING in 'true';do
 # DISTRIBUTE PROJECT JAR
                 for HOST in ${HOSTS_TO_UPDATE[@]}; do
                     if [ "$HOST" != $(hostname) ]; then
-                        sudo -u user scp -r ${BASE_PROJECT}.jar ${HOST}:${BASE_DIR} &
+                        scp -r ${BASE_PROJECT}.jar ${HOST}:${BASE_DIR} &
                     fi
                 done
                 wait
 
                 echo "Client count $CLIENT_COUNT client hosts: $CLIENT_HOSTS_STR"
 # EXECUTE BENCHMARK
-                sudo -u user ant hstore-benchmark ${BASE_ARGS[@]} \
+                ant hstore-benchmark ${BASE_ARGS[@]} \
                                 -Dproject=${BASE_PROJECT} \
                                 -Dkillonzero=false \
                                 -Dclient.threads_per_host=${CLIENT_THREADS_PER_HOST} \
