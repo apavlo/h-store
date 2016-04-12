@@ -167,6 +167,8 @@ public:
     }
 
 #ifdef ANTICACHE_COUNTER
+    // Data used by the Count-Min Sketch to track the access frequency
+    // of evicted tuples.
     bool m_update_access;
     unsigned char m_sketch[SKETCH_HEIGHT][SKETCH_WIDTH];
     static const uint32_t m_hash_seed[3];

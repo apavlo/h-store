@@ -133,6 +133,9 @@ public class AntiCacheManager extends AbstractProcessingRunnable<AntiCacheManage
     private final double UNEVICTION_RATIO_CLUSTER_THRESHOLD = .1;
     private final double ACCESS_RATE_CLUSTER_THRESHOLD = .1;
 
+    // Maximum number of pending transactions that are allowed to use for evicted-access txns.
+    // If we don't set this, evicted-access txns might occupy all the active transaction slots
+    // so that the clients cannot issue any new transactions.
     private final long throttleThreshold;
 
     /**

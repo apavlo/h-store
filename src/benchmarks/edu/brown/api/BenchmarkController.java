@@ -1218,16 +1218,10 @@ public class BenchmarkController {
                 throw new Exception("Failed to enable anticache", ex);
             }
 
+            // Suspend the clients if we want to evict the database size to the threshold after warmup period
             if (hstore_conf.site.anticache_warmup_eviction_time > 0) {
                 LOG.info(String.format("Letting system evict for %.01f seconds", hstore_conf.site.anticache_warmup_eviction_time / 1000.0));
                 clientPSM.writeToAll(ControlCommand.SUSPEND.name());
-            
-                /*
-                try {
-                    Thread.sleep(hstore_conf.site.anticache_warmup_eviction_time);
-                } catch (InterruptedException e) {
-                    if (debug.val) LOG.debug("Warm-up eviction was interrupted!");
-                }*/
             }
         }
             
@@ -1271,6 +1265,7 @@ public class BenchmarkController {
             }
 
 
+            // Resume the transaction generation of clients after the warmup eviction of anti-cache
             if (hstore_conf.site.anticache_warmup_eviction_enable && hstore_conf.site.anticache_warmup_eviction_time > 0) {
                 if (nowTime >= startTime + hstore_conf.site.anticache_warmup_eviction_time - 500) {
                     LOG.info("Finish eviction. Resume benchmark execution.");
