@@ -1341,8 +1341,8 @@ bool AntiCacheEvictionManager::readEvictedBlock(PersistentTable *table, int32_t 
     //AntiCacheDB* antiCacheDB = table->getAntiCacheDB();
 
     try {
-        VOLT_DEBUG("BLOCK %u %d - unevicted blocks size is %d - alreadyUevicted %d",
-                   _block_id, block_id, static_cast<int>(table->unevictedBlocksSize()), already_unevicted);
+        VOLT_DEBUG("BLOCK %u %d - unevicted blocks size is %d",
+                   _block_id, block_id, static_cast<int>(table->unevictedBlocksSize()));
         AntiCacheBlock* value = antiCacheDB->readBlock(_block_id, 0);
 
         // allocate the memory for this block
@@ -1765,8 +1765,8 @@ bool AntiCacheEvictionManager::mergeUnevictedTuples(PersistentTable *table) {
         int32_t block_id = table->getBlockID(index);
         uint32_t _block_id = (uint32_t)(block_id & 0x0FFFFFFF);
         int16_t ACID = (int16_t)((block_id & 0xE0000000) >> 29);
-        VOLT_DEBUG("block_id: %8x ACID: %d _block_id: %d blocking: %d\n", block_id, ACID, _block_id, (int)blocking);
         AntiCacheDB* antiCacheDB = m_db_lookup[ACID]; 
+        VOLT_DEBUG("block_id: %8x ACID: %d _block_id: %d blocking: %d\n", block_id, ACID, _block_id, antiCacheDB->isBlocking());
 
         int count = 0;
         for (std::vector<std::string>::iterator it = tableNames.begin() ; it != tableNames.end(); ++it){

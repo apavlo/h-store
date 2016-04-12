@@ -388,7 +388,7 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
                 if (inner_tuple.isNullTuple()) {
                     VOLT_INFO("We've got a null tuple for some reason");
                 }
-                VOLT_TRACE("Merged Tuple: %s", m_tuple.debug(m_targetTable->name()).c_str());
+                VOLT_TRACE("Merged Tuple: %s", inner_tuple.debug(inner_table->name()).c_str());
             }
             #endif
 
