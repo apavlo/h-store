@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1999, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -9,6 +9,7 @@
 #include "db_config.h"
 
 #include "db_int.h"
+#include "dbinc/blob.h"
 #include "dbinc/crypto.h"
 #include "dbinc/db_page.h"
 #include "dbinc/btree.h"
@@ -36,14 +37,15 @@ static int  __db_set_alloc __P((DB *, void *(*)(size_t),
 static int  __db_get_append_recno __P((DB *,
 		int (**)(DB *, DBT *, db_recno_t)));
 static int  __db_set_append_recno __P((DB *, int (*)(DB *, DBT *, db_recno_t)));
+static int  __db_get_blob_dir __P((DB *, const char **));
+static int  __db_set_blob_dir __P((DB *, const char *));
+static int  __db_get_blob_sub_dir __P((DB *, const char **));
 static int  __db_get_cachesize __P((DB *, u_int32_t *, u_int32_t *, int *));
 static int  __db_set_cachesize __P((DB *, u_int32_t, u_int32_t, int));
 static int  __db_get_create_dir __P((DB *, const char **));
 static int  __db_set_create_dir __P((DB *, const char *));
 static int  __db_get_dup_compare
-		__P((DB *, int (**)(DB *, const DBT *, const DBT *)));
-static int  __db_set_dup_compare
-		__P((DB *, int (*)(DB *, const DBT *, const DBT *)));
+		__P((DB *, int (**)(DB *, const DBT *, const DBT *, size_t *)));
 static int  __db_get_encrypt_flags __P((DB *, u_int32_t *));
 static int  __db_set_encrypt __P((DB *, const char *, u_int32_t));
 static int  __db_get_feedback __P((DB *, void (**)(DB *, int, int)));
@@ -89,6 +91,12 @@ db_create(dbpp, dbenv, flags)
 
 	ip = NULL;
 	env = dbenv == NULL ? NULL : dbenv->env;
+
+#ifdef HAVE_ERROR_HISTORY
+	/* Call thread local storage initializer at least once per process. */
+	if (env == NULL)
+		__db_thread_init();
+#endif
 
 	/* Check for invalid function flags. */
 	switch (flags) {
@@ -206,11 +214,10 @@ __db_create_internal(dbpp, env, flags)
 err:	if (dbp != NULL) {
 		if (dbp->mpf != NULL)
 			(void)__memp_fclose(dbp->mpf, 0);
+		if (F_ISSET(env, ENV_DBLOCAL))
+			(void)__env_close(dbp->dbenv, 0);
 		__os_free(env, dbp);
 	}
-
-	if (dbp != NULL && F_ISSET(env, ENV_DBLOCAL))
-		(void)__env_close(dbp->dbenv, 0);
 
 	return (ret);
 }
@@ -225,6 +232,7 @@ __db_init(dbp, flags)
 	u_int32_t flags;
 {
 	int ret;
+	u_int32_t bytes;
 
 	dbp->locker = NULL;
 	dbp->alt_close = NULL;
@@ -254,6 +262,9 @@ __db_init(dbp, flags)
 	dbp->get_alloc = __db_get_alloc;
 	dbp->get_append_recno = __db_get_append_recno;
 	dbp->get_assoc_flags = __db_get_assoc_flags;
+	dbp->get_blob_dir = __db_get_blob_dir;
+	dbp->get_blob_sub_dir = __db_get_blob_sub_dir;
+	dbp->get_blob_threshold = __db_get_blob_threshold;
 	dbp->get_byteswapped = __db_get_byteswapped;
 	dbp->get_cachesize = __db_get_cachesize;
 	dbp->get_create_dir = __db_get_create_dir;
@@ -290,6 +301,8 @@ __db_init(dbp, flags)
 	dbp->rename = __db_rename_pp;
 	dbp->set_alloc = __db_set_alloc;
 	dbp->set_append_recno = __db_set_append_recno;
+	dbp->set_blob_dir = __db_set_blob_dir;
+	dbp->set_blob_threshold = __db_set_blob_threshold;
 	dbp->set_cachesize = __db_set_cachesize;
 	dbp->set_create_dir = __db_set_create_dir;
 	dbp->set_dup_compare = __db_set_dup_compare;
@@ -316,7 +329,11 @@ __db_init(dbp, flags)
 	dbp->verify = __db_verify_pp;
 	/* DB PUBLIC HANDLE LIST END */
 
-					/* Access method specific. */
+	if ((ret = __env_get_blob_threshold_int(dbp->env, &bytes)) != 0)
+		return (ret);
+	dbp->blob_threshold = bytes;
+
+	/* Access method specific. */
 	if ((ret = __bam_db_create(dbp)) != 0)
 		return (ret);
 	if ((ret = __ham_db_create(dbp)) != 0)
@@ -535,6 +552,182 @@ __db_set_append_recno(dbp, func)
 }
 
 /*
+ * __db_get_blob_threshold --
+ *	Get the current threshold size at which records are stored as blobs.
+ *
+ *  PUBLIC: int __db_get_blob_threshold __P((DB *, u_int32_t *));
+ */
+int
+__db_get_blob_threshold(dbp, bytes)
+	DB *dbp;
+	u_int32_t *bytes;
+{
+	/*
+	 * While shared, this value never changes after open, so it is safe
+	 * to access it without mutex protection.
+	 */
+	*bytes = dbp->blob_threshold;
+
+	return (0);
+}
+
+/*
+ * __db_set_blob_threshold --
+ *	API to allow setting the threshold size at which records are stored
+ *	as blobs rather than in database items. No flags currently supported.
+ * PUBLIC: int __db_set_blob_threshold __P((DB *, u_int32_t, u_int32_t));
+ */
+int
+__db_set_blob_threshold(dbp, bytes, flags)
+	DB *dbp;
+	u_int32_t bytes;
+	u_int32_t flags;
+{
+	if (__db_fchk(dbp->env, "DB->set_blob_threshold", flags, 0) != 0)
+		return (EINVAL);
+
+	DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_blob_threshold");
+
+	if (bytes != 0 && F_ISSET(dbp,
+	    (DB_AM_CHKSUM | DB_AM_ENCRYPT | DB_AM_DUP | DB_AM_DUPSORT))) {
+		__db_errx(dbp->env, DB_STR("0760",
+"Cannot enable blobs in databases with checksum, encryption, or duplicates."));
+		return (EINVAL);
+	}
+#ifdef HAVE_COMPRESSION
+	if (DB_IS_COMPRESSED(dbp) && bytes != 0) {
+		__db_errx(dbp->env, DB_STR("0761",
+		    "Cannot enable blobs in databases with compression."));
+		return (EINVAL);
+	}
+#endif
+
+	dbp->blob_threshold = bytes;
+
+	return (0);
+}
+
+/*
+ * __db_blobs_enabled --
+ *
+ * Used to tell if the database is configured to support blobs.
+ * PUBLIC: int __db_blobs_enabled __P((DB *));
+ */
+int
+__db_blobs_enabled(dbp)
+	DB *dbp;
+{
+	/* Blob threshold must be non-0. */
+	if (!dbp->blob_threshold)
+		return (0);
+	/* Blobs cannot support encryption or checksum, but that may change. */
+	if (F_ISSET(dbp, (DB_AM_CHKSUM | DB_AM_ENCRYPT)))
+		return (0);
+	/* Blobs do not support compression, but that may change. */
+#ifdef HAVE_COMPRESSION
+	if (DB_IS_COMPRESSED(dbp))
+		return (0);
+#endif
+	if (dbp->env->dbenv != NULL &&
+	    F_ISSET(dbp->env->dbenv, DB_ENV_TXN_SNAPSHOT))
+		return (0);
+	/* Cannot support blobs in recno or queue. */
+	if (dbp->type == DB_RECNO || dbp->type == DB_QUEUE)
+		return (0);
+	/*
+	 * Cannot support dups because that would require comparing
+	 * blob data items.
+	 */
+	if (F_ISSET(dbp, (DB_AM_DUP | DB_AM_DUPSORT)))
+		return (0);
+	/* No place to put blob files when using an in-memory db. */
+	if (F_ISSET(dbp, (DB_AM_INMEM)))
+		return (0);
+
+	/* BDB managed databases should not support blobs. */
+	if ((dbp->fname != NULL && IS_DB_FILE(dbp->fname)) ||
+	    (dbp->dname != NULL && IS_DB_FILE(dbp->dname)))
+		return (0);
+
+	return (1);
+}
+
+/*
+ * __db_get_blob_sub_dir --
+ *
+ * Returns the subdirectory of the blob directory in which the blob files
+ * for the given db are stored, or NULL if there is none.
+ *
+ */
+static int
+__db_get_blob_sub_dir(dbp, dir)
+	DB *dbp;
+	const char **dir;
+{
+	DB_ILLEGAL_BEFORE_OPEN(dbp, "DB->get_blob_sub_dir");
+
+	*dir = dbp->blob_sub_dir;
+
+	return (0);
+}
+
+/*
+ * __db_get_blob_dir --
+ *
+ * Get the blob directory for this database.
+ */
+static int
+__db_get_blob_dir(dbp, dir)
+	DB *dbp;
+	const char **dir;
+{
+	DB_ENV *dbenv;
+	ENV *env;
+
+	env = dbp->env;
+	dbenv = dbp->env->dbenv;
+	*dir = NULL;
+
+	if (dbenv == NULL)
+		return (0);
+
+	if (dbenv->db_blob_dir != NULL)
+		*dir = dbenv->db_blob_dir;
+	else if (env->db_home != NULL)
+		*dir = BLOB_DEFAULT_DIR;
+
+	return (0);
+}
+
+/*
+ * __db_set_blob_dir --
+ *
+ * Set the blob directory in a local environment.
+ */
+static int
+__db_set_blob_dir(dbp, dir)
+	DB *dbp;
+	const char *dir;
+{
+	DB_ENV *dbenv;
+	ENV *env;
+
+	DB_ILLEGAL_IN_ENV(dbp, "DB->set_blob_dir");
+	DB_ILLEGAL_AFTER_OPEN(dbp, "DB->set_blob_dir");
+	env = dbp->env;
+	dbenv = dbp->env->dbenv;
+
+	if (dbenv == NULL)
+		return (0);
+
+	if (dbenv->db_blob_dir != NULL)
+		__os_free(env, dbenv->db_blob_dir);
+	dbenv->db_blob_dir = NULL;
+
+	return (__os_strdup(env, dir, &dbenv->db_blob_dir));
+}
+
+/*
  * __db_get_cachesize --
  *	Get underlying cache size.
  */
@@ -607,7 +800,7 @@ __db_get_create_dir(dbp, dirp)
 static int
 __db_get_dup_compare(dbp, funcp)
 	DB *dbp;
-	int (**funcp) __P((DB *, const DBT *, const DBT *));
+	int (**funcp) __P((DB *, const DBT *, const DBT *, size_t *));
 {
 
 	DB_ILLEGAL_METHOD(dbp, DB_OK_BTREE | DB_OK_HASH);
@@ -628,11 +821,14 @@ __db_get_dup_compare(dbp, funcp)
 /*
  * __db_set_dup_compare --
  *	Set duplicate comparison routine.
+ *
+ * PUBLIC: int __db_set_dup_compare __P((DB *,
+ * PUBLIC:     int (*)(DB *, const DBT *, const DBT *, size_t *)));
  */
-static int
+int
 __db_set_dup_compare(dbp, func)
 	DB *dbp;
-	int (*func) __P((DB *, const DBT *, const DBT *));
+	int (*func) __P((DB *, const DBT *, const DBT *, size_t *));
 {
 	int ret;
 
@@ -899,6 +1095,13 @@ __db_set_flags(dbp, flags)
 	if (LF_ISSET(DB_TXN_NOT_DURABLE))
 		ENV_REQUIRES_CONFIG(env,
 		    env->tx_handle, "DB_NOT_DURABLE", DB_INIT_TXN);
+
+	if (dbp->blob_threshold &&
+	    LF_ISSET(DB_CHKSUM | DB_ENCRYPT | DB_DUP | DB_DUPSORT)) {
+		__db_errx(dbp->env, DB_STR("0763",
+"Cannot enable checksum, encryption, or duplicates with blob support."));
+		return (EINVAL);
+	}
 
 	__db_map_flags(dbp, &flags, &dbp->flags);
 

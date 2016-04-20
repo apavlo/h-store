@@ -29,7 +29,8 @@ StringRef::create(size_t size, Pool* dataPool)
     if (dataPool != NULL)
     {
         retval =
-            new(dataPool->allocate(sizeof(StringRef))) StringRef(size, dataPool);
+            new StringRef(size, dataPool);
+            //new(dataPool->allocate(sizeof(StringRef))) StringRef(size, dataPool);
     }
     else
     {

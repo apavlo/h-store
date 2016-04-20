@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2009, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -658,7 +658,7 @@ public:
 	    BulkRetrievalOption::BulkRetrieval))) 
 	{
 		this->init_members(x);
-		verify_db_handles(x);
+		this->verify_db_handles(x);
 		this->set_db_handle_int(this->clone_db_config(
 		    x.get_db_handle()), x.get_db_env_handle());
 		assert(this->get_db_handle() != NULL);
@@ -691,7 +691,7 @@ public:
 	{
 		ASSIGNMENT_PREDCOND(x)
 		db_container::operator =(x);
-		verify_db_handles(x);
+		this->verify_db_handles(x);
 		assert(this->get_db_handle() != NULL);
 		this->begin_txn();
 		try {
@@ -722,7 +722,7 @@ public:
 		}
 		bool operator()(const kdt& k1, const kdt& k2) const
 		{
-			return compare_keys(pdb, k1, k2);
+			return db_set::compare_keys(pdb, k1, k2, NULL);
 		}
 
 	}; // key_compare class definition
@@ -816,7 +816,6 @@ public:
 		iterator witr;
 
 		this->init_itr(witr);
-		
 		this->open_itr(witr);
 	
 		for (ii = first; ii != last; ++ii) 
@@ -832,8 +831,8 @@ public:
 		iterator ii, witr;
 		_DB_STL_set_value<kdt> d;
 
-		init_itr(witr);
-		open_itr(witr);
+		this->init_itr(witr);
+		this->open_itr(witr);
 	
 		for (ii = first; ii != last; ++ii)
 			witr.pcsr_->insert(*ii, d, DB_KEYLAST);
@@ -866,7 +865,6 @@ public:
 		iterator witr;
 
 		this->init_itr(witr);
-	
 		this->open_itr(witr);
 	
 		for (ii = first; ii != last; ++ii) 
@@ -886,7 +884,7 @@ public:
 		Db *swapdb = NULL;
 		std::string dbfname(64, '\0');
 
-		verify_db_handles(mp);
+		this->verify_db_handles(mp);
 		this->begin_txn();
 		try {
 			swapdb = this->clone_db_config(this->get_db_handle(), 
@@ -946,7 +944,7 @@ public:
 		bool ret;
 		
 		COMPARE_CHECK(m2)
-		verify_db_handles(m2);
+		this->verify_db_handles(m2);
 		const db_set<kdt, value_type_sub>& m1 = *this;
 
 		try {
@@ -988,7 +986,7 @@ exit:
 	
 protected:
 	typedef int (*db_compare_fcn_t)(Db *db, const Dbt *dbt1, 
-	    const Dbt *dbt2);
+	    const Dbt *dbt2, size_t *locp);
 	
 	
 	typedef db_map<kdt, _DB_STL_set_value<kdt>, value_type_sub,
@@ -1150,7 +1148,7 @@ public:
 	    BulkRetrievalOption::BulkRetrieval))) 
 	{
 		this->init_members(x);
-		verify_db_handles(x);
+		this->verify_db_handles(x);
 		this->set_db_handle_int(this->clone_db_config(
 		    x.get_db_handle()), x.get_db_env_handle());
 		assert(this->get_db_handle() != NULL);
@@ -1188,7 +1186,7 @@ public:
 	{
 		ASSIGNMENT_PREDCOND(x)
 		db_container::operator =(x);
-		verify_db_handles(x);
+		this->verify_db_handles(x);
 		assert(this->get_db_handle() != NULL);
 		this->begin_txn();
 		try {
@@ -1275,8 +1273,8 @@ public:
 		iterator witr;
 		_DB_STL_set_value<kdt> d;
 
-		init_itr(witr);
-		open_itr(witr);
+		this->init_itr(witr);
+		this->open_itr(witr);
 	
 		for (ii = first; ii != last; ++ii)
 			witr.pcsr_->insert(*ii, d, DB_KEYLAST);
@@ -1299,8 +1297,8 @@ public:
 		iterator witr;
 		_DB_STL_set_value<kdt> d;
 
-		init_itr(witr);
-		open_itr(witr);
+		this->init_itr(witr);
+		this->open_itr(witr);
 	
 		for (ii = first; ii != last; ++ii)
 			witr.pcsr_->insert(*ii, d, DB_KEYLAST);
@@ -1326,7 +1324,7 @@ public:
 
 		this->begin_txn();
 		try {
-			pair<iterator, iterator> rg = equal_range(x);
+			pair<iterator, iterator> rg = this->equal_range(x);
 			for (itr = rg.first, cnt = 0; 
 			    itr != rg.second; ++itr) {
 				cnt++;
@@ -1383,7 +1381,7 @@ public:
 		Db *swapdb = NULL;
 		std::string dbfname(64, '\0');
 
-		verify_db_handles(mp);
+		this->verify_db_handles(mp);
 		this->begin_txn();
 		try {
 			swapdb = this->clone_db_config(this->get_db_handle(), 
@@ -1440,7 +1438,7 @@ public:
 	bool operator==(const self& m2) const
 	{
 		COMPARE_CHECK(m2)
-		verify_db_handles(m2);
+		this->verify_db_handles(m2);
 
 		const db_multiset<kdt, value_type_sub> &m1 = *this;
 		const_iterator i1, i11;
@@ -1501,7 +1499,7 @@ exit:
 protected:
 	
 	typedef int (*db_compare_fcn_t)(Db *db, const Dbt *dbt1, 
-	    const Dbt *dbt2);
+	    const Dbt *dbt2, size_t *locp);
 	typedef db_multimap<kdt, _DB_STL_set_value<kdt>, 
 	    value_type_sub, db_set_iterator<kdt, value_type_sub> > base;
 

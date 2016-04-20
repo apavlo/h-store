@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2000, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2000, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -393,7 +393,7 @@ __db_verify(dbp, ip, name, subdb, handle, callback, lp, rp, flags)
 	flags = sflags;
 
 #ifdef HAVE_PARTITION
-	if (t_ret == 0 && dbp->p_internal != NULL)
+	if (t_ret == 0 && isbad == 0 && dbp->p_internal != NULL)
 		t_ret = __part_verify(dbp, vdp, name, handle, callback, flags);
 #endif
 
@@ -553,7 +553,7 @@ __db_vrfy_pagezero(dbp, vdp, fhp, name, flags)
 	if ((ret = __db_vrfy_getpageinfo(vdp, PGNO_BASE_MD, &pip)) != 0)
 		return (ret);
 
-	if ((ret = __db_chk_meta(env, dbp, meta, 1)) != 0) {
+	if ((ret = __db_chk_meta(env, dbp, meta, DB_CHK_META)) != 0) {
 		EPRINT((env, DB_STR_A("0522",
 		    "Page %lu: metadata page corrupted", "%lu"),
 		    (u_long)PGNO_BASE_MD));
@@ -920,7 +920,7 @@ err1:			if (ret == 0)
 	 * If we've seen a Queue metadata page, we may need to walk Queue
 	 * extent pages that won't show up between 0 and vdp->last_pgno.
 	 */
-	if (F_ISSET(vdp, VRFY_QMETA_SET) && (t_ret =
+	if (F_ISSET(vdp, SALVAGE_QMETA_SET) && (t_ret =
 	    __qam_vrfy_walkqueue(dbp, vdp, handle, callback, flags)) != 0) {
 		if (ret == 0)
 			ret = t_ret;
@@ -1563,6 +1563,10 @@ __db_vrfy_meta(dbp, vdp, meta, pgno, flags)
 	 * If we don't have FTRUNCATE then mpool could include some
 	 * zeroed pages at the end of the file, we assume the meta page
 	 * is correct.  Queue does not update the meta page's last_pgno.
+	 *
+	 * We have seen one false positive after a failure while rolling the log
+	 * forward, last_pgno was updated and the file had not yet been
+	 * extended.  [#18418]
 	 */
 	if (pgno == PGNO_BASE_MD &&
 	    dbtype != DB_QUEUE && meta->last_pgno != vdp->last_pgno) {
@@ -2401,6 +2405,15 @@ __db_vrfy_inpitem(dbp, h, pgno, i, is_btree, flags, himarkp, offsetp)
 		 * length, so it's not possible to certify it as safe.
 		 */
 		switch (B_TYPE(bk->type)) {
+		case B_BLOB:
+			len = bk->len;
+			if (len != BBLOB_DSIZE) {
+				EPRINT((env, DB_STR_A("0771",
+				    "Page %lu: item %lu illegal size.",
+				    "%lu %lu"), (u_long)pgno, (u_long)i));
+				return (DB_VERIFY_BAD);
+			}
+			break;
 		case B_KEYDATA:
 			len = bk->len;
 			break;

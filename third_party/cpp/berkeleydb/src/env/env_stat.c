@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -21,11 +21,9 @@ static int   __env_print_dbenv_all __P((ENV *, u_int32_t));
 static int   __env_print_env_all __P((ENV *, u_int32_t));
 static int   __env_print_fh __P((ENV *));
 static int   __env_print_stats __P((ENV *, u_int32_t));
-static int   __env_print_thread __P((ENV *));
 static int   __env_stat_print __P((ENV *, u_int32_t));
 static char *__env_thread_state_print __P((DB_THREAD_STATE));
-static const char *
-	     __reg_type __P((reg_type_t));
+static const char * __reg_type __P((reg_type_t));
 
 /*
  * __env_stat_print_pp --
@@ -146,7 +144,6 @@ __env_stat_print(env, flags)
 /*
  * __env_print_stats --
  *	Display the default environment statistics.
- *
  */
 static int
 __env_print_stats(env, flags)
@@ -186,6 +183,10 @@ __env_print_stats(env, flags)
 	    (u_long)0, (u_long)0, (u_long)infop->rp->size);
 	__db_dlbytes(env, "Maximum region size",
 	    (u_long)0, (u_long)0, (u_long)infop->rp->max);
+	STAT_LONG("Process failure detected", renv->failure_panic);
+	if (renv->failure_symptom[0] != '\0')
+		__db_msg(env,
+		    "%s:\tFirst failure symptom", renv->failure_symptom);
 
 	return (0);
 }
@@ -267,8 +268,6 @@ __env_print_dbenv_all(env, flags)
 
 	__db_msg(env, "%s", DB_GLOBAL(db_line));
 	STAT_POINTER("ENV", dbenv->env);
-	__mutex_print_debug_single(
-	    env, "DB_ENV handle mutex", dbenv->mtx_db_env, flags);
 	STAT_ISSET("Errcall", dbenv->db_errcall);
 	STAT_ISSET("Errfile", dbenv->db_errfile);
 	STAT_STRING("Errpfx", dbenv->db_errpfx);
@@ -286,6 +285,7 @@ __env_print_dbenv_all(env, flags)
 	STAT_ISSET("ThreadId", dbenv->thread_id);
 	STAT_ISSET("ThreadIdString", dbenv->thread_id_string);
 
+	STAT_STRING("Blob dir", dbenv->db_blob_dir);
 	STAT_STRING("Log dir", dbenv->db_log_dir);
 	STAT_STRING("Metadata dir", dbenv->db_md_dir);
 	STAT_STRING("Tmp dir", dbenv->db_tmp_dir);
@@ -304,6 +304,8 @@ __env_print_dbenv_all(env, flags)
 
 	STAT_ISSET("Password", dbenv->passwd);
 
+	STAT_ULONG("Blob threshold", dbenv->blob_threshold);
+
 	STAT_ISSET("App private", dbenv->app_private);
 	STAT_ISSET("Api1 internal", dbenv->api1_internal);
 	STAT_ISSET("Api2 internal", dbenv->api2_internal);
@@ -314,6 +316,7 @@ __env_print_dbenv_all(env, flags)
 	STAT_ULONG("Mutex cnt", dbenv->mutex_cnt);
 	STAT_ULONG("Mutex inc", dbenv->mutex_inc);
 	STAT_ULONG("Mutex tas spins", dbenv->mutex_tas_spins);
+	STAT_LONG("Mutex failchk timeout", dbenv->mutex_failchk_timeout);
 
 	STAT_ISSET("Lock conflicts", dbenv->lk_conflicts);
 	STAT_LONG("Lock modes", dbenv->lk_modes);
@@ -356,6 +359,7 @@ __env_print_dbenv_all(env, flags)
 
 	__db_prflags(env,
 	    NULL, dbenv->flags, db_env_fn, NULL, "\tPublic environment flags");
+	COMPQUIET(flags, 0);
 
 	return (0);
 }
@@ -507,6 +511,8 @@ __env_thread_state_print(state)
 		return ("blocked and dead");
 	case THREAD_OUT:
 		return ("out");
+	case THREAD_VERIFY:
+		return ("verify");
 	default:
 		return ("unknown");
 	}
@@ -516,14 +522,17 @@ __env_thread_state_print(state)
 /*
  * __env_print_thread --
  *	Display the thread block state.
+ *
+ * PUBLIC: int __env_print_thread __P((ENV *));
  */
-static int
+int
 __env_print_thread(env)
 	ENV *env;
 {
 	BH *bhp;
 	DB_ENV *dbenv;
 	DB_HASHTAB *htab;
+	DB_LOCKER *locker;
 	DB_MPOOL *dbmp;
 	DB_THREAD_INFO *ip;
 	PIN_LIST *list, *lp;
@@ -532,6 +541,7 @@ __env_print_thread(env)
 	THREAD_INFO *thread;
 	u_int32_t i;
 	char buf[DB_THREADID_STRLEN];
+	char time_buf[CTIME_BUFLEN];
 
 	dbenv = env->dbenv;
 
@@ -561,6 +571,10 @@ __env_print_thread(env)
 			    dbenv->thread_id_string(
 			    dbenv, ip->dbth_pid, ip->dbth_tid, buf),
 			    __env_thread_state_print(ip->dbth_state));
+			if (timespecisset(&ip->dbth_failtime))
+				__db_msg(env, "Crashed at %s",
+				    __db_ctimespec(&ip->dbth_failtime,
+				    time_buf));
 			list = R_ADDR(env->reginfo, ip->dbth_pinlist);
 			for (lp = list; lp < &list[ip->dbth_pinmax]; lp++) {
 				if (lp->b_ref == INVALID_ROFF)
@@ -570,6 +584,18 @@ __env_print_thread(env)
 				__db_msg(env,
 				     "\t\tpins: %lu", (u_long)bhp->pgno);
 			}
+			if (ip->dbth_local_locker != INVALID_ROFF) {
+				locker = (DB_LOCKER *)
+				    R_ADDR(&env->lk_handle->reginfo,
+				    ip->dbth_local_locker);
+				__db_msg(env, "\t\tcached locker %lx mtx %lu",
+					(u_long)locker->id,
+					(u_long)locker->mtx_locker);
+
+			}
+#ifdef HAVE_MUTEX_SUPPORT
+			(void)__mutex_record_print(env, ip);
+#endif
 		}
 	return (0);
 }
@@ -846,6 +872,7 @@ __reg_type(t)
 		return ("Transaction");
 	case INVALID_REGION_TYPE:
 		return ("Invalid");
+	/*lint -e{787} */
 	}
 	return ("Unknown");
 }

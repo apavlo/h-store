@@ -256,6 +256,7 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
     #ifdef ANTICACHE
     AntiCacheEvictionManager* eviction_manager = executor_context->getAntiCacheEvictionManager();
     bool hasEvictedTable = (eviction_manager != NULL && inner_table->getEvictedTable() != NULL);
+    bool blockingMergeSuccessful = false;
     #endif
 
     //
@@ -284,7 +285,7 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
               setNValue(ctr,
                         inline_node->getSearchKeyExpressions()[ctr]->eval(&outer_tuple, NULL));
         }
-        VOLT_TRACE("Searching %s", index_values.debug("").c_str());
+        VOLT_TRACE("Searching %s, isEvicted: %d", index_values.debug("").c_str(), outer_tuple.isEvicted());
 
         //
         // In order to apply the Expression trees in our join, we need
@@ -326,14 +327,20 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
                (m_lookupType != INDEX_LOOKUP_TYPE_EQ &&
                 !(inner_tuple = index->nextValue()).isNullTuple()))
         {
+            VOLT_TRACE("Searching inner!");
             match = true;
             inner_table->updateTupleAccessCount();
             
             // Anti-Cache Evicted Tuple Tracking
             #ifdef ANTICACHE
+            #ifdef ANTICACHE_COUNTER
+            inner_tuple.setTempMergedFalse();
+            #endif
+            blockingMergeSuccessful = false;
             // We are pointing to an entry for an evicted tuple
+            VOLT_TRACE("If condition before check: %d %d!", hasEvictedTable, inner_tuple.isEvicted());
             if (hasEvictedTable && inner_tuple.isEvicted()) {
-                VOLT_INFO("Tuple in NestLoopIndexScan is evicted %s", inner_catalogTable->name().c_str());      
+                VOLT_TRACE("Tuple in NestLoopIndexScan is evicted %s", inner_catalogTable->name().c_str());      
 
                 // Tell the EvictionManager's internal tracker that we touched this mofo
                 eviction_manager->recordEvictedAccess(inner_catalogTable, &inner_tuple);
@@ -347,12 +354,41 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
                 // TODO: possibly an alternate codepath that simply looks through all the tuples
                 // for evicted tuples and then see if we have any non-blockable accesses
                 if (eviction_manager->hasBlockableEvictedAccesses()) {
-                    //VOLT_ERROR("From nestloop!");
-                    eviction_manager->blockingMerge();
+                    //VOLT_ERROR("From sync!");
+                    #ifdef ANTICACHE_COUNTER
+                    if (eviction_manager->m_update_access)
+                    #endif
+                        blockingMergeSuccessful = eviction_manager->blockingMerge();
                 } else {
+                    //VOLT_ERROR("From abrt!");
+                    blockingMergeSuccessful = false;
                     //eviction_manager->blockingMerge();
                     continue;
                 }
+            }
+
+            if (blockingMergeSuccessful) {
+                //printf("Scan from merge.\n");
+                VOLT_TRACE("grabbing tuple again");
+                if (m_lookupType == INDEX_LOOKUP_TYPE_EQ) {
+                    index->moveToKey(&index_values);
+                    inner_tuple = index->nextValueAtKey();
+                } else {
+                    if (m_lookupType == INDEX_LOOKUP_TYPE_GT) 
+                        index->moveToGreaterThanKey(&index_values);
+                    else 
+                        index->moveToKeyOrGreater(&index_values);
+                    inner_tuple = index->nextValue();
+                }
+                
+                #ifdef ANTICACHE_COUNTER
+                inner_tuple.setTempMergedFalse();
+                #endif
+
+                if (inner_tuple.isNullTuple()) {
+                    VOLT_INFO("We've got a null tuple for some reason");
+                }
+                VOLT_TRACE("Merged Tuple: %s", inner_tuple.debug(inner_table->name()).c_str());
             }
             #endif
 
@@ -395,6 +431,12 @@ bool NestLoopIndexExecutor::p_execute(const NValueArray &params, ReadWriteTracke
                 }
                 #endif
             }
+            #if defined(ANTICACHE) && defined(ANTICACHE_COUNTER)
+            if (inner_tuple.isTempMerged()) {
+                //printf("isTempMerged?\n");
+                delete[] inner_tuple.address();
+            }
+            #endif
         } // WHILE
 
         //

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1999, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -15,7 +15,7 @@
 
 static int __bam_set_bt_minkey __P((DB *, u_int32_t));
 static int __bam_get_bt_compare
-	       __P((DB *, int (**)(DB *, const DBT *, const DBT *)));
+	       __P((DB *, int (**)(DB *, const DBT *, const DBT *, size_t *)));
 static int __bam_get_bt_prefix
 	       __P((DB *, size_t(**)(DB *, const DBT *, const DBT *)));
 static int __bam_set_bt_prefix
@@ -233,7 +233,7 @@ incompat:
 static int
 __bam_get_bt_compare(dbp, funcp)
 	DB *dbp;
-	int (**funcp) __P((DB *, const DBT *, const DBT *));
+	int (**funcp) __P((DB *, const DBT *, const DBT *, size_t *));
 {
 	BTREE *t;
 
@@ -251,13 +251,13 @@ __bam_get_bt_compare(dbp, funcp)
  * __bam_set_bt_compare --
  *	Set the comparison function.
  *
- * PUBLIC: int __bam_set_bt_compare
- * PUBLIC:         __P((DB *, int (*)(DB *, const DBT *, const DBT *)));
+ * PUBLIC: int __bam_set_bt_compare __P((DB *,
+ * PUBLIC:     int (*)(DB *, const DBT *, const DBT *, size_t *)));
  */
 int
 __bam_set_bt_compare(dbp, func)
 	DB *dbp;
-	int (*func) __P((DB *, const DBT *, const DBT *));
+	int (*func) __P((DB *, const DBT *, const DBT *, size_t *));
 {
 	BTREE *t;
 
@@ -348,6 +348,13 @@ __bam_set_bt_compress(dbp, compress, decompress)
 	if (F_ISSET(dbp, DB_AM_DUP) && !F_ISSET(dbp, DB_AM_DUPSORT)) {
 		__db_errx(dbp->env, DB_STR("1028",
 	    "compression cannot be used with DB_DUP without DB_DUPSORT"));
+		return (EINVAL);
+	}
+
+	/* Compression is incompatible with blob storage. */
+	if (dbp->blob_threshold > 0) {
+		__db_errx(dbp->env, DB_STR("1198",
+		    "compression cannot be used with blobs enabled."));
 		return (EINVAL);
 	}
 

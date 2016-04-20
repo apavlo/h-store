@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  */
 /*
  * Copyright (c) 1990, 1993, 1994
@@ -368,6 +368,7 @@ finish:		if (ret == 0) {
 			off += len + 2 * sizeof(db_indx_t);
 		}
 		break;
+	case H_BLOB:
 	default:
 		ret = __db_pgfmt(env, hcp->pgno);
 		break;
@@ -772,7 +773,7 @@ __ham_dsearch(dbc, dbt, offp, cmpp, flags)
 	DBT cur;
 	HASH_CURSOR *hcp;
 	db_indx_t i, len;
-	int (*func) __P((DB *, const DBT *, const DBT *));
+	int (*func) __P((DB *, const DBT *, const DBT *, size_t *));
 	u_int8_t *data;
 
 	dbp = dbc->dbp;
@@ -794,7 +795,7 @@ __ham_dsearch(dbc, dbt, offp, cmpp, flags)
 		 * we're done.  In the latter case, if permitting partial
 		 * matches, it's not a failure.
 		 */
-		*cmpp = func(dbp, dbt, &cur);
+		*cmpp = func(dbp, dbt, &cur, NULL);
 		if (*cmpp == 0)
 			break;
 		if (*cmpp < 0 && dbp->dup_compare != NULL) {

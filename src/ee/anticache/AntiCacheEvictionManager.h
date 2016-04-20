@@ -35,12 +35,26 @@
 #include "common/NValue.hpp"
 #include "common/ValuePeeker.hpp"
 #include "anticache/AntiCacheDB.h"
+#include "mmh3/MurmurHash3.h"
 
 #include <vector>
 #include <map>
 #include <pthread.h>
 
 #define MAX_DBS 8
+#define ANTICACHE_MERGE_BUFFER_SIZE 100000
+
+#ifdef ANTICACHE_COUNTER
+    #define SKETCH_WIDTH 262144
+    #define SKETCH_MASK 262143
+    //#define SKETCH_WIDTH 16384
+    //#define SKETCH_MASK 16383
+    //#define SKETCH_WIDTH 1048576
+    //#define SKETCH_MASK 1048575
+    #define SKETCH_HEIGHT 3
+    #define SKETCH_THRESH 10
+    #define SKETCH_SAMPLE_SIZE 200
+#endif
 
 namespace voltdb {
 
@@ -104,17 +118,25 @@ public:
     void throwEvictedAccessException();
     bool blockingMerge();
     
-    pthread_mutex_t lock;
+#ifdef ANTICACHE_COUNTER
+    // Data used by the Count-Min Sketch to track the access frequency
+    // of evicted tuples.
+    bool m_update_access;
+    unsigned char m_sketch[SKETCH_HEIGHT][SKETCH_WIDTH];
+    static const uint32_t m_hash_seed[3];
+    std::vector <unsigned char> m_sample;
+    unsigned char m_sketch_thresh;
+#endif
 
 protected:
     void initEvictResultTable();
-    
+
     bool removeTupleSingleLinkedList(PersistentTable* table, uint32_t removal_id);
     bool removeTupleDoubleLinkedList(PersistentTable* table, TableTuple* tuple_to_remove, uint32_t removal_id);
-    
+
     void printLRUChain(PersistentTable* table, int max, bool forward);
     char *itoa(uint32_t i);
-    
+
     Table *m_evictResultTable;
     const VoltDBEngine *m_engine;
     Table *m_readResultTable;
@@ -122,7 +144,7 @@ protected:
     // Used at runtime to track what evicted tuples we touch and throw an exception
     ValuePeeker peeker; 
     TableTuple* m_evicted_tuple; 
-    
+
     std::vector<catalog::Table*> m_evicted_tables;
     std::vector<int32_t> m_evicted_block_ids;
     std::vector<int32_t> m_evicted_offsets;

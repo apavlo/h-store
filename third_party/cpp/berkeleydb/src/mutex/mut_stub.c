@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -154,6 +154,16 @@ __mutex_print_debug_stats(env, mbp, mutex, flags)
 	COMPQUIET(mbp, NULL);
 	COMPQUIET(mutex, MUTEX_INVALID);
 	COMPQUIET(flags, 0);
+}
+
+int
+__mutex_refresh(env, mutex)
+	ENV *env;
+	db_mutex_t mutex;
+{
+	COMPQUIET(env, NULL);
+	COMPQUIET(mutex, MUTEX_INVALID);
+	return (0);
 }
 
 int

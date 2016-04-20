@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -89,8 +89,9 @@ __memp_fopen_pp(dbmfp, path, flags, mode, pagesize)
  * Generate the number of user opens.  If there is no backing file
  * there is an extra open count to keep the in memory db around.
  */
-#define MFP_OPEN_CNT(mfp)	((mfp)->mpf_cnt - ((mfp)->neutral_cnt +	\
+#define	MFP_OPEN_CNT(mfp)	((mfp)->mpf_cnt - ((mfp)->neutral_cnt +	\
 				   (u_int32_t)(mfp)->no_backing_file))
+#define	MP_IOINFO_RETRIES	5
 /*
  * __memp_fopen --
  *	DB_MPOOLFILE->open.
@@ -118,7 +119,7 @@ __memp_fopen(dbmfp, mfp, path, dirp, flags, mode, pgsize)
 	size_t maxmap;
 	db_pgno_t last_pgno;
 	u_int32_t bucket, mbytes, bytes, oflags, pagesize;
-	int refinc, ret, isdir;
+	int isdir, refinc, ret, tries;
 	char *rpath;
 
 	/* If this handle is already open, return. */
@@ -173,7 +174,7 @@ __memp_fopen(dbmfp, mfp, path, dirp, flags, mode, pgsize)
 				goto err;
 			ret = __os_exists(env, rpath, &isdir);
 			if (ret == 0 && isdir) {
-				ret = EINVAL;
+				ret = USR_ERR(env, EINVAL);
 				goto err;
 			} else if (ret == 0) {
 				if  ((ret = __os_fileid(env,
@@ -249,8 +250,8 @@ __memp_fopen(dbmfp, mfp, path, dirp, flags, mode, pgsize)
 				if (MFP_OPEN_CNT(mfp) > 0 &&
 				     atomic_read(&mfp->multiversion) == 0) {
 mvcc_err:				__db_errx(env, DB_STR("3041",
-"DB_MULTIVERSION cannot be specified on a database file which is already open"));
-					ret = EINVAL;
+"DB_MULTIVERSION cannot be specified on a database file that is already open"));
+					ret = USR_ERR(env, EINVAL);
 					goto err;
 				}
 
@@ -280,7 +281,7 @@ mvcc_err:				__db_errx(env, DB_STR("3041",
 		 * The error will be ignored, so don't output an error message.
 		 */
 		if (mfp->deadfile) {
-			ret = EINVAL;
+			ret = USR_ERR(env, EINVAL);
 			goto err;
 		}
 	}
@@ -314,6 +315,13 @@ mvcc_err:				__db_errx(env, DB_STR("3041",
 	 * but there's nothing to read from disk.
 	 */
 	if (!FLD_ISSET(dbmfp->config_flags, DB_MPOOL_NOFILE)) {
+		/* This detects when a metadata page has a bad size. [#24223] */
+		if (pagesize == 0 || !IS_VALID_PAGESIZE(pagesize)) {
+			ret = USR_ERR(env, EINVAL);
+			 __db_errx(env, DB_STR("0511",
+			     "page sizes must be a power-of-2"));
+			goto err;
+		}
 		/* Convert MP open flags to DB OS-layer open flags. */
 		oflags = 0;
 		if (LF_ISSET(DB_CREATE))
@@ -383,27 +391,53 @@ mvcc_err:				__db_errx(env, DB_STR("3041",
 		}
 
 		/*
-		 * Don't permit files that aren't a multiple of the pagesize,
-		 * and find the number of the last page in the file, all the
-		 * time being careful not to overflow 32 bits.
-		 *
 		 * During verify or recovery, we might have to cope with a
 		 * truncated file; if the file size is not a multiple of the
 		 * page size, round down to a page, we'll take care of the
 		 * partial page outside the mpool system.
-		 *
-		 * Pagesize of 0 is only allowed for in-mem dbs.
 		 */
-		DB_ASSERT(env, pagesize != 0);
 		if (bytes % pagesize != 0) {
 			if (LF_ISSET(DB_ODDFILESIZE))
 				bytes -= (u_int32_t)(bytes % pagesize);
 			else {
-				__db_errx(env, DB_STR_A("3037",
-		    "%s: file size not a multiple of the pagesize", "%s"),
-				    rpath);
-				ret = EINVAL;
-				goto err;
+				/*
+				 * If the file size is not a multiple of the
+				 * pagesize, it is likely because the ioinfo
+				 * call is racing with a write that is extending
+				 * the file.  Many file systems will extend
+				 * in fs block size units, and if the pagesize
+				 * is larger than that, we can briefly see a
+				 * file size that is not a multiple of pagesize.
+				 *
+				 * Yield the processor to allow that to finish
+				 * and try again a few times.
+				 */
+				tries = 0;
+				STAT((mp->stat.st_oddfsize_detect++));
+				while (tries < MP_IOINFO_RETRIES) {
+					if ((ret = __os_ioinfo(env, rpath,
+					    dbmfp->fhp, &mbytes, &bytes,
+					    NULL)) != 0) {
+						__db_err(env, ret, "%s", rpath);
+						goto err;
+					}
+					if (bytes % pagesize != 0) {
+						__os_yield(env, 0, 50000);
+						tries++;
+					} else {
+					    STAT((
+					    mp->stat.st_oddfsize_resolve++));
+					    break;
+					}
+				}
+				if (tries == MP_IOINFO_RETRIES) {
+					__db_errx(env, DB_STR_A("3043",
+    "%s: file size (%lu %lu) not a multiple of the pagesize %lu",
+    "%s %lu %lu %lu"),
+    rpath, (u_long)mbytes, (u_long)bytes, (u_long)pagesize);
+					ret = USR_ERR(env, EINVAL);
+					goto err;
+				}
 			}
 		}
 
@@ -470,7 +504,7 @@ check:	MUTEX_LOCK(env, hp->mtx_hash);
 		    "%s: clear length, page size or LSN location changed",
 			    "%s"), path);
 			MUTEX_UNLOCK(env, hp->mtx_hash);
-			ret = EINVAL;
+			ret = USR_ERR(env, EINVAL);
 			goto err;
 		}
 	}
@@ -507,9 +541,9 @@ alloc:		if ((ret = __memp_mpf_alloc(dbmp,
 			goto err;
 
 		/*
-		 * If the user specifies DB_MPOOL_LAST or DB_MPOOL_NEW on a
-		 * page get, we have to increment the last page in the file.
-		 * Figure it out and save it away.
+		 * If the user specifies DB_MPOOL_LAST or DB_MPOOL_NEW on a page
+		 * get, we have to increment the last page in the file. Figure
+		 * it out and save it away. Be careful not to overflow 32 bits.
 		 *
 		 * Note correction: page numbers are zero-based, not 1-based.
 		 */
@@ -555,7 +589,7 @@ have_mfp:
 		    !F_ISSET(mfp, MP_NOT_DURABLE)) {
 			__db_errx(env, DB_STR("3039",
 	     "Cannot open DURABLE and NOT DURABLE handles in the same file"));
-			ret = EINVAL;
+			ret = USR_ERR(env, EINVAL);
 			goto err;
 		}
 	}
@@ -786,13 +820,7 @@ __memp_mpf_alloc(dbmp, dbmfp, path, pagesize, flags, retmfp)
 	mfp->lsn_off = dbmfp->lsn_offset;
 	mfp->clear_len = dbmfp->clear_len;
 	mfp->priority = dbmfp->priority;
-	if (dbmfp->gbytes != 0 || dbmfp->bytes != 0) {
-		mfp->maxpgno = (db_pgno_t)
-		    (dbmfp->gbytes * (GIGABYTE / mfp->pagesize));
-		mfp->maxpgno += (db_pgno_t)
-		    ((dbmfp->bytes + mfp->pagesize - 1) /
-		    mfp->pagesize);
-	}
+	__memp_set_maxpgno(mfp, dbmfp->gbytes, dbmfp->bytes);
 	if (FLD_ISSET(dbmfp->config_flags, DB_MPOOL_NOFILE))
 		mfp->no_backing_file = 1;
 	if (FLD_ISSET(dbmfp->config_flags, DB_MPOOL_UNLINK))
@@ -1019,6 +1047,7 @@ __memp_fclose(dbmfp, flags)
 					ret = t_ret;
 				__os_free(env, rpath);
 			}
+			mfp->unlink_on_close = 0;
 		}
 		if (MFP_OPEN_CNT(mfp) == 0) {
 			F_CLR(mfp, MP_NOT_DURABLE);
@@ -1068,6 +1097,7 @@ __memp_mf_discard(dbmp, mfp, hp_locked)
 	DB_MPOOL_STAT *sp;
 #endif
 	MPOOL *mp;
+	char *rpath;
 	int need_sync, ret, t_ret;
 
 	env = dbmp->env;
@@ -1094,6 +1124,23 @@ __memp_mf_discard(dbmp, mfp, hp_locked)
 	 * structure again.
 	 */
 	mfp->deadfile = 1;
+
+	/* We should unlink the file if necessary. */
+	if (mfp->block_cnt == 0 && mfp->mpf_cnt == 0 && mfp->unlink_on_close &&
+	    !F_ISSET(mfp, MP_TEMP) && !mfp->no_backing_file) {
+		if ((t_ret = __db_appname(env, DB_APP_DATA,
+		    R_ADDR(dbmp->reginfo, mfp->path_off), NULL,
+		    &rpath)) != 0 && ret == 0)
+			ret = t_ret;
+		if (t_ret == 0) {
+			if ((t_ret = __os_unlink(
+			    dbmp->env, rpath, 0)) != 0 && ret == 0)
+				ret = t_ret;
+			__os_free(env, rpath);
+		}
+		mfp->unlink_on_close = 0;
+		need_sync = 0;
+	}
 
 	/* Discard the mutex we're holding and return it too the pool. */
 	MUTEX_UNLOCK(env, mfp->mutex);

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -9,6 +9,7 @@
 #include "db_config.h"
 
 #include "db_int.h"
+#include "dbinc/blob.h"
 
 static int __db_fullpath
     __P((ENV *, const char *, const char *, int, int, char **));
@@ -122,7 +123,7 @@ __db_appname(env, appname, file, dirp, namep)
 {
 	DB_ENV *dbenv;
 	char **ddp;
-	const char *dir;
+	const char *blob_dir, *dir;
 	int ret;
 
 	dbenv = env->dbenv;
@@ -141,6 +142,8 @@ __db_appname(env, appname, file, dirp, namep)
 	/*
 	 * DB_APP_NONE:
 	 *      DB_HOME/file
+	 * DB_APP_BLOB:
+	 *      DB_HOME/DB_BLOB_DIR/file
 	 * DB_APP_DATA:
 	 *      DB_HOME/DB_DATA_DIR/file
 	 * DB_APP_LOG:
@@ -150,6 +153,12 @@ __db_appname(env, appname, file, dirp, namep)
 	 */
 	switch (appname) {
 	case DB_APP_NONE:
+		break;
+	case DB_APP_BLOB:
+		if (dbenv != NULL && dbenv->db_blob_dir != NULL)
+			dir = dbenv->db_blob_dir;
+		else
+			dir = BLOB_DEFAULT_DIR;
 		break;
 	case DB_APP_RECOVER:
 	case DB_APP_DATA:
@@ -163,6 +172,13 @@ __db_appname(env, appname, file, dirp, namep)
 
 		/* Second, look in the environment home directory. */
 		DB_CHECKFILE(file, NULL, 1, 0, namep, dirp);
+
+		/* Third, check the blob directory. */
+		if (dbenv != NULL && dbenv->db_blob_dir != NULL)
+			blob_dir = dbenv->db_blob_dir;
+		else
+			blob_dir = BLOB_DEFAULT_DIR;
+		DB_CHECKFILE(file, blob_dir, 1, 0, namep, dirp);
 
 		/*
 		 * Otherwise, we're going to create.  Use the specified

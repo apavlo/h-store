@@ -529,6 +529,9 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         }
         
         #ifdef ANTICACHE
+#ifdef ANTICACHE_COUNTER
+        m_tuple.setTempMergedFalse();
+#endif
         // We are pointing to an entry for an evicted tuple
         if (hasEvictedTable && m_tuple.isEvicted()) {
             VOLT_DEBUG("Tuple in index scan on %s is evicted. Current txn will have to be restarted...",
@@ -549,7 +552,10 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
             // for evicted tuples and then see if we have any non-blockable accesses
             if (eviction_manager->hasBlockableEvictedAccesses()) {
                 //VOLT_ERROR("From indexscan!");
-                blockingMergeSuccessful = eviction_manager->blockingMerge();
+#ifdef ANTICACHE_COUNTER
+                if (eviction_manager->m_update_access)
+#endif
+                    blockingMergeSuccessful = eviction_manager->blockingMerge();
             } else {
                 //blockingMergeSuccessful = eviction_manager->blockingMerge();
                 blockingMergeSuccessful = false;
@@ -561,6 +567,7 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
         // we need to check again which way we want to get the index based upon the 
         // INDEX_LOOKUP_TYPE. 
         if (blockingMergeSuccessful) {
+            //printf("Scan from merge.\n");
             VOLT_TRACE("grabbing tuple again");
             if (m_lookupType == INDEX_LOOKUP_TYPE_EQ) {
                 m_index->moveToKey(&m_searchKey);
@@ -573,6 +580,10 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
                 m_tuple = m_index->nextValue();
             }
                 
+#ifdef ANTICACHE_COUNTER
+            m_tuple.setTempMergedFalse();
+#endif
+
             if (m_tuple.isNullTuple()) {
                 VOLT_INFO("We've got a null tuple for some reason");
             }
@@ -672,6 +683,12 @@ bool IndexScanExecutor::p_execute(const NValueArray &params, ReadWriteTracker *t
                 break;
             }
         }
+#if defined(ANTICACHE) && defined(ANTICACHE_COUNTER)
+        if (m_tuple.isTempMerged()) {
+            //printf("isTempMerged?\n");
+            delete[] m_tuple.address();
+        }
+#endif
     } // WHILE
 
     //

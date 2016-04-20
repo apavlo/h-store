@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -81,7 +81,7 @@ __crdel_metasub_recover(env, dbtp, lsnp, op, info)
 		/*
 		 * If this was an in-memory database and we are re-creating
 		 * and this is the meta-data page, then we need to set up a
-		 * bunch of fields in the dbo as well.
+		 * bunch of fields in the dbp as well.
 		 */
 		if (F_ISSET(file_dbp, DB_AM_INMEM) &&
 		    argp->pgno == PGNO_BASE_MD &&

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  */
 /*
  * Copyright (c) 1990, 1993, 1994, 1995, 1996
@@ -367,6 +367,14 @@ struct __cursor {
 };
 
 /*
+ * The maximum number of key/value pairs on a Btree leaf page, as a function
+ * of page size.
+ */
+#define B_MINKEY_UPPER_LIMIT(dbp)	\
+	((u_int16_t)(((dbp)->pgsize - P_OVERHEAD(dbp)) / \
+	    ((BKEYDATA_PSIZE(0) + DB_ALIGN(1, sizeof(int32_t))) * P_INDX)))
+
+/*
  * Threshhold value, as a function of bt_minkey, of the number of
  * bytes a key/data pair can use before being placed on an overflow
  * page.  Assume every item requires the maximum alignment for
@@ -472,7 +480,7 @@ struct __btree {			/* Btree access method. */
 	u_int32_t bt_minkey;		/* Minimum keys per page. */
 
 					/* Btree comparison function. */
-	int (*bt_compare) __P((DB *, const DBT *, const DBT *));
+	int (*bt_compare) __P((DB *, const DBT *, const DBT *, size_t *));
 					/* Btree prefix function. */
 	size_t (*bt_prefix) __P((DB *, const DBT *, const DBT *));
 					/* Btree compress function. */
@@ -483,7 +491,8 @@ struct __btree {			/* Btree access method. */
 	int (*bt_decompress) __P((DB *, const DBT *, const DBT *, DBT *, DBT *,
 					 DBT *));
 					/* dup_compare for compression */
-	int (*compress_dup_compare) __P((DB *, const DBT *, const DBT *));
+	int (*compress_dup_compare) __P((DB *, const DBT *, const DBT *,
+	    size_t *));
 #endif
 
 					/* Recno access method. */
@@ -539,7 +548,7 @@ typedef enum {
  * Flags for __bam_pinsert.
  */
 #define	BPI_SPACEONLY	0x01		/* Only check for space to update. */
-#define	BPI_NORECNUM	0x02		/* Not update the recnum on the left. */
+#define	BPI_NORECNUM	0x02		/* Don't update the left's recnum. */
 #define	BPI_NOLOGGING	0x04		/* Don't log the update. */
 #define	BPI_REPLACE	0x08		/* Replace the record. */
 

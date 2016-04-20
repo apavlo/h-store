@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  */
 /*
  * Copyright (c) 1990, 1993, 1994
@@ -44,6 +44,7 @@
 #include "db_config.h"
 
 #include "db_int.h"
+#include "dbinc/blob.h"
 #include "dbinc/crypto.h"
 #include "dbinc/db_page.h"
 #include "dbinc/hash.h"
@@ -149,6 +150,7 @@ __ham_metachk(dbp, name, hashm)
 	int ret;
 
 	env = dbp->env;
+	ret = 0;
 
 	/*
 	 * At this point, all we know is that the magic number is for a Hash.
@@ -168,6 +170,7 @@ __ham_metachk(dbp, name, hashm)
 	case 7:
 	case 8:
 	case 9:
+	case 10:
 		break;
 	default:
 		__db_errx(env, DB_STR_A("1126",
@@ -229,6 +232,29 @@ __ham_metachk(dbp, name, hashm)
 
 	/* Set the page size. */
 	dbp->pgsize = hashm->dbmeta.pagesize;
+
+	dbp->blob_threshold = hashm->blob_threshold;
+	GET_BLOB_FILE_ID(env, hashm, dbp->blob_file_id, ret);
+	if (ret != 0)
+		return (ret);
+	GET_BLOB_SDB_ID(env, hashm, dbp->blob_sdb_id, ret);
+	if (ret != 0)
+		return (ret);
+	/* Blob databases must be upgraded. */
+	if (vers == 9 && (dbp->blob_file_id != 0 || dbp->blob_sdb_id != 0)) {
+	    __db_errx(env, DB_STR_A("1208",
+"%s: databases that support blobs must be upgraded.", "%s"),
+		    name);
+		return (EINVAL);
+	}
+#ifndef HAVE_64BIT_TYPES
+	if (dbp->blob_file_id != 0 || dbp->blob_sdb_id != 0) {
+		__db_errx(env, DB_STR_A("1202",
+		    "%s: blobs require 64 integer compiler support.", "%s"),
+		    name);
+		return (EINVAL);
+	}
+#endif
 
 	/* Copy the file's ID. */
 	memcpy(dbp->fileid, hashm->dbmeta.uid, DB_FILE_ID_LEN);
@@ -297,6 +323,9 @@ __ham_init_meta(dbp, meta, pgno, lsnp)
 	meta->nelem = hashp->h_nelem;
 	meta->h_charkey = hashp->h_hash(dbp, CHARKEY, sizeof(CHARKEY));
 	memcpy(meta->dbmeta.uid, dbp->fileid, DB_FILE_ID_LEN);
+	meta->blob_threshold = dbp->blob_threshold;
+	SET_BLOB_META_FILE_ID(meta, dbp->blob_file_id, HMETA);
+	SET_BLOB_META_SDB_ID(meta, dbp->blob_sdb_id, HMETA);
 
 	if (F_ISSET(dbp, DB_AM_DUP))
 		F_SET(&meta->dbmeta, DB_HASH_DUP);
@@ -414,6 +443,12 @@ __ham_new_file(dbp, ip, txn, fhp, name)
 		    F_ISSET(dbp, (DB_AM_CHKSUM | DB_AM_ENCRYPT | DB_AM_SWAP));
 		pdbt.data = &pginfo;
 		pdbt.size = sizeof(pginfo);
+		if (dbp->blob_threshold) {
+			if ((ret = __blob_generate_dir_ids(
+			    dbp, txn, &dbp->blob_file_id)) != 0)
+				return (ret);
+
+		}
 		if ((ret = __os_calloc(dbp->env, 1, dbp->pgsize, &buf)) != 0)
 			return (ret);
 		meta = (HMETA *)buf;
@@ -490,6 +525,13 @@ __ham_new_subdb(mdbp, dbp, ip, txn)
 	LOCK_INIT(lock);
 	LOCK_INIT(metalock);
 	LOCK_INIT(mmlock);
+
+	if (dbp->blob_threshold) {
+		if ((ret = __blob_generate_dir_ids(
+		    dbp, txn, &dbp->blob_sdb_id)) != 0)
+			return (ret);
+
+	}
 
 	if ((ret = __db_cursor(mdbp, ip, txn,
 	    &dbc, CDB_LOCKING(env) ?  DB_WRITECURSOR : 0)) != 0)

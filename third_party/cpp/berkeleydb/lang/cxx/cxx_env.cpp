@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1997, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -87,6 +87,13 @@ extern "C"
 void _paniccall_intercept_c(DB_ENV *dbenv, int errval)
 {
 	DbEnv::_paniccall_intercept(dbenv, errval);
+}
+
+extern "C"
+int _partial_rep_intercept_c(DB_ENV *dbenv,
+    const char *name, int *result, u_int32_t flags)
+{
+	return (DbEnv::_partial_rep_intercept(dbenv, name, result, flags));
 }
 
 extern "C"
@@ -201,6 +208,18 @@ void DbEnv::_paniccall_intercept(DB_ENV *dbenv, int errval)
 		return;
 	}
 	(*cxxenv->paniccall_callback_)(cxxenv, errval);
+}
+
+int DbEnv::_partial_rep_intercept(DB_ENV *dbenv, 
+    const char *name, int *result, u_int32_t flags)
+{
+	DbEnv *cxxenv = DbEnv::get_DbEnv(dbenv);
+	if (cxxenv == 0) {
+		DB_ERROR(0,
+		    "DbEnv::partial_rep_callback", EINVAL, ON_ERROR_UNKNOWN);
+		return (EINVAL);
+	}
+	return ((*cxxenv->partial_rep_callback_)(cxxenv, name, result, flags));
 }
 
 void DbEnv::_event_func_intercept(
@@ -381,6 +400,7 @@ DbEnv::DbEnv(u_int32_t flags)
 ,	app_dispatch_callback_(0)
 ,	feedback_callback_(0)
 ,	paniccall_callback_(0)
+,	partial_rep_callback_(0)
 ,	event_func_callback_(0)
 ,	rep_send_callback_(0)
 ,	message_dispatch_callback_(0)
@@ -399,6 +419,7 @@ DbEnv::DbEnv(DB_ENV *dbenv, u_int32_t flags)
 ,	app_dispatch_callback_(0)
 ,	feedback_callback_(0)
 ,	paniccall_callback_(0)
+,	partial_rep_callback_(0)
 ,	event_func_callback_(0)
 ,	rep_send_callback_(0)
 ,	message_dispatch_callback_(0)
@@ -825,6 +846,10 @@ char *DbEnv::strerror(int error)
 //
 DBENV_METHOD(get_backup_config, (DB_BACKUP_CONFIG type, u_int32_t *valuep), (dbenv, type, valuep))
 DBENV_METHOD(set_backup_config, (DB_BACKUP_CONFIG type, u_int32_t value), (dbenv, type, value))
+DBENV_METHOD(get_blob_dir, (const char **dir), (dbenv, dir))
+DBENV_METHOD(set_blob_dir, (const char *dir), (dbenv, dir))
+DBENV_METHOD(get_blob_threshold, (u_int32_t *bytes), (dbenv, bytes))
+DBENV_METHOD(set_blob_threshold, (u_int32_t bytes, u_int32_t flags), (dbenv, bytes, flags))
 DBENV_METHOD(set_data_dir, (const char *dir), (dbenv, dir))
 DBENV_METHOD(get_encrypt_flags, (u_int32_t *flagsp),
     (dbenv, flagsp))
@@ -1331,8 +1356,23 @@ DBENV_METHOD(rep_get_timeout, (int which, db_timeout_t * timeout),
     (dbenv, which, timeout))
 DBENV_METHOD(rep_set_timeout, (int which, db_timeout_t timeout),
     (dbenv, which, timeout))
+
+int DbEnv::rep_set_view(int (*arg)(DbEnv *, const char *, int *, u_int32_t))
+{
+	DB_ENV *dbenv = unwrap(this);
+
+	partial_rep_callback_ = arg;
+
+	return (dbenv->rep_set_view(dbenv,
+	    arg == 0 ? 0 : _partial_rep_intercept_c));
+}
+
 DBENV_METHOD(repmgr_get_ack_policy, (int *policy), (dbenv, policy))
 DBENV_METHOD(repmgr_set_ack_policy, (int policy), (dbenv, policy))
+DBENV_METHOD(repmgr_get_incoming_queue_max, 
+    (u_int32_t *gbytesp, u_int32_t *bytesp), (dbenv, gbytesp, bytesp));
+DBENV_METHOD(repmgr_set_incoming_queue_max,
+    (u_int32_t gbytes, u_int32_t bytes), (dbenv, gbytes, bytes));
 
 int DbEnv::repmgr_channel(int eid, DbChannel **dbchannel, u_int32_t flags)
 {

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1998, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1998, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -233,8 +233,8 @@ __xa_put_txn(env, txnp)
 	SH_TAILQ_REMOVE(&ip->dbth_xatxn, txnp, xa_links, __db_txn);
 	TAILQ_REMOVE(&txnp->mgrp->txn_chain, txnp, links);
 	td = txnp->td;
-	DB_ASSERT(env, td->xa_ref > 0);
-	td->xa_ref--;
+	if (td->xa_ref > 0)
+		td->xa_ref--;
 	__os_free(env, txnp);
 	ip->dbth_xa_status = TXN_XA_THREAD_UNASSOCIATED;
 }
@@ -852,9 +852,9 @@ __db_xa_commit(xid, rmid, arg_flags)
 		return (ret);
 
 	/*
-	 * Because this transaction is currently associated, commit will not free
-	 * the transaction structure, which is good, because we need to do that
-	 * in xa_put_txn below.
+	 * Because this transaction is currently associated, commit will
+	 * not free the transaction structure, which is good, because we
+	 * need to do that in xa_put_txn below.
 	 */
 	if ((ret = txnp->commit(txnp, 0)) != 0) {
 		dbenv->err(dbenv, ret, DB_STR("4563",

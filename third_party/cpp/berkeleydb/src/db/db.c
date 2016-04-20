@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  */
 /*
  * Copyright (c) 1990, 1993, 1994, 1995, 1996
@@ -41,6 +41,7 @@
 #include "db_config.h"
 
 #include "db_int.h"
+#include "dbinc_auto/sequence_ext.h"
 #include "dbinc/db_page.h"
 #include "dbinc/db_swap.h"
 #include "dbinc/btree.h"
@@ -92,6 +93,9 @@ __db_master_open(subdbp, ip, txn, name, flags, mode, dbpp)
 	if ((ret = __db_create_internal(&dbp, subdbp->env, 0)) != 0)
 		return (ret);
 
+	/* Set the creation directory. */
+	dbp->dirname = subdbp->dirname;
+
 	/*
 	 * It's always a btree.
 	 * Run in the transaction we've created.
@@ -103,6 +107,20 @@ __db_master_open(subdbp, ip, txn, name, flags, mode, dbpp)
 	F_SET(dbp, F_ISSET(subdbp,
 	    DB_AM_RECOVER | DB_AM_SWAP |
 	    DB_AM_ENCRYPT | DB_AM_CHKSUM | DB_AM_NOT_DURABLE));
+
+	/*
+	 * If creating the master database, disable blobs, but assign it a
+	 * blob file id if blobs are enabled in the subdatabase.  This means
+	 * that subdatabses can only support blobs if the first subdatabse
+	 * supports blobs.  This is a temporary restriction, but is needed at
+	 * the moment to prevent an infinite loop.
+	 */
+	dbp->blob_threshold = 0;
+	if (LF_ISSET(DB_CREATE) && subdbp->blob_threshold != 0) {
+		if ((ret = __blob_generate_dir_ids(
+		    dbp, txn, &dbp->blob_file_id)) != 0)
+			return (ret);
+	}
 
 	/*
 	 * If there was a subdb specified, then we only want to apply
@@ -819,6 +837,21 @@ __db_refresh(dbp, txn, flags, deferred_closep, reuse)
 	if (dbp->mpf == NULL)
 		LF_SET(DB_NOSYNC);
 
+#ifdef HAVE_64BIT_TYPES
+	/* Close the blob meta data databases. */
+	if (dbp->blob_seq != NULL) {
+		if ((t_ret = __seq_close(dbp->blob_seq, 0)) != 0 && ret == 0)
+			ret = t_ret;
+		dbp->blob_seq = NULL;
+	}
+	if (dbp->blob_meta_db != NULL) {
+		if ((t_ret = __db_close(
+		    dbp->blob_meta_db, NULL, 0)) != 0 && ret == 0)
+			ret = t_ret;
+		dbp->blob_meta_db = NULL;
+	}
+#endif
+
 	/* If never opened, or not currently open, it's easy. */
 	if (!F_ISSET(dbp, DB_AM_OPEN_CALLED))
 		goto never_opened;
@@ -1164,6 +1197,10 @@ never_opened:
 		__os_free(dbp->env, dbp->dname);
 		dbp->dname = NULL;
 	}
+	if (dbp->blob_sub_dir != NULL) {
+		__os_free(dbp->env, dbp->blob_sub_dir);
+		dbp->blob_sub_dir = NULL;
+	}
 
 	/* Discard any memory used to store returned data. */
 	if (dbp->my_rskey.data != NULL)
@@ -1235,8 +1272,11 @@ __db_disassociate(sdbp)
 	sdbp->s_refcnt = 0;
 
 	while ((dbc = TAILQ_FIRST(&sdbp->free_queue)) != NULL)
-		if ((t_ret = __dbc_destroy(dbc)) != 0 && ret == 0)
-			ret = t_ret;
+		if ((t_ret = __dbc_destroy(dbc)) != 0) {
+			if (ret == 0)
+				ret = t_ret;
+			break;
+		}
 
 	F_CLR(sdbp, DB_AM_SECONDARY);
 	return (ret);

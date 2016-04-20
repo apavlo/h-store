@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  */
 /*
  * Copyright (c) 1990, 1993, 1994, 1995, 1996
@@ -51,8 +51,9 @@
 
 /*
  * __bam_get_root --
- *	Fetch the root of a tree and see if we want to keep
- * it in the stack.
+ *	Try to appropriately lock and fetch the root page of a tree;
+ * if successful enter it into the cursor's stack; on error, leave the stack
+ * unchanged.
  *
  * PUBLIC: int __bam_get_root __P((DBC *, db_pgno_t, int, u_int32_t, int *));
  */
@@ -232,9 +233,11 @@ retry:	if (lock_mode == DB_LOCK_WRITE)
 		} else if (atomic_read(&mpf->mfp->multiversion) != 0 &&
 		    lock_mode == DB_LOCK_WRITE && (ret = __memp_dirty(mpf, &h,
 		    dbc->thread_info, dbc->txn, dbc->priority, 0)) != 0) {
-			(void)__memp_fput(mpf,
-			    dbc->thread_info, h, dbc->priority);
+			if (h != NULL)
+				(void)__memp_fput(mpf,
+					dbc->thread_info, h, dbc->priority);
 			(void)__LPUT(dbc, lock);
+			return (ret);
 		}
 	}
 
@@ -272,9 +275,10 @@ __bam_search(dbc, root_pgno, key, flags, slevel, recnop, exactp)
 	db_recno_t recno;
 	int adjust, cmp, deloffset, ret, set_stack, stack, t_ret;
 	int getlock, was_next;
-	int (*func) __P((DB *, const DBT *, const DBT *));
+	int (*func) __P((DB *, const DBT *, const DBT *, size_t *));
 	u_int32_t get_mode, wait;
 	u_int8_t level, saved_level;
+	size_t pos, pos_h, pos_l;
 
 	if (F_ISSET(dbc, DBC_OPD))
 		LOCK_CHECK_OFF(dbc->thread_info);
@@ -288,6 +292,7 @@ __bam_search(dbc, root_pgno, key, flags, slevel, recnop, exactp)
 	t = dbp->bt_internal;
 	recno = 0;
 	t_ret = 0;
+	func = NULL;
 
 	BT_STK_CLR(cp);
 	LOCK_INIT(saved_lock);
@@ -339,11 +344,17 @@ retry:	if ((ret = __bam_get_root(dbc, start_pgno, slevel, flags, &stack)) != 0)
 
 	BT_STK_CLR(cp);
 
-	/* Choose a comparison function. */
+	/*
+	 * Choose a comparison function.
+	 * We apply the prefix search optimization only when there
+	 * is no user-specific comparsion function set.
+	 */
 	func = F_ISSET(dbc, DBC_OPD) ?
 	    (dbp->dup_compare == NULL ? __bam_defcmp : dbp->dup_compare) :
 	    t->bt_compare;
 
+	pos_h = 0;
+	pos_l = 0;
 	for (;;) {
 		if (TYPE(h) == P_LBTREE)
 			adjust = P_INDX;
@@ -389,9 +400,11 @@ retry:	if ((ret = __bam_get_root(dbc, start_pgno, slevel, flags, &stack)) != 0)
 		 * match on a leaf page, we're done.
 		 */
 		DB_BINARY_SEARCH_FOR(base, lim, NUM_ENT(h), adjust) {
+			/* We compare from the common prefix */
+			pos = pos_l > pos_h ? pos_h : pos_l;
 			DB_BINARY_SEARCH_INCR(indx, base, lim, adjust);
 			if ((ret = __bam_cmp(dbc, key, h, indx,
-			    func, &cmp)) != 0)
+			    func, &cmp, &pos)) != 0)
 				goto err;
 			if (cmp == 0) {
 				if (LEVEL(h) == LEAFLEVEL ||
@@ -403,9 +416,19 @@ retry:	if ((ret = __bam_get_root(dbc, start_pgno, slevel, flags, &stack)) != 0)
 				}
 				goto next;
 			}
-			if (cmp > 0)
+			/*
+			 * We have to maintain the offset in the keys where
+			 * we begin comparing for both ends of the key range
+			 * in which we are binary searching. So, update either
+			 * the high or low position here, depending on how
+			 * the comparison turned out.
+			 */
+			if (cmp > 0) {
 				DB_BINARY_SEARCH_SHIFT_BASE(indx, base,
 				    lim, adjust);
+				pos_l = pos;
+			} else
+				pos_h = pos;
 		}
 
 		/*
@@ -421,7 +444,7 @@ retry:	if ((ret = __bam_get_root(dbc, start_pgno, slevel, flags, &stack)) != 0)
 			*exactp = 0;
 
 			if (LF_ISSET(SR_EXACT)) {
-				ret = DB_NOTFOUND;
+				ret = DBC_ERR(dbc, DB_NOTFOUND);
 				goto err;
 			}
 
@@ -444,13 +467,13 @@ get_next:			/*
 				 * at the root if the tree recently collapsed.
 				 */
 				if (PGNO(h) == root_pgno) {
-					ret = DB_NOTFOUND;
+					ret = DBC_ERR(dbc, DB_NOTFOUND);
 					goto err;
 				}
 
 				indx = cp->sp->indx + 1;
 				if (indx == NUM_ENT(cp->sp->page)) {
-					ret = DB_NOTFOUND;
+					ret = DBC_ERR(dbc, DB_NOTFOUND);
 					cp->csp++;
 					goto err;
 				}
@@ -863,7 +886,7 @@ found:	*exactp = 1;
 		 * DB_NOTFOUND.
 		 */
 		if (B_DISSET(GET_BKEYDATA(dbp, h, indx + deloffset)->type)) {
-			ret = DB_NOTFOUND;
+			ret = DBC_ERR(dbc, DB_NOTFOUND);
 			goto err;
 		}
 

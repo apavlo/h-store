@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -683,38 +683,45 @@ again:		memset(bitmap, 0, count * sizeof(u_int32_t) * nentries);
 	/*
 	 * Now for each locker, record its last lock and set abort status.
 	 * We need to look at the heldby list carefully.  We have the LOCKERS
-	 * locked so they cannot go away.  The lock at the head of the
-	 * list can be removed by locking the object it points at.
-	 * Since lock memory is not freed if we get a lock we can look
-	 * at it safely but SH_LIST_FIRST is not atomic, so we check that
-	 * the list has not gone empty during that macro. We check abort
-	 * status after building the bit maps so that we will not detect
-	 * a blocked transaction without noting that it is already aborting.
+	 * locked so they cannot go away. The LOCK_SYSTEM_LOCK keeps things
+	 * steady when the lock table is not partitioned.  However, if there are
+	 * multiple lock partitions then the head of the heldby list can be
+	 * changed by another thread locking the object it points at.  That
+	 * thread will have OBJECT_LOCK()'d that lock's partition.  We need to
+	 * look at the lock entry in order to determine which partition to
+	 * mutex_lock.  Since lock structs are never really freed, once we get
+	 * the pointer we can look at it safely. However SH_LIST_FIRST is not
+	 * atomic, so we first fetch the pointer and then check that the list
+	 * was not empty during the fetch. This lets us at least mutex_lock the
+	 * partition of the lock. Afterwards, we retry if the lock is no longer
+	 * the first for that locker -- it might have changed to something ELSE
+	 * since then. We check abort status after building the bit maps so that
+	 * we will not pick a blocked transaction without noting that it is
+	 * already aborting.
 	 */
 	for (id = 0; id < count; id++) {
 		if (!id_array[id].valid)
 			continue;
-		if ((ret = __lock_getlocker_int(lt,
-		    id_array[id].id, 0, &lockerp)) != 0 || lockerp == NULL)
+		if ((ret = __lock_getlocker_int(lt, id_array[id].id,
+		     0, NULL, &lockerp)) != 0 || lockerp == NULL)
 			continue;
 
 		/*
-		 * If this is a master transaction, try to
-		 * find one of its children's locks first,
-		 * as they are probably more recent.
+		 * If this is a master transaction, try to find one of its
+		 * children's locks first, as they are probably more recent.
 		 */
 		child = SH_LIST_FIRST(&lockerp->child_locker, __db_locker);
 		if (child != NULL) {
 			do {
-c_retry:			lp = SH_LIST_FIRST(&child->heldby, __db_lock);
-				if (SH_LIST_EMPTY(&child->heldby) || lp == NULL)
+c_retry:			lp = SH_LIST_FIRSTP(&child->heldby, __db_lock);
+				if (__SH_LIST_WAS_EMPTY(&child->heldby, lp))
 					goto c_next;
 
 				if (F_ISSET(child, DB_LOCKER_INABORT))
 					id_array[id].in_abort = 1;
 				ndx = lp->indx;
 				OBJECT_LOCK_NDX(lt, region, ndx);
-				if (lp != SH_LIST_FIRST(
+				if (lp != SH_LIST_FIRSTP(
 				    &child->heldby, __db_lock) ||
 				    ndx != lp->indx) {
 					OBJECT_UNLOCK(lt, region, ndx);
@@ -733,11 +740,11 @@ c_next:				child = SH_LIST_NEXT(
 			} while (child != NULL);
 		}
 
-l_retry:	lp = SH_LIST_FIRST(&lockerp->heldby, __db_lock);
-		if (!SH_LIST_EMPTY(&lockerp->heldby) && lp != NULL) {
+l_retry:	lp = SH_LIST_FIRSTP(&lockerp->heldby, __db_lock);
+		if (!__SH_LIST_WAS_EMPTY(&lockerp->heldby, lp)) {
 			ndx = lp->indx;
 			OBJECT_LOCK_NDX(lt, region, ndx);
-			if (lp != SH_LIST_FIRST(&lockerp->heldby, __db_lock) ||
+			if (lp != SH_LIST_FIRSTP(&lockerp->heldby, __db_lock) ||
 			    lp->indx != ndx) {
 				OBJECT_UNLOCK(lt, region, ndx);
 				goto l_retry;
@@ -869,7 +876,7 @@ __dd_abort(env, info, statusp)
 	 * detecting, return that.
 	 */
 	if ((ret = __lock_getlocker_int(lt,
-	    info->last_locker_id, 0, &lockerp)) != 0)
+	    info->last_locker_id, 0, NULL, &lockerp)) != 0)
 		goto err;
 	if (lockerp == NULL || F_ISSET(lockerp, DB_LOCKER_INABORT)) {
 		*statusp = DB_ALREADY_ABORTED;

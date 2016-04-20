@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -511,6 +511,7 @@ __env_alloc_extend(infop, ptr, lenp)
 	head = infop->head;
 
 	p = ptr;
+	*lenp = DB_ALIGN(*lenp, sizeof(uintmax_t));
 	len = *lenp;
 	elp = (ALLOC_ELEMENT *)(p - sizeof(ALLOC_ELEMENT));
 #ifdef DIAGNOSTIC

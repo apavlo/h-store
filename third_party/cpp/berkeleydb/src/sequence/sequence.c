@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2004, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2004, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -53,24 +53,23 @@
 		}							\
 	} while (0)
 
-static int __seq_chk_cachesize __P((ENV *, int32_t, db_seq_t, db_seq_t));
-static int __seq_close __P((DB_SEQUENCE *, u_int32_t));
+static int __seq_chk_cachesize __P((ENV *, u_int32_t, db_seq_t, db_seq_t));
 static int __seq_close_pp __P((DB_SEQUENCE *, u_int32_t));
-static int __seq_get
-	       __P((DB_SEQUENCE *, DB_TXN *, int32_t,  db_seq_t *, u_int32_t));
-static int __seq_get_cachesize __P((DB_SEQUENCE *, int32_t *));
+static int __seq_get_pp
+	       __P((DB_SEQUENCE *,
+		   DB_TXN *, u_int32_t,  db_seq_t *, u_int32_t));
+static int __seq_get_cachesize __P((DB_SEQUENCE *, u_int32_t *));
 static int __seq_get_db __P((DB_SEQUENCE *, DB **));
 static int __seq_get_flags __P((DB_SEQUENCE *, u_int32_t *));
 static int __seq_get_key __P((DB_SEQUENCE *, DBT *));
 static int __seq_get_range __P((DB_SEQUENCE *, db_seq_t *, db_seq_t *));
-static int __seq_initial_value __P((DB_SEQUENCE *, db_seq_t));
 static int __seq_open_pp __P((DB_SEQUENCE *, DB_TXN *, DBT *, u_int32_t));
 static int __seq_remove __P((DB_SEQUENCE *, DB_TXN *, u_int32_t));
-static int __seq_set_cachesize __P((DB_SEQUENCE *, int32_t));
+static int __seq_set_cachesize __P((DB_SEQUENCE *, u_int32_t));
 static int __seq_set_flags __P((DB_SEQUENCE *, u_int32_t));
 static int __seq_set_range __P((DB_SEQUENCE *, db_seq_t, db_seq_t));
 static int __seq_update
-	__P((DB_SEQUENCE *, DB_THREAD_INFO *, DB_TXN *, int32_t, u_int32_t));
+	__P((DB_SEQUENCE *, DB_THREAD_INFO *, DB_TXN *, u_int32_t, u_int32_t));
 
 /*
  * db_sequence_create --
@@ -113,7 +112,7 @@ db_sequence_create(seqp, dbp, flags)
 
 	seq->seq_dbp = dbp;
 	seq->close = __seq_close_pp;
-	seq->get = __seq_get;
+	seq->get = __seq_get_pp;
 	seq->get_cachesize = __seq_get_cachesize;
 	seq->set_cachesize = __seq_set_cachesize;
 	seq->get_db = __seq_get_db;
@@ -134,7 +133,7 @@ db_sequence_create(seqp, dbp, flags)
 }
 
 /*
- * __seq_open --
+ * __seq_open_pp --
  *	DB_SEQUENCE->open method.
  *
  */
@@ -146,21 +145,18 @@ __seq_open_pp(seq, txn, keyp, flags)
 	u_int32_t flags;
 {
 	DB *dbp;
-	DB_SEQ_RECORD *rp;
 	DB_THREAD_INFO *ip;
 	ENV *env;
-	u_int32_t tflags;
-	int handle_check, txn_local, ret, t_ret;
+	int handle_check, ret, t_ret;
 #define	SEQ_OPEN_FLAGS	(DB_CREATE | DB_EXCL | DB_THREAD)
 
-	dbp = seq->seq_dbp;
-	env = dbp->env;
-	txn_local = 0;
-
-	STRIP_AUTO_COMMIT(flags);
 	SEQ_ILLEGAL_AFTER_OPEN(seq, "DB_SEQUENCE->open");
 
+	env = seq->seq_dbp->env;
+	dbp = seq->seq_dbp;
+
 	ENV_ENTER(env, ip);
+	STRIP_AUTO_COMMIT(flags);
 
 	/* Check for replication block. */
 	handle_check = IS_ENV_REPLICATED(env);
@@ -173,6 +169,41 @@ __seq_open_pp(seq, txn, keyp, flags)
 	if ((ret = __db_fchk(env,
 	    "DB_SEQUENCE->open", flags, SEQ_OPEN_FLAGS)) != 0)
 		goto err;
+
+	ret = __seq_open(seq, txn, keyp, flags);
+
+	/* Release replication block. */
+err:	if (handle_check && (t_ret = __env_db_rep_exit(env)) != 0 && ret == 0)
+		ret = t_ret;
+	ENV_LEAVE(env, ip);
+
+	return (ret);
+}
+
+/*
+ * __seq_open --
+ *	Internal open function.
+ *
+ * PUBLIC: int __seq_open __P((DB_SEQUENCE *, DB_TXN *, DBT *, u_int32_t));
+ */
+
+int
+__seq_open(seq, txn, keyp, flags)
+	DB_SEQUENCE *seq;
+	DB_TXN *txn;
+	DBT *keyp;
+	u_int32_t flags;
+{
+	DB *dbp;
+	DB_SEQ_RECORD *rp;
+	DB_THREAD_INFO *ip;
+	ENV *env;
+	u_int32_t tflags;
+	int txn_local, ret, t_ret;
+
+	dbp = seq->seq_dbp;
+	env = dbp->env;
+	txn_local = 0;
 
 	if (keyp->size == 0) {
 		__db_errx(env, DB_STR("4001",
@@ -229,6 +260,7 @@ __seq_open_pp(seq, txn, keyp, flags)
 	seq->seq_key.size = seq->seq_key.ulen = keyp->size;
 	seq->seq_key.flags = DB_DBT_USERMEM;
 
+	ENV_GET_THREAD_INFO(env, ip);
 retry:	if ((ret = __db_get(dbp, ip,
 	    txn, &seq->seq_key, &seq->seq_data, 0)) != 0) {
 		if (ret == DB_BUFFER_SMALL &&
@@ -369,11 +401,6 @@ err:	if (txn_local &&
 		__os_free(env, seq->seq_key.data);
 		seq->seq_key.data = NULL;
 	}
-	/* Release replication block. */
-	if (handle_check && (t_ret = __env_db_rep_exit(env)) != 0 && ret == 0)
-		ret = t_ret;
-
-	ENV_LEAVE(env, ip);
 	__dbt_userfree(env, keyp, NULL, NULL);
 	return (ret);
 }
@@ -386,10 +413,8 @@ err:	if (txn_local &&
 static int
 __seq_get_cachesize(seq, cachesize)
 	DB_SEQUENCE *seq;
-	int32_t *cachesize;
+	u_int32_t *cachesize;
 {
-	SEQ_ILLEGAL_BEFORE_OPEN(seq, "DB_SEQUENCE->get_cachesize");
-
 	*cachesize = seq->seq_cache_size;
 	return (0);
 }
@@ -402,25 +427,9 @@ __seq_get_cachesize(seq, cachesize)
 static int
 __seq_set_cachesize(seq, cachesize)
 	DB_SEQUENCE *seq;
-	int32_t cachesize;
+	u_int32_t cachesize;
 {
-	ENV *env;
-	int ret;
-
-	env = seq->seq_dbp->env;
-
-	if (cachesize < 0) {
-		__db_errx(env, DB_STR("4007",
-		    "Cache size must be >= 0"));
-		return (EINVAL);
-	}
-
-	/*
-	 * It's an error to specify a cache larger than the range of sequences.
-	 */
-	if (SEQ_IS_OPEN(seq) && (ret = __seq_chk_cachesize(env,
-	    cachesize, seq->seq_rp->seq_max, seq->seq_rp->seq_min)) != 0)
-		return (ret);
+	SEQ_ILLEGAL_AFTER_OPEN(seq, "DB_SEQUENCE->set_cachesize");
 
 	seq->seq_cache_size = cachesize;
 	return (0);
@@ -437,8 +446,6 @@ __seq_get_flags(seq, flagsp)
 	DB_SEQUENCE *seq;
 	u_int32_t *flagsp;
 {
-	SEQ_ILLEGAL_BEFORE_OPEN(seq, "DB_SEQUENCE->get_flags");
-
 	*flagsp = F_ISSET(seq->seq_rp, SEQ_SET_FLAGS);
 	return (0);
 }
@@ -480,8 +487,10 @@ __seq_set_flags(seq, flags)
  * __seq_initial_value --
  *	DB_SEQUENCE->initial_value.
  *
+ * PUBLIC: int __seq_initial_value  __P((DB_SEQUENCE *, db_seq_t));
+ *
  */
-static int
+int
 __seq_initial_value(seq, value)
 	DB_SEQUENCE *seq;
 	db_seq_t value;
@@ -515,8 +524,6 @@ __seq_get_range(seq, minp, maxp)
 	DB_SEQUENCE *seq;
 	db_seq_t *minp, *maxp;
 {
-	SEQ_ILLEGAL_BEFORE_OPEN(seq, "DB_SEQUENCE->get_range");
-
 	*minp = seq->seq_rp->seq_min;
 	*maxp = seq->seq_rp->seq_max;
 	return (0);
@@ -557,14 +564,13 @@ __seq_update(seq, ip, txn, delta, flags)
 	DB_SEQUENCE *seq;
 	DB_THREAD_INFO *ip;
 	DB_TXN *txn;
-	int32_t delta;
-	u_int32_t flags;
+	u_int32_t delta, flags;
 {
 	DB *dbp;
 	DBT *data, ldata;
 	DB_SEQ_RECORD *rp;
 	ENV *env;
-	int32_t adjust;
+	db_seq_t adjust;
 	int ret, txn_local, need_mutex;
 
 	dbp = seq->seq_dbp;
@@ -721,29 +727,36 @@ err:	if (need_mutex) {
 	    env, txn, LF_ISSET(DB_TXN_NOSYNC), ret) : ret);
 }
 
-static int
+/*
+ * __seq_get --
+ *	Internal get function for sequence.
+ *
+ * PUBLIC: int __seq_get
+ * PUBLIC:  __P((DB_SEQUENCE *, DB_TXN *, u_int32_t,  db_seq_t *, u_int32_t));
+ */
+int
 __seq_get(seq, txn, delta, retp, flags)
 	DB_SEQUENCE *seq;
 	DB_TXN *txn;
-	int32_t delta;
+	u_int32_t delta, flags;
 	db_seq_t *retp;
-	u_int32_t flags;
 {
 	DB *dbp;
 	DB_SEQ_RECORD *rp;
 	DB_THREAD_INFO *ip;
 	ENV *env;
-	int handle_check, ret, t_ret;
+	int handle_check, ret;
 
 	dbp = seq->seq_dbp;
 	env = dbp->env;
 	rp = seq->seq_rp;
 	ret = 0;
+	ENV_GET_THREAD_INFO(env, ip);
 
 	STRIP_AUTO_COMMIT(flags);
 	SEQ_ILLEGAL_BEFORE_OPEN(seq, "DB_SEQUENCE->get");
 
-	if (delta < 0 || (delta == 0 && !LF_ISSET(DB_CURRENT))) {
+	if (delta == 0 && !LF_ISSET(DB_CURRENT)) {
 		__db_errx(env, "Sequence delta must be greater than 0");
 		return (EINVAL);
 	}
@@ -754,16 +767,9 @@ __seq_get(seq, txn, delta, retp, flags)
 		return (EINVAL);
 	}
 
-	ENV_ENTER(env, ip);
-
-	/* Check for replication block. */
-	handle_check = IS_ENV_REPLICATED(env);
-	if (handle_check &&
-	    (ret = __db_rep_enter(dbp, 1, 0, IS_REAL_TXN(txn))) != 0)
-		return (ret);
-
 	MUTEX_LOCK(env, seq->mtx_seq);
 
+	handle_check = IS_ENV_REPLICATED(env);
 	if (handle_check && IS_REP_CLIENT(env) &&
 	    !F_ISSET(dbp, DB_AM_NOT_DURABLE)) {
 		ret = __db_rdonly(env, "DB_SEQUENCE->get");
@@ -799,6 +805,31 @@ __seq_get(seq, txn, delta, retp, flags)
 	}
 
 err:	MUTEX_UNLOCK(env, seq->mtx_seq);
+	return (ret);
+}
+
+static int
+__seq_get_pp(seq, txn, delta, retp, flags)
+	DB_SEQUENCE *seq;
+	DB_TXN *txn;
+	u_int32_t delta, flags;
+	db_seq_t *retp;
+{
+	DB_THREAD_INFO *ip;
+	ENV *env;
+	int handle_check, ret, t_ret;
+
+	env = seq->seq_dbp->env;
+
+	ENV_ENTER(env, ip);
+
+	/* Check for replication block. */
+	handle_check = IS_ENV_REPLICATED(env);
+	if (handle_check &&
+	    (ret = __db_rep_enter(seq->seq_dbp, 1, 0, IS_REAL_TXN(txn))) != 0)
+		return (ret);
+
+	ret = __seq_get(seq, txn, delta, retp, flags);
 
 	/* Release replication block. */
 	if (handle_check && (t_ret = __env_db_rep_exit(env)) != 0 && ret == 0)
@@ -868,8 +899,9 @@ __seq_close_pp(seq, flags)
  * __seq_close --
  *	Close a sequence
  *
+ * PUBLIC: int __seq_close __P((DB_SEQUENCE *, u_int32_t));
  */
-static int
+int
 __seq_close(seq, flags)
 	DB_SEQUENCE *seq;
 	u_int32_t flags;
@@ -916,19 +948,24 @@ __seq_remove(seq, txn, flags)
 
 	dbp = seq->seq_dbp;
 	env = dbp->env;
+	handle_check = 0;
+	ret = 0;
 	txn_local = 0;
 
-	SEQ_ILLEGAL_BEFORE_OPEN(seq, "DB_SEQUENCE->remove");
+	if (!SEQ_IS_OPEN(seq))
+		ret = __db_mi_open(env, "DB_SEQUENCE->remove", 0);
 
 	/*
 	 * Flags can only be 0, unless the database has DB_AUTO_COMMIT enabled.
 	 * Then DB_TXN_NOSYNC is allowed.
 	 */
-	if (flags != 0 &&
+	if (ret == 0 && flags != 0 &&
 	    (flags != DB_TXN_NOSYNC || !IS_DB_AUTO_COMMIT(dbp, txn)))
-		return (__db_ferr(env, "DB_SEQUENCE->remove illegal flag", 0));
+		ret = __db_ferr(env, "DB_SEQUENCE->remove illegal flag", 0);
 
 	ENV_ENTER(env, ip);
+	if (ret != 0)
+		goto err;
 
 	/* Check for replication block. */
 	handle_check = IS_ENV_REPLICATED(env);
@@ -945,7 +982,7 @@ __seq_remove(seq, txn, flags)
 	 */
 	if (IS_DB_AUTO_COMMIT(dbp, txn)) {
 		if ((ret = __txn_begin(env, ip, NULL, &txn, flags)) != 0)
-			return (ret);
+			goto err;
 		txn_local = 1;
 	}
 
@@ -955,13 +992,14 @@ __seq_remove(seq, txn, flags)
 
 	ret = __db_del(dbp, ip, txn, &seq->seq_key, 0);
 
+err:
 	if ((t_ret = __seq_close(seq, 0)) != 0 && ret == 0)
 		ret = t_ret;
 
 	/* Release replication block. */
 	if (handle_check && (t_ret = __env_db_rep_exit(env)) != 0 && ret == 0)
 		ret = t_ret;
-err:	if (txn_local && (t_ret =
+	if (txn_local && (t_ret =
 	    __db_txn_auto_resolve(env, txn, 0, ret)) != 0 && ret == 0)
 		ret = t_ret;
 
@@ -976,7 +1014,7 @@ err:	if (txn_local && (t_ret =
 static int
 __seq_chk_cachesize(env, cachesize, max, min)
 	ENV *env;
-	int32_t cachesize;
+	u_int32_t cachesize;
 	db_seq_t max, min;
 {
 	/*

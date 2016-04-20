@@ -17,6 +17,7 @@
 
 #include <storage/PersistentTableUndoUpdateAction.h>
 #include <cassert>
+#include "common/StringRef.h"
 
 namespace voltdb {
 
@@ -64,10 +65,13 @@ void PersistentTableUndoUpdateAction::release() {
     /*
      * Free the strings from the old tuple that were updated.
      */
-    for (std::vector<const char*>::iterator i = oldUninlineableColumns.begin();
+    for (std::vector<char*>::iterator i = oldUninlineableColumns.begin();
          i != oldUninlineableColumns.end(); i++)
     {
-        delete [] (*i);
+        //if (!((StringRef*)(*i))->isUsingPool()) {
+            StringRef::destroy((StringRef*)(*i));
+            //delete [] (*i);
+        //}
     }
 }
 

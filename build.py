@@ -312,6 +312,9 @@ CTX.THIRD_PARTY_INPUT['json_spirit'] = """
  json_spirit_reader.cpp
  json_spirit_value.cpp
 """
+CTX.THIRD_PARTY_INPUT['mmh3'] = """
+ MurmurHash3.cpp
+"""
 
 ###############################################################################
 # SPECIFY THE TESTS
@@ -403,6 +406,9 @@ if CTX.ANTICACHE_BUILD:
     if CTX.ANTICACHE_DRAM:
         CTX.CPPFLAGS += " -DANTICACHE_DRAM"
 
+    if CTX.ANTICACHE_COUNTER:
+        CTX.CPPFLAGS += " -DANTICACHE_COUNTER"
+
     if CTX.ANTICACHE_TIMESTAMPS:
         CTX.CPPFLAGS += " -DANTICACHE_TIMESTAMPS"
 
@@ -424,9 +430,11 @@ if CTX.ANTICACHE_BUILD:
         AntiCacheDB.cpp
         BerkeleyAntiCacheDB.cpp
         NVMAntiCacheDB.cpp
+        AllocatorNVMAntiCacheDB.cpp
         AntiCacheEvictionManager.cpp
         EvictionIterator.cpp
         EvictedTable.cpp
+        NVMEvictedTable.cpp
     """
     
     CTX.TESTS['anticache'] = """

@@ -11,6 +11,10 @@ import java.util.Map;
 public enum ControlCommand {
     /** Start executing transactions and recording stats */
     START,
+    /** Suspend executing transactions */
+    SUSPEND,
+    /** Resume executing transactions */
+    RESUME,
     /** Clear internal counters and stats */
     CLEAR,
     /** Pause invoking new txn requests */

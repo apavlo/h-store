@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1997, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1997, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -513,15 +513,17 @@ DB_SET_CALLBACK(set_append_recno, append_recno,
     (int (*arg)(Db *cxxthis, Dbt *data, db_recno_t recno)), arg)
 
 DB_CALLBACK_C_INTERCEPT(bt_compare,
-    int, (DB *cthis, const DBT *data1, const DBT *data2),
+    int, (DB *cthis, const DBT *data1, const DBT *data2, size_t *locp),
     return,
-    (cxxthis, Dbt::get_const_Dbt(data1), Dbt::get_const_Dbt(data2)))
+    (cxxthis, Dbt::get_const_Dbt(data1), Dbt::get_const_Dbt(data2), locp))
 
 DB_GET_CALLBACK(get_bt_compare, bt_compare,
-    (int (**argp)(Db *cxxthis, const Dbt *data1, const Dbt *data2)), argp)
+    (int (**argp)(Db *cxxthis, const Dbt *data1, const Dbt *data2,
+    size_t *locp)), argp)
 
 DB_SET_CALLBACK(set_bt_compare, bt_compare,
-    (int (*arg)(Db *cxxthis, const Dbt *data1, const Dbt *data2)), arg)
+    (int (*arg)(Db *cxxthis, const Dbt *data1, const Dbt *data2, 
+    size_t *locp)), arg)
 
 DB_CALLBACK_C_INTERCEPT(bt_compress,
     int, (DB *cthis, const DBT *data1, const DBT *data2, const DBT *data3,
@@ -577,26 +579,30 @@ DB_SET_CALLBACK(set_bt_prefix, bt_prefix,
     (size_t (*arg)(Db *cxxthis, const Dbt *data1, const Dbt *data2)), arg)
 
 DB_CALLBACK_C_INTERCEPT(dup_compare,
-    int, (DB *cthis, const DBT *data1, const DBT *data2),
+    int, (DB *cthis, const DBT *data1, const DBT *data2, size_t *locp),
     return,
-    (cxxthis, Dbt::get_const_Dbt(data1), Dbt::get_const_Dbt(data2)))
+    (cxxthis, Dbt::get_const_Dbt(data1), Dbt::get_const_Dbt(data2), locp))
 
 DB_GET_CALLBACK(get_dup_compare, dup_compare,
-    (int (**argp)(Db *cxxthis, const Dbt *data1, const Dbt *data2)), argp)
+    (int (**argp)(Db *cxxthis, const Dbt *data1, const Dbt *data2, 
+    size_t *locp)), argp)
 
 DB_SET_CALLBACK(set_dup_compare, dup_compare,
-    (int (*arg)(Db *cxxthis, const Dbt *data1, const Dbt *data2)), arg)
+    (int (*arg)(Db *cxxthis, const Dbt *data1, const Dbt *data2,
+    size_t *locp)), arg)
 
 DB_CALLBACK_C_INTERCEPT(h_compare,
-    int, (DB *cthis, const DBT *data1, const DBT *data2),
+    int, (DB *cthis, const DBT *data1, const DBT *data2, size_t *locp),
     return,
-    (cxxthis, Dbt::get_const_Dbt(data1), Dbt::get_const_Dbt(data2)))
+    (cxxthis, Dbt::get_const_Dbt(data1), Dbt::get_const_Dbt(data2), locp))
 
 DB_GET_CALLBACK(get_h_compare, h_compare,
-    (int (**argp)(Db *cxxthis, const Dbt *data1, const Dbt *data2)), argp)
+    (int (**argp)(Db *cxxthis, const Dbt *data1, const Dbt *data2,
+    size_t *locp)), argp)
 
 DB_SET_CALLBACK(set_h_compare, h_compare,
-    (int (*arg)(Db *cxxthis, const Dbt *data1, const Dbt *data2)), arg)
+    (int (*arg)(Db *cxxthis, const Dbt *data1, const Dbt *data2,
+    size_t *locp)), arg)
 
 DB_CALLBACK_C_INTERCEPT(h_hash,
     u_int32_t, (DB *cthis, const void *data, u_int32_t len),
@@ -653,6 +659,12 @@ int Db::verify(const char *name, const char *subdb,
 	return (ret);
 }
 
+DB_METHOD(set_blob_dir, (const char *dir), (db, dir), DB_RETOK_STD)
+DB_METHOD(get_blob_dir, (const char **dir), (db, dir), DB_RETOK_STD)
+DB_METHOD(set_blob_threshold, (u_int32_t bytes, u_int32_t flags),
+    (db, bytes, flags), DB_RETOK_STD)
+DB_METHOD(get_blob_threshold, (u_int32_t *bytes),
+    (db, bytes), DB_RETOK_STD)
 DB_METHOD(set_bt_compare, (bt_compare_fcn_type func),
     (db, func), DB_RETOK_STD)
 DB_METHOD(get_bt_minkey, (u_int32_t *bt_minkeyp),

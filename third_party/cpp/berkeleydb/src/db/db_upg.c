@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -13,6 +13,7 @@
 #include "dbinc/db_swap.h"
 #include "dbinc/btree.h"
 #include "dbinc/hash.h"
+#include "dbinc/heap.h"
 #include "dbinc/qam.h"
 
 /*
@@ -95,6 +96,27 @@ static int (* const func_46_list[P_PAGETYPE_MAX])
 	NULL,			/* P_HASH */
 	NULL,			/* P_HEAPMETA */
 	NULL,			/* P_HEAP */
+	NULL,			/* P_IHEAP */
+};
+
+static int (* const func_60_list[P_PAGETYPE_MAX])
+    __P((DB *, char *, u_int32_t, DB_FH *, PAGE *, int *)) = {
+	NULL,			/* P_INVALID */
+	NULL,			/* __P_DUPLICATE */
+	NULL,			/* P_HASH_UNSORTED */
+	NULL,			/* P_IBTREE */
+	NULL,			/* P_IRECNO */
+	__bam_60_lbtree,	/* P_LBTREE */
+	NULL,			/* P_LRECNO */
+	NULL,			/* P_OVERFLOW */
+	__ham_60_hashmeta,	/* P_HASHMETA */
+	__bam_60_btreemeta,	/* P_BTREEMETA */
+	NULL,			/* P_QAMMETA */
+	NULL,			/* P_QAMDATA */
+	NULL,			/* P_LDUP */
+	__ham_60_hash,		/* P_HASH */
+	__heap_60_heapmeta,	/* P_HEAPMETA */
+	__heap_60_heap,		/* P_HEAP */
 	NULL,			/* P_IHEAP */
 };
 
@@ -181,6 +203,34 @@ __db_upgrade(dbp, fname, flags)
 				goto err;
 			/* FALLTHROUGH */
 		case 9:
+			/*
+			 * Various blob ids and size use two u_int32_t values
+			 * to represent 64 bit integers in early 6.0.  Change
+			 * those values to 64 bit integers.
+			 */
+			/*
+			 * Read the encrypt_alg and chksum fields from the
+			 * metadata page.
+			 */
+			meta = (DBMETA *)mbuf;
+			if (FLD_ISSET(meta->metaflags, DBMETA_CHKSUM))
+				F_SET(dbp, DB_AM_CHKSUM);
+			if (meta->encrypt_alg != 0) {
+				if (!CRYPTO_ON(dbp->env)) {
+					__db_errx(env, DB_STR("0777",
+"Attempt to upgrade an encrypted database without providing a password."));
+					ret = EINVAL;
+					goto err;
+				}
+				F_SET(dbp, DB_AM_ENCRYPT);
+			}
+			memcpy(&dbp->pgsize,
+			    &meta->pagesize, sizeof(u_int32_t));
+			if ((ret = __db_page_pass(dbp,
+			    real_name, flags, func_60_list, fhp)) != 0)
+				goto err;
+			/* FALLTHROUGH */
+		case 10:
 			break;
 		default:
 			__db_errx(env, DB_STR_A("0666",
@@ -307,6 +357,34 @@ __db_upgrade(dbp, fname, flags)
 
 			/* FALLTHROUGH */
 		case 9:
+			/*
+			 * Various blob ids and size use two u_int32_t values
+			 * to represent 64 bit integers in early 6.0.  Change
+			 * those values to 64 bit integers.
+			 */
+			meta = (DBMETA*)mbuf;
+			memcpy(&dbp->pgsize,
+			    &meta->pagesize, sizeof(u_int32_t));
+			/*
+			 * Read the encrypt_alg and chksum fields from the
+			 * metadata page.
+			 */
+			if (FLD_ISSET(meta->metaflags, DBMETA_CHKSUM))
+				F_SET(dbp, DB_AM_CHKSUM);
+			if (meta->encrypt_alg != 0) {
+				if (!CRYPTO_ON(dbp->env)) {
+					__db_errx(env, DB_STR("0778",
+"Attempt to upgrade an encrypted database without providing a password."));
+					ret = EINVAL;
+					goto err;
+				}
+				F_SET(dbp, DB_AM_ENCRYPT);
+			}
+			if ((ret = __db_page_pass(dbp,
+			    real_name, flags, func_60_list, fhp)) != 0)
+				goto err;
+			/* FALLTHROUGH */
+		case 10:
 			break;
 		default:
 			__db_errx(env, DB_STR_A("0668",
@@ -317,9 +395,45 @@ __db_upgrade(dbp, fname, flags)
 		}
 		break;
 	case DB_HEAPMAGIC:
-		/*
-		 * There's no upgrade needed for Heap yet.
-		 */
+		switch (((DBMETA *)mbuf)->version) {
+		case 1:
+			/*
+			 * Various blob ids and size use two u_int32_t values
+			 * to represent 64 bit integers in early 6.0.  Change
+			 * those values to 64 bit integers.
+			 */
+			meta = (DBMETA*)mbuf;
+			memcpy(&dbp->pgsize,
+			    &meta->pagesize, sizeof(u_int32_t));
+			/*
+			 * Read the encrypt_alg and chksum fields from the
+			 * metadata page.
+			 */
+			if (FLD_ISSET(meta->metaflags, DBMETA_CHKSUM))
+				F_SET(dbp, DB_AM_CHKSUM);
+			if (meta->encrypt_alg != 0) {
+				if (!CRYPTO_ON(dbp->env)) {
+					__db_errx(env, DB_STR("0779",
+"Attempt to upgrade an encrypted database without providing a password."));
+					ret = EINVAL;
+					goto err;
+				}
+				F_SET(dbp, DB_AM_ENCRYPT);
+			}
+			if ((ret = __db_page_pass(dbp,
+			    real_name, flags, func_60_list, fhp)) != 0)
+				goto err;
+			/* FALLTHROUGH */
+		case 2:
+			break;
+		default:
+			__db_errx(env, DB_STR_A("0776",
+			    "%s: unsupported heap version: %lu",
+			    "%s %lu"), real_name,
+			    (u_long)((DBMETA *)mbuf)->version);
+			ret = DB_OLD_VERSION;
+			goto err;
+		}
 		break;
 	case DB_QAMMAGIC:
 		switch (((DBMETA *)mbuf)->version) {

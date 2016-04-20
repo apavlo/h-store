@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2005, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2005, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -123,6 +123,13 @@ typedef struct {
 		db_timespec __tmp;				        \
 		DB_TIMEOUT_TO_TIMESPEC(t, &__tmp);		        \
 		timespecadd((vvp), &__tmp);			        \
+	} while (0)
+
+#define	TIMESPEC_SUB_DB_TIMEOUT(vvp, t)					\
+	do {								\
+		db_timespec __tmp;					\
+		DB_TIMEOUT_TO_TIMESPEC(t, &__tmp);			\
+		timespecsub((vvp), &__tmp);				\
 	} while (0)
 
 #if defined(__cplusplus)

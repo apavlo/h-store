@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -38,6 +38,12 @@ __log_verify_pp(dbenv, lvconfig)
 	lsnrg = ret = timerg = 0;
 	phome = NULL;
 
+	if (lvconfig == NULL) {
+		__db_errx(dbenv->env, DB_STR("2584",
+		    "Must provide a configuration structure."));
+		ret = EINVAL;
+		goto err;
+	}
 	if (!IS_ZERO_LSN(lvconfig->start_lsn) ||
 	    !IS_ZERO_LSN(lvconfig->end_lsn))
 		lsnrg = 1;
@@ -64,7 +70,8 @@ __log_verify_pp(dbenv, lvconfig)
 	}
 
 	ENV_ENTER(dbenv->env, ip);
-	ret = __log_verify(dbenv, lvconfig, ip);
+	REPLICATION_WRAP(dbenv->env,
+	    (__log_verify(dbenv, lvconfig, ip)), 0, ret);
 	ENV_LEAVE(dbenv->env, ip);
 err:	return (ret);
 }
@@ -79,18 +86,16 @@ __log_verify(dbenv, lvconfig, ip)
 	const DB_LOG_VERIFY_CONFIG *lvconfig;
 	DB_THREAD_INFO *ip;
 {
-
-	u_int32_t logcflag, max_fileno;
+	DB_LOG_VRFY_INFO *logvrfy_hdl;
 	DB_LOGC *logc;
-	ENV *env;
-	DBT data;
 	DB_DISTAB dtab;
 	DB_LSN key, start, start2, stop, stop2, verslsn;
-	u_int32_t newversion, version;
+	DBT data;
+	ENV *env;
+	u_int32_t logcflag, max_fileno, newversion, version;
 	int cmp, fwdscroll, goprev, ret, tret;
 	time_t starttime, endtime;
 	const char *okmsg;
-	DB_LOG_VRFY_INFO *logvrfy_hdl;
 
 	okmsg = NULL;
 	fwdscroll = 1;
@@ -98,6 +103,7 @@ __log_verify(dbenv, lvconfig, ip)
 	goprev = 0;
 	env = dbenv->env;
 	logc = NULL;
+	logvrfy_hdl = NULL;
 	memset(&dtab, 0, sizeof(dtab));
 	memset(&data, 0, sizeof(data));
 	version = newversion = 0;
@@ -333,11 +339,12 @@ out:
 err:
 	if (logc != NULL)
 		(void)__logc_close(logc);
-	if ((tret = __destroy_log_vrfy_info(logvrfy_hdl)) != 0 && ret == 0)
+	if (logvrfy_hdl != NULL &&
+	    (tret = __destroy_log_vrfy_info(logvrfy_hdl)) != 0 && ret == 0)
 		ret = tret;
-	if (dtab.int_dispatch)
+	if (dtab.int_dispatch != NULL)
 		__os_free(dbenv->env, dtab.int_dispatch);
-	if (dtab.ext_dispatch)
+	if (dtab.ext_dispatch != NULL)
 		__os_free(dbenv->env, dtab.ext_dispatch);
 
 	return (ret);

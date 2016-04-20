@@ -22,7 +22,7 @@ tmp_dir=$distdir/s_docs.tmp
 rm -rf $tmp_dir && mkdir $tmp_dir && mkdir $tmp_dir/logs
 
 if [ "$docs_dir" = "" ]; then
-	docs_dir=$rootdir/docs_books-5.3
+	docs_dir=$rootdir/docs_books-6.1
 fi
 
 # Verify that the docs_books repository is where we expect it.

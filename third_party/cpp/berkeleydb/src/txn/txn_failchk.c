@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2005, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2005, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -57,7 +57,7 @@ retry:	TXN_SYSTEM_LOCK(env);
 
 		if (F_ISSET(td, TXN_DTL_INMEMORY)) {
 			TXN_SYSTEM_UNLOCK(env);
-			return (__db_failed(env, DB_STR("4501",
+			return (__db_failed(env, DB_STR("4573",
 			    "Transaction has in memory logs"),
 			     td->pid, td->tid));
 		}

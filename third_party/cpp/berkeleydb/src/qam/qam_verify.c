@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1999, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -115,14 +115,14 @@ __qam_vrfy_meta(dbp, vdp, meta, pgno, flags)
 	 * this assumption fails.  (We need the qp info to be reasonable
 	 * before we do per-page verification of queue extents.)
 	 */
-	if (F_ISSET(vdp, VRFY_QMETA_SET)) {
+	if (F_ISSET(vdp, SALVAGE_QMETA_SET)) {
 		isbad = 1;
 		EPRINT((env, DB_STR_A("1148",
 		    "Page %lu: database contains multiple Queue metadata pages",
 		    "%lu"), (u_long)pgno));
 		goto err;
 	}
-	F_SET(vdp, VRFY_QMETA_SET);
+	F_SET(vdp, SALVAGE_QMETA_SET);
 	qp->page_ext = meta->page_ext;
 	dbp->pgsize = meta->dbmeta.pagesize;
 	qp->q_meta = pgno;

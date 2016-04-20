@@ -622,7 +622,25 @@ public final class HStoreConf {
         public boolean anticache_enable;
 
         @ConfigProperty(
-            description="Enable multilevel anti-cachign feature. This requires that the system "+
+            description="Enable anti-caching warmup feature. This requires that the system "+
+                        "is compiled with both ${site.anticache_enabled} and ${site.anticache_build "+
+                        "set to true.",
+            defaultBoolean=true,
+            experimental=true
+        )
+        public boolean anticache_warmup_eviction_enable;
+
+        @ConfigProperty(
+            description="Reserved eviction time for anti-caching after warmup of the benchmark. This requires that the system "+
+                        "is compiled with ${site.anticache_warmup_eviction_enable}  "+
+                        "set to true.",
+            defaultInt = 0000,
+            experimental=true
+        )
+        public int anticache_warmup_eviction_time;
+
+        @ConfigProperty(
+            description="Enable multilevel anti-caching feature. This requires that the system "+
                         "is compiled with both ${site.anticache_enabled} and ${site.anticache_build "+
                         "set to true.",
             defaultBoolean=false,
@@ -770,6 +788,15 @@ public final class HStoreConf {
                 experimental=true
         )
         public boolean anticache_block_merge;
+
+        @ConfigProperty(
+            description="Enable the anti-cache counted merge-back feature. This requires that the system " +
+            		    "is compiled with ${site.anticache_enable} set to true and " +
+                            "${site.anticache_db_blocks} set to true.",
+            defaultBoolean=false,
+            experimental=true
+        )
+        public boolean anticache_counter;
 
         @ConfigProperty(
             description="Enable the anti-cache timestamps feature. This requires that the system " +
@@ -1645,7 +1672,7 @@ public final class HStoreConf {
             description="When the BlockingClient is enabled with ${client.blocking}, this defines the number " +
                         "of concurrent transactions that each client instance can submit to the H-Store cluster " +
                         "before it will block.",
-            defaultInt=1,
+            defaultInt=500,
             experimental=false
         )
         public int blocking_concurrent;

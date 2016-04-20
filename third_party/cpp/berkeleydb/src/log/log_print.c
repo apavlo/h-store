@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -37,6 +37,7 @@ __log_print_record(env, recbuf, lsnp, name, spec, info)
 	LOG *lp;
 	PAGE *hdrstart, *hdrtmp;
 	int32_t inttmp;
+	u_int64_t ulltmp;
 	u_int32_t hdrsize, op, uinttmp;
 	u_int32_t type, txnid;
 	u_int8_t *bp, *datatmp;
@@ -149,6 +150,14 @@ __log_print_record(env, recbuf, lsnp, name, spec, info)
 			__db_msgadd(env, &msgbuf,  sp->fmt, uinttmp);
 			__db_msgadd(env, &msgbuf,  "\n");
 			bp += sizeof(uinttmp);
+			break;
+		case LOGREC_LONGARG:
+			LOGCOPY_64(env, &ulltmp, bp);
+			__db_msgadd(env, &msgbuf,  "\t%s: ", sp->name);
+			__db_msgadd(env,
+			    &msgbuf,  "%llu", (unsigned long long)ulltmp);
+			__db_msgadd(env, &msgbuf,  "\n");
+			bp += sizeof(ulltmp);
 			break;
 		case LOGREC_TIME:
 			/* time_t is long but we only store 32 bits. */

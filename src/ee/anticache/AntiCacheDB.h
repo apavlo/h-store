@@ -213,7 +213,9 @@ class AntiCacheDB {
          * Because of the structure of AnticacheDB we have to have this another
          * function.
          */
-        void removeSingleTupleStats(uint32_t blockId, int32_t sign);
+        inline void removeSingleTupleStats(uint32_t blockId, int64_t bytes) {
+            m_bytesUnevicted += bytes;
+        }
         
         /**
          * Return the AntiCacheID number.
@@ -307,12 +309,22 @@ class AntiCacheDB {
             return m_block_merge;
         }
 
+        inline int32_t getEvictedBytesPerBlock(uint32_t blockId) {
+            return (int32_t)(m_bytesEvicted / (m_blocksEvicted - m_blocksUnevicted));
+        }
+
+        /*
         inline int getTupleInBlock(uint32_t blockId) {
             return tupleInBlock[blockId];
         }
         
         inline int getEvictedTupleInBlock(uint32_t blockId) {
             return evictedTupleInBlock[blockId];
+        }
+        */
+
+        inline string getDBDir() {
+            return m_dbDir;
         }
 
     protected:
@@ -341,9 +353,9 @@ class AntiCacheDB {
         int64_t m_bytesUnevicted;
         int32_t m_blocksUnevicted;
 
-        std::map <uint32_t, int> tupleInBlock;
-        std::map <uint32_t, int> evictedTupleInBlock;
-        std::map <uint32_t, long> blockSize;
+        //std::map<uint32_t, int> tupleInBlock;
+        //std::map <uint32_t, int> evictedTupleInBlock;
+        //std::map <uint32_t, long> blockSize;
 
         voltdb::AntiCacheStats* m_stats;
         

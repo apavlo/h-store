@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1999, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1999, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -120,9 +120,10 @@ struct __vrfy_dbinfo {
 #define	SALVAGE_PRINTABLE	0x01	/* Output printable chars literally. */
 #define	SALVAGE_PRINTHEADER	0x02	/* Print the unknown-key header. */
 #define	SALVAGE_PRINTFOOTER	0x04	/* Print the unknown-key footer. */
-#define	SALVAGE_HASSUBDBS	0x08	/* There are subdatabases to salvage. */
-#define	VRFY_LEAFCHAIN_BROKEN	0x10	/* Lost one or more Btree leaf pgs. */
-#define	VRFY_QMETA_SET		0x20    /* We've seen a QUEUE meta page and
+#define	SALVAGE_STREAM_BLOB	0x08	/* Currently streaming a blob. */
+#define	SALVAGE_HASSUBDBS	0x10	/* There are subdatabases to salvage. */
+#define	SALVAGE_LEAFCHAIN_BROKEN 0x20	/* Lost one or more Btree leaf pgs. */
+#define	SALVAGE_QMETA_SET	0x40    /* We've seen a QUEUE meta page and
 					   set things up for it. */
 	u_int32_t	flags;
 }; /* VRFY_DBINFO */

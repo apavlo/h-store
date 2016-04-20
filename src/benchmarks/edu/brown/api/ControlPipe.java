@@ -104,6 +104,14 @@ public class ControlPipe implements Runnable {
                     cmp.answerOk();
                     break;
                 }
+                case SUSPEND: {
+                    workerThread.suspend();
+                    break;
+                }
+                case RESUME: {
+                    workerThread.resume();
+                    break;
+                }
                 case POLL: {
                     if (cmp.m_controlState != ControlState.RUNNING) {
                         cmp.setState(ControlState.ERROR, command + " when not " + ControlState.RUNNING);

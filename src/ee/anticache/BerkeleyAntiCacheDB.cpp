@@ -69,11 +69,11 @@ void BerkeleyAntiCacheDB::initializeDB() {
     
         u_int32_t env_flags =
         DB_CREATE       | // Create the environment if it does not exist
-//        DB_AUTO_COMMIT  | // Immediately commit every operation
+        //DB_AUTO_COMMIT  | // Immediately commit every operation
         DB_INIT_MPOOL   | // Initialize the memory pool (in-memory cache)
 //        DB_TXN_NOSYNC   | // Don't flush to disk every time, we will do that explicitly
-//        DB_INIT_LOCK    | // concurrent data store
-        DB_PRIVATE      |
+        //DB_INIT_LOCK    | // concurrent data store
+        //DB_PRIVATE      |
         DB_THREAD       | // allow multiple threads
 //        DB_INIT_TXN     |
         DB_DIRECT_DB;     // Use O_DIRECT
@@ -85,7 +85,7 @@ void BerkeleyAntiCacheDB::initializeDB() {
         VOLT_INFO("created BerkeleyDB: %s\n", m_dbDir.c_str());
         // allocate and initialize new Berkeley DB instance
         m_db = new Db(m_dbEnv, 0); 
-        m_db->open(NULL, ANTICACHE_DB_NAME, NULL, DB_HASH, DB_CREATE, 0); 
+        m_db->open(NULL, ANTICACHE_DB_NAME, NULL, DB_BTREE, DB_CREATE | DB_THREAD, 0); 
 
     } catch (DbException &e) {
         VOLT_ERROR("Anti-Cache initialization error: %s", e.what());
@@ -128,7 +128,7 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
                              const int tupleCount,
                              const char* data,
                              const long size,
-                             const int evictedTupleCount) {
+                             const int evictedBytes) {
 
     //VOLT_ERROR("In BerkeleyDB:writeBlock");
 
@@ -164,31 +164,45 @@ void BerkeleyAntiCacheDB::writeBlock(const std::string tableName,
     VOLT_DEBUG("Writing out a block #%u to anti-cache database [tuples=%d / size=%ld]",
                blockId, tupleCount, size);
     // TODO: Error checking
-    m_db->put(NULL, &key, &value, 0);
+    try {
+        //m_dbEnv->lock_get(1, 0, NULL, DB_LOCK_WRITE, &m_lock);
+        m_db->put(NULL, &key, &value, 0);
+        //m_dbEnv->lock_put(&m_lock);
+    } catch (DbException &e) {
+        VOLT_ERROR("Put ERROR! I CATCH YOU!!!");
+    }
     
+    /*
     tupleInBlock[blockId] = tupleCount;
     evictedTupleInBlock[blockId] = evictedTupleCount;
     blockSize[blockId] = size;
+    */
     m_blocksEvicted++;
-    if (!isBlockMerge()) {
-        m_bytesEvicted += static_cast<int32_t>((int64_t)size * evictedTupleCount / tupleCount);
+    if (!isBlockMerge() && evictedBytes >= 0) {
+        m_bytesEvicted += evictedBytes;
+        //m_bytesEvicted += static_cast<int32_t>((int64_t)size * evictedTupleCount / tupleCount);
     }
     else {
         m_bytesEvicted += static_cast<int32_t>(size);
     }
 
 
-    // FIXME: I'm hacking!!!!!!!!!!!!!!!!!!!!!!!!!
-    pushBlockLRU(blockId);
+    if (m_executorContext == NULL || m_executorContext->getAntiCacheLevels() > 1)
+        pushBlockLRU(blockId);
+    else
+        m_totalBlocks++;
+
     m_blockSet.insert(blockId);
 
     delete [] databuf_;
+    //VOLT_ERROR("Finish writing to BerkeleyDB");
 }
 
 bool BerkeleyAntiCacheDB::validateBlock(uint32_t blockId) {
     
     //if (m_blockSet.find(blockId) == m_blockSet.end())
     //    printf("Berkeley block already unevicted!\n");
+
     return m_blockSet.find(blockId) != m_blockSet.end();
 }
 
@@ -202,7 +216,9 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate)
     
     VOLT_INFO("Reading evicted block with id %u", blockId);
     
+    //m_dbEnv->lock_get(1, 0, NULL, DB_LOCK_READ, &m_lock);
     int ret_value = m_db->get(NULL, &key, &value, 0);
+    //m_dbEnv->lock_put(&m_lock);
 
     if (ret_value != 0) 
     {
@@ -220,23 +236,36 @@ AntiCacheBlock* BerkeleyAntiCacheDB::readBlock(uint32_t blockId, bool isMigrate)
     m_blocksUnevicted++;
     if (isBlockMerge()) {
         m_bytesUnevicted += static_cast<int32_t>( block->getSize());
-        removeBlockLRU(blockId);
+
+        if (m_executorContext == NULL || m_executorContext->getAntiCacheLevels() > 1)
+            removeBlockLRU(blockId);
+        else
+            m_totalBlocks--;
+
         m_blockSet.erase(blockId);
     } else {
         if (isMigrate) {
-            m_bytesUnevicted += static_cast<int32_t>((int64_t)block->getSize() - block->getSize() / tupleInBlock[blockId] *
-                    (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
+            if ((m_blocksEvicted - m_blocksUnevicted) != 0)
+                m_bytesUnevicted += m_bytesEvicted / (m_blocksEvicted - m_blocksUnevicted);
+            //m_bytesUnevicted += static_cast<int32_t>((int64_t)block->getSize() - block->getSize() / tupleInBlock[blockId] *
+            //        (tupleInBlock[blockId] - evictedTupleInBlock[blockId]));
+
             removeBlockLRU(blockId);
+
             m_blockSet.erase(blockId);
         }
         else {
-            m_bytesUnevicted += static_cast<int32_t>( block->getSize() / tupleInBlock[blockId]);
-            evictedTupleInBlock[blockId]--;
+            //m_bytesUnevicted += static_cast<int32_t>( block->getSize() / tupleInBlock[blockId]);
+            //evictedTupleInBlock[blockId]--;
             m_blocksUnevicted--;
-            if (rand() % 100 == 0) {
-                removeBlockLRU(blockId);
-                pushBlockLRU(blockId); // update block LRU
-            }
+
+
+            if (m_executorContext == NULL || m_executorContext->getAntiCacheLevels() > 1)
+                if (rand() % 100 == 0) {
+                    removeBlockLRU(blockId);
+                    pushBlockLRU(blockId); // update block LRU
+                }
+
         }
     }
 

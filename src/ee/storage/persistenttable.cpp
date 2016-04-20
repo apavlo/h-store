@@ -78,6 +78,7 @@
 #ifdef ANTICACHE
 #include "boost/timer.hpp"
 #include "anticache/EvictedTable.h"
+#include "anticache/NVMEvictedTable.h"
 #include "anticache/AntiCacheDB.h"
 #include "anticache/EvictionIterator.h"
 #include "anticache/UnknownBlockAccessException.h"
@@ -105,6 +106,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
 
 #ifdef ANTICACHE
     m_evictedTable = NULL;
+    m_NVMEvictedTable = NULL;
     m_unevictedTuples = NULL; 
     m_numUnevictedTuples = 0;
     m_newestTupleID = 0;
@@ -112,6 +114,11 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, bool exportEnabled) :
     m_numTuplesInEvictionChain = 0;
     m_blockMerge = ctx->isBlockMerge();
     m_batchEvicted = false;
+    m_read_pivot = 0;
+    m_merge_pivot = 0;
+    m_unevictedBlocks.resize(ANTICACHE_MERGE_BUFFER_SIZE);
+    m_mergeTupleOffset.resize(ANTICACHE_MERGE_BUFFER_SIZE);
+    m_blockIDs.resize(ANTICACHE_MERGE_BUFFER_SIZE);
 #endif
 
     if (exportEnabled) {
@@ -132,6 +139,7 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, const std::string name, b
 
 #ifdef ANTICACHE
     m_evictedTable = NULL;
+    m_NVMEvictedTable = NULL;
     m_unevictedTuples = NULL;
     m_numUnevictedTuples = 0;
     m_newestTupleID = 0;
@@ -139,6 +147,12 @@ PersistentTable::PersistentTable(ExecutorContext *ctx, const std::string name, b
     m_numTuplesInEvictionChain = 0;
     m_blockMerge = ctx->isBlockMerge();
     m_batchEvicted = false;
+    m_read_pivot = 0;
+    m_merge_pivot = 0;
+
+    m_unevictedBlocks.resize(ANTICACHE_MERGE_BUFFER_SIZE);
+    m_mergeTupleOffset.resize(ANTICACHE_MERGE_BUFFER_SIZE);
+    m_blockIDs.resize(ANTICACHE_MERGE_BUFFER_SIZE);
 #endif
 
     if (exportEnabled) {
@@ -182,6 +196,7 @@ PersistentTable::~PersistentTable() {
     
     #ifdef ANTICACHE
 //     if (m_evictedTable) delete m_evictedTable;
+     if (m_NVMEvictedTable) delete m_NVMEvictedTable;
     #endif
 
     // note this class has ownership of the views, even if they
@@ -206,6 +221,15 @@ void PersistentTable::setEvictedTable(voltdb::Table *evictedTable) {
 
 voltdb::Table* PersistentTable::getEvictedTable() {
     return m_evictedTable; 
+}
+
+void PersistentTable::setNVMEvictedTable(voltdb::Table *NVMEvictedTable) {
+    VOLT_INFO("Initialized NVMEvictedTable for table '%s'", this->name().c_str());
+    m_NVMEvictedTable = NVMEvictedTable;
+}
+
+voltdb::Table* PersistentTable::getNVMEvictedTable() {
+    return m_NVMEvictedTable; 
 }
 
 void PersistentTable::setBatchEvicted(bool batchEvicted) {
@@ -354,9 +378,9 @@ std::vector<char*> PersistentTable::getUnevictedBlocks()
     return m_unevictedBlocks;
 }
 
-void PersistentTable::insertUnevictedBlock(char* unevicted_tuples)
+void PersistentTable::insertUnevictedBlock(char* unevicted_tuples, int i)
 {
-    m_unevictedBlocks.push_back(unevicted_tuples);
+    m_unevictedBlocks[i] = unevicted_tuples;
 }
 
 int32_t PersistentTable::getMergeTupleOffset(int i)
@@ -378,14 +402,14 @@ int PersistentTable::unevictedBlocksSize(){
     return static_cast<int> (m_unevictedBlocks.size());
 }
 
-void PersistentTable::insertTupleOffset(int32_t tuple_offset)
+void PersistentTable::insertTupleOffset(int32_t tuple_offset, int i)
 {
-    m_mergeTupleOffset.push_back(tuple_offset);
+    m_mergeTupleOffset[i] = tuple_offset;
 }
 
-void PersistentTable::insertBlockID(int32_t ACID)
+void PersistentTable::insertBlockID(int32_t ACID, int i)
 {
-    m_blockIDs.push_back(ACID);
+    m_blockIDs[i] = ACID;
 }
 
 int32_t PersistentTable::getTuplesRead()
@@ -445,14 +469,21 @@ int64_t PersistentTable::unevictTuple(ReferenceSerializeInput * in, int j, int m
     if (!blockMerge) {
         in->getRawPointer(merge_tuple_offset);
     }
-        
+
     bytesUnevicted = m_tmpTarget1.deserializeWithHeaderFrom(*in);
 
     // Note, this goal of the section below is to get a tuple that points to the tuple in the EvictedTable and has the
     // schema of the evicted tuple. However, the lookup has to be done using the schema of the original (unevicted) version
     m_tmpTarget2 = lookupTuple(m_tmpTarget1);       // lookup the tuple in the table
-    //printf("%d\n", m_tmpTarget2.isEvicted());
-    if (!m_tmpTarget2.isEvicted()) {
+
+    if (m_tmpTarget2.address() == NULL || !m_tmpTarget2.isEvicted()) {
+        if (m_tmpTarget2.address() == NULL) {
+            VOLT_ERROR("we found a non-exist evicted tuple");
+        }
+        else {
+            VOLT_DEBUG("evicted tuple already freed");
+        }
+        m_tmpTarget1.freeObjectColumns();
         deleteTupleStorage(m_tmpTarget1);
         return 0;
     }
@@ -532,6 +563,7 @@ bool PersistentTable::insertTuple(TableTuple &source) {
     m_tmpTarget1.copyForPersistentInsert(source, NULL); // tuple in freelist must be already cleared
     m_tmpTarget1.setDeletedFalse();
     m_tmpTarget1.setEvictedFalse();
+    m_tmpTarget1.setNVMEvictedFalse();
 
     /**
      * Inserts never "dirty" a tuple since the tuple is new, but...  The
@@ -694,7 +726,11 @@ bool PersistentTable::updateTuple(TableTuple &source, TableTuple &target, bool u
     }
 
     /** TODO : Not Using MMAP pool **/
-    target.copyForPersistentUpdate(source, NULL);
+    if (!target.isNVMEvicted()) {
+        target.copyForPersistentUpdate(source, NULL);
+    } else {
+        target.copyForPersistentUpdate(source, getNVMEvictedTable()->getPool());
+    }
 
     ptuua->setNewTuple(target, pool);
 

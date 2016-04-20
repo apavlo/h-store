@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2006, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2006, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -126,12 +126,13 @@ __memp_merge_buckets(dbmp, new_nbuckets, old_bucket, new_bucket)
 	MPOOLFILE *mfp;
 	REGINFO *new_infop, *old_infop;
 	u_int32_t bucket, high_mask, new_region, old_region;
-	int ret;
+	int expanding, ret;
 
 	env = dbmp->env;
 	mp = dbmp->reginfo[0].primary;
 	new_bhp = NULL;
 	ret = 0;
+	expanding = (mp->nbuckets > new_nbuckets) ? 0 : 1;
 
 	MP_MASK(new_nbuckets, high_mask);
 
@@ -150,36 +151,42 @@ __memp_merge_buckets(dbmp, new_nbuckets, old_bucket, new_bucket)
 	/*
 	 * Before merging, we need to check that there are no old buffers left
 	 * in the target hash bucket after a previous split.
+	 * Only free the buffers if we are expanding into new buckets. If
+	 * we are contracting, the buffers in the original (old) bucket should
+	 * not be freed.
 	 */
 free_old:
-	MUTEX_LOCK(env, new_hp->mtx_hash);
-	SH_TAILQ_FOREACH(bhp, &new_hp->hash_bucket, hq, __bh) {
-		MP_BUCKET(bhp->mf_offset, bhp->pgno, mp->nbuckets, bucket);
+	if (expanding != 0) {
+		MUTEX_LOCK(env, new_hp->mtx_hash);
+		SH_TAILQ_FOREACH(bhp, &new_hp->hash_bucket, hq, __bh) {
+			MP_BUCKET(
+			    bhp->mf_offset, bhp->pgno, mp->nbuckets, bucket);
 
-		if (bucket != new_bucket) {
-			/*
-			 * There is no way that an old buffer can be locked
-			 * after a split, since everyone will look for it in
-			 * the new hash bucket.
-			 */
-			DB_ASSERT(env, !F_ISSET(bhp, BH_DIRTY) &&
-			    atomic_read(&bhp->ref) == 0);
-			atomic_inc(env, &bhp->ref);
-			mfp = R_ADDR(dbmp->reginfo, bhp->mf_offset);
-			if ((ret = __memp_bhfree(dbmp, new_infop,
-			    mfp, new_hp, bhp, BH_FREE_FREEMEM)) != 0) {
-				MUTEX_UNLOCK(env, new_hp->mtx_hash);
-				return (ret);
+			if (bucket != new_bucket) {
+				/*
+				 * There is no way that an old buffer can be
+				 * locked after a split, since everyone will
+				 *  look for it in the new hash bucket.
+				 */
+				DB_ASSERT(env, !F_ISSET(bhp, BH_DIRTY) &&
+				    atomic_read(&bhp->ref) == 0);
+				atomic_inc(env, &bhp->ref);
+				mfp = R_ADDR(dbmp->reginfo, bhp->mf_offset);
+				if ((ret = __memp_bhfree(dbmp, new_infop,
+				    mfp, new_hp, bhp, BH_FREE_FREEMEM)) != 0) {
+					MUTEX_UNLOCK(env, new_hp->mtx_hash);
+					return (ret);
+				}
+
+				/*
+				 * The free has modified the list of buffers and
+				 * dropped the mutex.  We need to start again.
+				 */
+				goto free_old;
 			}
-
-			/*
-			 * The free has modified the list of buffers and
-			 * dropped the mutex.  We need to start again.
-			 */
-			goto free_old;
 		}
+		MUTEX_UNLOCK(env, new_hp->mtx_hash);
 	}
-	MUTEX_UNLOCK(env, new_hp->mtx_hash);
 
 	/*
 	 * Before we begin, make sure that all of the buffers we care about are
@@ -305,7 +312,9 @@ err:			atomic_dec(env, &bhp->ref);
 				    next_bhp, alloc_bhp, vc, __bh);
 		}
 
-		DB_ASSERT(env, new_hp->mtx_hash != old_hp->mtx_hash);
+		/* The mutexes must be different, unless they aren't in use. */
+		DB_ASSERT(env, new_hp->mtx_hash != old_hp->mtx_hash ||
+		    new_hp->mtx_hash == MUTEX_INVALID);
 		MUTEX_LOCK(env, new_hp->mtx_hash);
 		SH_TAILQ_INSERT_TAIL(&new_hp->hash_bucket, new_bhp, hq);
 		if (F_ISSET(new_bhp, BH_DIRTY))
@@ -362,16 +371,15 @@ __memp_add_region(dbmp)
 	MPOOL *mp;
 	REGINFO *infop;
 	int ret;
-	roff_t cache_size, reg_size;
+	roff_t reg_size;
 	u_int i;
 	u_int32_t *regids;
 
 	env = dbmp->env;
 	mp = dbmp->reginfo[0].primary;
-	cache_size = (roff_t)mp->gbytes * GIGABYTE + mp->bytes;
 
 	/* All cache regions are the same size. */
-	reg_size = dbmp->reginfo[0].rp->size;
+	reg_size = dbmp->reginfo[0].rp->max;
 	ret = 0;
 
 	infop = &dbmp->reginfo[mp->nreg];
@@ -384,9 +392,6 @@ __memp_add_region(dbmp)
 	if ((ret = __memp_init(env,
 	    dbmp, mp->nreg, mp->htab_buckets, mp->max_nreg)) != 0)
 		return (ret);
-	cache_size += reg_size;
-	mp->gbytes = (u_int32_t)(cache_size / GIGABYTE);
-	mp->bytes = (u_int32_t)(cache_size % GIGABYTE);
 	regids = R_ADDR(dbmp->reginfo, mp->regids);
 	regids[mp->nreg++] = infop->id;
 
@@ -425,16 +430,13 @@ __memp_remove_region(dbmp)
 {
 	DB_MPOOL_HASH *hp;
 	ENV *env;
-	MPOOL *mp;
+	MPOOL *mp, *c_mp;
 	REGINFO *infop;
 	int ret;
-	roff_t cache_size, reg_size;
 	u_int i;
 
 	env = dbmp->env;
 	mp = dbmp->reginfo[0].primary;
-	reg_size = dbmp->reginfo[0].rp->size;
-	cache_size = (roff_t)mp->gbytes * GIGABYTE + mp->bytes;
 	ret = 0;
 
 	if (mp->nreg == 1) {
@@ -448,21 +450,36 @@ __memp_remove_region(dbmp)
 			return (ret);
 
 	/* Detach from the region then destroy it. */
-	infop = &dbmp->reginfo[mp->nreg];
+	infop = &dbmp->reginfo[mp->nreg - 1];
+	c_mp = infop->primary;
+	hp = R_ADDR(infop, c_mp->htab);
+	/*
+	 * For private enviroment, we need to free everything, and
+	 * for non-private environment, we need to refresh the mutexes
+	 * so that they can be in a ready state for later resize.
+	 */
 	if (F_ISSET(env, ENV_PRIVATE)) {
-		hp = R_ADDR(infop, ((MPOOL*)infop->primary)->htab);
-		for (i = 0; i < env->dbenv->mp_mtxcount; i++)
-			if ((ret = __mutex_free(env, &hp[i].mtx_hash)) != 0)
+		if ((ret = __memp_region_bhfree(infop)) != 0)
+			return (ret);
+		if (MUTEX_ON(env)) {
+			DB_ASSERT(env,
+			    env->dbenv->mp_mtxcount == mp->htab_mutexes);
+			for (i = 0; i < mp->htab_mutexes; i++)
+				if ((ret = __mutex_free(env,
+				    &hp[i].mtx_hash)) != 0)
+					return (ret);
+		}
+		__env_alloc_free(infop, hp);
+	} else if (MUTEX_ON(env)) {
+		DB_ASSERT(env, env->dbenv->mp_mtxcount == mp->htab_mutexes);
+		for (i = 0; i < mp->htab_mutexes; i++)
+			if ((ret = __mutex_refresh(env, hp[i].mtx_hash)) != 0)
 				return (ret);
 	}
 
 	ret = __env_region_detach(env, infop, 1);
-	if  (ret == 0) {
+	if  (ret == 0)
 		mp->nreg--;
-		cache_size -= reg_size;
-		mp->gbytes = (u_int32_t)(cache_size / GIGABYTE);
-		mp->bytes = (u_int32_t)(cache_size % GIGABYTE);
-	}
 
 	return (ret);
 }
@@ -511,6 +528,9 @@ __memp_map_regions(dbmp)
 }
 
 /*
+ * __memp_resize --
+ *      Change the overall cache size by adding or removing cache regions.
+ *
  * PUBLIC: int __memp_resize __P((DB_MPOOL *, u_int32_t, u_int32_t));
  */
 int
@@ -526,7 +546,7 @@ __memp_resize(dbmp, gbytes, bytes)
 
 	env = dbmp->env;
 	mp = dbmp->reginfo[0].primary;
-	reg_size = dbmp->reginfo[0].rp->size;
+	reg_size = dbmp->reginfo[0].rp->max;
 	total_size = (roff_t)gbytes * GIGABYTE + bytes;
 	ncache = (u_int32_t)((total_size + reg_size / 2) / reg_size);
 
@@ -546,6 +566,9 @@ __memp_resize(dbmp, gbytes, bytes)
 		    __memp_add_region(dbmp) :
 		    __memp_remove_region(dbmp))) != 0)
 			break;
+	total_size = reg_size * (roff_t)mp->nreg;
+	mp->gbytes = (u_int32_t)(total_size / GIGABYTE);
+	mp->bytes = (u_int32_t)(total_size % GIGABYTE);
 	MUTEX_UNLOCK(env, mp->mtx_resize);
 
 	return (ret);
@@ -567,13 +590,13 @@ __memp_get_cache_max(dbenv, max_gbytesp, max_bytesp)
 	env = dbenv->env;
 
 	ENV_NOT_CONFIGURED(env,
-	    env->mp_handle, "DB_ENV->get_mp_max_ncache", DB_INIT_MPOOL);
+	    env->mp_handle, "DB_ENV->get_cache_max", DB_INIT_MPOOL);
 
 	if (MPOOL_ON(env)) {
 		/* Cannot be set after open, no lock required to read. */
 		dbmp = env->mp_handle;
 		mp = dbmp->reginfo[0].primary;
-		reg_size = dbmp->reginfo[0].rp->size;
+		reg_size = dbmp->reginfo[0].rp->max;
 		max_size = mp->max_nreg * reg_size;
 		*max_gbytesp = (u_int32_t)(max_size / GIGABYTE);
 		*max_bytesp = (u_int32_t)(max_size % GIGABYTE);

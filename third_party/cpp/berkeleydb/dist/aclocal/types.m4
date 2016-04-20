@@ -180,6 +180,13 @@ AC_SUBST(FILE_t_decl)
 AC_CHECK_TYPE(FILE *,, AC_MSG_ERROR([No FILE type.]), $db_includes)
 AC_SUBST(off_t_decl)
 AC_CHECK_TYPE(off_t,, AC_MSG_ERROR([No off_t type.]), $db_includes)
+AC_CHECK_SIZEOF(off_t,, $db_includes)
+
+# db_off_t should be set to a signed integer type that is the same
+# size as off_t
+AC_SUBST(db_off_t_decl)
+AC_CHECK_TYPE(db_off_t,,
+    [AM_SEARCH_SSIZES(db_off_t_decl, db_off_t, $ac_cv_sizeof_off_t)])
 AC_SUBST(pid_t_decl)
 AC_CHECK_TYPE(pid_t,, AC_MSG_ERROR([No pid_t type.]), $db_includes)
 AC_SUBST(size_t_decl)

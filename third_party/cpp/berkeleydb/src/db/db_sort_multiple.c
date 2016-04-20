@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  */
 
 #include "db_config.h"
@@ -34,7 +34,7 @@ __db_compare_both(db, akey, adata, bkey, bdata)
 
 	t = (BTREE *)db->bt_internal;
 
-	cmp = t->bt_compare(db, akey, bkey);
+	cmp = t->bt_compare(db, akey, bkey, NULL);
 	if (cmp != 0) return cmp;
 	if (!F_ISSET(db, DB_AM_DUPSORT))
 	    return (0);
@@ -44,9 +44,9 @@ __db_compare_both(db, akey, adata, bkey, bdata)
 
 #ifdef HAVE_COMPRESSION
 	if (DB_IS_COMPRESSED(db))
-		return t->compress_dup_compare(db, adata, bdata);
+		return t->compress_dup_compare(db, adata, bdata, NULL);
 #endif
-	return db->dup_compare(db, adata, bdata);
+	return db->dup_compare(db, adata, bdata, NULL);
 }
 
 #define	DB_SORT_SWAP(a, ad, b, bd)					\

@@ -71,7 +71,7 @@ public:
         if (uninlineableObjectColumnCount > 0) {
             for (uint16_t ii = 0; ii < uninlineableObjectColumnCount; ii++) {
                 const uint16_t uninlineableObjectColumn = schema->getUninlinedObjectColumnInfoIndex(ii);
-                const char *mPtr = *reinterpret_cast<char* const*>
+                char *mPtr = *reinterpret_cast<char**>
                   (m_oldTuple.getDataPtr(uninlineableObjectColumn));
                 const char *oPtr = *reinterpret_cast<char* const*>
                   (m_newTuple.getDataPtr(uninlineableObjectColumn));
@@ -115,7 +115,7 @@ private:
     voltdb::TableTuple m_oldTuple;
     voltdb::TableTuple m_newTuple;
     voltdb::PersistentTable *m_table;
-    std::vector<const char*> oldUninlineableColumns;
+    std::vector<char*> oldUninlineableColumns;
     std::vector<const char*> newUninlineableColumns;
     bool m_revertIndexes;
     size_t m_wrapperOffset;

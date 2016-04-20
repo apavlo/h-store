@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -37,7 +37,10 @@ extern "C" {
  */
 #define	LOCK_INVALID		INVALID_ROFF
 #define	LOCK_ISSET(lock)	((lock).off != LOCK_INVALID)
-#define	LOCK_INIT(lock)		((lock).off = LOCK_INVALID)
+#define	LOCK_INIT(lock)		do {			\
+	(lock).off = LOCK_INVALID;			\
+	UMRW_SET_VALUE((lock).mode, DB_LOCK_NG);	\
+} while(0)
 
 /*
  * Macro to identify a write lock for the purpose of counting locks
@@ -66,8 +69,8 @@ extern "C" {
 typedef struct __db_lockregion { /* SHARED */
 	db_mutex_t	mtx_region;	/* Region mutex. */
 
-	u_int32_t	need_dd;	/* flag for deadlock detector */
-	u_int32_t	detect;		/* run dd on every conflict */
+	u_int32_t	need_dd;	/* run dd on every conflict */
+	u_int32_t	detect;		/* flag for deadlock detector */
 	db_timespec	next_timeout;	/* next time to expire a lock */
 	db_mutex_t	mtx_dd;		/* mutex for lock object dd list. */
 	db_mutex_t	mtx_lockers;	/* mutex for locker allocation. */
@@ -92,7 +95,7 @@ typedef struct __db_lockregion { /* SHARED */
 
 	u_int32_t	lock_id;	/* Current lock(er) id to allocate. */
 	u_int32_t	cur_maxid;	/* Current max lock(er) id. */
-	u_int32_t	nlockers;	/* Current number of lockers. */
+	u_int32_t	nlockers;	/* Current number of locker ids. */
 	int32_t		nmodes;		/* Number of modes in conflict table. */
 	DB_LOCK_STAT	stat;		/* stats about locking. */
 } DB_LOCKREGION;
@@ -157,12 +160,17 @@ struct __db_locker { /* SHARED */
 	db_timespec	lk_expire;	/* When current lock expires. */
 	db_timespec	tx_expire;	/* When this txn expires. */
 	db_timeout_t	lk_timeout;	/* How long do we let locks live. */
+#ifdef DIAGNOSTIC
+	roff_t		prev_locker;	/* The thread's previous dbth_locker. */
+#endif
 
 #define	DB_LOCKER_DIRTY		0x0001	/* Has write locks. */
 #define	DB_LOCKER_INABORT	0x0002	/* Is aborting, don't abort again. */
 #define	DB_LOCKER_TIMEOUT	0x0004	/* Has timeout set. */
 #define	DB_LOCKER_FAMILY_LOCKER 0x0008	/* Part of a family of lockers. */
 #define	DB_LOCKER_HANDLE_LOCKER 0x0010	/* Not associated with a thread. */
+#define	DB_LOCKER_FREE 		0x0020	/* Diag: it is on the free list. */
+#define	DB_LOCKER_TRADED	0x0040	/* Diag: lock_trade cleared parent. */
 	u_int32_t flags;
 };
 
@@ -219,8 +227,9 @@ struct __db_locktab {
 
 struct __db_lock { /* SHARED */
 	/*
-	 * Wait on mutex to wait on lock.  You reference your own mutex with
-	 * ID 0 and others reference your mutex with ID 1.
+	 * Wait on this mutex to wait on lock. You create this struct and 
+	 * MUTEX_LOCK() it once, then do so again, in order to block. Some other
+	 * thread will MUTEX_UNLOCK() it after removing its conflicting lock.
 	 */
 	db_mutex_t	mtx_lock;
 

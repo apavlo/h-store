@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2009, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2009, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -54,6 +54,11 @@ class db_set;
 
 template <Typename kdt, Typename value_type_sub = ElementRef<kdt> >
 class db_multiset;
+
+#if NO_MEMBER_FUNCTION_PARTIAL_SPECIALIZATION
+template <Typename kdt, Typename datadt, Typename value_type_sub>
+void assign_second0(pair<kdt, value_type_sub>& v, const datadt& d) ;
+#endif
 
 /** \ingroup dbstl_iterators
 @{
@@ -696,12 +701,6 @@ assign_second0(value_type &v, const _DB_STL_set_value<kdt>&
 //@} // db_map_iterators
 //@} // dbstl_iterators
 
-
-#if NO_MEMBER_FUNCTION_PARTIAL_SPECIALIZATION
-template <Typename kdt, Typename datadt, Typename value_type_sub>
-void assign_second0(pair<kdt, value_type_sub>& v, const datadt& d) ;
-#endif
-
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 //
@@ -1191,7 +1190,7 @@ public:
 		}
 		bool operator()(const kdt& k1, const kdt& k2) const
 		{
-			return compare_keys(pdb, k1, k2);
+			return compare_keys(pdb, k1, k2, NULL);
 		}
 
 	}; // key_compare class definition
@@ -1273,7 +1272,7 @@ public:
 				return memcmp(&kk1, &kk2, sizeof(kdt)) == 0;
 			Dbt kd1(&k1, sizeof(k1)), kd2(&k2, sizeof(k2));
 			
-			return comp(pdb, &kd1, &kd2) == 0;
+			return comp(pdb, &kd1, &kd2, NULL) == 0;
 
 
 		}
@@ -2428,12 +2427,13 @@ protected:
 
 	typedef ddt mapped_type;
 	typedef int (*db_compare_fcn_t)(Db *db, const Dbt *dbt1, 
-	    const Dbt *dbt2);
+	    const Dbt *dbt2, size_t *locp);
 	typedef u_int32_t (*h_hash_fcn_t)
 	(Db *, const void *bytes, u_int32_t length);
 	typedef db_set_iterator<kdt> db_multiset_iterator_t;
 
-	static bool compare_keys(Db *pdb, const kdt& k1, const kdt& k2) 
+	static bool compare_keys(Db *pdb,
+	    const kdt& k1, const kdt& k2, size_t *locp) 
 	{
 		DBTYPE dbtype;
 		int ret;
@@ -2461,7 +2461,7 @@ protected:
 			return (ret == 0) ? (sz1 < sz2) : (ret < 0);
 		}
 		// Return strict weak ordering.
-		bret = (comp(pdb, &kdbt1, &kdbt2) < 0);
+		bret = (comp(pdb, &kdbt1, &kdbt2, NULL) < 0);
 		return bret;
 	}
 	
@@ -2676,7 +2676,7 @@ public:
 	    BulkRetrievalOption::BulkRetrieval)))
 	{
 		this->init_members(x);
-		verify_db_handles(x);
+		this->verify_db_handles(x);
 		this->set_db_handle_int(this->clone_db_config(
 		    x.get_db_handle()), x.get_db_env_handle());
 		assert(this->get_db_handle() != NULL);
@@ -2707,7 +2707,7 @@ public:
 	{
 		ASSIGNMENT_PREDCOND(x)
 		db_container::operator =(x);
-		verify_db_handles(x);
+		this->verify_db_handles(x);
 		assert(this->get_db_handle() != NULL);
 		this->begin_txn();
 		try {
@@ -2734,8 +2734,8 @@ public:
 		InputIterator ii;
 		iterator witr;
 
-		init_itr(witr);
-		open_itr(witr);
+		this->init_itr(witr);
+		this->open_itr(witr);
 
 		for (ii = first; ii != last; ++ii)
 			witr.pcsr_->insert(ii->first, ii->second, 
@@ -2789,7 +2789,7 @@ public:
 		Db *swapdb = NULL;
 		std::string dbfname(64, '\0');
 
-		verify_db_handles(mp);
+		this->verify_db_handles(mp);
 		this->begin_txn();
 		try {
 			swapdb = this->clone_db_config(this->get_db_handle(), 
@@ -3205,7 +3205,7 @@ public:
 		string name1, name2;
 		u_int32_t oflags;
 
-		verify_db_handles(m2);
+		this->verify_db_handles(m2);
 		pdb = this->get_db_handle();
 		penv = pdb->get_env();
 		try {
@@ -3325,7 +3325,7 @@ protected:
 	typedef ddt mapped_type;
 	typedef value_type_sub tkpair;
 	typedef int (*bt_compare_fcn_t)(Db *db, const Dbt *dbt1, 
-	    const Dbt *dbt2);
+	    const Dbt *dbt2, size_t *locp);
 
 	friend class db_map_iterator<kdt, _DB_STL_set_value<kdt>, 
 	    value_type_sub>;

@@ -25,6 +25,7 @@ int __db_pgfmt __P((ENV *, db_pgno_t));
 #ifdef DIAGNOSTIC
 void __db_assert __P((ENV *, const char *, const char *, int));
 #endif
+void __env_panic_event __P((ENV *, int));
 int __env_panic_msg __P((ENV *));
 int __env_panic __P((ENV *, int));
 char *__db_unknown_error __P((int));
@@ -33,9 +34,10 @@ void __db_err __P((const ENV *, int, const char *, ...)) __attribute__ ((__forma
 void __db_errx __P((const ENV *, const char *, ...)) __attribute__ ((__format__ (__printf__, 2, 3)));
 void __db_errcall __P((const DB_ENV *, int, db_error_set_t, const char *, va_list));
 void __db_errfile __P((const DB_ENV *, int, db_error_set_t, const char *, va_list));
-void __db_msgadd __P((ENV *, DB_MSGBUF *, const char *, ...)) __attribute__ ((__format__ (__printf__, 3, 4)));
-void __db_msgadd_ap __P((ENV *, DB_MSGBUF *, const char *, va_list));
+void __db_msgadd __P((const ENV *, DB_MSGBUF *, const char *, ...)) __attribute__ ((__format__ (__printf__, 3, 4)));
+void __db_msgadd_ap __P((const ENV *, DB_MSGBUF *, const char *, va_list));
 void __db_msg __P((const ENV *, const char *, ...)) __attribute__ ((__format__ (__printf__, 2, 3)));
+void __db_debug_msg __P((const ENV *, const char *, ...));
 void __db_repmsg __P((const ENV *, const char *, ...)) __attribute__ ((__format__ (__printf__, 2, 3)));
 int __db_unknown_flag __P((ENV *, char *, u_int32_t));
 int __db_unknown_type __P((ENV *, char *, DBTYPE));
@@ -50,6 +52,24 @@ int __db_check_lsn __P((ENV *, DB_LSN *, DB_LSN *));
 int __db_rdonly __P((const ENV *, const char *));
 int __db_space_err __P((const DB *));
 int __db_failed __P((const ENV *, const char *, pid_t, db_threadid_t));
+int __env_failure_remember __P((const ENV *, const char *));
+#ifdef HAVE_ERROR_HISTORY
+void __db_thread_init __P((void));
+#endif
+#ifdef HAVE_ERROR_HISTORY
+int __db_diags __P((const ENV *, int));
+#endif
+#ifdef HAVE_ERROR_HISTORY
+DB_MSGBUF *__db_deferred_get __P((void));
+#endif
+#ifdef HAVE_ERROR_HISTORY
+void __db_deferred_discard __P((void));
+#endif
+#ifdef HAVE_ERROR_HISTORY
+int __db_remember_context __P((const ENV *, DB_MSGBUF *, int));
+#endif
+char * __db_ctimespec __P((const db_timespec *, char *));
+char *__db_fmt_quote __P((char *, size_t, const char *));
 int __db_getlong __P((DB_ENV *, const char *, char *, long, long, long *));
 int __db_getulong __P((DB_ENV *, const char *, char *, u_long, u_long, u_long *));
 void __db_idspace __P((u_int32_t *, int, u_int32_t *, u_int32_t *));

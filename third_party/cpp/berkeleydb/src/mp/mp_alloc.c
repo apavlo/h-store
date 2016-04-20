@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -22,8 +22,112 @@
 #endif
 
 /*
+ * __memp_bh_unreachable --
+ *
+ *	Determine whether this buffer can not ever be seen again: is the next
+ *	newer version visible to the same transaction which sees this one?
+ *	If both versions are visibile to the same transaction, there is no
+ *	reason to keep the older one: it can be purged.
+ *
+ *	If this buffer has a more recent version, and there is a transaction
+ *	with a read_lsn between this buffer's and that more recent version's,
+ *	the buffer is visible to at least that transaction, so return FALSE.
+ *	Otherwise return TRUE.
+ *
+ *	txns:	   3/10		       2/10	   2/5 2/1          1/10
+ *	vers: 3/15	 2/15  2/14    2/10   2/8	     1/150
+ *	      vis	 vis  unreach   vis  unreach	     vis
+ *	who  new txns	 3/10	       2/10		    2/5, 2/1
+ *	sees
+ *
+ *	Note: in the abvove example, the page was allocated after txn 1/10
+ *	started. 1/10 would not see any version of the page.
+ *
+ * PUBLIC: int __memp_bh_unreachable __P((ENV *, BH *, DB_LSN *, int));
+ */
+int
+__memp_bh_unreachable(env, bhp, snapshots, n_snapshots)
+	ENV *env;
+	BH *bhp;
+	DB_LSN *snapshots;
+	int n_snapshots;
+{
+	BH *newer_bhp;
+	DB_LSN b_vlsn, n_vlsn;
+	int i, ret;
+#ifdef DIAGNOSTIC
+	DB_MPOOL *dbmp;
+	DB_MSGBUF mb;
+	MPOOLFILE *bh_mfp;
+#endif
+
+	/*
+	 * The buffer can't be purged if it is being used, or is the most recent
+	 * version, or the next newer version isn't a copy yet.
+	 */
+	if (BH_REFCOUNT(bhp) != 0 ||
+	    (newer_bhp = SH_CHAIN_NEXT(bhp, vc, __bh)) == NULL ||
+	    newer_bhp->td_off == INVALID_ROFF)
+		return (FALSE);
+
+	/*
+	 * Find the visiblity LSNs for this buffer (b_vlsn) and the more recent,
+	 * newer buffer (n_vlsn). If the newer version hasn't committed yet the
+	 * bhp could be needed.
+	 */
+	n_vlsn = *VISIBLE_LSN(env, newer_bhp);
+	if (IS_MAX_LSN(n_vlsn))
+		return (FALSE);
+	if (bhp->td_off == INVALID_ROFF)
+		INIT_LSN(b_vlsn);
+	else
+		b_vlsn = *VISIBLE_LSN(env, bhp);
+
+	ret = TRUE;
+	/*
+	 * Look for a transaction which is between n_lsn and b_lsn - determining
+	 * that bhp is reachable. Stop looking once the transactions get so
+	 * small (old) that they precede the buffer's version; no earlier txn
+	 * could be between n_vlsn and b_vlsn.
+	 */
+	for (i = 0;
+	     i < n_snapshots && LOG_COMPARE(&snapshots[i], &b_vlsn) >= 0;
+	     i++) {
+		if (LOG_COMPARE(&snapshots[i], &n_vlsn) < 0) {
+			/*
+			 * This txn can see (started after) bhp, but not
+			 * newer_bhp (which committed after this txn started).
+			 */
+			ret = FALSE;
+			break;
+		}
+	}
+
+#ifdef DIAGNOSTIC
+	if (FLD_ISSET(env->dbenv->verbose, DB_VERB_MVCC)) {
+		dbmp = env->mp_handle;
+		bh_mfp = R_ADDR(dbmp->reginfo, bhp->mf_offset);
+		DB_MSGBUF_INIT(&mb);
+		__db_msgadd(env, &mb,
+    "bh_unreachable %s pgno %d %s %lu/%lu %x newer %lu/%lu txn #%d in\n",
+		    __memp_fns(dbmp, bh_mfp), bhp->pgno,
+		    ret ? "purgeable" : "needed",
+		    (u_long)b_vlsn.file, (u_long)b_vlsn.offset, bhp->flags,
+		    (u_long)n_vlsn.file, (u_long)n_vlsn.offset, i);
+		for (i = 0; i != n_snapshots; i++)
+			__db_msgadd(env, &mb, " %lu/%lu",
+			    (u_long)snapshots[i].file,
+			    (u_long)snapshots[i].offset);
+		DB_MSGBUF_FLUSH(env, &mb);
+	}
+#endif
+	return (ret);
+}
+
+/*
  * __memp_alloc --
- *	Allocate some space from a cache region.
+ *	Allocate some space from a cache region. If the region is full then
+ *	reuse one or more cache buffers.
  *
  * PUBLIC: int __memp_alloc __P((DB_MPOOL *,
  * PUBLIC:     REGINFO *, MPOOLFILE *, size_t, roff_t *, void *));
@@ -39,7 +143,7 @@ __memp_alloc(dbmp, infop, mfp, len, offsetp, retp)
 {
 	BH *bhp, *current_bhp, *mvcc_bhp, *oldest_bhp;
 	BH_FROZEN_PAGE *frozen_bhp;
-	DB_LSN oldest_reader, vlsn;
+	DB_LSN *snapshots, vlsn;
 	DB_MPOOL_HASH *dbht, *hp, *hp_end, *hp_saved, *hp_tmp;
 	ENV *env;
 	MPOOL *c_mp;
@@ -49,7 +153,7 @@ __memp_alloc(dbmp, infop, mfp, len, offsetp, retp)
 	u_int32_t dirty_eviction, high_priority, priority, versions;
 	u_int32_t priority_saved, put_counter, lru_generation, total_buckets;
 	int aggressive, alloc_freeze, b_lock, giveup;
-	int h_locked, need_free, obsolete, ret, write_error;
+	int h_locked, need_free, n_snapshots, obsolete, ret, write_error;
 	u_int8_t *endp;
 	void *p;
 
@@ -58,11 +162,10 @@ __memp_alloc(dbmp, infop, mfp, len, offsetp, retp)
 	dbht = R_ADDR(infop, c_mp->htab);
 	hp_end = &dbht[c_mp->htab_buckets];
 	hp_saved = NULL;
-	priority_saved = 0;
-	write_error = 0;
-
+	snapshots = NULL;
+	priority_saved = write_error = 0;
 	buckets = buffers = put_counter = total_buckets = versions = 0;
-	aggressive = alloc_freeze = giveup = h_locked = 0;
+	aggressive = alloc_freeze = giveup = h_locked = n_snapshots = 0;
 
 	/*
 	 * If we're allocating a buffer, and the one we're discarding is the
@@ -138,13 +241,15 @@ found:		if (offsetp != NULL)
 			    c_mp->stat.st_alloc_pages, buffers, infop->id);
 		}
 #endif
-		return (0);
+		goto done;
 	} else if (giveup || c_mp->pages == 0) {
 		MPOOL_REGION_UNLOCK(env, infop);
 
 		__db_errx(env, DB_STR("3017",
 		    "unable to allocate space from the buffer cache"));
-		return ((ret == ENOMEM && write_error != 0) ? EIO : ret);
+		if (ret == ENOMEM && write_error != 0)
+			ret = EIO;
+		goto done;
 	}
 
 search:
@@ -158,7 +263,6 @@ search:
 	lru_generation = c_mp->lru_generation;
 
 	ret = 0;
-	MAX_LSN(oldest_reader);
 
 	/*
 	 * We re-attempt the allocation every time we've freed 3 times what
@@ -222,6 +326,13 @@ search:
 				goto alloc;
 			MPOOL_REGION_UNLOCK(env, infop);
 
+			/* Refresh the list of mvcc reader transactions. */
+			if (snapshots != NULL)
+				__os_free(env, snapshots);
+			if ((ret = __txn_get_readers(
+			    env, &snapshots, &n_snapshots)) != 0)
+				goto err;
+
 			aggressive++;
 			/*
 			 * Once aggressive, we consider all buffers. By setting
@@ -266,13 +377,6 @@ search:
 		if (SH_TAILQ_FIRST(&hp->hash_bucket, __bh) == NULL)
 			continue;
 
-		/* Set aggressive if we have already searched for too long. */
-		if (aggressive == 0 && buckets >= MPOOL_ALLOC_SEARCH_LIMIT) {
-			aggressive = 1;
-			/* Once aggressive, we consider all buffers. */
-			high_priority = MPOOL_LRU_MAX;
-		}
-
 		/* Unlock the region and lock the hash bucket. */
 		MPOOL_REGION_UNLOCK(env, infop);
 		MUTEX_READLOCK(env, hp->mtx_hash);
@@ -280,29 +384,45 @@ search:
 		b_lock = 0;
 
 		/*
+		 * Set aggressive to consider all buffers if we have already
+		 * searched in too many buckets.
+		 */
+		if (buckets > MPOOL_ALLOC_SEARCH_LIMIT && aggressive == 0) {
+			aggressive = 1;
+			/* Once aggressive, we consider all buffers. */
+			high_priority = MPOOL_LRU_MAX;
+			if (snapshots == NULL && (ret = __txn_get_readers(
+			    env, &snapshots, &n_snapshots)) != 0)
+				goto err;
+		}
+
+		/*
 		 * Find a buffer we can use.
+		 * Skip over refcount > 0 buffers; we can't get rid of them.
 		 *
-		 * We use the lowest-LRU singleton buffer if we find one and
-		 * it's better than the result of another hash bucket we've
+		 * Without MVCC we use the lowest-LRU singleton buffer we find
+		 * that's better than the result of another hash bucket we've
 		 * reviewed.  We do not use a buffer which has a priority
 		 * greater than high_priority unless we are being aggressive.
 		 *
-		 * With MVCC buffers, the situation is more complicated: we
-		 * don't want to free a buffer out of the middle of an MVCC
-		 * chain, since that requires I/O.  So, walk the buffers,
-		 * looking for an obsolete buffer at the end of an MVCC chain.
-		 * Once a buffer becomes obsolete, its LRU priority is
-		 * irrelevant because that version can never be accessed again.
+		 * MVCC requires looking at additional factors: we don't want to
+		 * free a still-relevent buffer out of the middle of an MVCC
+		 * chain, since that requires freezing - lots of I/O.  So,
+		 * walk the buffers, looking for an obsolete buffer at the
+		 * end of the MVCC chain. Once a buffer becomes obsolete, its
+		 * LRU priority is irrelevant because that version can never
+		 * be accessed again.
 		 *
 		 * If we don't find any obsolete MVCC buffers, we will get
 		 * aggressive, and in that case consider the lowest priority
 		 * buffer within a chain.
-		 *
-		 * Ignore referenced buffers, we can't get rid of them.
 		 */
 retry_search:	bhp = NULL;
 		bucket_priority = high_priority;
 		obsolete = 0;
+		if (n_snapshots > 0 && LOG_COMPARE(&snapshots[n_snapshots - 1],
+		    &hp->old_reader) > 0)
+			hp->old_reader = snapshots[n_snapshots - 1];
 		SH_TAILQ_FOREACH(current_bhp, &hp->hash_bucket, hq, __bh) {
 			/*
 			 * First, do the standard LRU check for singletons.
@@ -340,55 +460,63 @@ retry_search:	bhp = NULL;
 			    mvcc_bhp != NULL;
 			    oldest_bhp = mvcc_bhp,
 			    mvcc_bhp = SH_CHAIN_PREV(mvcc_bhp, vc, __bh)) {
-#ifdef MPOOL_ALLOC_SEARCH_DYN
-				if (aggressive == 0 &&
-				     ++high_priority >= c_mp->lru_priority)
-					aggressive = 1;
-#endif
 				DB_ASSERT(env, mvcc_bhp !=
 				    SH_CHAIN_PREV(mvcc_bhp, vc, __bh));
-				if ((aggressive < 2 &&
-				    ++versions < (buffers >> 2)) ||
-				    BH_REFCOUNT(mvcc_bhp) != 0)
+#ifdef MPOOL_ALLOC_SEARCH_DYN
+				if (aggressive == 0 &&
+				     ++high_priority >= c_mp->lru_priority) {
+					aggressive = 1;
+					if (snapshots == NULL && (ret =
+					    __txn_readers(env,
+					    &snapshots, &n_snapshots)) != 0)
+						goto err;
+				}
+#endif
+				if (n_snapshots > 0 &&
+				    __memp_bh_unreachable(env,
+				    mvcc_bhp, snapshots, n_snapshots)) {
+					oldest_bhp = mvcc_bhp;
+					goto is_obsolete;
+				}
+				if (bhp != NULL &&
+				    mvcc_bhp->priority >= bhp->priority)
+					continue;
+				if (BH_REFCOUNT(mvcc_bhp) != 0)
+					continue;
+				/*
+				 * Since taking still-relevant versions requires
+				 * freezing, skip over them at low aggression
+				 * levels unless we see that a high proportion
+				 * of buffers (over 1/4) are MVCC copies.
+				 */
+				if (aggressive < 2 &&
+				    ++versions < (buffers >> 2))
 					continue;
 				buffers++;
-				if (!F_ISSET(mvcc_bhp, BH_FROZEN) &&
-				    (bhp == NULL ||
-				    bhp->priority > mvcc_bhp->priority)) {
-					if (bhp != NULL)
-						atomic_dec(env, &bhp->ref);
-					bhp = mvcc_bhp;
-					atomic_inc(env, &bhp->ref);
-				}
+				if (F_ISSET(mvcc_bhp, BH_FROZEN))
+					continue;
+				/*
+				 * Select mvcc_bhp as current best candidate,
+				 * releasing the current candidate, if any.
+				 */
+				if (bhp != NULL)
+					atomic_dec(env, &bhp->ref);
+				bhp = mvcc_bhp;
+				atomic_inc(env, &bhp->ref);
 			}
 
 			/*
 			 * oldest_bhp is the last buffer on the MVCC chain, and
 			 * an obsolete buffer at the end of the MVCC chain gets
-			 * used without further search. Before checking for
-			 * obsolescence, update the cached oldest reader LSN in
-			 * the bucket if it is older than call's oldest_reader.
+			 * used without further search.
 			 */
 			if (BH_REFCOUNT(oldest_bhp) != 0)
 				continue;
 
-			if (LOG_COMPARE(&oldest_reader, &hp->old_reader) > 0) {
-				if (IS_MAX_LSN(oldest_reader) &&
-				   (ret = __txn_oldest_reader(
-				    env, &oldest_reader)) != 0) {
-					MUTEX_UNLOCK(env, hp->mtx_hash);
-					if (bhp != NULL)
-						atomic_dec(env, &bhp->ref);
-					return (ret);
-				}
-				if (LOG_COMPARE(&oldest_reader,
-				    &hp->old_reader) > 0)
-					hp->old_reader = oldest_reader;
-			}
-
 			if (BH_OBSOLETE(oldest_bhp, hp->old_reader, vlsn)) {
 				if (aggressive < 2)
 					buffers++;
+is_obsolete:
 				obsolete = 1;
 				if (bhp != NULL)
 					atomic_dec(env, &bhp->ref);
@@ -410,10 +538,18 @@ retry_search:	bhp = NULL;
 
 		/*
 		 * Compare two hash buckets and select the one with the lower
-		 * priority. Performance testing showed looking at two improves
-		 * the LRU-ness and looking at more only does a little better.
+		 * priority, except mvcc at high aggression levels. Performance
+		 * testing shows looking at two improves the LRU-ness and
+		 * looking at more only does a little better.
 		 */
 		if (hp_saved == NULL) {
+			/*
+			 * At high aggressive levels when mvcc is active, stop
+			 * looking for candidate once one has been found.
+			 * Freezing takes more time than writing out to a db.
+			 */
+			if (aggressive > 1 && n_snapshots > 1)
+				goto this_buffer;
 			hp_saved = hp;
 			priority_saved = priority;
 			goto next_hb;
@@ -487,11 +623,15 @@ this_buffer:	/*
 
 		/* We cannot block as the caller is probably holding locks. */
 		if ((ret = MUTEX_TRYLOCK(env, bhp->mtx_buf)) != 0) {
-			if (ret != DB_LOCK_NOTGRANTED)
-				return (ret);
+			if (ret != DB_LOCK_NOTGRANTED) {
+				goto err;
+			}
+			ret = 0;
 			goto next_hb;
 		}
 		F_SET(bhp, BH_EXCLUSIVE);
+		if (obsolete)
+			F_SET(bhp, BH_UNREACHABLE);
 		b_lock = 1;
 
 		/* Someone may have grabbed it while we got the lock. */
@@ -557,7 +697,7 @@ this_buffer:	/*
 				F_CLR(bhp, BH_EXCLUSIVE);
 				MUTEX_UNLOCK(env, bhp->mtx_buf);
 				DB_ASSERT(env, !h_locked);
-				return (ret);
+				goto err;
 			}
 		}
 
@@ -573,16 +713,25 @@ this_buffer:	/*
 		if (BH_REFCOUNT(bhp) != 1 || F_ISSET(bhp, BH_DIRTY) ||
 		    (SH_CHAIN_HASNEXT(bhp, vc) &&
 		    SH_CHAIN_NEXTP(bhp, vc, __bh)->td_off != bhp->td_off &&
-		    !BH_OBSOLETE(bhp, hp->old_reader, vlsn)))
+		    !(obsolete || BH_OBSOLETE(bhp, hp->old_reader, vlsn)))) {
+			if (FLD_ISSET(env->dbenv->verbose, DB_VERB_MVCC))
+				__db_msg(env,
+		    "memp_alloc next_hb past bhp %lx flags %x ref %d %lx/%lx",
+				    (u_long)R_OFFSET(infop, bhp), bhp->flags,
+				    BH_REFCOUNT(bhp),
+			(u_long)R_OFFSET(infop, SH_CHAIN_NEXTP(bhp, vc, __bh)),
+			(u_long)R_OFFSET(infop, SH_CHAIN_PREVP(bhp, vc, __bh)));
 			goto next_hb;
+		}
 
 		/*
 		 * If the buffer is frozen, thaw it and look for another one
-		 * we can use. (Calling __memp_bh_freeze above will not
-		 * mark bhp BH_FROZEN.)
+		 * we can use. (Calling __memp_bh_freeze above will not mark
+		 * this bhp BH_FROZEN; it creates another frozen one.)
 		 */
 		if (F_ISSET(bhp, BH_FROZEN)) {
-			DB_ASSERT(env, obsolete || SH_CHAIN_SINGLETON(bhp, vc));
+			DB_ASSERT(env, SH_CHAIN_SINGLETON(bhp, vc) ||
+			    obsolete || BH_OBSOLETE(bhp, hp->old_reader, vlsn));
 			DB_ASSERT(env, BH_REFCOUNT(bhp) > 0);
 			if (!F_ISSET(bhp, BH_THAWED)) {
 				/*
@@ -592,10 +741,10 @@ this_buffer:	/*
 				 */
 				if ((ret = __memp_bh_thaw(dbmp,
 				    infop, hp, bhp, NULL)) != 0)
-					return (ret);
+					goto done;
 				MUTEX_READLOCK(env, hp->mtx_hash);
 			} else {
-				need_free = (atomic_dec(env, &bhp->ref) == 0);
+				need_free = atomic_dec(env, &bhp->ref) == 0;
 				F_CLR(bhp, BH_EXCLUSIVE);
 				MUTEX_UNLOCK(env, bhp->mtx_buf);
 				if (need_free) {
@@ -626,7 +775,10 @@ this_buffer:	/*
 		if (alloc_freeze) {
 			if ((ret = __memp_bhfree(dbmp,
 			     infop, bh_mfp, hp, bhp, 0)) != 0)
-				return (ret);
+				goto err;
+			DB_ASSERT(env, bhp->mtx_buf != MUTEX_INVALID);
+			if ((ret = __mutex_free(env, &bhp->mtx_buf)) != 0)
+				goto err;
 			b_lock = 0;
 			h_locked = 0;
 
@@ -654,23 +806,21 @@ this_buffer:	/*
 		}
 
 		/*
-		 * Check to see if the buffer is the size we're looking for.
-		 * If so, we can simply reuse it.  Otherwise, free the buffer
-		 * and its space and keep looking.
+		 * If the buffer is the size we're looking for, we can simply
+		 * reuse it. Otherwise, free it and keep looking.
 		 */
 		if (mfp != NULL && mfp->pagesize == bh_mfp->pagesize) {
 			if ((ret = __memp_bhfree(dbmp,
 			     infop, bh_mfp, hp, bhp, 0)) != 0)
-				return (ret);
+				goto err;
 			p = bhp;
 			goto found;
 		}
 
 		freed_space += sizeof(*bhp) + bh_mfp->pagesize;
-		if ((ret =
-		    __memp_bhfree(dbmp, infop,
-			 bh_mfp, hp, bhp, BH_FREE_FREEMEM)) != 0)
-			return (ret);
+		if ((ret = __memp_bhfree(dbmp,
+		    infop, bh_mfp, hp, bhp, BH_FREE_FREEMEM)) != 0)
+			goto err;
 
 		/* Reset "aggressive" and "write_error" if we free any space. */
 		if (aggressive > 1)
@@ -689,12 +839,14 @@ next_hb:		if (bhp != NULL) {
 				if (b_lock) {
 					F_CLR(bhp, BH_EXCLUSIVE);
 					MUTEX_UNLOCK(env, bhp->mtx_buf);
+					b_lock = 0;
 				}
 			}
 			if (h_locked)
 				MUTEX_UNLOCK(env, hp->mtx_hash);
 			h_locked = 0;
 		}
+		obsolete = 0;
 		MPOOL_REGION_LOCK(env, infop);
 
 		/*
@@ -706,7 +858,15 @@ next_hb:		if (bhp != NULL) {
 		if (freed_space >= 3 * len)
 			goto alloc;
 	}
-	/* NOTREACHED */
+err:
+	if (h_locked) {
+		MUTEX_UNLOCK(env, hp->mtx_hash);
+		h_locked = 0;
+	}
+done:
+	if (snapshots != NULL)
+		__os_free(env, snapshots);
+	return (ret);
 }
 
 /*

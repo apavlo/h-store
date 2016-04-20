@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2004, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2004, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -53,8 +53,9 @@ __rep_elect_pp(dbenv, given_nsites, nvotes, flags)
 	u_int32_t given_nsites, nvotes;
 	u_int32_t flags;
 {
-	DB_REP *db_rep;
 	ENV *env;
+	DB_REP *db_rep;
+	DB_THREAD_INFO *ip;
 	int ret;
 
 	env = dbenv->env;
@@ -89,7 +90,9 @@ __rep_elect_pp(dbenv, given_nsites, nvotes, flags)
 		return (EINVAL);
 	}
 
+	ENV_ENTER(env, ip);
 	ret = __rep_elect_int(env, given_nsites, nvotes, flags);
+	ENV_LEAVE(env, ip);
 
 	/*
 	 * The DB_REP_IGNORE return code can be of use to repmgr (which of
@@ -120,7 +123,6 @@ __rep_elect_int(env, given_nsites, nvotes, flags)
 	DB_LOGC *logc;
 	DB_LSN lsn;
 	DB_REP *db_rep;
-	DB_THREAD_INFO *ip;
 	LOG *lp;
 	REP *rep;
 	int done, elected, in_progress;
@@ -138,6 +140,15 @@ __rep_elect_int(env, given_nsites, nvotes, flags)
 	elected = 0;
 	egen = 0;
 	ret = 0;
+
+	/*
+	 * View sites never participate in elections.
+	 */
+	if (IS_VIEW_SITE(env)) {
+		__db_errx(env, DB_STR("3687",
+		    "View sites may not participate in elections"));
+		return (EINVAL);
+	}
 
 	/*
 	 * Specifying 0 for nsites signals us to use the value configured
@@ -185,7 +196,6 @@ __rep_elect_int(env, given_nsites, nvotes, flags)
 	 * real, configured priority, as retrieved from REP region.
 	 */
 	ctlflags = realpri != 0 ? REPCTL_ELECTABLE : 0;
-	ENV_ENTER(env, ip);
 
 	orig_tally = 0;
 	/* If we are already master, simply broadcast that fact and return. */
@@ -597,8 +607,7 @@ out:
 	DB_ASSERT(env, rep->elect_th > 0);
 	rep->elect_th--;
 	if (rep->elect_th == 0) {
-		need_req = F_ISSET(rep, REP_F_SKIPPED_APPLY) &&
-		    !I_HAVE_WON(rep, rep->winner);
+		need_req = F_ISSET(rep, REP_F_SKIPPED_APPLY) && !elected;
 		FLD_CLR(rep->lockout_flags, REP_LOCKOUT_APPLY);
 		F_CLR(rep, REP_F_SKIPPED_APPLY);
 	}
@@ -641,7 +650,6 @@ out:
 unlck_lv:	REP_SYSTEM_UNLOCK(env);
 	}
 envleave:
-	ENV_LEAVE(env, ip);
 	return (ret);
 }
 
@@ -1106,7 +1114,7 @@ __rep_cmp_vote(env, rep, eid, lsnp, priority, gen, data_gen, tiebreaker, flags)
 	u_int32_t priority;
 	u_int32_t data_gen, flags, gen, tiebreaker;
 {
-	int cmp, like_pri;
+	int cmp, genlog_cmp, like_pri;
 
 	cmp = LOG_COMPARE(lsnp, &rep->w_lsn);
 	/*
@@ -1140,9 +1148,18 @@ __rep_cmp_vote(env, rep, eid, lsnp, priority, gen, data_gen, tiebreaker, flags)
 		like_pri = (priority == 0 && rep->w_priority == 0) ||
 		    (priority != 0 && rep->w_priority != 0);
 
-		if ((priority != 0 && rep->w_priority == 0) ||
-		    (like_pri && data_gen > rep->w_datagen) ||
-		    (like_pri && data_gen == rep->w_datagen && cmp > 0) ||
+		/*
+		 * The undocumented ELECT_LOGLENGTH option requires that the
+		 * election should be won based on log length without regard
+		 * for datagen.  Do not include datagen in the comparison if
+		 * this option is enabled.
+		 */
+		if (FLD_ISSET(rep->config, REP_C_ELECT_LOGLENGTH))
+			genlog_cmp = like_pri && cmp > 0;
+		else
+			genlog_cmp = (like_pri && data_gen > rep->w_datagen) ||
+			    (like_pri && data_gen == rep->w_datagen && cmp > 0);
+		if ((priority != 0 && rep->w_priority == 0) || genlog_cmp ||
 		    (cmp == 0 && (priority > rep->w_priority ||
 		    (priority == rep->w_priority &&
 		    (tiebreaker > rep->w_tiebreaker))))) {
@@ -1306,8 +1323,9 @@ __rep_wait(env, timeoutp, full_elect, egen, flags)
 {
 	DB_REP *db_rep;
 	REP *rep;
-	int done;
-	u_int32_t sleeptime, sleeptotal, timeout;
+	db_timespec exptime, mytime;
+	int diff_timeout, done;
+	u_int32_t sleeptime, timeout;
 
 	db_rep = env->rep_handle;
 	rep = db_rep->region;
@@ -1315,10 +1333,20 @@ __rep_wait(env, timeoutp, full_elect, egen, flags)
 
 	timeout = *timeoutp;
 	sleeptime = SLEEPTIME(timeout);
-	sleeptotal = 0;
-	while (sleeptotal < timeout) {
+	__os_gettime(env, &exptime, 0);
+	TIMESPEC_ADD_DB_TIMEOUT(&exptime, timeout);
+	while (!done) {
+		__os_gettime(env, &mytime, 0);
+		/*
+		 * Check if the timeout has expired.  __os_yield might sleep
+		 * a slightly shorter time than requested, so check the exact
+		 * amount of time that has passed.  If we do not sleep the
+		 * full PHASE0 time, old unexpired lease grants could
+		 * incorrectly prevent the election from happening.
+		 */
+		if (timespeccmp(&mytime, &exptime, >))
+			break;
 		__os_yield(env, 0, sleeptime);
-		sleeptotal += sleeptime;
 		REP_SYSTEM_LOCK(env);
 		/*
 		 * Check if group membership changed while we were
@@ -1331,19 +1359,19 @@ __rep_wait(env, timeoutp, full_elect, egen, flags)
 		if (!LF_ISSET(REP_E_PHASE0) &&
 		    full_elect && F_ISSET(rep, REP_F_GROUP_ESTD)) {
 			*timeoutp = rep->elect_timeout;
+			if ((diff_timeout = (int)(*timeoutp - timeout)) > 0)
+				TIMESPEC_ADD_DB_TIMEOUT(&exptime, diff_timeout);
+			else {
+				diff_timeout = -diff_timeout;
+				TIMESPEC_SUB_DB_TIMEOUT(&exptime, diff_timeout);
+			}
 			timeout = *timeoutp;
-			if (sleeptotal >= timeout)
-				done = 1;
-			else
-				sleeptime = SLEEPTIME(timeout);
+			sleeptime = SLEEPTIME(timeout);
 		}
 
 		if (egen != rep->egen || !FLD_ISSET(rep->elect_flags, flags))
 			done = 1;
 		REP_SYSTEM_UNLOCK(env);
-
-		if (done)
-			return (0);
 	}
 	return (0);
 }

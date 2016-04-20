@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2010, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2010, 2015 Oracle and/or its affiliates.  All rights reserved.
  */
 
 #ifndef _DB_HEAP_H_
@@ -26,7 +26,8 @@ struct __heap {		/* Heap access method. */
 
 	db_pgno_t curregion;	/* The region of the next insert. */
 	db_pgno_t maxpgno;	/* Maximum page number of a fixed size heap. */
-	int curpgindx;	/* The last used offset in the region's space bitmap. */
+	u_int32_t curpgindx;	/* The last used offset in the
+				 * region's space bitmap. */
 };
 
 struct __heap_cursor {

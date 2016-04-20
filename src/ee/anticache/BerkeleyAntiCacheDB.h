@@ -108,6 +108,7 @@ class BerkeleyAntiCacheDB : public AntiCacheDB {
         Db* m_db;
         Dbt m_value;
         std::set <uint32_t> m_blockSet;
+        DbLock m_lock;
 };
 
 }

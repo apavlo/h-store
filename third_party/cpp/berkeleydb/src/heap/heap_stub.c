@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2010, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2010, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id:
  */
@@ -32,6 +32,40 @@ __db_no_heap_am(env)
 	__db_errx(env,
 	    "library build did not include support for the Heap access method");
 	return (DB_OPNOTSUP);
+}
+
+int
+__heap_60_heapmeta(dbp, real_name, flags, fhp, h, dirtyp)
+	DB *dbp;
+	char *real_name;
+	u_int32_t flags;
+	DB_FH *fhp;
+	PAGE *h;
+	int *dirtyp;
+{
+	COMPQUIET(real_name, NULL);
+	COMPQUIET(flags, 0);
+	COMPQUIET(fhp, NULL);
+	COMPQUIET(h, NULL);
+	COMPQUIET(dirtyp, NULL);
+	return (__db_no_heap_am(dbp->env));
+}
+
+int
+__heap_60_heap(dbp, real_name, flags, fhp, h, dirtyp)
+	DB *dbp;
+	char *real_name;
+	u_int32_t flags;
+	DB_FH *fhp;
+	PAGE *h;
+	int *dirtyp;
+{
+	COMPQUIET(real_name, NULL);
+	COMPQUIET(flags, 0);
+	COMPQUIET(fhp, NULL);
+	COMPQUIET(h, NULL);
+	COMPQUIET(dirtyp, NULL);
+	return (__db_no_heap_am(dbp->env));
 }
 
 int

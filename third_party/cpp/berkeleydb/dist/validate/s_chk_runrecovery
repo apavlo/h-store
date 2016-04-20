@@ -20,10 +20,12 @@ egrep DB_RUNRECOVERY $s/*/*.c |
 	-e '/db_dispatch.c:.*if (ret == DB_RUNRECOVERY/d' \
 	-e '/db_err.c:/d' \
 	-e '/env_open.c:.*ret = DB_RUNRECOVERY;/d' \
+	-e '/env_open.c:.*ret == DB_RUNRECOVERY/d'\
 	-e '/os_errno.c:.*evalue == DB_RUNRECOVERY/d' \
         -e '/mut_fcntl.c:.*return (DB_RUNRECOVERY);/d' \
         -e '/mut_pthread.c:.*return (DB_RUNRECOVERY);/d' \
-        -e '/mut_tas.c:.*return (DB_RUNRECOVERY);/d' \
+        -e '/mut_pthread.c:.*ret = DB_RUNRECOVERY;/d' \
+	-e '/mut_tas.c:.*DB_RUNRECOVERY)));/d' \
         -e '/mut_tas.c:.*Possibly DB_RUNRECOVERY if/d' \
         -e '/mut_win32.c:.*return (DB_RUNRECOVERY);/d' \
         -e '/mut_win32.c:.*ret = DB_RUNRECOVERY;/d' \

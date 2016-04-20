@@ -544,6 +544,7 @@ void Table::loadTuplesFromNoHeader(bool allowExport,
         m_tmpTarget1.setDeletedFalse();
         m_tmpTarget1.setDirtyFalse();
         m_tmpTarget1.setEvictedFalse();
+        m_tmpTarget1.setNVMEvictedFalse();
         m_tmpTarget1.deserializeFrom(serialize_io, stringPool);
 
         processLoadedTuple( allowExport, m_tmpTarget1);

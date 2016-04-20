@@ -21,15 +21,22 @@ declare function local:getFileList($fileList)
 };
 
 let $root := Project
+let $platformName := $root/ItemGroup/ProjectConfiguration[1]/Platform/string()
+let $isWinCE := (fn:contains($platformName, "CEPC") or fn:contains($platformName, "ARM"))
 let $fileList := $WINDOWS_FILES
-let $cflags := $WINDOWS_FLAGS
-let $includes := fn:replace($WINDOWS_INCLUDE, ',', ';') (: VS2010 use ';' as separator :)
-let $inputLib := fn:concat($WINDOWS_INPUT_LIB, ';advapi32.lib')
+let $cflags := if ($isWinCE) then (fn:replace($WINCE_FLAGS,'ARMV4','')) else ($WINDOWS_FLAGS)
+(: VS2010 and VS2012 use ';' as separator :)
+let $includes := if ($isWinCE) then (fn:replace($WINCE_INCLUDE, ',', ';')) else (
+    fn:replace($WINDOWS_INCLUDE, ',', ';'))
+let $inputLib := if ($isWinCE) then ('') else (fn:concat($WINDOWS_INPUT_LIB, ';advapi32.lib'))
 return
 (
-  (: Add BDB Files :)
+  (: 
+   Add BDB Files. We avoid doing this for WinCE projects, since xqilla can not
+   handle it correctly.
+  :)
   (
-    let $newFileList := local:getFileList($fileList)
+    let $newFileList := if ($isWinCE) then () else (local:getFileList($fileList))
     for $fileEntry in $root
       for $fileItem in $newFileList
         (:return $fileEntry:)
@@ -70,7 +77,9 @@ return
     let $group := $node/parent::*
     return
       if (fn:contains($group/@Condition, "Win32") or
-          fn:contains($group/@Condition, "x64")) then (
+          fn:contains($group/@Condition, "x64") or
+          fn:contains($group/@Condition, "CEPC") or
+          fn:contains($group/@Condition, "ARM")) then (
         if (exists($dependcies)) then (
           replace value of node $dependcies with fn:concat($inputLib, ';', $dependcies/string())
         ) else (

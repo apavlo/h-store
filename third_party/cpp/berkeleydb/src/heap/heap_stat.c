@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 2010, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 2010, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -29,7 +29,7 @@ __heap_stat(dbc, spp, flags)
 {
 	DB *dbp;
 	DB_HEAP_STAT *sp;
-	DB_LOCK lock, metalock;
+	DB_LOCK metalock;
 	DB_MPOOLFILE *mpf;
 	ENV *env;
 	HEAPMETA *meta;
@@ -41,7 +41,6 @@ __heap_stat(dbc, spp, flags)
 
 	meta = NULL;
 	LOCK_INIT(metalock);
-	LOCK_INIT(lock);
 	mpf = dbp->mpf;
 	sp = NULL;
 	ret = t_ret = write_meta = 0;
@@ -147,6 +146,8 @@ __heap_stat_print(dbc, flags)
 	    "Underlying database page size", (u_long)sp->heap_pagesize);
 	__db_dl(env,
 	    "Number of records in the database", (u_long)sp->heap_nrecs);
+	__db_dl(env,
+	    "Number of blobs in the database", (u_long)sp->heap_nblobs);
 	__db_dl(env, "Number of database pages", (u_long)sp->heap_pagecnt);
 	__db_dl(env, "Number of database regions", (u_long)sp->heap_nregions);
 	__db_dl(env,
@@ -200,11 +201,13 @@ __heap_stat_callback(dbc, h, cookie, putp)
 		 * We can't just use NUM_ENT, otherwise we'd mis-count split
 		 * records.
 		 */
-		for (i = 0; i < NUM_ENT(h); i++) {
+		for (i = 0; i <= HEAP_HIGHINDX(h); i++) {
 			hdr = (HEAPHDR *)P_ENTRY(dbp, h, i);
 			if (!F_ISSET(hdr, HEAP_RECSPLIT) ||
 			    F_ISSET(hdr, HEAP_RECFIRST))
 				sp->heap_nrecs++;
+			if (F_ISSET(hdr, HEAP_RECBLOB))
+				sp->heap_nblobs++;
 		}
 		break;
 	case P_HEAPMETA: /* Fallthrough */

@@ -341,11 +341,33 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
     // number of tuples that we modified
     bool send_tuple_count = false;
 
+    size_t ttl = execsForFrag->list.size();
+
+#ifdef ANTICACHE
+#ifdef ANTICACHE_COUNTER
+    // MA: Set the default value of m_update_access. If we have update/delete operation,
+    // then we need to bring back the tuple to memory anyway if it's evicted.
+    if (m_executorContext->getAntiCacheEvictionManager() != NULL) {
+        m_executorContext->getAntiCacheEvictionManager()->m_update_access = 
+            false;
+
+        for (int ctr = 0; ctr < ttl; ++ctr) {
+            AbstractExecutor *executor = execsForFrag->list[ctr];
+            PlanNodeType nodeType = executor->getPlanNode()->getPlanNodeType();
+            VOLT_TRACE("nodeType: %d\n", nodeType);
+            if (nodeType == PLAN_NODE_TYPE_UPDATE || nodeType == PLAN_NODE_TYPE_DELETE)
+                m_executorContext->getAntiCacheEvictionManager()->m_update_access = 
+                true;
+        }
+    }
+
+#endif
+#endif
+
     // Walk through the queue and execute each plannode.  The query
     // planner guarantees that for a given plannode, all of its
     // children are positioned before it in this list, therefore
     // dependency tracking is not needed here.
-    size_t ttl = execsForFrag->list.size();
     for (int ctr = 0; ctr < ttl; ++ctr) {
         AbstractExecutor *executor = execsForFrag->list[ctr];
         assert(executor);
@@ -365,10 +387,14 @@ int VoltDBEngine::executeQuery(int64_t planfragmentId,
                     m_currentOutputDepId);
         } else {
             VOLT_TRACE(
-                    "[PlanFragment %jd] Executing PlanNode #%02d for txn #%jd [OutputDep=%d]",
+                    "[PlanFragment %jd] Executing PlanNode #%02d (type %d)for txn #%jd [OutputDep=%d]",
                     (intmax_t)planfragmentId,
-                    executor->getPlanNode()->getPlanNodeId(), (intmax_t)txnId,
+                    executor->getPlanNode()->getPlanNodeId(),
+                    executor->getPlanNode()->getPlanNodeType(),
+                    (intmax_t)txnId,
                     m_currentOutputDepId);
+            //if (m_executorContext->getAntiCacheEvictionManager() != NULL)
+            //    printf("update: %d\n", m_executorContext->getAntiCacheEvictionManager()->m_update_access);
             try {
                 // Now call the execute method to actually perform whatever action
                 // it is that the node is supposed to do...
@@ -962,6 +988,7 @@ bool VoltDBEngine::initPlanFragment(const int64_t fragId,
             new ExecutorVector());
     ev->tempTableMemoryInBytes = 0;
 
+
     // Initialize each node!
     for (int ctr = 0, cnt = (int) pnf->getExecuteList().size(); ctr < cnt;
             ctr++) {
@@ -989,6 +1016,7 @@ bool VoltDBEngine::initPlanNode(const int64_t fragId, AbstractPlanNode* node,
         int* tempTableMemoryInBytes) {
     assert(node);
     assert(node->getExecutor() == NULL);
+
 
     // Executor is created here. An executor is *devoted* to this plannode
     // so that it can cache anything for the plannode
@@ -1316,7 +1344,40 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                             VOLT_EE_EXCEPTION_TYPE_EEEXCEPTION, message);
                 }
             }*/
+#ifdef ANTICACHE_COUNTER
+            AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
+            if (eviction_manager != NULL) {
+                VOLT_INFO("We have reset the sketch counter of size %ld :)", sizeof(eviction_manager->m_sketch));
+                /*
+                int sum = 0;
+                for (int i = 0; i < SKETCH_WIDTH; ++i)
+                    sum += eviction_manager->m_sketch[0][i];
+                printf("cardinality: %d\n", sum);
+                */
 
+                int tot = 0;
+                int i = 0;
+                unsigned char* sketch = eviction_manager->m_sketch[0];
+                while (tot < SKETCH_SAMPLE_SIZE) {
+                    if (sketch[i]) {
+                        eviction_manager->m_sample[tot] = sketch[i];
+                        tot++;
+                    }
+                    i++;
+                }
+                std::sort(eviction_manager->m_sample.begin(), eviction_manager->m_sample.end(), std::greater <unsigned int>());
+                if (SKETCH_THRESH == 0)
+                    eviction_manager->m_sketch_thresh = 255;
+                else if (SKETCH_THRESH == SKETCH_SAMPLE_SIZE)
+                    eviction_manager->m_sketch_thresh = 0;
+                else
+                    eviction_manager->m_sketch_thresh = (unsigned char)((eviction_manager->m_sketch_thresh + eviction_manager->m_sample[SKETCH_THRESH]
+                                + 1) >> 1);
+                VOLT_INFO("Current sketch thresh: %d\n", eviction_manager->m_sketch_thresh);
+
+                memset(eviction_manager->m_sketch, 0, sizeof(eviction_manager->m_sketch));
+            }
+#endif
             resultTable = m_statsManager.getStats(
                     (StatisticsSelectorType) selector, locatorIds, interval,
                     now);
@@ -2071,9 +2132,11 @@ int VoltDBEngine::antiCacheReadBlocks(int32_t tableId, int numBlocks, int32_t bl
             (filter[blockIds[i]]).insert(tupleOffsets[i]);
             */
             VOLT_DEBUG("reading %d %d", blockIds[i], tupleOffsets[i]);
-            pthread_mutex_lock(&(eviction_manager->lock));
+            //pthread_mutex_lock(&(eviction_manager->lock));
+            //eviction_manager->prio_lock_low(&eviction_manager->prio_lock);
             finalResult = eviction_manager->readEvictedBlock(table, blockIds[i], tupleOffsets[i]) && finalResult;
-            pthread_mutex_unlock(&(eviction_manager->lock));
+            //eviction_manager->prio_unlock_low(&eviction_manager->prio_lock);
+            //pthread_mutex_unlock(&(eviction_manager->lock));
         } // FOR
 
     } catch (SerializableEEException &e) {
@@ -2104,10 +2167,11 @@ int VoltDBEngine::antiCacheEvictBlock(int32_t tableId, long blockSize, int numBl
         throwFatalException("Invalid table id %d", tableId);
     }
 
-    VOLT_DEBUG("Attempting to evict a block of %ld bytes from table '%s'",
+    VOLT_INFO("Attempting to evict a block of %ld bytes from table '%s'",
             blockSize, table->name().c_str());
     size_t lengthPosition = m_resultOutput.reserveBytes(sizeof(int32_t));
     Table *resultTable = m_executorContext->getAntiCacheEvictionManager()->evictBlock(table, blockSize, numBlocks);
+    VOLT_DEBUG("Write finish!");
     if (resultTable != NULL) {
         resultTable->serializeTo(m_resultOutput);
         m_resultOutput.writeIntAt(lengthPosition,
@@ -2160,13 +2224,15 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
         throwFatalException("Invalid table id %d", tableId);
     }
 
-    VOLT_DEBUG("Merging unevicted blocks for table %d", tableId);
+    //VOLT_ERROR("Merging unevicted blocks for table %d", tableId);
     // Merge all the newly unevicted blocks back into our regular table data
     try {
         AntiCacheEvictionManager* eviction_manager = m_executorContext->getAntiCacheEvictionManager();
-        pthread_mutex_lock(&(eviction_manager->lock));
-        m_executorContext->getAntiCacheEvictionManager()->mergeUnevictedTuples(table);
-        pthread_mutex_unlock(&(eviction_manager->lock));
+        //pthread_mutex_lock(&(eviction_manager->lock));
+        //eviction_manager->prio_lock_high(&eviction_manager->prio_lock);
+        eviction_manager->mergeUnevictedTuples(table);
+        //eviction_manager->prio_unlock_high(&eviction_manager->prio_lock);
+        //pthread_mutex_unlock(&(eviction_manager->lock));
     } catch (SerializableEEException &e) {
         VOLT_INFO("Failed to merge blocks for table %d", tableId);
 
@@ -2176,6 +2242,7 @@ int VoltDBEngine::antiCacheMergeBlocks(int32_t tableId) {
         e.serialize(getExceptionOutputSerializer());
         retval = ENGINE_ERRORCODE_ERROR;
     }
+    //VOLT_ERROR("Quit merge uneviction for table %d", tableId);
 
     return (retval);
 }

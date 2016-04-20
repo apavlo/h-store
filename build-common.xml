@@ -142,6 +142,8 @@
 <arg value="site.commandlog_timeout=${site.commandlog_timeout}" />
 <arg value="site.commandlog_profiling=${site.commandlog_profiling}" />
 <arg value="site.anticache_enable=${site.anticache_enable}" />
+<arg value="site.anticache_warmup_eviction_enable=${site.anticache_warmup_eviction_enable}" />
+<arg value="site.anticache_warmup_eviction_time=${site.anticache_warmup_eviction_time}" />
 <arg value="site.anticache_enable_multilevel=${site.anticache_enable_multilevel}" />
 <arg value="site.anticache_build=${site.anticache_build}" />
 <arg value="site.anticache_reversible_lru=${site.anticache_reversible_lru}" />
@@ -161,6 +163,7 @@
 <arg value="site.anticache_dbtype=${site.anticache_dbtype}" />
 <arg value="site.anticache_db_blocks=${site.anticache_db_blocks}" />
 <arg value="site.anticache_block_merge=${site.anticache_block_merge}" />
+<arg value="site.anticache_counter=${site.anticache_counter}" />
 <arg value="site.anticache_timestamps=${site.anticache_timestamps}" />
 <arg value="site.anticache_timestamps_prime=${site.anticache_timestamps_prime}" />
 <arg value="site.storage_mmap=${site.storage_mmap}" />

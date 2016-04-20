@@ -3,7 +3,6 @@
 :)
 declare boundary-space preserve;
 
-declare variable $WINCE_PLATFORM_NAME := '@WINCE_PLATFORM_NAME@';
 declare variable $WINCE_TARGET_MACHINE := '3'; (: const value in Visual Studio :)
 declare variable $WINCE_SUB_SYSTEM := '8';     (: const value in Visual Studio :)
 
@@ -20,6 +19,7 @@ declare variable $COMMON_FLAGS := fn:concat(
 
 declare variable $WINDOWS_FLAGS := fn:concat(';',
   $COMMON_FLAGS,
+  'INTEROP_LEGACY_CLOSE;',
   '_CRT_SECURE_NO_DEPRECATE;',
   '_CRT_NONSTDC_NO_DEPRECATE;',
   'DB_CREATE_DLL;');
@@ -49,7 +49,7 @@ declare variable $WINCE_FLAGS := fn:concat(
   'SQLITE_ENABLE_LOAD_EXTENSION;',
   'SQLITE_SOUNDEX;',
   'SQLITE_OMIT_WAL;',
-  'INVALID_FILE_ATTRIBUTES=((DWORD)-1)');
+  'INVALID_FILE_ATTRIBUTES=((DWORD)-1);');
 
 declare variable $DEBUG_ADDITIONAL_FLAGS := fn:concat(
   'DIAGNOSTIC;',
@@ -58,8 +58,8 @@ declare variable $DEBUG_ADDITIONAL_FLAGS := fn:concat(
 
 (: Win32/x64 variables :)
 declare variable $WINCE_PROJ_URL := '@BDB_PATH@/build_wince/VS8/db.vcproj';
-declare variable $WINDOWS_INCLUDE := '..\@BDB_NAME@\build_windows,..\@BDB_NAME@\src';
-declare variable $WINCE_INCLUDE := '..\@BDB_NAME@\build_wince,..\@BDB_NAME@\src';
+declare variable $WINDOWS_INCLUDE := ',..\@BDB_NAME@\build_windows,..\@BDB_NAME@\src';
+declare variable $WINCE_INCLUDE := ',..\@BDB_NAME@\build_wince,..\@BDB_NAME@\src';
 declare variable $WIN_SRC := '..\\@BDB_NAME@\\src';
 declare variable $WINDOWS_INPUT_LIB := 'ws2_32.lib';
 

@@ -1,7 +1,7 @@
 /*-
  * See the file LICENSE for redistribution information.
  *
- * Copyright (c) 1996, 2012 Oracle and/or its affiliates.  All rights reserved.
+ * Copyright (c) 1996, 2015 Oracle and/or its affiliates.  All rights reserved.
  *
  * $Id$
  */
@@ -11,6 +11,7 @@
 #include "db_int.h"
 #include "dbinc/db_page.h"
 #include "dbinc/btree.h"
+#include "dbinc/fop.h"
 #include "dbinc/hash.h"
 #include "dbinc/heap.h"
 #include "dbinc/mp.h"
@@ -25,6 +26,11 @@ static int	 __db_hmeta __P((ENV *, DB *, HMETA *, u_int32_t));
 static void	 __db_meta __P((ENV *, DB *, DBMETA *, FN const *, u_int32_t));
 static void	 __db_proff __P((ENV *, DB_MSGBUF *, void *));
 static int	 __db_qmeta __P((ENV *, DB *, QMETA *, u_int32_t));
+static int	 __db_prblob __P((DBC *, DBT *, DBT *, int, const char *,
+    void *, int (*callback) __P((void *, const void *)), int, int));
+static int	 __db_prblob_id __P((DB *, db_seq_t,
+		    off_t, DBT *, int, const char *, void *,
+		    int (*callback) __P((void *, const void *))));
 #ifdef HAVE_STATISTICS
 static void	 __db_prdb __P((DB *, u_int32_t));
 static int	 __db_prtree __P((DB *, DB_TXN *,
@@ -515,6 +521,11 @@ __db_bmeta(env, dbp, h, flags)
 		__db_msg(env, "\tre_len: %#lx re_pad: %#lx",
 		    (u_long)h->re_len, (u_long)h->re_pad);
 	__db_msg(env, "\troot: %lu", (u_long)h->root);
+	__db_msg(env, "\tblob_threshold: %lu", (u_long)h->blob_threshold);
+	__db_msg(env, "\tblob_file_lo: %lu", (u_long)h->blob_file_lo);
+	__db_msg(env, "\tblob_file_hi: %lu", (u_long)h->blob_file_hi);
+	__db_msg(env, "\tblob_sdb_lo: %lu", (u_long)h->blob_sdb_lo);
+	__db_msg(env, "\tblob_sdb_hi: %lu", (u_long)h->blob_sdb_hi);
 
 	return (0);
 }
@@ -549,6 +560,11 @@ __db_hmeta(env, dbp, h, flags)
 	__db_msg(env, "\tffactor: %lu", (u_long)h->ffactor);
 	__db_msg(env, "\tnelem: %lu", (u_long)h->nelem);
 	__db_msg(env, "\th_charkey: %#lx", (u_long)h->h_charkey);
+	__db_msg(env, "\tblob_threshold: %lu", (u_long)h->blob_threshold);
+	__db_msg(env, "\tblob_file_lo: %lu", (u_long)h->blob_file_lo);
+	__db_msg(env, "\tblob_file_hi: %lu", (u_long)h->blob_file_hi);
+	__db_msg(env, "\tblob_sdb_lo: %lu", (u_long)h->blob_sdb_lo);
+	__db_msg(env, "\tblob_sdb_hi: %lu", (u_long)h->blob_sdb_hi);
 	__db_msgadd(env, &mb, "\tspare points:\n\t");
 	for (i = 0; i < NCACHED; i++) {
 		__db_msgadd(env, &mb, "%lu (%lu) ", (u_long)h->spares[i],
@@ -604,6 +620,9 @@ __db_heapmeta(env, dbp, h, flags)
 	__db_msg(env, "\tnregions: %lu", (u_long)h->nregions);
 	__db_msg(env, "\tgbytes: %lu", (u_long)h->gbytes);
 	__db_msg(env, "\tbytes: %lu", (u_long)h->bytes);
+	__db_msg(env, "\tblob_threshold: %lu", (u_long)h->blob_threshold);
+	__db_msg(env, "\tblob_file_lo: %lu", (u_long)h->blob_file_lo);
+	__db_msg(env, "\tblob_file_hi: %lu", (u_long)h->blob_file_hi);
 
 	return (0);
 }
@@ -682,14 +701,19 @@ __db_prpage_int(env, mbp, dbp, lead, h, pagesize, data, flags)
 {
 	BINTERNAL *bi;
 	BKEYDATA *bk;
+	BBLOB bl;
 	HOFFPAGE a_hkd;
+	HBLOB hblob;
 	QAMDATA *qp, *qep;
 	RINTERNAL *ri;
 	HEAPHDR *hh;
 	HEAPSPLITHDR *hs;
+	HEAPBLOBHDR bhdr;
 	db_indx_t dlen, len, i, *inp, max;
 	db_pgno_t pgno;
 	db_recno_t recno;
+	off_t blob_size;
+	db_seq_t blob_id;
 	u_int32_t qlen;
 	u_int8_t *ep, *hk, *p;
 	int deleted, ret;
@@ -899,6 +923,23 @@ __db_prpage_int(env, mbp, dbp, lead, h, pagesize, data, flags)
 				    (u_long)a_hkd.tlen, (u_long)a_hkd.pgno);
 				DB_MSGBUF_FLUSH(env, mbp);
 				break;
+			case H_BLOB:
+				memcpy(&hblob, hk, HBLOB_SIZE);
+				blob_id = (db_seq_t)hblob.id;
+				__db_msgadd(env, mbp, "blob: id: %llu ",
+				    (long long)blob_id);
+				GET_BLOB_SIZE(env, hblob, blob_size, ret);
+				if (ret != 0)
+					__db_msgadd(env, mbp,
+					    "blob: blob_size overflow. ");
+				__db_msgadd(env, mbp, "blob: size: %llu",
+				    (long long)blob_size);
+				/*
+				 * No point printing the blob file, it is
+				 * likely not readable by humans.
+				 */
+				DB_MSGBUF_FLUSH(env, mbp);
+				break;
 			default:
 				DB_MSGBUF_FLUSH(env, mbp);
 				__db_msg(env, "ILLEGAL HASH PAGE TYPE: %lu",
@@ -925,6 +966,7 @@ __db_prpage_int(env, mbp, dbp, lead, h, pagesize, data, flags)
 				__db_proff(env, mbp, bi->data);
 				break;
 			default:
+				/* B_BLOB does not appear on internal pages. */
 				DB_MSGBUF_FLUSH(env, mbp);
 				__db_msg(env, "ILLEGAL BINTERNAL TYPE: %lu",
 				    (u_long)B_TYPE(bi->type));
@@ -950,6 +992,19 @@ __db_prpage_int(env, mbp, dbp, lead, h, pagesize, data, flags)
 			case B_OVERFLOW:
 				__db_proff(env, mbp, bk);
 				break;
+			case B_BLOB:
+				memcpy(&bl, bk, BBLOB_SIZE);
+				blob_id = (db_seq_t)bl.id;
+				__db_msgadd(env, mbp, "blob: id: %llu ",
+				    (long long)blob_id);
+				GET_BLOB_SIZE(env, bl, blob_size, ret);
+				if (ret != 0)
+					__db_msgadd(env, mbp,
+					    "blob: blob_size overflow. ");
+				__db_msgadd(env, mbp, "blob: size: %llu",
+				    (long long)blob_size);
+				DB_MSGBUF_FLUSH(env, mbp);
+				break;
 			default:
 				DB_MSGBUF_FLUSH(env, mbp);
 				__db_msg(env,
@@ -961,9 +1016,27 @@ __db_prpage_int(env, mbp, dbp, lead, h, pagesize, data, flags)
 			break;
 		case P_HEAP:
 			hh = sp;
-			if (!F_ISSET(hh,HEAP_RECSPLIT))
+			if (!F_ISSET(hh,HEAP_RECSPLIT) &&
+			    !F_ISSET(hh, HEAP_RECBLOB))
 				hdata = (u_int8_t *)hh + sizeof(HEAPHDR);
-			else {
+			else if (F_ISSET(hh, HEAP_RECBLOB)) {
+				memcpy(&bhdr, hh, HEAPBLOBREC_SIZE);
+				blob_id = (db_seq_t)bhdr.id;
+				__db_msgadd(env, mbp, "blob: id: %llu ",
+				    (long long)blob_id);
+				GET_BLOB_SIZE(env, bhdr, blob_size, ret);
+				if (ret != 0)
+					__db_msgadd(env, mbp,
+					    "blob: blob_size overflow. ");
+				__db_msgadd(env, mbp, "blob: size: %llu",
+				    (long long)blob_size);
+				/*
+				 * No point printing the blob file, it is
+				 * likely not readable by humans.
+				 */
+				DB_MSGBUF_FLUSH(env, mbp);
+				break;
+			} else {
 				hs = sp;
 				__db_msgadd(env, mbp,
 				     "split: 0x%02x tsize: %lu next: %lu.%lu ",
@@ -1276,10 +1349,16 @@ __db_dump(dbp, subname, callback, handle, pflag, keyflag)
 	ENV *env;
 	db_recno_t recno;
 	int is_recno, is_heap, ret, t_ret;
+	u_int32_t blob_threshold;
 	void *pointer;
 
 	env = dbp->env;
 	is_heap = 0;
+	memset(&dataret, 0, sizeof(DBT));
+	memset(&keyret, 0, sizeof(DBT));
+
+	if ((ret = __db_get_blob_threshold(dbp, &blob_threshold)) != 0)
+		return (ret);
 
 	if ((ret = __db_prheader(
 	    dbp, subname, pflag, keyflag, handle, callback, NULL, 0)) != 0)
@@ -1317,8 +1396,8 @@ retry: while ((ret =
 	    !is_heap ? DB_NEXT | DB_MULTIPLE_KEY : DB_NEXT )) == 0) {
 		if (is_heap) {
 			/* Never dump keys for HEAP */
-			if ((ret = __db_prdbt(
-			    &data, pflag, " ", handle, callback, 0, 0)) != 0)
+			if ((ret = __db_prdbt(&data,
+			    pflag, " ", handle, callback, 0, 0, 0)) != 0)
 				goto err;
 			continue;
 		}
@@ -1337,17 +1416,24 @@ retry: while ((ret =
 
 			if ((keyflag &&
 			    (ret = __db_prdbt(&keyret, pflag, " ",
-			    handle, callback, is_recno, 0)) != 0) ||
+			    handle, callback, is_recno, 0, 0)) != 0) ||
 			    (ret = __db_prdbt(&dataret, pflag, " ",
-			    handle, callback, 0, 0)) != 0)
+			    handle, callback, 0, 0, 0)) != 0)
 					goto err;
 		}
 	}
 	if (ret == DB_BUFFER_SMALL) {
-		data.size = (u_int32_t)DB_ALIGN(data.size, 1024);
-		if ((ret = __os_realloc(env, data.size, &data.data)) != 0)
-			goto err;
-		data.ulen = data.size;
+		if (blob_threshold != 0 && data.size >= blob_threshold) {
+			if ((ret = __db_prblob(dbcp, &key, &data, pflag,
+			    " ", handle, callback, is_heap, keyflag)) != 0)
+				goto err;
+		} else {
+			data.size = (u_int32_t)DB_ALIGN(data.size, 1024);
+			if ((ret = __os_realloc(
+			    env, data.size, &data.data)) != 0)
+				goto err;
+			data.ulen = data.size;
+		}
 		goto retry;
 	}
 	if (ret == DB_NOTFOUND)
@@ -1365,14 +1451,153 @@ err:	if ((t_ret = __dbc_close(dbcp)) != 0 && ret == 0)
 }
 
 /*
+ * __db_prblob
+ *	Print a blob file.
+ */
+static int
+__db_prblob(dbc, key, data, checkprint,
+    prefix, handle, callback, is_heap, keyflag)
+	DBC *dbc;
+	DBT *key;
+	DBT *data;
+	int checkprint;
+	const char *prefix;
+	void *handle;
+	int (*callback) __P((void *, const void *));
+	int is_heap;
+	int keyflag;
+{
+	DBC *local;
+	DBT partial;
+	int ret, t_ret;
+	off_t blob_size;
+	db_seq_t blob_id;
+
+	local = NULL;
+	memset(&partial, 0, sizeof(DBT));
+	partial.flags = DB_DBT_PARTIAL;
+
+	if ((ret = __dbc_idup(dbc, &local, DB_POSITION)) != 0)
+		goto err;
+
+	/* Move the cursor to the blob. */
+	if ((ret = __dbc_get(local, key, &partial, DB_NEXT)) != 0)
+		return (ret);
+
+	if ((ret = __dbc_get_blob_id(local, &blob_id)) != 0) {
+		/*
+		 * It is possible this is not a blob.  Non-blob items that are
+		 * larger than the blob threshold can exist if the item was
+		 * smaller than the threshold when created, then later updated
+		 * to larger than the threshold value.
+		 */
+		if (ret == EINVAL) {
+			ret = 0;
+			data->size = (u_int32_t)DB_ALIGN(data->size, 1024);
+			if ((ret = __os_realloc(
+			    dbc->env, data->size, &data->data)) != 0)
+				goto err;
+			data->ulen = data->size;
+		}
+		goto err;
+	}
+
+	if (data->ulen < MEGABYTE) {
+		if ((data->data = realloc(
+		    data->data, data->ulen = MEGABYTE)) == NULL) {
+			ret = ENOMEM;
+			goto err;
+		}
+	}
+
+	if ((ret = __dbc_get_blob_size(local, &blob_size)) != 0)
+		goto err;
+
+	if (keyflag && !is_heap && (ret = __db_prdbt(
+	    key, checkprint, " ", handle, callback, 0, 0, 0)) != 0)
+		goto err;
+
+	if ((ret = __db_prblob_id(local->dbp, blob_id, blob_size,
+	    data, checkprint, prefix, handle, callback)) != 0)
+		goto err;
+
+	/* Move the cursor. */
+	ret = __dbc_get(dbc, key, &partial, DB_NEXT);
+
+err:	if (local != NULL) {
+		if ((t_ret = __dbc_close(local)) != 0 && ret == 0)
+			ret = t_ret;
+	}
+
+	return (ret);
+}
+
+/*
+ * __db_prblob_id --
+ *	Print a blob file identified by the given id.
+ */
+static int
+__db_prblob_id(dbp, blob_id,
+    blob_size, data, checkprint, prefix, handle, callback)
+	DB *dbp;
+	db_seq_t blob_id;
+	off_t blob_size;
+	DBT *data;
+	int checkprint;
+	const char *prefix;
+	void *handle;
+	int (*callback) __P((void *, const void *));
+{
+	DB_FH *fhp;
+	const char *pre;
+	int ret, skip_newline, t_ret;
+	off_t left, offset;
+
+	fhp = NULL;
+	offset = 0;
+
+	if ((ret = __blob_file_open(
+	    dbp, &fhp, blob_id, DB_FOP_READONLY, 1)) != 0)
+		goto err;
+
+	left = blob_size;
+	while (left > 0) {
+		if ((ret = __blob_file_read(
+		    dbp->env, fhp, data, offset, data->ulen)) != 0)
+			goto err;
+		if (offset == 0)
+			pre = prefix;
+		else
+			pre = NULL;
+		skip_newline = data->size < left ? 1 : 0;
+		if ((ret = __db_prdbt(data, checkprint, pre,
+		    handle, callback, 0, 0, skip_newline)) != 0)
+			goto err;
+		if (data->size > left)
+			left = 0;
+		else
+			left = left - data->size;
+		offset = offset + data->size;
+	}
+
+err:	if (fhp != NULL) {
+		if ((t_ret = __os_closehandle(dbp->env, fhp)) != 0 && ret == 0)
+			ret = t_ret;
+	}
+
+	return (ret);
+}
+
+/*
  * __db_prdbt --
  *	Print out a DBT data element.
  *
  * PUBLIC: int __db_prdbt __P((DBT *, int, const char *, void *,
- * PUBLIC:     int (*)(void *, const void *), int, int));
+ * PUBLIC:     int (*)(void *, const void *), int, int, int));
  */
 int
-__db_prdbt(dbtp, checkprint, prefix, handle, callback, is_recno, is_heap)
+__db_prdbt(dbtp, checkprint,
+    prefix, handle, callback, is_recno, is_heap, no_newline)
 	DBT *dbtp;
 	int checkprint;
 	const char *prefix;
@@ -1380,16 +1605,17 @@ __db_prdbt(dbtp, checkprint, prefix, handle, callback, is_recno, is_heap)
 	int (*callback) __P((void *, const void *));
 	int is_recno;
 	int is_heap;
+	int no_newline;
 {
-	static const u_char hex[] = "0123456789abcdef";
 	db_recno_t recno;
 	DB_HEAP_RID rid;
-	size_t len;
+	size_t count, len;
 	int ret;
+	u_int8_t *p;
 #define	DBTBUFLEN	100
-	u_int8_t *p, *hp;
-	char buf[DBTBUFLEN], hbuf[DBTBUFLEN];
+	char buf[DBTBUFLEN], hexbuf[2 * DBTBUFLEN + 1];
 
+	ret = 0;
 	/*
 	 * !!!
 	 * This routine is the routine that dumps out items in the format
@@ -1409,13 +1635,8 @@ __db_prdbt(dbtp, checkprint, prefix, handle, callback, is_recno, is_heap)
 
 		/* If we're printing data as hex, print keys as hex too. */
 		if (!checkprint) {
-			for (len = strlen(buf), p = (u_int8_t *)buf,
-			    hp = (u_int8_t *)hbuf; len-- > 0; ++p) {
-				*hp++ = hex[(u_int8_t)(*p & 0xf0) >> 4];
-				*hp++ = hex[*p & 0x0f];
-			}
-			*hp = '\0';
-			ret = callback(handle, hbuf);
+			(void)__db_tohex(buf, strlen(buf), hexbuf);
+			ret = callback(handle, hexbuf);
 		} else
 			ret = callback(handle, buf);
 
@@ -1433,44 +1654,46 @@ __db_prdbt(dbtp, checkprint, prefix, handle, callback, is_recno, is_heap)
 
 		/* If we're printing data as hex, print keys as hex too. */
 		if (!checkprint) {
-			for (len = strlen(buf), p = (u_int8_t *)buf,
-			    hp = (u_int8_t *)hbuf; len-- > 0; ++p) {
-				*hp++ = hex[(u_int8_t)(*p & 0xf0) >> 4];
-				*hp++ = hex[*p & 0x0f];
-			}
-			*hp = '\0';
-			ret = callback(handle, hbuf);
+			(void)__db_tohex(buf, strlen(buf), hexbuf);
+			ret = callback(handle, hexbuf);
 		} else
 			ret = callback(handle, buf);
 
 		if (ret != 0)
 			return (ret);
 	} else if (checkprint) {
+		/*
+		 * Prepare buf for the 'isprint()' case: printable single char
+		 * strings; prepare hexbuf for the other case '\<2 hex digits>'.
+		 */
+		buf[1] = '\0';
+		hexbuf[0] = '\\';
 		for (len = dbtp->size, p = dbtp->data; len--; ++p)
 			if (isprint((int)*p)) {
 				if (*p == '\\' &&
 				    (ret = callback(handle, "\\")) != 0)
 					return (ret);
-				snprintf(buf, DBTBUFLEN, "%c", *p);
+				buf[0] = (char)*p;
 				if ((ret = callback(handle, buf)) != 0)
 					return (ret);
 			} else {
-				snprintf(buf, DBTBUFLEN, "\\%c%c",
-				    hex[(u_int8_t)(*p & 0xf0) >> 4],
-				    hex[*p & 0x0f]);
-				if ((ret = callback(handle, buf)) != 0)
+				(void)__db_tohex(p, 1, hexbuf + 1);
+				if ((ret = callback(handle, hexbuf)) != 0)
 					return (ret);
 			}
 	} else
-		for (len = dbtp->size, p = dbtp->data; len--; ++p) {
-			snprintf(buf, DBTBUFLEN, "%c%c",
-			    hex[(u_int8_t)(*p & 0xf0) >> 4],
-			    hex[*p & 0x0f]);
-			if ((ret = callback(handle, buf)) != 0)
+		for (len = dbtp->size, p = dbtp->data, count = DBTBUFLEN;
+		     len > 0; len -= count, p += count) {
+			if (count > len)
+				count = len;
+			(void)__db_tohex(p, count, hexbuf);
+			if ((ret = callback(handle, hexbuf)) != 0)
 				return (ret);
 		}
-
-	return (callback(handle, "\n"));
+	if (no_newline == 0)
+		return (callback(handle, "\n"));
+	else
+		return (ret);
 }
 
 /*
@@ -1598,7 +1821,7 @@ __db_prheader(dbp, subname, pflag, keyflag, handle, callback, vdp, meta_pgno)
 			goto err;
 		DB_INIT_DBT(dbt, subname, strlen(subname));
 		if ((ret = __db_prdbt(&dbt, 1,
-		    NULL, handle, callback, 0, 0)) != 0)
+		    NULL, handle, callback, 0, 0, 0)) != 0)
 			goto err;
 	}
 	switch (dbtype) {
@@ -1868,7 +2091,7 @@ __db_prheader(dbp, subname, pflag, keyflag, handle, callback, vdp, meta_pgno)
 				goto err;
 			for (i = 0; i < tmp_u_int32 - 1; i++)
 			    if ((ret = __db_prdbt(&keys[i],
-				pflag, " ", handle, callback, 0, 0)) != 0)
+				pflag, " ", handle, callback, 0, 0, 0)) != 0)
 					goto err;
 		}
 	}
@@ -1953,4 +2176,34 @@ __db_dbtype_to_string(type)
 		break;
 	}
 	return ("UNKNOWN TYPE");
+}
+
+/*
+ * __db_tohex --
+ *	Generate a hex string representation of a byte array.
+ *	The size of the destination must be at least 2*len + 1 bytes long,
+ *	to allow for the '\0' terminator, which is always added.
+ *
+ * PUBLIC: char *__db_tohex __P((const void *, size_t, char *));
+ */
+char *
+__db_tohex(source, len, dest)
+	const void *source;
+	size_t  len;
+	char *dest;
+{
+	static const char hex[] = "0123456789abcdef";
+	const u_int8_t *s;
+	char *d;
+
+	s = source;
+	d = dest;
+	while (len > 0) {
+	    *d++ = hex[(*s & 0xf0) >> 4];
+	    *d++ = hex[*s & 0x0f];
+	    s++;
+	    len--;
+	}
+	*d = '\0';
+	return ((char *)dest);
 }

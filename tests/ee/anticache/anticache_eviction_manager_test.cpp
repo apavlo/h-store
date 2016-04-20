@@ -204,6 +204,7 @@ TEST_F(AntiCacheEvictionManagerTest, MigrateBlock) {
     string temp = tempdir.name();
 
     ExecutorContext* ctx = m_engine->getExecutorContext();
+    ctx->setAntiCacheLevels(2);
 
     AntiCacheEvictionManager* acem = new AntiCacheEvictionManager(m_engine);
     AntiCacheDB* nvmdb = new NVMAntiCacheDB(ctx, temp, BLOCK_SIZE, MAX_SIZE);
@@ -293,6 +294,7 @@ TEST_F(AntiCacheEvictionManagerTest, FullBackingStore) {
     string temp = tempdir.name();
 
     ExecutorContext* ctx = m_engine->getExecutorContext();
+    ctx->setAntiCacheLevels(2);
 
     AntiCacheEvictionManager* acem = new AntiCacheEvictionManager(m_engine);
     AntiCacheDB* nvmdb = new NVMAntiCacheDB(ctx, temp, BLOCK_SIZE, 2 * BLOCK_SIZE - 1);
@@ -343,7 +345,6 @@ TEST_F(AntiCacheEvictionManagerTest, FullBackingStore) {
     delete nvmdb;
     delete acem;
 }
-
 
  
 

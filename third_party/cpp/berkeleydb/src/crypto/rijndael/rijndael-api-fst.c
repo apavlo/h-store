@@ -56,7 +56,7 @@ __db_makeKey(key, direction, keyLen, keyMaterial)
 {
 	u8 cipherKey[MAXKB];
 
-	if (key == NULL) {
+	if (key == NULL || keyMaterial == NULL) {
 		return BAD_KEY_INSTANCE;
 	}
 
@@ -72,9 +72,7 @@ __db_makeKey(key, direction, keyLen, keyMaterial)
 		return BAD_KEY_MAT;
 	}
 
-	if (keyMaterial != NULL) {
-		memcpy(cipherKey, keyMaterial, key->keyLen/8);
-	}
+	memcpy(cipherKey, keyMaterial, key->keyLen/8);
 
 	if (direction == DIR_ENCRYPT) {
 		key->Nr = __db_rijndaelKeySetupEnc(key->rk, cipherKey, keyLen);
