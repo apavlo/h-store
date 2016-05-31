@@ -47,8 +47,8 @@
 #define BINARYTREEUNIQUEINDEX_H_
 
 //#include <map>
-#include "stx/btree_map.h"
-#include "stx/btree.h"
+#include "stx-compact/btree_map.h"
+#include "stx-compact/btree.h"
 #include <iostream>
 #include "common/debuglog.h"
 #include "common/tabletuple.h"
@@ -67,7 +67,7 @@ class BinaryTreeUniqueIndex : public TableIndex
 
     //typedef std::map<KeyType, const void*, KeyComparator> MapType;
     typedef h_index::AllocatorTracker<pair<const KeyType, const void*> > AllocatorType;
-    typedef stx::btree_map<KeyType, const void*, KeyComparator, stx::btree_default_map_traits<KeyType, const void*>, AllocatorType> MapType;
+    typedef stx_hybrid_compact::btree_map<KeyType, const void*, KeyComparator, stx_hybrid_compact::btree_default_map_traits<KeyType, const void*>, AllocatorType> MapType;
 
 public:
 
@@ -78,12 +78,14 @@ public:
 
     bool addEntry(const TableTuple* tuple)
     {
+      //std::cout << "addEntry\n";
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return addEntryPrivate(tuple, m_tmp1);
     }
 
     bool deleteEntry(const TableTuple* tuple)
     {
+      //std::cout << "deleteEntry\n";
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         return deleteEntryPrivate(m_tmp1);
     }
@@ -91,15 +93,12 @@ public:
     bool replaceEntry(const TableTuple* oldTupleValue,
                       const TableTuple* newTupleValue)
     {
-        VOLT_TRACE("Do they ever replace Entry?\n");
-        // this can probably be optimized
+      //std::cout << "replaceEntry\n";
         m_tmp1.setFromTuple(oldTupleValue, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(newTupleValue, column_indices_, m_keySchema);
+
         if (m_eq(m_tmp1, m_tmp2))
-        {
-            // no update is needed for this index
             return true;
-        }
 
         bool deleted = deleteEntryPrivate(m_tmp1);
         bool inserted = addEntryPrivate(newTupleValue, m_tmp2);
@@ -110,17 +109,18 @@ public:
     }
     
     bool setEntryToNewAddress(const TableTuple *tuple, const void* address, const void *oldAddress) {
-        // set the key from the tuple
+      //std::cout << "setEntry\n";
         m_tmp1.setFromTuple(tuple, column_indices_, m_keySchema);
         ++m_updates; 
         
-        m_entries->erase(m_tmp1); 
+        m_entries->erase_one_hybrid(m_tmp1); 
         std::pair<typename MapType::iterator, bool> retval = m_entries->insert(std::pair<KeyType, const void*>(m_tmp1, address));
         return retval.second;
     }
 
     bool checkForIndexChange(const TableTuple* lhs, const TableTuple* rhs)
     {
+      //std::cout << "check\n";
         m_tmp1.setFromTuple(lhs, column_indices_, m_keySchema);
         m_tmp2.setFromTuple(rhs, column_indices_, m_keySchema);
         return !(m_eq(m_tmp1, m_tmp2));
@@ -128,18 +128,20 @@ public:
 
     bool exists(const TableTuple* values)
     {
+      //std::cout << "exists\n";
         ++m_lookups;
         m_tmp1.setFromTuple(values, column_indices_, m_keySchema);
-        return (m_entries->find(m_tmp1) != m_entries->end());
+        return (!(m_entries->find_hybrid(m_tmp1).isEnd()));
     }
 
     bool moveToKey(const TableTuple* searchKey)
     {
+      //std::cout << "moveToKey\n";
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromKey(searchKey);
-        m_keyIter = m_entries->find(m_tmp1);
-        if (m_keyIter == m_entries->end()) {
+        m_keyIter = m_entries->find_hybrid(m_tmp1);
+        if (m_keyIter.isEnd()) {
             m_match.move(NULL);
             return false;
         }
@@ -149,11 +151,12 @@ public:
 
     bool moveToTuple(const TableTuple* searchTuple)
     {
+      //std::cout << "moveToTuple\n";
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromTuple(searchTuple, column_indices_, m_keySchema);
-        m_keyIter = m_entries->find(m_tmp1);
-        if (m_keyIter == m_entries->end()) {
+        m_keyIter = m_entries->find_hybrid(m_tmp1);
+        if (m_keyIter.isEnd()) {
             m_match.move(NULL);
             return false;
         }
@@ -163,51 +166,53 @@ public:
 
     void moveToKeyOrGreater(const TableTuple* searchKey)
     {
+      //std::cout << "moveToKeyOrGreater\n";
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromKey(searchKey);
-        m_keyIter = m_entries->lower_bound(m_tmp1);
+        m_keyIter = m_entries->lower_bound_hybrid(m_tmp1);
     }
 
     void moveToGreaterThanKey(const TableTuple* searchKey)
     {
+      //std::cout << "moveToGreaterThanKey\n";
         ++m_lookups;
         m_begin = true;
         m_tmp1.setFromKey(searchKey);
-        m_keyIter = m_entries->upper_bound(m_tmp1);
+        m_keyIter = m_entries->upper_bound_hybrid(m_tmp1);
     }
 
     void moveToEnd(bool begin)
     {
+      //std::cout << "moveToEnd\n";
         ++m_lookups;
-        m_begin = begin;
-        if (begin)
-            m_keyIter = m_entries->begin();
-        else
-            m_keyRIter = m_entries->rbegin();
+        //m_begin = begin;
+        //if (begin)
+	m_keyIter = m_entries->hybrid_begin();
+	++m_keyIter;
+        //else
+	//m_keyRIter = m_entries->rbegin();
+	  
     }
 
     TableTuple nextValue()
     {
+      //std::cout << "nextValue\n";
         TableTuple retval(m_tupleSchema);
 
-        if (m_begin) {
-            if (m_keyIter == m_entries->end())
-                return TableTuple();
-            retval.move(const_cast<void*>(m_keyIter->second));
-            ++m_keyIter;
-        } else {
-            if (m_keyRIter == (typename MapType::const_reverse_iterator) m_entries->rend())
-                return TableTuple();
-            retval.move(const_cast<void*>(m_keyRIter->second));
-            ++m_keyRIter;
-        }
+	if (m_keyIter.isEnd())
+	  return TableTuple();
+	retval.move(const_cast<void*>(m_keyIter->second));
+	if (!m_keyIter.isComplete())
+	  m_keyIter = m_entries->lower_bound_hybrid(m_keyIter->first);
+	++m_keyIter;
 
         return retval;
     }
 
     TableTuple nextValueAtKey()
     {
+      //std::cout << "nextValueAtKey\n";
         TableTuple retval = m_match;
         m_match.move(NULL);
         return retval;
@@ -215,63 +220,34 @@ public:
 
     bool advanceToNextKey()
     {
-        if (m_begin) {
-            ++m_keyIter;
-            if (m_keyIter == m_entries->end())
-            {
-                m_match.move(NULL);
-                return false;
-            }
-            m_match.move(const_cast<void*>(m_keyIter->second));
-        } else {
-            ++m_keyRIter;
-            if (m_keyRIter == (typename MapType::const_reverse_iterator) m_entries->rend())
-            {
-                m_match.move(NULL);
-                return false;
-            }
-            m_match.move(const_cast<void*>(m_keyRIter->second));
-        }
+      //std::cout << "advanceToNextKey\n";
+      if (!m_keyIter.isComplete())
+	m_keyIter = m_entries->lower_bound_hybrid(m_keyIter->first);
+      ++m_keyIter;
+      if (m_keyIter.isEnd())
+	{
+	  m_match.move(NULL);
+	  return false;
+	}
+      m_match.move(const_cast<void*>(m_keyIter->second));
 
-        return !m_match.isNullTuple();
+      return !m_match.isNullTuple();
     }
 
     size_t getSize() const { return m_entries->size(); }
     int64_t getMemoryEstimate() const {
-        /** Debug code
-        printf("getMomoryEstimate called! %d %ld %lu\n", m_id, h_index::indexMemoryTable[m_id], h_index::indexMemoryTable.size());
-        for (int i = 0; i < h_index::indexMemoryTable.size(); ++i) {
-            int64_t memory = h_index::indexMemoryTable[i];
-            printf("Index Memory: %d %ld\n", i, memory);
-        }*/
-        //h_index::currentIndexID  = m_id;
-        //return h_index::indexMemoryTable[m_id];
-        return m_memoryEstimate;
+      return m_memoryEstimate + m_entries->get_bloom_filter_size();
     }
     
-    std::string getTypeName() const { return "BinaryTreeUniqueIndex"; };
-    std::string debug() const
-    {
-        std::ostringstream buffer;
-        buffer << TableIndex::debug() << std::endl;
+    std::string getTypeName() const { return "HybridUniqueIndex"; };
 
-        typename MapType::const_iterator i = m_entries->begin();
-        while (i != m_entries->end()) {
-            TableTuple retval(m_tupleSchema);
-            retval.move(const_cast<void*>(i->second));
-            buffer << retval.debugNoHeader() << std::endl;
-            ++i;
-        }
-        std::string ret(buffer.str());
-        return (ret);
-    }
 protected:
     BinaryTreeUniqueIndex(const TableIndexScheme &scheme) :
         TableIndex(scheme),
-        m_begin(true),
-        m_eq(m_keySchema)
+	m_begin(true),
+	m_eq(m_keySchema)
     {
-      std::cout << "Binary Unique\n";
+      std::cout << "Hybrid Unique\n";
         m_match = TableTuple(m_tupleSchema);
         m_allocator = new AllocatorType(&m_memoryEstimate);
         m_entries = new MapType(KeyComparator(m_keySchema), (*m_allocator));
@@ -280,28 +256,16 @@ protected:
     inline bool addEntryPrivate(const TableTuple* tuple, const KeyType &key)
     {
         ++m_inserts;
-        std::pair<typename MapType::iterator, bool> retval =
-            m_entries->insert(std::pair<KeyType, const void*>(key,
-                        tuple->address()));
+        std::pair<typename MapType::iterator, bool> retval = 
+	  m_entries->insert(key, tuple->address());
         return retval.second;
     }
 
     inline bool deleteEntryPrivate(const KeyType &key)
     {
         ++m_deletes;
-        return m_entries->erase(key);
+        return m_entries->erase_one_hybrid(key);
     }
-
-    /*
-       inline bool setEntryToNullPrivate(const KeyType &key)
-       {        
-       ++m_updates; 
-
-       m_entries->erase(key); 
-       std::pair<typename MapType::iterator, bool> retval = m_entries->insert(std::pair<KeyType, const void*>(key, NULL));
-       return retval.second;
-       }
-     */
 
     MapType *m_entries;
     AllocatorType *m_allocator;
@@ -310,8 +274,7 @@ protected:
 
     // iteration stuff
     bool m_begin;
-    typename MapType::const_iterator m_keyIter;
-    typename MapType::const_reverse_iterator m_keyRIter;
+    typename MapType::hybrid_iterator m_keyIter;
     TableTuple m_match;
 
     // comparison stuff
@@ -320,4 +283,4 @@ protected:
 
 }
 
-#endif // BINARYTREEUNIQUEINDEX_H_
+#endif // HYBRIDUNIQUEINDEX_H_
