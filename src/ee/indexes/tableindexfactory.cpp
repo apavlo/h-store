@@ -62,7 +62,8 @@
 #include "indexes/BinaryTreeMultiMapIndex.h"
 #else
 #include "indexes/HybridUniqueIndex.h"
-#include "indexes/HybridMultiIndex.h"
+//#include "indexes/HybridMultiIndex.h"
+#include "indexes/BinaryTreeMultiMapIndex.h"
 #endif
 
 namespace voltdb {
