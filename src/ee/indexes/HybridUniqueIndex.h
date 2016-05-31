@@ -247,7 +247,6 @@ protected:
 	m_begin(true),
 	m_eq(m_keySchema)
     {
-      std::cout << "Hybrid Unique\n";
         m_match = TableTuple(m_tupleSchema);
         m_allocator = new AllocatorType(&m_memoryEstimate);
         m_entries = new MapType(KeyComparator(m_keySchema), (*m_allocator));
