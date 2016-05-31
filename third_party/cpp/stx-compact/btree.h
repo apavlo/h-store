@@ -2105,7 +2105,6 @@ public:
         }
 
         m_stats_static = tree_stats();
-        //m_root_static = NULL;
         BTREE_ASSERT(m_stats_static.itemcount == 0);
     }
 
@@ -2520,12 +2519,7 @@ public:
 	  if (!KeyMayMatch_static(reinterpret_cast<const char*>(&key), sizeof(key_type), bloom_filter_static))
 	    return false;
 	}
-	/*
-	if (USE_MIN_MAX) {
-	  if (key_less(key, min_key) || key_less(max_key, key))
-	    return false;
-	}
-	*/
+
         while (!n->isleafnode())
         {
             const inner_node* inner = static_cast<const inner_node*>(n);
@@ -2584,13 +2578,7 @@ public:
 	    return static_end();
 	  }
 	}
-	/*
-	if (USE_MIN_MAX) {
-	  if (key_less(key, min_key) || key_less(max_key, key)) {
-	    return static_end();
-	  }
-	}
-	*/
+
         while (!n->isleafnode())
         {
             const inner_node* inner = static_cast<const inner_node*>(n);
@@ -3611,12 +3599,7 @@ public:
 	  return false;
 	}
       }
-      /*
-      if (USE_MIN_MAX) {
-	if (key_less(key, min_key) || key_less(max_key, key))
-	  return false;
-      }
-      */
+
       iterator iter = find_static(key);
       if (iter == static_end()) {
 	return false;
@@ -3658,12 +3641,7 @@ public:
 	  return 0;
 	}
       }
-      /*
-      if (USE_MIN_MAX) {
-	if (key_less(key, min_key) || key_less(max_key, key))
-	  return 0;
-      }
-      */
+
         size_type c = 0;
 
         while (erase_one_static(key))
@@ -3712,12 +3690,7 @@ public:
 	  return;
 	}
       }
-      /*
-      if (USE_MIN_MAX) {
-	if (key_less(iter.get_currnode()->slotkey[iter.get_currslot()], min_key) || key_less(max_key, iter.get_currnode()->slotkey[iter.get_currslot()]))
-	  return;
-      }
-      */
+
       if (iter != static_end()) {
 	iter.get_currnode()->slotdata[iter.get_currslot()] = (data_type)0;	
       }

@@ -2174,7 +2174,6 @@ public:
         }
 
         m_stats_static = tree_stats();
-        //m_root_static = NULL;
         BTREE_ASSERT(m_stats_static.itemcount == 0);
     }
 
@@ -5066,9 +5065,6 @@ private:
     //huanchen===================================================================================
 public:
     void merge() {
-      //std::cout << "MERGE START=================================================================\n";
-      //std::cout << "# items dynamic = " << m_stats.itemcount << "\n";
-      //std::cout << "# items static = " << m_stats_static.itemcount << "\n";
       leaf_node *ln = m_headleaf; //dynamic leaf cursor
       leaf_multidata_node *ln_static = m_headleaf_static; //static leaf cursor
       int curslot = 0; //static leaf slot cursor
@@ -5100,7 +5096,6 @@ public:
               node_count++;
             }
 	    
-	    //if (currkey != ln->slotkey[slot]) {
 	    if (!key_equal(currkey, ln->slotkey[slot])) {
 	      ln_static->slotkey[curslot] = currkey;
 	      int data_size = data_count * sizeof(data_type);
@@ -5168,7 +5163,6 @@ public:
               node_count++;
             }
 	    if (key_lessequal(ln->slotkey[slot], ln_static->slotkey[slot_static])) {
-	      //if (currkey != ln->slotkey[slot]) {
 	      if (!key_equal(currkey, ln->slotkey[slot])) {
 		ln_new->slotkey[slot_new] = currkey;
 		int data_size = data_count * sizeof(data_type);
@@ -5188,7 +5182,6 @@ public:
 	      m_stats_static.itemcount++;
             }
             else {
-	      //if (currkey != ln_static->slotkey[slot_static]) {
 	      if (!key_equal(currkey, ln_static->slotkey[slot_static])) {
 		ln_new->slotkey[slot_new] = currkey;
 		int data_size = data_count * sizeof(data_type);
@@ -5239,7 +5232,6 @@ public:
               slot_new = 0;
               node_count++;
             }
-	    //if (currkey != ln->slotkey[slot]) {
 	    if (!key_equal(currkey, ln->slotkey[slot])) {
 	      ln_new->slotkey[slot_new] = currkey;
 	      int data_size = data_count * sizeof(data_type);
@@ -5274,7 +5266,6 @@ public:
               slot_new = 0;
               node_count++;
             }
-	    //if (currkey != ln_static->slotkey[slot_static]) {
 	    if (!key_equal(currkey, ln_static->slotkey[slot_static])) {
 	      ln_new->slotkey[slot_new] = currkey;
 	      int data_size = data_count * sizeof(data_type);
@@ -5402,7 +5393,6 @@ public:
 	m_root_static = in_static;
       } //END if
       else {
-	//m_root_static = ln_static;
 	m_root_static = m_headleaf_static;
       } //END else
 
@@ -5411,11 +5401,6 @@ public:
 	free(bloom_filter);
 	bloom_filter = CreateEmptyFilter(m_stats_static.itemcount/btree_merge_ratio);
       }
-
-      //std::cout << "-----------------------------------------------------\n";
-      //std::cout << "# items dynamic = " << m_stats.itemcount << "\n";
-      //std::cout << "# items static = " << m_stats_static.itemcount << "\n";
-      //std::cout << "MERGE END=================================================================\n";
 
     } //END merge
 

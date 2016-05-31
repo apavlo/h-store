@@ -44,7 +44,7 @@
  */
 
 //Hybrid Index
-#define USE_HYBRID 1
+#define USE_HYBRID 0
 
 #include <cassert>
 #include <iostream>
@@ -62,8 +62,7 @@
 #include "indexes/BinaryTreeMultiMapIndex.h"
 #else
 #include "indexes/HybridUniqueIndex.h"
-//#include "indexes/HybridMultiIndex.h"
-#include "indexes/BinaryTreeMultiMapIndex.h"
+#include "indexes/HybridMultiIndex.h"
 #endif
 
 namespace voltdb {
