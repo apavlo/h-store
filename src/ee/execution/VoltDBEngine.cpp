@@ -1311,7 +1311,7 @@ int VoltDBEngine::getStats(int selector, int locators[], int numLocators,
                     catalog::Index *catIndex = idx_iterator->second;
                     CatalogId indexId = computeIndexStatsId(catTable->relativeIndex(), catIndex->relativeIndex());
                     locatorIds.push_back(indexId);
-                    VOLT_ERROR("FETCH IndexStats: %s.%s -> %d\n",
+                    VOLT_DEBUG("FETCH IndexStats: %s.%s -> %d\n",
                                catTable->name().c_str(), catIndex->name().c_str(), indexId);
                 } // FOR
             } // FOR
