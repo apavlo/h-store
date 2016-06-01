@@ -43,6 +43,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+//Hybrid Index
+#define USE_HYBRID 0
+
 #include <cassert>
 #include <iostream>
 #include "indexes/tableindexfactory.h"
@@ -51,10 +54,16 @@
 #include "indexes/tableindex.h"
 #include "indexes/indexkey.h"
 #include "indexes/arrayuniqueindex.h"
-#include "indexes/BinaryTreeUniqueIndex.h"
-#include "indexes/BinaryTreeMultiMapIndex.h"
 #include "indexes/HashTableUniqueIndex.h"
 #include "indexes/HashTableMultiMapIndex.h"
+
+#if (USE_HYBRID == 0)
+#include "indexes/BinaryTreeUniqueIndex.h"
+#include "indexes/BinaryTreeMultiMapIndex.h"
+#else
+#include "indexes/HybridUniqueIndex.h"
+#include "indexes/HybridMultiIndex.h"
+#endif
 
 namespace voltdb {
 
@@ -63,6 +72,9 @@ namespace voltdb {
         bool unique = scheme.unique;
         bool ints_only = scheme.intsOnly;
         TableIndexType type = scheme.type;
+	//Hybrid Index
+	if (USE_HYBRID)
+	  type = BALANCED_TREE_INDEX;
         std::vector<int32_t> columnIndices = scheme.columnIndices;
         voltdb::TupleSchema *tupleSchema = scheme.tupleSchema;
         std::vector<voltdb::ValueType> keyColumnTypes;
