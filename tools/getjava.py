@@ -6,7 +6,7 @@ import os, sys, re, string, commands
 jvmVersion = None
 output = commands.getoutput("java -version")
 
-regex = re.compile("java version \"(1\.\d)\..*?\"", re.IGNORECASE)
+regex = re.compile("(?:java|openjdk) version \"(1\.\d)\..*?\"", re.IGNORECASE)
 m = regex.search(output)
 if m: jvmVersion = m.group(1)
 
