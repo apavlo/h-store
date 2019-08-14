@@ -111,6 +111,8 @@ import edu.brown.api.results.BenchmarkResults;
 import edu.brown.api.results.CSVResultsPrinter;
 import edu.brown.api.results.JSONResultsPrinter;
 import edu.brown.api.results.MemoryStatsPrinter;
+import edu.brown.api.results.IndexMemoryStatsPrinter;
+
 import edu.brown.api.results.AnticacheMemoryStatsPrinter;
 import edu.brown.api.results.TableStatsPrinter;
 import edu.brown.api.results.ResponseEntries;
@@ -949,7 +951,16 @@ public class BenchmarkController {
             File f = new File(hstore_conf.client.output_memory_stats);
             this.registerInterest(new MemoryStatsPrinter(this.getClientConnection(), f));
         }
-        
+
+        // Index Memory Stats output
+        if (hstore_conf.client.output_index_memory_stats != null && hstore_conf.client.output_index_memory_stats.isEmpty() == false) {
+            if (hstore_conf.client.output_index_memory_stats.equalsIgnoreCase("true")) {
+                LOG.warn("The HStoreConf parameter 'hstore_conf.client.output_index_memory_stats' should be a file path, not a boolean value");
+            }
+            File f = new File(hstore_conf.client.output_index_memory_stats);
+            this.registerInterest(new IndexMemoryStatsPrinter(this.getClientConnection(), f));
+        }
+
         // Anticache Memory Stats Output
         if (hstore_conf.client.output_anticache_memory_stats != null && hstore_conf.client.output_anticache_memory_stats.isEmpty() == false) {
             if (hstore_conf.client.output_anticache_memory_stats.equalsIgnoreCase("true")) {

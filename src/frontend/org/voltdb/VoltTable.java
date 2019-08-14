@@ -455,7 +455,7 @@ public class VoltTable extends VoltTableRow implements FastSerializable {
         return name;
     }
     
-    protected final String[] getColumnNames() {
+    public final String[] getColumnNames() {
         String col_names[] = new String[m_colCount];
         for (int i = 0; i < m_colCount; i++) {
             col_names[i] = this.getColumnName(i);
