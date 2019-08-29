@@ -168,7 +168,7 @@ public class MarkovViewer extends AbstractViewer {
             VisualizationViewer<V,E> vv = (GraphVisualizationPanel<V,E>)e.getSource();
             Layout layout = vv.getGraphLayout();
             Point2D p = e.getPoint();
-            vertex = vv.getPickSupport().getVertex(layout,p.getX(), p.getY());
+            vertex = (V) vv.getPickSupport().getVertex(layout,p.getX(), p.getY());
             if(vertex != null){
                 MarkovVertex v = (MarkovVertex)vertex;
 /**                JPopupMenu j = new JPopupMenu(v.toString());

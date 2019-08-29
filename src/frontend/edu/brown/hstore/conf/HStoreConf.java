@@ -1933,6 +1933,15 @@ public final class HStoreConf {
             experimental=false
         )
         public String output_memory_stats;
+
+        @ConfigProperty(
+            description="Defines the path where the BenchmarkController will dump a CSV containing " +
+                        "the Index memory stats information about the cluster. This will periodically invoke " +
+                        "the @Statistics system stored procedure to collect SysProcSelector.INDEX data.",
+            defaultNull=true,
+            experimental=false
+        )
+        public String output_index_memory_stats;
         
         @ConfigProperty(
             description="Defines the path where the BenchmarkController will dump a CSV containing " +
