@@ -44,7 +44,7 @@
  */
 
 //Hybrid Index
-#define USE_HYBRID 0
+#define USE_BTREE_ONLY 1
 
 #include <cassert>
 #include <iostream>
@@ -57,13 +57,8 @@
 #include "indexes/HashTableUniqueIndex.h"
 #include "indexes/HashTableMultiMapIndex.h"
 
-#if (USE_HYBRID == 0)
 #include "indexes/BinaryTreeUniqueIndex.h"
 #include "indexes/BinaryTreeMultiMapIndex.h"
-#else
-#include "indexes/HybridUniqueIndex.h"
-#include "indexes/HybridMultiIndex.h"
-#endif
 
 namespace voltdb {
 
@@ -72,8 +67,8 @@ namespace voltdb {
         bool unique = scheme.unique;
         bool ints_only = scheme.intsOnly;
         TableIndexType type = scheme.type;
-	//Hybrid Index
-	if (USE_HYBRID)
+	// Use BTree indexes
+	if (USE_BTREE_ONLY)
 	  type = BALANCED_TREE_INDEX;
         std::vector<int32_t> columnIndices = scheme.columnIndices;
         voltdb::TupleSchema *tupleSchema = scheme.tupleSchema;
