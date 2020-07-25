@@ -122,7 +122,7 @@ class StreamingStep(Step):
         :type output: str
         :param output: The output uri
         :type jar: str
-        :param jar: The hadoop streaming jar. This can be either a local path on the master node, or an s3:// URI.
+        :param jar: The hadoop streaming jar. This can be either a local path on the main node, or an s3:// URI.
         """
         self.name = name
         self.mapper = mapper

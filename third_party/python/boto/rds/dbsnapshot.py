@@ -33,7 +33,7 @@ class DBSnapshot(object):
         self.port = None
         self.status = None
         self.availability_zone = None
-        self.master_username = None
+        self.main_username = None
         self.allocated_storage = None
         self.instance_id = None
         self.availability_zone = None
@@ -61,8 +61,8 @@ class DBSnapshot(object):
             self.status = value
         elif name == 'AvailabilityZone':
             self.availability_zone = value
-        elif name == 'MasterUsername':
-            self.master_username = value
+        elif name == 'MainUsername':
+            self.main_username = value
         elif name == 'AllocatedStorage':
             self.allocated_storage = int(value)
         elif name == 'SnapshotTime':

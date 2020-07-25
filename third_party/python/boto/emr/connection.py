@@ -189,8 +189,8 @@ class EmrConnection(AWSQueryConnection):
 		return self.get_object('ModifyInstanceGroups', params, ModifyInstanceGroupsResponse, verb='POST')
 
     def run_jobflow(self, name, log_uri, ec2_keyname=None, availability_zone=None,
-                    master_instance_type='m1.small',
-                    slave_instance_type='m1.small', num_instances=1,
+                    main_instance_type='m1.small',
+                    subordinate_instance_type='m1.small', num_instances=1,
                     action_on_failure='TERMINATE_JOB_FLOW', keep_alive=False,
                     enable_debugging=False,
                     hadoop_version='0.18',
@@ -207,10 +207,10 @@ class EmrConnection(AWSQueryConnection):
         :param ec2_keyname: EC2 key used for the instances
         :type availability_zone: str
         :param availability_zone: EC2 availability zone of the cluster
-        :type master_instance_type: str
-        :param master_instance_type: EC2 instance type of the master
-        :type slave_instance_type: str
-        :param slave_instance_type: EC2 instance type of the slave nodes
+        :type main_instance_type: str
+        :param main_instance_type: EC2 instance type of the main
+        :type subordinate_instance_type: str
+        :param subordinate_instance_type: EC2 instance type of the subordinate nodes
         :type num_instances: int
         :param num_instances: Number of instances in the Hadoop cluster
         :type action_on_failure: str
@@ -233,7 +233,7 @@ class EmrConnection(AWSQueryConnection):
 
         # Instance args
         instance_params = self._build_instance_args(ec2_keyname, availability_zone,
-                                                    master_instance_type, slave_instance_type,
+                                                    main_instance_type, subordinate_instance_type,
                                                     num_instances, keep_alive, hadoop_version)
         params.update(instance_params)
 
@@ -310,11 +310,11 @@ class EmrConnection(AWSQueryConnection):
                 params['Steps.member.%s.%s' % (i+1, key)] = value
         return params
 
-    def _build_instance_args(self, ec2_keyname, availability_zone, master_instance_type,
-                             slave_instance_type, num_instances, keep_alive, hadoop_version):
+    def _build_instance_args(self, ec2_keyname, availability_zone, main_instance_type,
+                             subordinate_instance_type, num_instances, keep_alive, hadoop_version):
         params = {
-            'Instances.MasterInstanceType' : master_instance_type,
-            'Instances.SlaveInstanceType' : slave_instance_type,
+            'Instances.MainInstanceType' : main_instance_type,
+            'Instances.SubordinateInstanceType' : subordinate_instance_type,
             'Instances.InstanceCount' : num_instances,
             'Instances.KeepJobFlowAliveWhenNoSteps' : str(keep_alive).lower(),
             'Instances.HadoopVersion' : hadoop_version
