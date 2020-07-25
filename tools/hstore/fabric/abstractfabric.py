@@ -83,7 +83,7 @@ ENV_DEFAULT = {
     # H-Store Options
     "hstore.basedir":                   None,
     "hstore.git":                       "git://github.com/apavlo/h-store.git",
-    "hstore.git_branch":                "master",
+    "hstore.git_branch":                "main",
     "hstore.git_options":               "",
     "hstore.clean":                     False,
     "hstore.exec_prefix":               "",

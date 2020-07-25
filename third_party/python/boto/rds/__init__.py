@@ -113,7 +113,7 @@ class RDSConnection(AWSQueryConnection):
         return self.get_list('DescribeDBInstances', params, [('DBInstance', DBInstance)])
 
     def create_dbinstance(self, id, allocated_storage, instance_class,
-                          master_username, master_password, port=3306,
+                          main_username, main_password, port=3306,
                           engine='MySQL5.1', db_name=None, param_group=None,
                           security_groups=None, availability_zone=None,
                           preferred_maintenance_window=None,
@@ -150,13 +150,13 @@ class RDSConnection(AWSQueryConnection):
         :type engine: str
         :param engine: Name of database engine. Must be MySQL5.1 for now.
 
-        :type master_username: str
-        :param master_username: Name of master user for the DBInstance.
+        :type main_username: str
+        :param main_username: Name of main user for the DBInstance.
                                 Must be 1-15 alphanumeric characters, first
                                 must be a letter.
 
-        :type master_password: str
-        :param master_password: Password of master user for the DBInstance.
+        :type main_password: str
+        :param main_password: Password of main user for the DBInstance.
                                 Must be 4-16 alphanumeric characters.
 
         :type port: int
@@ -217,8 +217,8 @@ class RDSConnection(AWSQueryConnection):
                   'AllocatedStorage' : allocated_storage,
                   'DBInstanceClass' : instance_class,
                   'Engine' : engine,
-                  'MasterUsername' : master_username,
-                  'MasterUserPassword' : master_password}
+                  'MainUsername' : main_username,
+                  'MainUserPassword' : main_password}
         if port:
             params['Port'] = port
         if db_name:
@@ -321,7 +321,7 @@ class RDSConnection(AWSQueryConnection):
 
     def modify_dbinstance(self, id, param_group=None, security_groups=None,
                           preferred_maintenance_window=None,
-                          master_password=None, allocated_storage=None,
+                          main_password=None, allocated_storage=None,
                           instance_class=None,
                           backup_retention_period=None,
                           preferred_backup_window=None,
@@ -343,8 +343,8 @@ class RDSConnection(AWSQueryConnection):
                                              occur.
                                              Default is Sun:05:00-Sun:09:00
 
-        :type master_password: str
-        :param master_password: Password of master user for the DBInstance.
+        :type main_password: str
+        :param main_password: Password of main user for the DBInstance.
                                 Must be 4-15 alphanumeric characters.
 
         :type allocated_storage: int
@@ -402,8 +402,8 @@ class RDSConnection(AWSQueryConnection):
             self.build_list_params(params, l, 'DBSecurityGroups.member')
         if preferred_maintenance_window:
             params['PreferredMaintenanceWindow'] = preferred_maintenance_window
-        if master_password:
-            params['MasterUserPassword'] = master_password
+        if main_password:
+            params['MainUserPassword'] = main_password
         if allocated_storage:
             params['AllocatedStorage'] = allocated_storage
         if instance_class:

@@ -523,7 +523,7 @@ class EC2Fabric(AbstractFabric):
                 append("/etc/hosts", hosts_line, use_sudo=True)
         
             sudo("apt-get --yes install %s" % " ".join(NFSCLIENT_PACKAGES))
-            append("/etc/auto.master", "%s /etc/auto.hstore" % nfs_dir, use_sudo=True)
+            append("/etc/auto.main", "%s /etc/auto.hstore" % nfs_dir, use_sudo=True)
             append("/etc/auto.hstore", "* hstore-nfs:%s/&" % nfs_dir, use_sudo=True)
             sudo("/etc/init.d/autofs start")
         ## IF
